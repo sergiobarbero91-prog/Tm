@@ -97,7 +97,15 @@ interface FlightComparison {
   last_update: string;
 }
 
+interface User {
+  id: string;
+  username: string;
+  phone: string | null;
+  role: string;
+}
+
 export default function TransportMeter() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'trains' | 'flights'>('trains');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
@@ -107,6 +115,67 @@ export default function TransportMeter() {
   const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
+
+  // Auth states
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Check for existing session
+  useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userStr = await AsyncStorage.getItem('user');
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        setCurrentUser(user);
+      }
+    } catch (error) {
+      console.error('Error checking session:', error);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!loginUsername || !loginPassword) {
+      Alert.alert('Error', 'Ingresa usuario y contraseña');
+      return;
+    }
+
+    setLoginLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE}/api/auth/login`, {
+        username: loginUsername,
+        password: loginPassword
+      });
+
+      const { access_token, user } = response.data;
+      await AsyncStorage.setItem('token', access_token);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      
+      setCurrentUser(user);
+      setShowLoginModal(false);
+      setLoginUsername('');
+      setLoginPassword('');
+
+      Alert.alert('Bienvenido', `Hola, ${user.username}!`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Usuario o contraseña incorrectos');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('user');
+    setCurrentUser(null);
+  };
 
   // Register for notifications
   useEffect(() => {
