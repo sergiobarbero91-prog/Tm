@@ -433,9 +433,9 @@ export default function TransportMeter() {
                 Actualizado: {formatLastUpdate(trainData.last_update)}
               </Text>
             </View>
-            {trainData.is_night_time && trainData.message && (
+            {trainData.message && (
               <View style={styles.nightTimeMessage}>
-                <Ionicons name="moon" size={16} color="#F59E0B" />
+                <Ionicons name="information-circle" size={16} color="#F59E0B" />
                 <Text style={styles.nightTimeText}>{trainData.message}</Text>
               </View>
             )}
