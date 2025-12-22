@@ -152,7 +152,6 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
     }
     
     url_path = url_paths.get(station_id, url_paths["60000"])
-    # Use /w/ URL format for better compatibility
     base_url = f"https://www.adif.es/w/{url_path}"
     asset_id = STATION_ASSETS.get(station_id, "3061889")
     
@@ -160,44 +159,98 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
         async with aiohttp.ClientSession() as session:
             # First get the page to obtain auth token
             async with session.get(base_url, headers=HEADERS, timeout=30) as response:
-                if response.status == 200:
-                    html = await response.text()
+                if response.status != 200:
+                    logger.warning(f"Failed to get page for station {station_id}")
+                    return await fetch_adif_arrivals_scrape(station_id)
+                
+                html = await response.text()
+                
+                # Extract auth token
+                auth_match = re.search(r'p_p_auth=([^"&]+)', html)
+                if not auth_match:
+                    logger.warning(f"Could not find auth token for station {station_id}")
+                    return await fetch_adif_arrivals_scrape(station_id)
+                
+                auth_token = auth_match.group(1)
+                
+                # Make API call for media/larga distancia
+                api_url = f"https://www.adif.es/w/{url_path}?p_p_id=servicios_estacion_ServiciosEstacionPortlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=%2FconsultarHorario&p_p_cacheability=cacheLevelPage&assetEntryId={asset_id}&p_p_auth={auth_token}"
+                
+                api_headers = {
+                    **HEADERS,
+                    "Accept": "application/json, text/javascript, */*; q=0.01",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": base_url,
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                }
+                
+                # Load multiple pages to get more results
+                for page in range(3):
+                    data_str = f"_servicios_estacion_ServiciosEstacionPortlet_searchType=proximasLlegadas&_servicios_estacion_ServiciosEstacionPortlet_trafficType=avldmd&_servicios_estacion_ServiciosEstacionPortlet_numPage={page}&_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork=MADRID&_servicios_estacion_ServiciosEstacionPortlet_stationCode={station_id}"
                     
-                    # Extract auth token
-                    auth_match = re.search(r'p_p_auth=([^"&]+)', html)
-                    if not auth_match:
-                        logger.warning(f"Could not find auth token for station {station_id}")
-                        return await fetch_adif_arrivals_scrape(station_id)
+                    # Try up to 3 times per page
+                    success = False
+                    for retry in range(3):
+                        try:
+                            async with session.post(api_url, headers=api_headers, data=data_str, timeout=30) as api_response:
+                                if api_response.status != 200:
+                                    logger.warning(f"API returned status {api_response.status} for station {station_id} page {page}")
+                                    await asyncio.sleep(0.5)
+                                    continue
+                                
+                                result = await api_response.json()
+                                
+                                if result.get("error"):
+                                    logger.warning(f"API error for station {station_id} page {page}, retry {retry+1}")
+                                    await asyncio.sleep(0.5)
+                                    continue
+                                
+                                horarios = result.get("horarios", [])
+                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
+                                
+                                if not horarios:
+                                    success = True
+                                    break
+                                
+                                for h in horarios:
+                                    train_code = h.get("tren", "")
+                                    type_match = re.search(r'([A-Z]{2,})', train_code)
+                                    train_type = type_match.group(1) if type_match else "TREN"
+                                    number_match = re.search(r'(\d{4,5})', train_code)
+                                    train_number = number_match.group(1) if number_match else train_code
+                                    
+                                    arrivals.append({
+                                        "time": h.get("hora", "00:00"),
+                                        "origin": h.get("estacion", "Unknown"),
+                                        "train_type": train_type.upper(),
+                                        "train_number": train_number,
+                                        "platform": h.get("via", "-") or "-",
+                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+                                    })
+                                
+                                success = True
+                                break
+                        except Exception as e:
+                            logger.warning(f"Error on retry {retry+1} for station {station_id} page {page}: {e}")
+                            await asyncio.sleep(0.5)
                     
-                    auth_token = auth_match.group(1)
-                    
-                    # Make API call for media/larga distancia
-                    api_url = f"https://www.adif.es/w/{url_path}?p_p_id=servicios_estacion_ServiciosEstacionPortlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=%2FconsultarHorario&p_p_cacheability=cacheLevelPage&assetEntryId={asset_id}&p_p_auth={auth_token}"
-                    
-                    api_headers = {
-                        **HEADERS,
-                        "Accept": "application/json, text/javascript, */*; q=0.01",
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Referer": base_url,
-                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    }
-                    
-                    # Use "avldmd" for AV/Larga Distancia/Media Distancia filter
-                    data = {
-                        "_servicios_estacion_ServiciosEstacionPortlet_searchType": "proximasLlegadas",
-                        "_servicios_estacion_ServiciosEstacionPortlet_trafficType": "avldmd",  # AV/Larga Distancia/Media Distancia
-                        "_servicios_estacion_ServiciosEstacionPortlet_numPage": "0",
-                        "_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork": "MADRID",
-                        "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
-                    }
-                    
-                    # Load multiple pages to get more results
-                    page = 0
-                    max_pages = 3  # Limit to avoid infinite loops
-                    
-                    while page < max_pages:
-                        # Build data as URL-encoded string (important for ADIF API)
-                        data_str = f"_servicios_estacion_ServiciosEstacionPortlet_searchType=proximasLlegadas&_servicios_estacion_ServiciosEstacionPortlet_trafficType=avldmd&_servicios_estacion_ServiciosEstacionPortlet_numPage={page}&_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork=MADRID&_servicios_estacion_ServiciosEstacionPortlet_stationCode={station_id}"
+                    if not success:
+                        break
+                    if len(arrivals) < (page + 1) * 20:
+                        break
+                        
+    except Exception as e:
+        logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
+        if not arrivals:
+            return await fetch_adif_arrivals_scrape(station_id)
+    
+    if not arrivals:
+        logger.info(f"Station {station_id}: API returned 0 trains, trying HTML scrape...")
+        arrivals = await fetch_adif_arrivals_scrape(station_id)
+    else:
+        logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains via API")
+    
+    return arrivals
                         
                         # Try the API request with retries
                         max_retries = 3
