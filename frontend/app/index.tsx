@@ -39,6 +39,12 @@ interface TrainArrival {
   status?: string;
 }
 
+interface PeakHourInfo {
+  start_hour: string;
+  end_hour: string;
+  count: number;
+}
+
 interface StationData {
   station_id: string;
   station_name: string;
@@ -47,6 +53,7 @@ interface StationData {
   total_next_60min: number;
   is_winner_30min: boolean;
   is_winner_60min: boolean;
+  peak_hour?: PeakHourInfo;
 }
 
 interface TrainComparison {
