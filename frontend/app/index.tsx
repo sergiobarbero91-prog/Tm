@@ -1074,6 +1074,8 @@ export default function TransportMeter() {
             </View>
             {renderFlightsList()}
           </>
+        ) : activeTab === 'street' ? (
+          renderStreetContent()
         ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
