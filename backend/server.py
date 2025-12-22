@@ -196,12 +196,16 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                     max_pages = 3  # Limit to avoid infinite loops
                     
                     while page < max_pages:
-                        # Update page number in data
-                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
+                        # Build data as URL-encoded string (important for ADIF API)
+                        data_str = f"_servicios_estacion_ServiciosEstacionPortlet_searchType=proximasLlegadas&_servicios_estacion_ServiciosEstacionPortlet_trafficType=avldmd&_servicios_estacion_ServiciosEstacionPortlet_numPage={page}&_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork=MADRID&_servicios_estacion_ServiciosEstacionPortlet_stationCode={station_id}"
                         
-                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+                        async with session.post(api_url, headers=api_headers, data=data_str, timeout=30) as api_response:
                             if api_response.status == 200:
-                                result = await api_response.json()
+                                try:
+                                    result = await api_response.json()
+                                except:
+                                    logger.warning(f"Invalid JSON response for station {station_id} page {page}")
+                                    break
                                 
                                 if result.get("error"):
                                     logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
@@ -241,7 +245,7 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                                     break
                                     
                             else:
-                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
+                                logger.warning(f"Failed to fetch page {page} for station {station_id}, status: {api_response.status}")
                                 break
                         
                         page += 1
