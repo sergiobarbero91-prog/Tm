@@ -1,0 +1,103 @@
+diff --git a/backend/server.py b/backend/server.py
+index 4c2a871..68871cc 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -189,36 +189,60 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
+                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
+                     }
+                     
+-                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+-                        if api_response.status == 200:
+-                            result = await api_response.json()
+-                            
+-                            if result.get("error"):
+-                                logger.warning(f"API error for station {station_id}, falling back to scrape")
+-                                return await fetch_adif_arrivals_scrape(station_id)
+-                            
+-                            horarios = result.get("horarios", [])
+-                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
+-                            
+-                            for h in horarios:
+-                                train_type = h.get("tren", "AVE")
+-                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+-                                type_match = re.search(r'([A-Z]+)', train_type)
+-                                if type_match:
+-                                    clean_type = type_match.group(1)
+-                                else:
+-                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
++                    # Load multiple pages to get more results
++                    page = 0
++                    max_pages = 3  # Limit to avoid infinite loops
++                    
++                    while page < max_pages:
++                        # Update page number in data
++                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
++                        
++                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
++                            if api_response.status == 200:
++                                result = await api_response.json()
+                                 
+-                                # Only include valid media/larga distancia
+-                                if is_valid_media_larga_distancia(clean_type):
+-                                    arrivals.append({
+-                                        "time": h.get("hora", "00:00"),
+-                                        "origin": h.get("estacion", "Unknown"),
+-                                        "train_type": clean_type.upper(),
+-                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+-                                        "platform": h.get("via", "-") or "-",
+-                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+-                                    })
++                                if result.get("error"):
++                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
++                                    return await fetch_adif_arrivals_scrape(station_id)
++                                
++                                horarios = result.get("horarios", [])
++                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
++                                
++                                # If no results on this page, stop pagination
++                                if not horarios:
++                                    break
++                                
++                                page_arrivals = 0
++                                for h in horarios:
++                                    train_type = h.get("tren", "AVE")
++                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
++                                    type_match = re.search(r'([A-Z]+)', train_type)
++                                    if type_match:
++                                        clean_type = type_match.group(1)
++                                    else:
++                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
++                                    
++                                    # Only include valid media/larga distancia
++                                    if is_valid_media_larga_distancia(clean_type):
++                                        arrivals.append({
++                                            "time": h.get("hora", "00:00"),
++                                            "origin": h.get("estacion", "Unknown"),
++                                            "train_type": clean_type.upper(),
++                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
++                                            "platform": h.get("via", "-") or "-",
++                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
++                                        })
++                                        page_arrivals += 1
++                                
++                                # If we got fewer than expected results, likely no more pages
++                                if page_arrivals < 10:  # Assuming typical page size
++                                    break
++                                    
++                            else:
++                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
++                                break
++                        
++                        page += 1
+                                     
+     except Exception as e:
+         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
+@@ -446,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
+                 hour = int(time_str.split(":")[0])
+                 if 6 <= hour <= 10:
+                     morning_count += 1
+-            except:
++            except Exception:
+                 pass
+         return count, morning_count
+     
