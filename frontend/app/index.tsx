@@ -874,6 +874,24 @@ export default function TransportMeter() {
             Aviones
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
+          onPress={() => setActiveTab('street')}
+        >
+          <Ionicons
+            name="car"
+            size={20}
+            color={activeTab === 'street' ? '#FFFFFF' : '#94A3B8'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'street' && styles.activeTabText,
+            ]}
+          >
+            Calle
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Time Window Selector */}
