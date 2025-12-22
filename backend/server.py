@@ -199,25 +199,104 @@ async def fetch_adif_arrivals(station_id: str) -> List[Dict]:
 async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
     """Fetch real flight arrivals from aeropuertomadrid-barajas.com."""
     terminal_arrivals = {t: [] for t in TERMINALS}
-    url = "https://www.aeropuertomadrid-barajas.com/llegadas.html"
     
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=HEADERS, timeout=30) as response:
-                if response.status == 200:
-                    html = await response.text()
-                    soup = BeautifulSoup(html, 'lxml')
-                    
-                    # Find all flight rows - they have class containing arrival info
-                    # The page structure has rows with time, origin, terminal info
-                    flight_rows = soup.find_all('tr')
-                    
-                    for row in flight_rows:
-                        try:
-                            # Get all columns
-                            cols = row.find_all('td')
-                            if len(cols) < 3:
+    # Fetch multiple time ranges to get more flights
+    time_ranges = ["0-3", "3-6", "6-9", "9-12"]
+    
+    for time_range in time_ranges:
+        url = f"https://www.aeropuertomadrid-barajas.com/llegadas.html?t={time_range}"
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=HEADERS, timeout=30) as response:
+                    if response.status == 200:
+                        html = await response.text()
+                        soup = BeautifulSoup(html, 'lxml')
+                        
+                        # Find all flight records using the specific class
+                        flight_records = soup.find_all('div', class_='flightListRecord')
+                        
+                        for record in flight_records:
+                            try:
+                                # Get terminal
+                                terminal_div = record.find('div', class_='flightListTerminal')
+                                if not terminal_div:
+                                    continue
+                                terminal = terminal_div.get_text(strip=True)
+                                # Normalize terminal
+                                terminal = terminal.replace("T4-S", "T4S")
+                                
+                                if terminal not in terminal_arrivals:
+                                    continue
+                                
+                                # Get time and origin
+                                airport_div = record.find('div', class_='flightListOtherAirport')
+                                if not airport_div:
+                                    continue
+                                
+                                airport_text = airport_div.get_text(strip=True)
+                                # Format: "00:15 - Milan (MXP)"
+                                time_match = re.match(r'(\d{1,2}:\d{2})\s*-\s*(.+?)(?:\s*\([A-Z]{3}\))?$', airport_text)
+                                if time_match:
+                                    arrival_time = time_match.group(1)
+                                    origin = time_match.group(2).strip()
+                                else:
+                                    # Fallback: just get time
+                                    time_match = re.search(r'(\d{1,2}:\d{2})', airport_text)
+                                    if not time_match:
+                                        continue
+                                    arrival_time = time_match.group(1)
+                                    origin = airport_text.split('-')[-1].strip() if '-' in airport_text else "Unknown"
+                                
+                                # Get airline and flight number
+                                airline_link = record.find('a', class_='flightListFlightIDAirline')
+                                airline = airline_link.get_text(strip=True) if airline_link else "Unknown"
+                                
+                                flight_link = record.find('a', class_='flightListFlightIDLink')
+                                flight_number = flight_link.get_text(strip=True) if flight_link else "Unknown"
+                                
+                                # Get status
+                                status_div = record.find('div', class_='flightListStatus')
+                                if status_div:
+                                    status_text = status_div.get_text(strip=True).lower()
+                                    if "llegado" in status_text:
+                                        status = "Aterrizado"
+                                    elif "retrasado" in status_text:
+                                        status = "Retrasado"
+                                    elif "cancelado" in status_text:
+                                        status = "Cancelado"
+                                    elif "adelantado" in status_text:
+                                        status = "Adelantado"
+                                    else:
+                                        status = "En hora"
+                                else:
+                                    status = "En hora"
+                                
+                                # Avoid duplicates
+                                existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == arrival_time]
+                                if not existing:
+                                    terminal_arrivals[terminal].append({
+                                        "time": arrival_time,
+                                        "origin": origin,
+                                        "flight_number": flight_number,
+                                        "airline": airline,
+                                        "terminal": terminal,
+                                        "gate": "-",
+                                        "status": status
+                                    })
+                            except Exception as e:
+                                logger.debug(f"Error parsing flight record: {e}")
                                 continue
+        except Exception as e:
+            logger.error(f"Error fetching AENA data for time range {time_range}: {e}")
+    
+    # Sort arrivals by time
+    for terminal in TERMINALS:
+        terminal_arrivals[terminal].sort(key=lambda x: x['time'])
+    
+    # Count total flights found
+    total = sum(len(v) for v in terminal_arrivals.values())
+    logger.info(f"Flights fetched: {total} total across all terminals")
                             
                             # Extract time
                             time_elem = row.find('td', class_='scheduled') or row.find('td')
