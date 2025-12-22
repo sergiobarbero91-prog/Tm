@@ -687,7 +687,7 @@ async def get_train_comparison(shift: str = "all"):
 @api_router.get("/flights", response_model=FlightComparisonResponse)
 async def get_flight_comparison():
     """Get REAL flight arrivals comparison between terminals at Madrid-Barajas."""
-    now = datetime.now()
+    now = datetime.now(MADRID_TZ)
     
     # Fetch real flight data from aeropuertomadrid-barajas.com
     all_arrivals = await fetch_aena_arrivals()
