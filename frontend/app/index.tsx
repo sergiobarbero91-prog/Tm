@@ -432,6 +432,78 @@ export default function TransportMeter() {
         </View>
       </View>
 
+      {/* Shift Selector - Only for trains */}
+      {activeTab === 'trains' && (
+        <View style={styles.shiftContainer}>
+          <Text style={styles.shiftLabel}>Turno:</Text>
+          <View style={styles.shiftButtons}>
+            <TouchableOpacity
+              style={[
+                styles.shiftButton,
+                shift === 'day' && styles.activeShiftDay,
+              ]}
+              onPress={() => setShift('day')}
+            >
+              <Ionicons
+                name="sunny"
+                size={16}
+                color={shift === 'day' ? '#FFFFFF' : '#F59E0B'}
+              />
+              <Text
+                style={[
+                  styles.shiftText,
+                  shift === 'day' && styles.activeShiftText,
+                ]}
+              >
+                Diurno
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.shiftButton,
+                shift === 'all' && styles.activeShiftAll,
+              ]}
+              onPress={() => setShift('all')}
+            >
+              <Ionicons
+                name="time"
+                size={16}
+                color={shift === 'all' ? '#FFFFFF' : '#6366F1'}
+              />
+              <Text
+                style={[
+                  styles.shiftText,
+                  shift === 'all' && styles.activeShiftText,
+                ]}
+              >
+                Todo
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.shiftButton,
+                shift === 'night' && styles.activeShiftNight,
+              ]}
+              onPress={() => setShift('night')}
+            >
+              <Ionicons
+                name="moon"
+                size={16}
+                color={shift === 'night' ? '#FFFFFF' : '#8B5CF6'}
+              />
+              <Text
+                style={[
+                  styles.shiftText,
+                  shift === 'night' && styles.activeShiftText,
+                ]}
+              >
+                Nocturno
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Content */}
       <ScrollView
         style={styles.content}
