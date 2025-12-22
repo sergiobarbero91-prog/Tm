@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, BackgroundTasks
+from fastapi import FastAPI, APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,9 +17,22 @@ import asyncio
 from dateutil import parser as date_parser
 import json
 import pytz
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
+
+# JWT Configuration
+SECRET_KEY = os.environ.get("SECRET_KEY", "transportmeter-secret-key-2025")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Security
+security = HTTPBearer(auto_error=False)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -27,6 +41,7 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+users_collection = db['users']
 
 # Create the main app without a prefix
 app = FastAPI()
