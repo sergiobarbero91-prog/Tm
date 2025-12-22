@@ -644,6 +644,150 @@ export default function TransportMeter() {
     );
   };
 
+  // Generate map HTML for WebView
+  const generateMapHtml = () => {
+    const center = currentLocation || { latitude: 40.4168, longitude: -3.7038 }; // Madrid center
+    const markers = streetData?.hot_streets || [];
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          body { margin: 0; padding: 0; }
+          #map { width: 100%; height: 100vh; }
+          .custom-popup { font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          var map = L.map('map').setView([${center.latitude}, ${center.longitude}], 13);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+          }).addTo(map);
+          
+          ${markers.map((m, i) => `
+            L.circleMarker([${m.latitude}, ${m.longitude}], {
+              radius: ${Math.min(20, 8 + m.count * 2)},
+              fillColor: '${i === 0 ? '#EF4444' : '#6366F1'}',
+              color: '#fff',
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.8
+            }).addTo(map).bindPopup('<div class="custom-popup"><b>${m.street_name}</b><br>${m.count} actividades</div>');
+          `).join('')}
+          
+          ${currentLocation ? `
+            L.marker([${currentLocation.latitude}, ${currentLocation.longitude}])
+              .addTo(map)
+              .bindPopup('Tu ubicación');
+          ` : ''}
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
+  const renderStreetContent = () => {
+    return (
+      <View style={styles.streetContainer}>
+        {/* Hottest Street Display */}
+        <View style={styles.hottestStreetCard}>
+          <View style={styles.hottestStreetHeader}>
+            <Ionicons name="flame" size={24} color="#EF4444" />
+            <Text style={styles.hottestStreetTitle}>Calle más caliente</Text>
+          </View>
+          <Text style={styles.hottestStreetName}>
+            {streetData?.hottest_street || 'Sin datos aún'}
+          </Text>
+          {streetData?.hottest_count > 0 && (
+            <Text style={styles.hottestStreetCount}>
+              {streetData.hottest_count} actividades en {timeWindow} min
+            </Text>
+          )}
+        </View>
+
+        {/* Map */}
+        <View style={styles.mapContainer}>
+          <WebView
+            source={{ html: generateMapHtml() }}
+            style={styles.map}
+            scrollEnabled={false}
+          />
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.streetButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.streetButton, styles.loadButton]}
+            onPress={() => registerActivity('load')}
+            disabled={streetLoading}
+          >
+            {streetLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="arrow-down-circle" size={28} color="#FFFFFF" />
+                <Text style={styles.streetButtonText}>CARGADO</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.streetButton, styles.unloadButton]}
+            onPress={() => registerActivity('unload')}
+            disabled={streetLoading}
+          >
+            {streetLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="arrow-up-circle" size={28} color="#FFFFFF" />
+                <Text style={styles.streetButtonText}>DESCARGADO</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Stats */}
+        <View style={styles.streetStatsContainer}>
+          <View style={styles.streetStatCard}>
+            <Text style={styles.streetStatNumber}>{streetData?.total_loads || 0}</Text>
+            <Text style={styles.streetStatLabel}>Cargas</Text>
+          </View>
+          <View style={styles.streetStatCard}>
+            <Text style={styles.streetStatNumber}>{streetData?.total_unloads || 0}</Text>
+            <Text style={styles.streetStatLabel}>Descargas</Text>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        {streetData?.recent_activities && streetData.recent_activities.length > 0 && (
+          <View style={styles.recentActivityContainer}>
+            <Text style={styles.recentActivityTitle}>Actividad reciente</Text>
+            {streetData.recent_activities.slice(0, 5).map((activity, index) => (
+              <View key={index} style={styles.activityItem}>
+                <Ionicons
+                  name={activity.action === 'load' ? 'arrow-down-circle' : 'arrow-up-circle'}
+                  size={20}
+                  color={activity.action === 'load' ? '#10B981' : '#F59E0B'}
+                />
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityStreet}>{activity.street_name}</Text>
+                  <Text style={styles.activityUser}>{activity.username}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
