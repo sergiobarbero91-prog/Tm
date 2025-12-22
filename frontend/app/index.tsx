@@ -566,52 +566,6 @@ export default function TransportMeter() {
         </Text>
       </View>
 
-      {/* Login Modal */}
-      <Modal visible={showLoginModal} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.loginModalOverlay}
-        >
-          <View style={styles.loginModalContent}>
-            <View style={styles.loginModalHeader}>
-              <Text style={styles.loginModalTitle}>Iniciar Sesión</Text>
-              <TouchableOpacity onPress={() => setShowLoginModal(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-            
-            <TextInput
-              style={styles.loginInput}
-              placeholder="Nombre de usuario"
-              placeholderTextColor="#64748B"
-              value={loginUsername}
-              onChangeText={setLoginUsername}
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.loginInput}
-              placeholder="Contraseña"
-              placeholderTextColor="#64748B"
-              value={loginPassword}
-              onChangeText={setLoginPassword}
-              secureTextEntry
-            />
-            
-            <TouchableOpacity 
-              style={styles.loginSubmitButton}
-              onPress={handleLogin}
-              disabled={loginLoading}
-            >
-              {loginLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.loginSubmitText}>Entrar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
