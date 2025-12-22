@@ -470,28 +470,51 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                 flight_link = record.find('a', class_='flightListFlightIDLink')
                                 flight_number = flight_link.get_text(strip=True) if flight_link else "Unknown"
                                 
-                                # Get status
+                                # Get status and real arrival time if delayed
                                 status_div = record.find('div', class_='flightListStatus')
+                                real_time = None
                                 if status_div:
                                     status_text = status_div.get_text(strip=True).lower()
                                     if "llegado" in status_text:
                                         status = "Aterrizado"
                                     elif "retrasado" in status_text:
                                         status = "Retrasado"
+                                        # Try to get the real arrival time from the delayed link
+                                        time_status_div = record.find('div', class_='flightListTimeStatus')
+                                        if time_status_div:
+                                            delayed_link = time_status_div.find('a', class_='flightDetailDelayed')
+                                            if delayed_link:
+                                                delayed_time_text = delayed_link.get_text(strip=True)
+                                                delayed_time_match = re.match(r'(\d{1,2}:\d{2})', delayed_time_text)
+                                                if delayed_time_match:
+                                                    real_time = delayed_time_match.group(1)
                                     elif "cancelado" in status_text:
                                         status = "Cancelado"
                                     elif "adelantado" in status_text:
                                         status = "Adelantado"
+                                        # Try to get the real arrival time from the advanced link
+                                        time_status_div = record.find('div', class_='flightListTimeStatus')
+                                        if time_status_div:
+                                            advanced_link = time_status_div.find('a', class_='flightDetailAdvanced')
+                                            if advanced_link:
+                                                advanced_time_text = advanced_link.get_text(strip=True)
+                                                advanced_time_match = re.match(r'(\d{1,2}:\d{2})', advanced_time_text)
+                                                if advanced_time_match:
+                                                    real_time = advanced_time_match.group(1)
                                     else:
                                         status = "En hora"
                                 else:
                                     status = "En hora"
                                 
+                                # Use real time if available (for delayed/advanced flights)
+                                final_time = real_time if real_time else arrival_time
+                                
                                 # Avoid duplicates
-                                existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == arrival_time]
+                                existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
                                     terminal_arrivals[terminal].append({
-                                        "time": arrival_time,
+                                        "time": final_time,
+                                        "scheduled_time": arrival_time,
                                         "origin": origin,
                                         "flight_number": flight_number,
                                         "airline": airline,
