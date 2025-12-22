@@ -1023,16 +1023,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   flightsList: {
-    marginTop: 20,
+    marginTop: 15,
     backgroundColor: '#1E293B',
     borderRadius: 16,
     padding: 15,
+  },
+  flightsListContainer: {
+    gap: 15,
   },
   flightsListTitle: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 15,
+  },
+  noFlightsText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    textAlign: 'center',
+    padding: 20,
   },
   flightItem: {
     flexDirection: 'row',
@@ -1069,6 +1078,24 @@ const styles = StyleSheet.create({
   flightAirline: {
     color: '#94A3B8',
     fontSize: 12,
+  },
+  flightStatus: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  statusOnTime: {
+    color: '#10B981',
+  },
+  statusDelayed: {
+    color: '#EF4444',
+  },
+  statusEarly: {
+    color: '#3B82F6',
   },
   flightGate: {
     alignItems: 'center',
