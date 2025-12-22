@@ -225,8 +225,12 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                                     number_match = re.search(r'(\d{4,5})', train_code)
                                     train_number = number_match.group(1) if number_match else train_code
                                     
+                                    # Normalize time to handle concatenated times like "13:0513:25"
+                                    raw_time = h.get("hora", "00:00")
+                                    normalized_time = normalize_time_string(raw_time)
+                                    
                                     arrivals.append({
-                                        "time": h.get("hora", "00:00"),
+                                        "time": normalized_time,
                                         "origin": h.get("estacion", "Unknown"),
                                         "train_type": train_type.upper(),
                                         "train_number": train_number,
