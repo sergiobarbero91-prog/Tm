@@ -258,6 +258,88 @@ export default function TransportMeter() {
     }
   };
 
+  // Get current location and street name
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Error', 'Se necesita permiso de ubicación');
+        return null;
+      }
+      setLocationPermission(true);
+
+      const location = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      };
+      setCurrentLocation(coords);
+
+      // Get street name using reverse geocoding
+      const addresses = await Location.reverseGeocodeAsync(coords);
+      if (addresses.length > 0) {
+        const addr = addresses[0];
+        const street = addr.street || addr.name || 'Calle desconocida';
+        setCurrentStreet(street);
+        return { ...coords, street };
+      }
+      return { ...coords, street: 'Calle desconocida' };
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Error', 'No se pudo obtener la ubicación');
+      return null;
+    }
+  };
+
+  // Register street activity (load or unload)
+  const registerActivity = async (action: 'load' | 'unload') => {
+    setStreetLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const locationData = await getCurrentLocation();
+      
+      if (!locationData) {
+        setStreetLoading(false);
+        return;
+      }
+
+      await axios.post(`${API_BASE}/api/street/activity`, {
+        action,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        street_name: locationData.street
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert(
+        'Éxito',
+        `${action === 'load' ? 'Carga' : 'Descarga'} registrada en ${locationData.street}`
+      );
+      
+      // Refresh street data
+      fetchStreetData();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo registrar la actividad');
+    } finally {
+      setStreetLoading(false);
+    }
+  };
+
+  // Fetch street work data
+  const fetchStreetData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get<StreetWorkData>(`${API_BASE}/api/street/data`, {
+        params: { minutes: timeWindow },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStreetData(response.data);
+    } catch (error) {
+      console.error('Error fetching street data:', error);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
@@ -266,9 +348,11 @@ export default function TransportMeter() {
           params: { shift }
         });
         setTrainData(response.data);
-      } else {
+      } else if (activeTab === 'flights') {
         const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
         setFlightData(response.data);
+      } else if (activeTab === 'street') {
+        await fetchStreetData();
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -276,7 +360,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser]);
+  }, [activeTab, shift, currentUser, timeWindow]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
