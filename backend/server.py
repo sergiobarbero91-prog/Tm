@@ -62,6 +62,11 @@ class TrainArrival(BaseModel):
     platform: Optional[str] = None
     status: Optional[str] = None
 
+class PeakHourInfo(BaseModel):
+    start_hour: str
+    end_hour: str
+    count: int
+
 class StationData(BaseModel):
     station_id: str
     station_name: str
@@ -71,6 +76,7 @@ class StationData(BaseModel):
     is_winner_30min: bool = False
     is_winner_60min: bool = False
     morning_arrivals: int = 0
+    peak_hour: Optional[PeakHourInfo] = None
 
 class FlightArrival(BaseModel):
     time: str
