@@ -140,6 +140,112 @@ class NotificationSubscription(BaseModel):
     threshold: int = 10
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# Authentication Models
+class UserInDB(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    username: str
+    hashed_password: str
+    phone: Optional[str] = None
+    role: str = "user"  # "admin" or "user"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    phone: Optional[str] = None
+    role: str = "user"
+
+class UserUpdate(BaseModel):
+    phone: Optional[str] = None
+    role: Optional[str] = None
+
+class PasswordChange(BaseModel):
+    current_password: Optional[str] = None  # Optional for admin changing others
+    new_password: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    username: str
+    phone: Optional[str] = None
+    role: str
+    created_at: datetime
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+# Authentication helper functions
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
+    if credentials is None:
+        return None
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        user = await users_collection.find_one({"id": user_id})
+        return user
+    except JWTError:
+        return None
+
+async def get_current_user_required(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    user = await get_current_user(credentials)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autenticado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+async def get_admin_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    user = await get_current_user_required(credentials)
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de administrador"
+        )
+    return user
+
+async def create_default_admin():
+    """Create default admin user if it doesn't exist."""
+    existing_admin = await users_collection.find_one({"username": "admin"})
+    if not existing_admin:
+        admin_user = {
+            "id": str(uuid.uuid4()),
+            "username": "admin",
+            "hashed_password": get_password_hash("admin"),
+            "phone": None,
+            "role": "admin",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        await users_collection.insert_one(admin_user)
+        logger.info("Default admin user created: admin/admin")
+
 # Headers for requests
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
