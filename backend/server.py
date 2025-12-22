@@ -1072,6 +1072,113 @@ async def change_own_password(
     
     return {"message": "Contraseña actualizada correctamente"}
 
+# ============== STREET WORK ENDPOINTS ==============
+
+@api_router.post("/street/activity")
+async def register_street_activity(
+    activity: StreetActivityCreate,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Register a load or unload activity at current location."""
+    now = datetime.now(MADRID_TZ)
+    
+    new_activity = {
+        "id": str(uuid.uuid4()),
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "action": activity.action,
+        "latitude": activity.latitude,
+        "longitude": activity.longitude,
+        "street_name": activity.street_name,
+        "city": "Madrid",
+        "created_at": now
+    }
+    
+    await street_activities_collection.insert_one(new_activity)
+    
+    return {"message": f"Actividad '{activity.action}' registrada en {activity.street_name}", "activity": new_activity}
+
+@api_router.get("/street/data", response_model=StreetWorkResponse)
+async def get_street_work_data(
+    minutes: int = 60,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get street work data including hot streets for the time window."""
+    now = datetime.now(MADRID_TZ)
+    time_threshold = now - timedelta(minutes=minutes)
+    
+    # Get activities in the time window
+    activities = await street_activities_collection.find({
+        "created_at": {"$gte": time_threshold}
+    }).sort("created_at", -1).to_list(1000)
+    
+    # Count activities by street
+    street_counts = {}
+    total_loads = 0
+    total_unloads = 0
+    
+    for activity in activities:
+        street = activity.get("street_name", "Desconocida")
+        if street not in street_counts:
+            street_counts[street] = {
+                "count": 0,
+                "last_activity": activity["created_at"],
+                "latitude": activity["latitude"],
+                "longitude": activity["longitude"]
+            }
+        street_counts[street]["count"] += 1
+        
+        if activity["action"] == "load":
+            total_loads += 1
+        else:
+            total_unloads += 1
+    
+    # Sort by count and get hot streets
+    hot_streets = sorted(
+        [
+            HotStreet(
+                street_name=name,
+                count=data["count"],
+                last_activity=data["last_activity"],
+                latitude=data["latitude"],
+                longitude=data["longitude"]
+            )
+            for name, data in street_counts.items()
+        ],
+        key=lambda x: x.count,
+        reverse=True
+    )[:10]  # Top 10 hot streets
+    
+    # Determine hottest street
+    hottest_street = hot_streets[0].street_name if hot_streets else None
+    hottest_count = hot_streets[0].count if hot_streets else 0
+    
+    # Convert activities to response format
+    recent_activities = [
+        StreetActivity(
+            id=a["id"],
+            user_id=a["user_id"],
+            username=a["username"],
+            action=a["action"],
+            latitude=a["latitude"],
+            longitude=a["longitude"],
+            street_name=a["street_name"],
+            city=a.get("city", "Madrid"),
+            created_at=a["created_at"]
+        )
+        for a in activities[:20]  # Last 20 activities
+    ]
+    
+    return StreetWorkResponse(
+        hottest_street=hottest_street,
+        hottest_count=hottest_count,
+        hot_streets=hot_streets,
+        recent_activities=recent_activities,
+        total_loads=total_loads,
+        total_unloads=total_unloads,
+        last_update=now.isoformat()
+    )
+
 # ============== ADMIN ENDPOINTS ==============
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
