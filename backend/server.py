@@ -463,9 +463,9 @@ async def get_train_comparison():
     now = datetime.now()
     is_night_time = now.hour < 6
     
-    # Fetch data for both stations
-    atocha_arrivals = await fetch_adif_arrivals(STATION_IDS["atocha"])
-    chamartin_arrivals = await fetch_adif_arrivals(STATION_IDS["chamartin"])
+    # Fetch data for both stations using the API
+    atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+    chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
     
     # Count arrivals with extended info for night time
     atocha_30, atocha_morning = count_arrivals_extended(atocha_arrivals, 30)
