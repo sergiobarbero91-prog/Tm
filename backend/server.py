@@ -167,8 +167,30 @@ def normalize_time_string(time_str: str) -> str:
     
     return time_str[:5] if len(time_str) >= 5 else time_str
 
-async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
-    """Fetch train arrivals from ADIF API - ONLY media/larga distancia."""
+async def fetch_adif_arrivals_api(station_id: str, max_global_retries: int = 5) -> List[Dict]:
+    """Fetch train arrivals from ADIF API - ONLY media/larga distancia.
+    
+    Will retry up to max_global_retries times if no results are obtained.
+    """
+    
+    for global_retry in range(max_global_retries):
+        arrivals = await _fetch_adif_arrivals_single_attempt(station_id)
+        
+        if arrivals:
+            if global_retry > 0:
+                logger.info(f"Station {station_id}: Got {len(arrivals)} trains on attempt {global_retry + 1}")
+            return arrivals
+        
+        # If no results, wait a bit and retry
+        if global_retry < max_global_retries - 1:
+            logger.info(f"Station {station_id}: No results on attempt {global_retry + 1}, retrying...")
+            await asyncio.sleep(1)
+    
+    logger.warning(f"Station {station_id}: Failed to get results after {max_global_retries} attempts")
+    return []
+
+async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
+    """Single attempt to fetch train arrivals from ADIF API."""
     arrivals = []
     
     # URL paths for each station (using /w/ format as recommended)
