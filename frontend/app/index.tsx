@@ -673,6 +673,49 @@ const styles = StyleSheet.create({
   activeTimeWindowText: {
     color: '#FFFFFF',
   },
+  shiftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 10,
+    gap: 12,
+  },
+  shiftLabel: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
+  shiftButtons: {
+    flexDirection: 'row',
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 4,
+    gap: 4,
+  },
+  shiftButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  activeShiftDay: {
+    backgroundColor: '#F59E0B',
+  },
+  activeShiftAll: {
+    backgroundColor: '#6366F1',
+  },
+  activeShiftNight: {
+    backgroundColor: '#8B5CF6',
+  },
+  shiftText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  activeShiftText: {
+    color: '#FFFFFF',
+  },
   content: {
     flex: 1,
   },
