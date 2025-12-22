@@ -692,6 +692,44 @@ export default function TransportMeter() {
     `;
   };
 
+  // Render map component (WebView for mobile, iframe for web)
+  const renderMap = () => {
+    const center = currentLocation || { latitude: 40.4168, longitude: -3.7038 };
+    const markers = streetData?.hot_streets || [];
+    
+    if (Platform.OS === 'web') {
+      // Use iframe for web
+      const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${center.longitude - 0.05}%2C${center.latitude - 0.03}%2C${center.longitude + 0.05}%2C${center.latitude + 0.03}&layer=mapnik&marker=${center.latitude}%2C${center.longitude}`;
+      return (
+        <View style={styles.mapContainer}>
+          <iframe
+            src={mapUrl}
+            style={{ width: '100%', height: '100%', border: 0 }}
+            title="Map"
+          />
+          {markers.length > 0 && (
+            <View style={styles.mapOverlay}>
+              <Text style={styles.mapOverlayText}>
+                📍 {markers.length} zonas activas
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+    
+    // Use WebView for mobile
+    return (
+      <View style={styles.mapContainer}>
+        <WebView
+          source={{ html: generateMapHtml() }}
+          style={styles.map}
+          scrollEnabled={false}
+        />
+      </View>
+    );
+  };
+
   const renderStreetContent = () => {
     return (
       <View style={styles.streetContainer}>
