@@ -186,7 +186,6 @@ export default function TransportMeter() {
     const isWinner = timeWindow === 30 ? station.is_winner_30min : station.is_winner_60min;
     const arrivals = timeWindow === 30 ? station.total_next_30min : station.total_next_60min;
     const stationShortName = stationKey === 'atocha' ? 'Atocha' : 'Chamartín';
-    const isNightTime = trainData?.is_night_time || false;
 
     return (
       <View
@@ -199,7 +198,7 @@ export default function TransportMeter() {
         {isWinner && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
-            <Text style={styles.winnerBadgeText}>MÁS LLEGADAS</Text>
+            <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
           </View>
         )}
         <View style={styles.stationHeader}>
@@ -213,7 +212,7 @@ export default function TransportMeter() {
             {arrivals}
           </Text>
           <Text style={styles.arrivalLabel}>
-            {isNightTime ? 'trenes esta mañana' : `trenes en ${timeWindow} min`}
+            trenes en {timeWindow} min
           </Text>
         </View>
         <View style={styles.arrivalsList}>
