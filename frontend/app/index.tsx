@@ -1893,6 +1893,20 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  mapOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  mapOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   streetButtonsContainer: {
     flexDirection: 'row',
     gap: 15,
