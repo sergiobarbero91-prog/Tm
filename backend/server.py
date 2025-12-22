@@ -74,6 +74,7 @@ class StationData(BaseModel):
     total_next_60min: int
     is_winner_30min: bool = False
     is_winner_60min: bool = False
+    morning_arrivals: int = 0  # For night time display
 
 class FlightArrival(BaseModel):
     time: str
@@ -98,12 +99,16 @@ class TrainComparisonResponse(BaseModel):
     winner_30min: str
     winner_60min: str
     last_update: str
+    is_night_time: bool = False
+    message: Optional[str] = None
 
 class FlightComparisonResponse(BaseModel):
     terminals: Dict[str, TerminalData]
     winner_30min: str
     winner_60min: str
     last_update: str
+    is_night_time: bool = False
+    message: Optional[str] = None
 
 class NotificationSubscription(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
