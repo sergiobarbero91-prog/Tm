@@ -357,7 +357,7 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
                                     # ONLY include media/larga distancia trains
                                     if is_valid_media_larga_distancia(train_type):
                                         arrivals.append({
-                                            "time": time_text,
+                                            "time": normalize_time_string(time_text),
                                             "origin": origin,
                                             "train_type": train_type.upper(),
                                             "train_number": train_number,
