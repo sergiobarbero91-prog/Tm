@@ -1241,6 +1241,9 @@ const styles = StyleSheet.create({
   activeTabFlights: {
     backgroundColor: '#10B981',
   },
+  activeTabStreet: {
+    backgroundColor: '#F59E0B',
+  },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
