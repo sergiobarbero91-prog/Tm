@@ -404,48 +404,61 @@ async def root():
 async def get_train_comparison():
     """Get train arrivals comparison between Atocha and Chamartín."""
     now = datetime.now()
+    is_night_time = now.hour < 6
     
     # Fetch data for both stations
     atocha_arrivals = await fetch_adif_arrivals(STATION_IDS["atocha"])
     chamartin_arrivals = await fetch_adif_arrivals(STATION_IDS["chamartin"])
     
-    # Count arrivals
-    atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
-    atocha_60 = count_arrivals_in_window(atocha_arrivals, 60)
-    chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
-    chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
+    # Count arrivals with extended info for night time
+    atocha_30, atocha_morning = count_arrivals_extended(atocha_arrivals, 30)
+    atocha_60, _ = count_arrivals_extended(atocha_arrivals, 60)
+    chamartin_30, chamartin_morning = count_arrivals_extended(chamartin_arrivals, 30)
+    chamartin_60, _ = count_arrivals_extended(chamartin_arrivals, 60)
     
-    # Determine winners
-    winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
-    winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
+    # For night time, use morning counts to determine winner
+    if is_night_time:
+        winner_30 = "atocha" if atocha_morning >= chamartin_morning else "chamartin"
+        winner_60 = "atocha" if atocha_morning >= chamartin_morning else "chamartin"
+    else:
+        winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
+        winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
     
     # Build response
     atocha_data = StationData(
         station_id=STATION_IDS["atocha"],
         station_name=STATION_NAMES["atocha"],
         arrivals=[TrainArrival(**a) for a in atocha_arrivals[:20]],
-        total_next_30min=atocha_30,
-        total_next_60min=atocha_60,
+        total_next_30min=atocha_30 if not is_night_time else atocha_morning,
+        total_next_60min=atocha_60 if not is_night_time else atocha_morning,
         is_winner_30min=(winner_30 == "atocha"),
-        is_winner_60min=(winner_60 == "atocha")
+        is_winner_60min=(winner_60 == "atocha"),
+        morning_arrivals=atocha_morning
     )
     
     chamartin_data = StationData(
         station_id=STATION_IDS["chamartin"],
         station_name=STATION_NAMES["chamartin"],
         arrivals=[TrainArrival(**a) for a in chamartin_arrivals[:20]],
-        total_next_30min=chamartin_30,
-        total_next_60min=chamartin_60,
+        total_next_30min=chamartin_30 if not is_night_time else chamartin_morning,
+        total_next_60min=chamartin_60 if not is_night_time else chamartin_morning,
         is_winner_30min=(winner_30 == "chamartin"),
-        is_winner_60min=(winner_60 == "chamartin")
+        is_winner_60min=(winner_60 == "chamartin"),
+        morning_arrivals=chamartin_morning
     )
+    
+    message = None
+    if is_night_time:
+        message = "Horario nocturno - Mostrando llegadas programadas para la mañana (6:00-10:00)"
     
     return TrainComparisonResponse(
         atocha=atocha_data,
         chamartin=chamartin_data,
         winner_30min=winner_30,
         winner_60min=winner_60,
-        last_update=now.isoformat()
+        last_update=now.isoformat(),
+        is_night_time=is_night_time,
+        message=message
     )
 
 @api_router.get("/flights", response_model=FlightComparisonResponse)
