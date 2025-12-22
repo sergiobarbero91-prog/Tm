@@ -84,6 +84,7 @@ class StationData(BaseModel):
 
 class FlightArrival(BaseModel):
     time: str
+    scheduled_time: Optional[str] = None
     origin: str
     flight_number: str
     airline: str
