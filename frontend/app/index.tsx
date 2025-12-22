@@ -101,6 +101,35 @@ interface FlightComparison {
   last_update: string;
 }
 
+interface HotStreet {
+  street_name: string;
+  count: number;
+  last_activity: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface StreetActivity {
+  id: string;
+  user_id: string;
+  username: string;
+  action: string;
+  latitude: number;
+  longitude: number;
+  street_name: string;
+  created_at: string;
+}
+
+interface StreetWorkData {
+  hottest_street: string | null;
+  hottest_count: number;
+  hot_streets: HotStreet[];
+  recent_activities: StreetActivity[];
+  total_loads: number;
+  total_unloads: number;
+  last_update: string;
+}
+
 interface User {
   id: string;
   username: string;
@@ -110,9 +139,10 @@ interface User {
 
 export default function TransportMeter() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights'>('trains');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('trains');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
+  const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeWindow, setTimeWindow] = useState<30 | 60>(60);
