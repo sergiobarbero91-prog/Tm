@@ -542,6 +542,38 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     
     return count
 
+def filter_future_flights(arrivals: List[Dict]) -> List[Dict]:
+    """Filter flights to only include those that haven't arrived yet (excluding 'Aterrizado')."""
+    now = datetime.now(MADRID_TZ)
+    filtered = []
+    
+    for arrival in arrivals:
+        try:
+            # Skip flights that have already landed
+            status = arrival.get("status", "").lower()
+            if "aterrizado" in status or "llegado" in status:
+                continue
+            
+            # Also check if the flight time is in the future
+            time_str = arrival.get("time", "")
+            arrival_time = datetime.strptime(time_str, "%H:%M")
+            arrival_time = MADRID_TZ.localize(arrival_time.replace(
+                year=now.year, month=now.month, day=now.day
+            ))
+            
+            # Handle day rollover
+            if arrival_time < now - timedelta(hours=2):
+                arrival_time += timedelta(days=1)
+            
+            # Only include future flights (within next 4 hours buffer for delays)
+            time_diff = (arrival_time - now).total_seconds() / 60
+            if time_diff >= -30:  # Allow 30 min buffer for recently landed
+                filtered.append(arrival)
+        except:
+            pass
+    
+    return filtered
+
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
     
