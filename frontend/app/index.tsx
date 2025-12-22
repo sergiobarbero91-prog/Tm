@@ -118,7 +118,7 @@ export default function TransportMeter() {
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -138,6 +138,8 @@ export default function TransportMeter() {
       }
     } catch (error) {
       console.error('Error checking session:', error);
+    } finally {
+      setAuthChecked(true);
     }
   };
 
@@ -159,11 +161,8 @@ export default function TransportMeter() {
       await AsyncStorage.setItem('user', JSON.stringify(user));
       
       setCurrentUser(user);
-      setShowLoginModal(false);
       setLoginUsername('');
       setLoginPassword('');
-
-      Alert.alert('Bienvenido', `Hola, ${user.username}!`);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Usuario o contraseña incorrectos');
     } finally {
@@ -173,6 +172,98 @@ export default function TransportMeter() {
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('user');
+    setCurrentUser(null);
+  };
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+        <View style={styles.authLoadingContainer}>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={styles.authLoadingText}>Cargando...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!currentUser) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.loginScreenContainer}
+        >
+          <View style={styles.loginScreenContent}>
+            {/* Logo/Header */}
+            <View style={styles.loginHeader}>
+              <View style={styles.loginLogoContainer}>
+                <Ionicons name="train" size={40} color="#6366F1" />
+                <Ionicons name="airplane" size={40} color="#10B981" style={{ marginLeft: -10 }} />
+              </View>
+              <Text style={styles.loginAppTitle}>TransportMeter</Text>
+              <Text style={styles.loginAppSubtitle}>Frecuencia de llegadas en Madrid</Text>
+            </View>
+
+            {/* Login Form */}
+            <View style={styles.loginFormContainer}>
+              <Text style={styles.loginFormTitle}>Iniciar Sesión</Text>
+              
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.loginScreenInput}
+                  placeholder="Nombre de usuario"
+                  placeholderTextColor="#64748B"
+                  value={loginUsername}
+                  onChangeText={setLoginUsername}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.loginScreenInput}
+                  placeholder="Contraseña"
+                  placeholderTextColor="#64748B"
+                  value={loginPassword}
+                  onChangeText={setLoginPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.loginScreenButton}
+                onPress={handleLogin}
+                disabled={loginLoading}
+              >
+                {loginLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
+                    <Text style={styles.loginScreenButtonText}>Entrar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Footer */}
+            <Text style={styles.loginFooter}>
+              Acceso solo para usuarios registrados
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // Rest of the component (authenticated view)
     await AsyncStorage.removeItem('user');
     setCurrentUser(null);
   };
