@@ -399,8 +399,24 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
     """Fetch real flight arrivals from aeropuertomadrid-barajas.com."""
     terminal_arrivals = {t: [] for t in TERMINALS}
     
-    # Fetch multiple time ranges to get more flights
-    time_ranges = ["0-3", "3-6", "6-9", "9-12"]
+    # Calculate current time range and fetch relevant ranges
+    now = datetime.now(MADRID_TZ)
+    current_hour = now.hour
+    
+    # Generate time ranges based on current hour
+    # Each range covers 3 hours: 0-3, 3-6, 6-9, 9-12, 12-15, 15-18, 18-21, 21-24
+    all_ranges = ["0-3", "3-6", "6-9", "9-12", "12-15", "15-18", "18-21", "21-24"]
+    
+    # Find current range index
+    current_range_idx = current_hour // 3
+    
+    # Fetch current range and next 2 ranges (to cover ~9 hours ahead)
+    time_ranges = []
+    for i in range(3):
+        idx = (current_range_idx + i) % 8
+        time_ranges.append(all_ranges[idx])
+    
+    logger.info(f"Fetching flight data for time ranges: {time_ranges}")
     
     for time_range in time_ranges:
         url = f"https://www.aeropuertomadrid-barajas.com/llegadas.html?t={time_range}"
