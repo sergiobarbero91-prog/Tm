@@ -123,6 +123,12 @@ HEADERS = {
     "Connection": "keep-alive",
 }
 
+# Station asset IDs for ADIF API
+STATION_ASSETS = {
+    "60000": "3061889",  # Atocha
+    "17000": "3061911"   # Chamartín
+}
+
 def is_valid_media_larga_distancia(train_type: str) -> bool:
     """Check if train type is media/larga distancia (not cercanías)."""
     train_type_upper = train_type.upper().strip()
@@ -133,13 +139,96 @@ def is_valid_media_larga_distancia(train_type: str) -> bool:
     # Reject cercanías (typically marked as C1, C2, C3, etc. or just "C")
     if train_type_upper.startswith("C") and (len(train_type_upper) <= 3 or train_type_upper[1:].isdigit()):
         return False
-    # Reject MD (Media Distancia regional) - only keep high-speed
-    if train_type_upper == "MD":
-        return False
     return False
 
-async def fetch_adif_arrivals(station_id: str) -> List[Dict]:
-    """Fetch train arrivals from ADIF website - ONLY media/larga distancia."""
+async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
+    """Fetch train arrivals from ADIF API - ONLY media/larga distancia."""
+    arrivals = []
+    
+    # URL paths for each station
+    url_paths = {
+        "60000": "60000-madrid-pta-de-atocha",
+        "17000": "17000-madrid-chamart%C3%ADn"
+    }
+    
+    url_path = url_paths.get(station_id, url_paths["60000"])
+    base_url = f"https://www.adif.es/-/{url_path}"
+    asset_id = STATION_ASSETS.get(station_id, "3061889")
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            # First get the page to obtain auth token
+            async with session.get(base_url, headers=HEADERS, timeout=30) as response:
+                if response.status == 200:
+                    html = await response.text()
+                    
+                    # Extract auth token
+                    auth_match = re.search(r'p_p_auth=([^"&]+)', html)
+                    if not auth_match:
+                        logger.warning(f"Could not find auth token for station {station_id}")
+                        return await fetch_adif_arrivals_scrape(station_id)
+                    
+                    auth_token = auth_match.group(1)
+                    
+                    # Make API call for media/larga distancia
+                    api_url = f"https://www.adif.es/w/{url_path}?p_p_id=servicios_estacion_ServiciosEstacionPortlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=%2FconsultarHorario&p_p_cacheability=cacheLevelPage&assetEntryId={asset_id}&p_p_auth={auth_token}"
+                    
+                    api_headers = {
+                        **HEADERS,
+                        "Accept": "application/json, text/javascript, */*; q=0.01",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": base_url,
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    }
+                    
+                    data = {
+                        "_servicios_estacion_ServiciosEstacionPortlet_searchType": "proximasLlegadas",
+                        "_servicios_estacion_ServiciosEstacionPortlet_trafficType": "resto",  # media/larga distancia
+                        "_servicios_estacion_ServiciosEstacionPortlet_numPage": "0",
+                        "_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork": "MADRID",
+                        "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
+                    }
+                    
+                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+                        if api_response.status == 200:
+                            result = await api_response.json()
+                            
+                            if result.get("error"):
+                                logger.warning(f"API error for station {station_id}, falling back to scrape")
+                                return await fetch_adif_arrivals_scrape(station_id)
+                            
+                            horarios = result.get("horarios", [])
+                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
+                            
+                            for h in horarios:
+                                train_type = h.get("tren", "AVE")
+                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+                                type_match = re.search(r'([A-Z]+)', train_type)
+                                if type_match:
+                                    clean_type = type_match.group(1)
+                                else:
+                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
+                                
+                                # Only include valid media/larga distancia
+                                if is_valid_media_larga_distancia(clean_type):
+                                    arrivals.append({
+                                        "time": h.get("hora", "00:00"),
+                                        "origin": h.get("estacion", "Unknown"),
+                                        "train_type": clean_type.upper(),
+                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+                                        "platform": h.get("via", "-") or "-",
+                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+                                    })
+                                    
+    except Exception as e:
+        logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
+        return await fetch_adif_arrivals_scrape(station_id)
+    
+    logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains via API")
+    return arrivals
+
+async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
+    """Fallback: Fetch train arrivals by scraping ADIF website - ONLY media/larga distancia."""
     arrivals = []
     url = f"https://www.adif.es/-/{station_id}-madrid-pta-de-atocha" if station_id == "60000" else f"https://www.adif.es/-/{station_id}-madrid-chamart%C3%ADn"
     
