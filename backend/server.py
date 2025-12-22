@@ -199,28 +199,43 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                         # Build data as URL-encoded string (important for ADIF API)
                         data_str = f"_servicios_estacion_ServiciosEstacionPortlet_searchType=proximasLlegadas&_servicios_estacion_ServiciosEstacionPortlet_trafficType=avldmd&_servicios_estacion_ServiciosEstacionPortlet_numPage={page}&_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork=MADRID&_servicios_estacion_ServiciosEstacionPortlet_stationCode={station_id}"
                         
-                        async with session.post(api_url, headers=api_headers, data=data_str, timeout=30) as api_response:
-                            if api_response.status == 200:
-                                try:
-                                    result = await api_response.json()
-                                except:
-                                    logger.warning(f"Invalid JSON response for station {station_id} page {page}")
-                                    break
-                                
-                                if result.get("error"):
-                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
-                                    return await fetch_adif_arrivals_scrape(station_id)
-                                
-                                horarios = result.get("horarios", [])
-                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
-                                
-                                # If no results on this page, stop pagination
-                                if not horarios:
-                                    break
-                                
-                                page_arrivals = 0
-                                for h in horarios:
-                                    train_code = h.get("tren", "")
+                        # Try the API request with retries
+                        max_retries = 3
+                        for retry in range(max_retries):
+                            try:
+                                async with session.post(api_url, headers=api_headers, data=data_str, timeout=30) as api_response:
+                                    if api_response.status == 200:
+                                        try:
+                                            result = await api_response.json()
+                                        except:
+                                            logger.warning(f"Invalid JSON response for station {station_id} page {page}, retry {retry+1}")
+                                            if retry < max_retries - 1:
+                                                await asyncio.sleep(0.5)
+                                                continue
+                                            break
+                                        
+                                        if result.get("error"):
+                                            logger.warning(f"API returned error for station {station_id} page {page}, retry {retry+1}")
+                                            if retry < max_retries - 1:
+                                                await asyncio.sleep(0.5)
+                                                continue
+                                            # Keep any arrivals we already have
+                                            if arrivals:
+                                                logger.info(f"Keeping {len(arrivals)} trains collected so far")
+                                            break
+                                        
+                                        horarios = result.get("horarios", [])
+                                        logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
+                                        
+                                        # If no results on this page, stop pagination
+                                        if not horarios:
+                                            break
+                                        
+                                        page_arrivals = 0
+                                        for h in horarios:
+                                            train_code = h.get("tren", "")
+                                            
+                                            # Try to extract train type from the code
                                     
                                     # Try to extract train type from the code
                                     # Format can be: "AVANT08063", "RF - AVE03063", or just "08058" (number only)
