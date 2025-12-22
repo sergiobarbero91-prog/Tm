@@ -527,34 +527,24 @@ export default function TransportMeter() {
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>TransportMeter</Text>
           <View style={styles.headerActions}>
-            {/* User/Login Button */}
-            {currentUser ? (
-              <View style={styles.userSection}>
-                {currentUser.role === 'admin' && (
-                  <TouchableOpacity 
-                    style={styles.adminButton}
-                    onPress={() => router.push('/admin')}
-                  >
-                    <Ionicons name="settings" size={18} color="#F59E0B" />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity 
-                  style={styles.userButton}
-                  onPress={handleLogout}
-                >
-                  <Ionicons name="person" size={16} color="#6366F1" />
-                  <Text style={styles.usernameText}>{currentUser.username}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
+            {/* Admin Button - only for admins */}
+            {currentUser?.role === 'admin' && (
               <TouchableOpacity 
-                style={styles.loginButton}
-                onPress={() => setShowLoginModal(true)}
+                style={styles.adminButton}
+                onPress={() => router.push('/admin')}
               >
-                <Ionicons name="log-in-outline" size={18} color="#6366F1" />
-                <Text style={styles.loginButtonText}>Login</Text>
+                <Ionicons name="settings" size={18} color="#F59E0B" />
               </TouchableOpacity>
             )}
+            {/* User Button */}
+            <TouchableOpacity 
+              style={styles.userButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="person" size={16} color="#6366F1" />
+              <Text style={styles.usernameText}>{currentUser?.username}</Text>
+              <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
             <View style={styles.notificationToggle}>
               <Ionicons
                 name={notificationsEnabled ? 'notifications' : 'notifications-outline'}
