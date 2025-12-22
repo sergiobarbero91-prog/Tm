@@ -565,6 +565,10 @@ async def get_train_comparison():
     chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
     chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
     
+    # Calculate peak hours
+    atocha_peak = calculate_peak_hour(atocha_arrivals)
+    chamartin_peak = calculate_peak_hour(chamartin_arrivals)
+    
     # Determine winner based on real counts
     winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
     winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
@@ -578,7 +582,8 @@ async def get_train_comparison():
         total_next_60min=atocha_60,
         is_winner_30min=(winner_30 == "atocha"),
         is_winner_60min=(winner_60 == "atocha"),
-        morning_arrivals=0
+        morning_arrivals=0,
+        peak_hour=PeakHourInfo(**atocha_peak) if atocha_peak else None
     )
     
     chamartin_data = StationData(
@@ -589,7 +594,8 @@ async def get_train_comparison():
         total_next_60min=chamartin_60,
         is_winner_30min=(winner_30 == "chamartin"),
         is_winner_60min=(winner_60 == "chamartin"),
-        morning_arrivals=0
+        morning_arrivals=0,
+        peak_hour=PeakHourInfo(**chamartin_peak) if chamartin_peak else None
     )
     
     message = None
