@@ -147,6 +147,22 @@ def is_valid_media_larga_distancia(train_type: str) -> bool:
         return False
     return False
 
+def normalize_time_string(time_str: str) -> str:
+    """Normalize time string to HH:MM format.
+    
+    Sometimes ADIF returns concatenated times like '13:0513:25' (scheduled + actual).
+    This function extracts only the first valid time.
+    """
+    if not time_str:
+        return "00:00"
+    
+    # Try to extract the first HH:MM pattern
+    match = re.match(r'(\d{1,2}:\d{2})', time_str)
+    if match:
+        return match.group(1)
+    
+    return time_str[:5] if len(time_str) >= 5 else time_str
+
 async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
     """Fetch train arrivals from ADIF API - ONLY media/larga distancia."""
     arrivals = []
