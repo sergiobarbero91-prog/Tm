@@ -1165,6 +1165,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_db_client():
+    """Create default admin user on startup."""
+    await create_default_admin()
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
