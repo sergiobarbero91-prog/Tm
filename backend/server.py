@@ -525,46 +525,42 @@ async def get_train_comparison():
     atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
     chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
     
-    # Count arrivals with extended info for night time
-    atocha_30, atocha_morning = count_arrivals_extended(atocha_arrivals, 30)
-    atocha_60, _ = count_arrivals_extended(atocha_arrivals, 60)
-    chamartin_30, chamartin_morning = count_arrivals_extended(chamartin_arrivals, 30)
-    chamartin_60, _ = count_arrivals_extended(chamartin_arrivals, 60)
+    # Count arrivals in real time windows (always based on current time)
+    atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
+    atocha_60 = count_arrivals_in_window(atocha_arrivals, 60)
+    chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
+    chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
     
-    # For night time, use morning counts to determine winner
-    if is_night_time:
-        winner_30 = "atocha" if atocha_morning >= chamartin_morning else "chamartin"
-        winner_60 = "atocha" if atocha_morning >= chamartin_morning else "chamartin"
-    else:
-        winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
-        winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
+    # Determine winner based on real counts
+    winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
+    winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
     
     # Build response
     atocha_data = StationData(
         station_id=STATION_IDS["atocha"],
         station_name=STATION_NAMES["atocha"],
         arrivals=[TrainArrival(**a) for a in atocha_arrivals[:20]],
-        total_next_30min=atocha_30 if not is_night_time else atocha_morning,
-        total_next_60min=atocha_60 if not is_night_time else atocha_morning,
+        total_next_30min=atocha_30,
+        total_next_60min=atocha_60,
         is_winner_30min=(winner_30 == "atocha"),
         is_winner_60min=(winner_60 == "atocha"),
-        morning_arrivals=atocha_morning
+        morning_arrivals=0
     )
     
     chamartin_data = StationData(
         station_id=STATION_IDS["chamartin"],
         station_name=STATION_NAMES["chamartin"],
         arrivals=[TrainArrival(**a) for a in chamartin_arrivals[:20]],
-        total_next_30min=chamartin_30 if not is_night_time else chamartin_morning,
-        total_next_60min=chamartin_60 if not is_night_time else chamartin_morning,
+        total_next_30min=chamartin_30,
+        total_next_60min=chamartin_60,
         is_winner_30min=(winner_30 == "chamartin"),
         is_winner_60min=(winner_60 == "chamartin"),
-        morning_arrivals=chamartin_morning
+        morning_arrivals=0
     )
     
     message = None
-    if is_night_time:
-        message = "Horario nocturno - Mostrando llegadas de AVE/AVANT/ALVIA/IRYO programadas para la mañana (6:00-10:00)"
+    if is_night_time and atocha_30 == 0 and chamartin_30 == 0:
+        message = "Horario nocturno - Sin trenes en los próximos minutos. Próximas llegadas listadas abajo."
     
     return TrainComparisonResponse(
         atocha=atocha_data,
