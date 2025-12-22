@@ -303,8 +303,6 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
         logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains via API")
     
     return arrivals
-
-async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
     """Fallback: Fetch train arrivals by scraping ADIF website HTML directly - ONLY media/larga distancia."""
     arrivals = []
     
