@@ -299,30 +299,54 @@ export default function TransportMeter() {
   const renderFlightsList = () => {
     if (!flightData) return null;
 
-    const winnerTerminal = timeWindow === 30 ? flightData.winner_30min : flightData.winner_60min;
-    const winnerData = flightData.terminals[winnerTerminal];
+    // Get all terminals with flights, sorted by arrival count
+    const terminalsWithFlights = Object.entries(flightData.terminals)
+      .filter(([_, data]) => data.arrivals.length > 0)
+      .sort((a, b) => {
+        const countA = timeWindow === 30 ? a[1].total_next_30min : a[1].total_next_60min;
+        const countB = timeWindow === 30 ? b[1].total_next_30min : b[1].total_next_60min;
+        return countB - countA;
+      });
+
+    if (terminalsWithFlights.length === 0) {
+      return (
+        <View style={styles.flightsList}>
+          <Text style={styles.noFlightsText}>No hay vuelos próximos</Text>
+        </View>
+      );
+    }
 
     return (
-      <View style={styles.flightsList}>
-        <Text style={styles.flightsListTitle}>
-          Próximas llegadas - Terminal {winnerTerminal}
-        </Text>
-        {winnerData.arrivals.slice(0, 6).map((flight, index) => (
-          <View key={index} style={styles.flightItem}>
-            <View style={styles.flightTime}>
-              <Text style={styles.flightTimeText}>{flight.time}</Text>
-            </View>
-            <View style={styles.flightInfo}>
-              <Text style={styles.flightNumber}>{flight.flight_number}</Text>
-              <Text style={styles.flightOrigin} numberOfLines={1}>
-                {flight.origin}
-              </Text>
-              <Text style={styles.flightAirline}>{flight.airline}</Text>
-            </View>
-            <View style={styles.flightGate}>
-              <Text style={styles.gateLabel}>Puerta</Text>
-              <Text style={styles.gateText}>{flight.gate || '-'}</Text>
-            </View>
+      <View style={styles.flightsListContainer}>
+        {terminalsWithFlights.map(([terminal, terminalData]) => (
+          <View key={terminal} style={styles.flightsList}>
+            <Text style={styles.flightsListTitle}>
+              Próximas llegadas - Terminal {terminal}
+            </Text>
+            {terminalData.arrivals.slice(0, 5).map((flight, index) => (
+              <View key={index} style={styles.flightItem}>
+                <View style={styles.flightTime}>
+                  <Text style={styles.flightTimeText}>{flight.time}</Text>
+                </View>
+                <View style={styles.flightInfo}>
+                  <Text style={styles.flightNumber}>{flight.flight_number}</Text>
+                  <Text style={styles.flightOrigin} numberOfLines={1}>
+                    {flight.origin}
+                  </Text>
+                  <Text style={styles.flightAirline}>{flight.airline}</Text>
+                </View>
+                <View style={styles.flightStatus}>
+                  <Text style={[
+                    styles.statusText,
+                    flight.status === 'En hora' && styles.statusOnTime,
+                    flight.status === 'Retrasado' && styles.statusDelayed,
+                    flight.status === 'Adelantado' && styles.statusEarly,
+                  ]}>
+                    {flight.status}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
         ))}
       </View>
