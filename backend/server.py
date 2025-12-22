@@ -275,65 +275,68 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
                     # Find the arrivals tab section
                     llegadas_section = soup.find('div', id='tab-llegadas')
                     if llegadas_section:
-                        # Find all rows in the table
-                        rows = llegadas_section.find_all('tr', class_='horario-row')
-                        
-                        for row in rows:
-                            try:
-                                # Check if this is a resto (AV/Media distancia) row
-                                row_classes = row.get('class', [])
-                                if 'resto' not in row_classes:
-                                    continue  # Skip cercanías rows
-                                
-                                # Get time
-                                hora_cell = row.find('td', class_='col-hora')
-                                time_text = hora_cell.get_text(strip=True) if hora_cell else None
-                                if not time_text:
-                                    continue
-                                
-                                # Get origin
-                                destino_cell = row.find('td', class_='col-destino')
-                                origin = destino_cell.get_text(strip=True) if destino_cell else "Unknown"
-                                # Clean up origin text
-                                origin = origin.split('\n')[0].strip()
-                                
-                                # Get train info
-                                tren_cell = row.find('td', class_='col-tren')
-                                train_info = tren_cell.get_text(strip=True) if tren_cell else ""
-                                
-                                # Get platform
-                                via_cell = row.find('td', class_='col-via')
-                                platform = via_cell.get_text(strip=True) if via_cell else "-"
-                                
-                                # Parse train type and number
-                                # Format: "RF - AVE03063" or "IL - IRYO06261" or "RI - OUIGO06476"
-                                train_match = re.search(r'([A-Z]+)\s*[-]?\s*([A-Z]+)(\d+)', train_info)
-                                if train_match:
-                                    train_type = train_match.group(2)
-                                    train_number = train_match.group(3)
-                                else:
-                                    # Try simpler pattern
-                                    simple_match = re.search(r'([A-Z]+)(\d+)', train_info)
-                                    if simple_match:
-                                        train_type = simple_match.group(1)
-                                        train_number = simple_match.group(2)
+                        # Find the table
+                        table = llegadas_section.find('table')
+                        if table:
+                            # Find all rows with class 'horario-row resto' (AV/Media distancia)
+                            rows = table.find_all('tr', class_='horario-row')
+                            
+                            for row in rows:
+                                try:
+                                    # Check if this is a resto (AV/Media distancia) row
+                                    row_classes = row.get('class', [])
+                                    if 'resto' not in row_classes:
+                                        continue  # Skip cercanías rows
+                                    
+                                    # Get all columns
+                                    cols = row.find_all('td')
+                                    if len(cols) < 3:
+                                        continue
+                                    
+                                    # Get time (col 0)
+                                    time_text = cols[0].get_text(strip=True)
+                                    if not time_text:
+                                        continue
+                                    
+                                    # Get origin (col 1)
+                                    origin = cols[1].get_text(strip=True)
+                                    origin = origin.split('\n')[0].strip()
+                                    
+                                    # Get train info (col 2) - format: "RF - AVANT08063"
+                                    train_info = cols[2].get_text(strip=True)
+                                    
+                                    # Get platform (col 3)
+                                    platform = cols[3].get_text(strip=True) if len(cols) > 3 else "-"
+                                    
+                                    # Parse train type and number
+                                    # Format: "RF - AVE03063" or "IL - IRYO06261" or "RI - OUIGO06476"
+                                    train_match = re.search(r'([A-Z]+)\s*-\s*([A-Z]+)(\d+)', train_info)
+                                    if train_match:
+                                        train_type = train_match.group(2)
+                                        train_number = train_match.group(3)
                                     else:
-                                        train_type = train_info[:4] if len(train_info) > 4 else train_info
-                                        train_number = train_info[4:] if len(train_info) > 4 else ""
-                                
-                                # ONLY include media/larga distancia trains
-                                if is_valid_media_larga_distancia(train_type):
-                                    arrivals.append({
-                                        "time": time_text,
-                                        "origin": origin,
-                                        "train_type": train_type.upper(),
-                                        "train_number": train_number,
-                                        "platform": platform if platform else "-",
-                                        "status": "En hora"
-                                    })
-                            except Exception as e:
-                                logger.debug(f"Error parsing row: {e}")
-                                continue
+                                        # Try simpler pattern
+                                        simple_match = re.search(r'([A-Z]+)(\d+)', train_info)
+                                        if simple_match:
+                                            train_type = simple_match.group(1)
+                                            train_number = simple_match.group(2)
+                                        else:
+                                            train_type = train_info[:4] if len(train_info) > 4 else train_info
+                                            train_number = train_info[4:] if len(train_info) > 4 else ""
+                                    
+                                    # ONLY include media/larga distancia trains
+                                    if is_valid_media_larga_distancia(train_type):
+                                        arrivals.append({
+                                            "time": time_text,
+                                            "origin": origin,
+                                            "train_type": train_type.upper(),
+                                            "train_number": train_number,
+                                            "platform": platform if platform else "-",
+                                            "status": "En hora"
+                                        })
+                                except Exception as e:
+                                    logger.debug(f"Error parsing row: {e}")
+                                    continue
     except Exception as e:
         logger.error(f"Error scraping ADIF HTML for station {station_id}: {e}")
     
