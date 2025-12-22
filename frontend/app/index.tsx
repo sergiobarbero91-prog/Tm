@@ -157,6 +157,12 @@ export default function TransportMeter() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
+  // Street work states
+  const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const [currentStreet, setCurrentStreet] = useState<string>('');
+  const [streetLoading, setStreetLoading] = useState(false);
+  const [locationPermission, setLocationPermission] = useState(false);
+
   // Define all functions first
   const checkExistingSession = async () => {
     try {
