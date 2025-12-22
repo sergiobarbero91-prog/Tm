@@ -478,18 +478,52 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     
     return count
 
-def calculate_peak_hour(arrivals: List[Dict]) -> Optional[Dict]:
-    """Calculate the peak hour (hour with most arrivals) for a station."""
+def is_hour_in_shift(hour: int, shift: str) -> bool:
+    """Check if an hour belongs to the specified shift.
+    
+    Shifts:
+    - 'day' (diurno): 05:00 - 16:59 (5 AM to 5 PM)
+    - 'night' (nocturno): 17:00 - 04:59 (5 PM to 5 AM)
+    - 'all': All hours
+    """
+    if shift == "all":
+        return True
+    elif shift == "day":
+        return 5 <= hour < 17
+    elif shift == "night":
+        return hour >= 17 or hour < 5
+    return True
+
+def filter_arrivals_by_shift(arrivals: List[Dict], shift: str) -> List[Dict]:
+    """Filter arrivals to only include those within the specified shift."""
+    if shift == "all":
+        return arrivals
+    
+    filtered = []
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            hour = int(time_str.split(":")[0])
+            if is_hour_in_shift(hour, shift):
+                filtered.append(arrival)
+        except:
+            pass
+    return filtered
+
+def calculate_peak_hour(arrivals: List[Dict], shift: str = "all") -> Optional[Dict]:
+    """Calculate the peak hour (hour with most arrivals) for a station within a shift."""
     if not arrivals:
         return None
     
-    # Count arrivals per hour
+    # Count arrivals per hour (only within the shift)
     hour_counts = {}
     for arrival in arrivals:
         try:
             time_str = arrival.get("time", "")
             hour = int(time_str.split(":")[0])
-            hour_counts[hour] = hour_counts.get(hour, 0) + 1
+            # Only count hours within the selected shift
+            if is_hour_in_shift(hour, shift):
+                hour_counts[hour] = hour_counts.get(hour, 0) + 1
         except:
             pass
     
