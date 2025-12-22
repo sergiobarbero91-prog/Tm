@@ -55,6 +55,8 @@ interface TrainComparison {
   winner_30min: string;
   winner_60min: string;
   last_update: string;
+  is_night_time?: boolean;
+  message?: string;
 }
 
 interface FlightArrival {
