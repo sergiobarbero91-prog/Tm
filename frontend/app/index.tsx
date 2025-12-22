@@ -263,11 +263,6 @@ export default function TransportMeter() {
     );
   }
 
-  // Rest of the component (authenticated view)
-    await AsyncStorage.removeItem('user');
-    setCurrentUser(null);
-  };
-
   // Register for notifications
   useEffect(() => {
     registerForPushNotifications();
