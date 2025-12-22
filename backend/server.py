@@ -478,16 +478,18 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
     return terminal_arrivals
 
 def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
-    """Count arrivals within the next X minutes."""
-    now = datetime.now()
+    """Count arrivals within the next X minutes using Madrid timezone."""
+    now = datetime.now(MADRID_TZ)
     count = 0
     
     for arrival in arrivals:
         try:
             time_str = arrival.get("time", "")
-            arrival_time = datetime.strptime(time_str, "%H:%M").replace(
+            # Parse time and set to today in Madrid timezone
+            arrival_time = datetime.strptime(time_str, "%H:%M")
+            arrival_time = MADRID_TZ.localize(arrival_time.replace(
                 year=now.year, month=now.month, day=now.day
-            )
+            ))
             
             # Handle day rollover
             if arrival_time < now - timedelta(hours=2):
