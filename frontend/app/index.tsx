@@ -431,6 +431,12 @@ export default function TransportMeter() {
                 Actualizado: {formatLastUpdate(trainData.last_update)}
               </Text>
             </View>
+            {trainData.is_night_time && trainData.message && (
+              <View style={styles.nightTimeMessage}>
+                <Ionicons name="moon" size={16} color="#F59E0B" />
+                <Text style={styles.nightTimeText}>{trainData.message}</Text>
+              </View>
+            )}
             <View style={styles.comparisonContainer}>
               {renderStationCard(trainData.atocha, 'atocha')}
               <View style={styles.vsSeparator}>
