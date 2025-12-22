@@ -769,7 +769,10 @@ async def get_flight_comparison():
     winner_60 = "T4"
     
     for terminal in TERMINALS:
-        arrivals = all_arrivals.get(terminal, [])
+        raw_arrivals = all_arrivals.get(terminal, [])
+        # Filter out flights that have already landed
+        arrivals = filter_future_flights(raw_arrivals)
+        
         count_30 = count_arrivals_in_window(arrivals, 30)
         count_60 = count_arrivals_in_window(arrivals, 60)
         
