@@ -1816,4 +1816,128 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
+  // Street work styles
+  streetContainer: {
+    flex: 1,
+  },
+  hottestStreetCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 15,
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  hottestStreetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  hottestStreetTitle: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  hottestStreetName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  hottestStreetCount: {
+    color: '#94A3B8',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  mapContainer: {
+    height: 250,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 15,
+    backgroundColor: '#1E293B',
+  },
+  map: {
+    flex: 1,
+  },
+  streetButtonsContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 15,
+  },
+  streetButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    borderRadius: 16,
+    gap: 10,
+  },
+  loadButton: {
+    backgroundColor: '#10B981',
+  },
+  unloadButton: {
+    backgroundColor: '#F59E0B',
+  },
+  streetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  streetStatsContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 15,
+  },
+  streetStatCard: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 15,
+    alignItems: 'center',
+  },
+  streetStatNumber: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  streetStatLabel: {
+    color: '#94A3B8',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  recentActivityContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 15,
+  },
+  recentActivityTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 15,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityStreet: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  activityUser: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
 });
