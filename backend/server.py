@@ -48,14 +48,10 @@ STATION_NAMES = {
     "chamartin": "Madrid Chamartín Clara Campoamor"
 }
 
-TERMINALS = ["T1", "T2", "T3", "T4", "T4S"]
+# Valid train types for media/larga distancia (NO cercanías)
+VALID_TRAIN_TYPES = ["AVE", "AVANT", "ALVIA", "IRYO", "OUIGO", "AVLO", "EUROMED", "TALGO", "TRENHOTEL"]
 
-# Cache for data (in-memory, refreshes every 2 minutes)
-cache = {
-    "trains": {},
-    "flights": {},
-    "last_update": None
-}
+TERMINALS = ["T1", "T2", "T3", "T4", "T4S"]
 
 # Models
 class TrainArrival(BaseModel):
@@ -74,7 +70,7 @@ class StationData(BaseModel):
     total_next_60min: int
     is_winner_30min: bool = False
     is_winner_60min: bool = False
-    morning_arrivals: int = 0  # For night time display
+    morning_arrivals: int = 0
 
 class FlightArrival(BaseModel):
     time: str
@@ -115,7 +111,7 @@ class NotificationSubscription(BaseModel):
     push_token: str
     train_alerts: bool = True
     flight_alerts: bool = True
-    threshold: int = 10  # Minimum arrivals to trigger notification
+    threshold: int = 10
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # Headers for requests
@@ -127,8 +123,23 @@ HEADERS = {
     "Connection": "keep-alive",
 }
 
+def is_valid_media_larga_distancia(train_type: str) -> bool:
+    """Check if train type is media/larga distancia (not cercanías)."""
+    train_type_upper = train_type.upper().strip()
+    # Check if it's a valid type
+    for valid_type in VALID_TRAIN_TYPES:
+        if valid_type in train_type_upper:
+            return True
+    # Reject cercanías (typically marked as C1, C2, C3, etc. or just "C")
+    if train_type_upper.startswith("C") and (len(train_type_upper) <= 3 or train_type_upper[1:].isdigit()):
+        return False
+    # Reject MD (Media Distancia regional) - only keep high-speed
+    if train_type_upper == "MD":
+        return False
+    return False
+
 async def fetch_adif_arrivals(station_id: str) -> List[Dict]:
-    """Fetch train arrivals from ADIF website."""
+    """Fetch train arrivals from ADIF website - ONLY media/larga distancia."""
     arrivals = []
     url = f"https://www.adif.es/-/{station_id}-madrid-pta-de-atocha" if station_id == "60000" else f"https://www.adif.es/-/{station_id}-madrid-chamart%C3%ADn"
     
@@ -154,178 +165,140 @@ async def fetch_adif_arrivals(station_id: str) -> List[Dict]:
                                     platform = cols[3].get_text(strip=True) if len(cols) > 3 else None
                                     
                                     # Parse train type and number
-                                    train_match = re.match(r'([A-Z]+)\s*-?\s*([A-Z]*)(\d+)', train_info)
+                                    # Format: "RF - AVE03063" or "IL - IRYO06261" or "RI - OUIGO06476"
+                                    train_match = re.search(r'([A-Z]+)\s*[-]?\s*([A-Z]+)(\d+)', train_info)
                                     if train_match:
-                                        train_type = train_match.group(2) or train_match.group(1)
+                                        train_type = train_match.group(2)
                                         train_number = train_match.group(3)
                                     else:
-                                        train_type = "AVE"
-                                        train_number = train_info
+                                        # Try simpler pattern
+                                        simple_match = re.search(r'([A-Z]+)(\d+)', train_info)
+                                        if simple_match:
+                                            train_type = simple_match.group(1)
+                                            train_number = simple_match.group(2)
+                                        else:
+                                            train_type = train_info[:4] if len(train_info) > 4 else train_info
+                                            train_number = train_info[4:] if len(train_info) > 4 else ""
                                     
-                                    arrivals.append({
-                                        "time": time_text,
-                                        "origin": origin.split('\n')[0],
-                                        "train_type": train_type,
-                                        "train_number": train_number,
-                                        "platform": platform,
-                                        "status": "En hora"
-                                    })
+                                    # ONLY include media/larga distancia trains
+                                    if is_valid_media_larga_distancia(train_type):
+                                        arrivals.append({
+                                            "time": time_text,
+                                            "origin": origin.split('\n')[0].strip(),
+                                            "train_type": train_type.upper(),
+                                            "train_number": train_number,
+                                            "platform": platform if platform else "-",
+                                            "status": "En hora"
+                                        })
     except Exception as e:
         logger.error(f"Error fetching ADIF data for station {station_id}: {e}")
     
-    # If scraping fails, return simulated real-time data
-    if not arrivals:
-        arrivals = generate_simulated_train_arrivals(station_id)
-    
+    logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains")
     return arrivals
 
-def generate_simulated_train_arrivals(station_id: str) -> List[Dict]:
-    """Generate simulated train arrivals based on typical schedules."""
-    now = datetime.now()
-    arrivals = []
-    
-    # Different patterns for each station
-    if station_id == "60000":  # Atocha - more south/east connections
-        origins = [
-            ("Barcelona Sants", "AVE", 12),
-            ("Sevilla Santa Justa", "AVE", 10),
-            ("Málaga María Zambrano", "AVE", 8),
-            ("Valencia Joaquín Sorolla", "AVE", 6),
-            ("Toledo", "AVANT", 15),
-            ("Puertollano", "AVANT", 8),
-            ("Córdoba", "AVE", 5),
-            ("Granada", "AVE", 4),
-            ("Alicante", "AVE", 4),
-            ("Albacete", "AVANT", 6),
-        ]
-        base_arrivals_per_hour = 18
-    else:  # Chamartín - more north/west connections
-        origins = [
-            ("Barcelona Sants", "AVE", 10),
-            ("Valladolid", "AVE", 8),
-            ("León", "ALVIA", 4),
-            ("Salamanca", "ALVIA", 3),
-            ("Zamora", "ALVIA", 3),
-            ("Segovia", "AVE", 8),
-            ("Galicia (Santiago/A Coruña)", "ALVIA", 4),
-            ("Asturias (Gijón/Oviedo)", "ALVIA", 3),
-            ("Burgos", "AVE", 4),
-            ("San Sebastián", "ALVIA", 3),
-        ]
-        base_arrivals_per_hour = 14
-    
-    # Generate arrivals for the next 90 minutes
-    total_weight = sum(o[2] for o in origins)
-    
-    for minutes_ahead in range(0, 90, 3):  # Every 3 minutes check
-        arrival_time = now + timedelta(minutes=minutes_ahead)
-        
-        # Higher probability during peak hours (7-10, 17-20)
-        hour = arrival_time.hour
-        if 7 <= hour <= 10 or 17 <= hour <= 20:
-            probability = 0.45
-        elif 11 <= hour <= 16:
-            probability = 0.35
-        else:
-            probability = 0.2
-        
-        import random
-        if random.random() < probability:
-            # Select origin based on weight
-            r = random.random() * total_weight
-            cumulative = 0
-            selected_origin = origins[0]
-            for origin, train_type, weight in origins:
-                cumulative += weight
-                if r <= cumulative:
-                    selected_origin = (origin, train_type, weight)
-                    break
-            
-            arrivals.append({
-                "time": arrival_time.strftime("%H:%M"),
-                "origin": selected_origin[0],
-                "train_type": selected_origin[1],
-                "train_number": f"{random.randint(1000, 9999):04d}",
-                "platform": str(random.randint(1, 12)),
-                "status": random.choice(["En hora", "En hora", "En hora", "Retraso 5 min"])
-            })
-    
-    return arrivals
-
-def generate_simulated_flight_arrivals() -> Dict[str, List[Dict]]:
-    """Generate simulated flight arrivals for all terminals."""
-    now = datetime.now()
+async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
+    """Fetch real flight arrivals from aeropuertomadrid-barajas.com."""
     terminal_arrivals = {t: [] for t in TERMINALS}
+    url = "https://www.aeropuertomadrid-barajas.com/llegadas.html"
     
-    # Airlines by terminal (realistic distribution)
-    terminal_airlines = {
-        "T1": [("Ryanair", 25), ("Air Europa", 15), ("Vueling", 10), ("EasyJet", 8), ("Air France", 5)],
-        "T2": [("KLM", 8), ("Delta", 5), ("Air France", 8), ("Alitalia", 4), ("Korean Air", 2)],
-        "T3": [("Lufthansa", 8), ("Swiss", 4), ("Austrian", 3), ("Brussels Airlines", 3), ("TAP", 5)],
-        "T4": [("Iberia", 35), ("Iberia Express", 20), ("American Airlines", 8), ("British Airways", 10), ("Cathay Pacific", 3)],
-        "T4S": [("Iberia", 15), ("LATAM", 8), ("Emirates", 5), ("Qatar Airways", 5), ("Avianca", 4)]
-    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=HEADERS, timeout=30) as response:
+                if response.status == 200:
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'lxml')
+                    
+                    # Find all flight rows - they have class containing arrival info
+                    # The page structure has rows with time, origin, terminal info
+                    flight_rows = soup.find_all('tr')
+                    
+                    for row in flight_rows:
+                        try:
+                            # Get all columns
+                            cols = row.find_all('td')
+                            if len(cols) < 3:
+                                continue
+                            
+                            # Extract time
+                            time_elem = row.find('td', class_='scheduled') or row.find('td')
+                            if not time_elem:
+                                continue
+                            time_text = time_elem.get_text(strip=True)
+                            
+                            # Try to extract time from text like "00:15 - Milan (MXP)"
+                            time_match = re.search(r'(\d{1,2}:\d{2})', time_text)
+                            if not time_match:
+                                continue
+                            arrival_time = time_match.group(1)
+                            
+                            # Get terminal
+                            terminal_elem = row.find('span', class_=re.compile(r'T\d'))
+                            if terminal_elem:
+                                terminal = terminal_elem.get_text(strip=True)
+                            else:
+                                # Try to find T1, T2, T3, T4, T4S in the row text
+                                row_text = row.get_text()
+                                terminal = None
+                                for t in ["T4S", "T4", "T3", "T2", "T1"]:
+                                    if t in row_text:
+                                        terminal = t
+                                        break
+                                if not terminal:
+                                    continue
+                            
+                            # Normalize terminal
+                            if terminal == "T4-S":
+                                terminal = "T4S"
+                            
+                            # Get origin
+                            origin_match = re.search(r'-\s*([^(]+)\s*\(', time_text)
+                            if origin_match:
+                                origin = origin_match.group(1).strip()
+                            else:
+                                origin = "Unknown"
+                            
+                            # Get airline and flight number
+                            airline_links = row.find_all('a', href=re.compile(r'aerolineas'))
+                            flight_links = row.find_all('a', href=re.compile(r'llegada-vuelo'))
+                            
+                            airline = airline_links[0].get_text(strip=True) if airline_links else "Unknown"
+                            flight_number = flight_links[0].get_text(strip=True) if flight_links else "Unknown"
+                            
+                            # Get status
+                            status_elem = row.find('td', class_=re.compile(r'status|estado'))
+                            status = status_elem.get_text(strip=True) if status_elem else "En hora"
+                            
+                            # Translate status
+                            if "llegado" in status.lower() or "arrived" in status.lower():
+                                status = "Aterrizado"
+                            elif "retrasado" in status.lower() or "delayed" in status.lower():
+                                status = "Retrasado"
+                            elif "cancelado" in status.lower() or "cancelled" in status.lower():
+                                status = "Cancelado"
+                            else:
+                                status = "En hora"
+                            
+                            if terminal in terminal_arrivals:
+                                terminal_arrivals[terminal].append({
+                                    "time": arrival_time,
+                                    "origin": origin,
+                                    "flight_number": flight_number,
+                                    "airline": airline,
+                                    "terminal": terminal,
+                                    "gate": "-",
+                                    "status": status
+                                })
+                        except Exception as e:
+                            continue
+                    
+    except Exception as e:
+        logger.error(f"Error fetching AENA data: {e}")
     
-    origins = {
-        "T1": ["Londres Stansted", "Roma", "París CDG", "Berlín", "Lisboa", "Ámsterdam", "Milán", "Bruselas"],
-        "T2": ["Ámsterdam", "París CDG", "Nueva York JFK", "Seúl", "Atlanta", "Roma"],
-        "T3": ["Frankfurt", "Zúrich", "Viena", "Lisboa", "Bruselas", "Múnich"],
-        "T4": ["Londres Heathrow", "Nueva York", "Miami", "México DF", "Buenos Aires", "Bogotá", "Barcelona", "Chicago"],
-        "T4S": ["São Paulo", "Lima", "Dubai", "Doha", "Santiago Chile", "Tokio", "Hong Kong"]
-    }
+    # Count total flights found
+    total = sum(len(v) for v in terminal_arrivals.values())
+    logger.info(f"Flights fetched: {total} total")
     
-    import random
-    
-    for terminal in TERMINALS:
-        airlines = terminal_airlines[terminal]
-        total_weight = sum(a[1] for a in airlines)
-        term_origins = origins[terminal]
-        
-        # T4 has more traffic
-        if terminal == "T4":
-            base_frequency = 0.5
-        elif terminal == "T4S":
-            base_frequency = 0.35
-        elif terminal == "T1":
-            base_frequency = 0.4
-        else:
-            base_frequency = 0.3
-        
-        for minutes_ahead in range(0, 90, 4):
-            arrival_time = now + timedelta(minutes=minutes_ahead)
-            hour = arrival_time.hour
-            
-            # Peak hours
-            if 6 <= hour <= 10 or 14 <= hour <= 18 or 20 <= hour <= 23:
-                probability = base_frequency * 1.3
-            else:
-                probability = base_frequency * 0.7
-            
-            if random.random() < probability:
-                # Select airline
-                r = random.random() * total_weight
-                cumulative = 0
-                selected_airline = airlines[0][0]
-                for airline, weight in airlines:
-                    cumulative += weight
-                    if r <= cumulative:
-                        selected_airline = airline
-                        break
-                
-                # Generate flight number
-                prefix = "".join([c for c in selected_airline[:2].upper() if c.isalpha()])
-                flight_num = f"{prefix}{random.randint(100, 9999)}"
-                
-                terminal_arrivals[terminal].append({
-                    "time": arrival_time.strftime("%H:%M"),
-                    "origin": random.choice(term_origins),
-                    "flight_number": flight_num,
-                    "airline": selected_airline,
-                    "terminal": terminal,
-                    "gate": f"{random.choice(['A', 'B', 'C', 'D', 'H', 'J', 'K', 'S'])}{random.randint(1, 50)}",
-                    "status": random.choice(["En hora", "En hora", "En hora", "En hora", "Retraso 10 min", "Aterrizando"])
-                })
-    
+    # If no data was scraped, return empty but valid structure
     return terminal_arrivals
 
 def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
@@ -340,8 +313,7 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
                 year=now.year, month=now.month, day=now.day
             )
             
-            # Handle day rollover - if arrival time is before current time by more than 2 hours,
-            # assume it's for tomorrow
+            # Handle day rollover
             if arrival_time < now - timedelta(hours=2):
                 arrival_time += timedelta(days=1)
             
@@ -355,10 +327,9 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     return count
 
 def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
-    """Count arrivals and also count next day arrivals if currently night time."""
+    """Count arrivals and also count next morning arrivals if currently night time."""
     now = datetime.now()
     count = 0
-    next_day_count = 0
     
     for arrival in arrivals:
         try:
@@ -370,7 +341,6 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
             # Handle day rollover
             if arrival_time < now - timedelta(hours=2):
                 arrival_time += timedelta(days=1)
-                next_day_count += 1
             
             time_diff = (arrival_time - now).total_seconds() / 60
             
@@ -379,10 +349,9 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
         except Exception:
             pass
     
-    # If it's night time (00:00-06:00), show how many trains are scheduled in next hours
+    # If it's night time (00:00-06:00), count morning trains
+    morning_count = 0
     if now.hour < 6:
-        # Count morning trains (next 6 hours or until 10 AM)
-        morning_count = 0
         for arrival in arrivals:
             try:
                 time_str = arrival.get("time", "")
@@ -402,7 +371,7 @@ async def root():
 
 @api_router.get("/trains", response_model=TrainComparisonResponse)
 async def get_train_comparison():
-    """Get train arrivals comparison between Atocha and Chamartín."""
+    """Get train arrivals comparison between Atocha and Chamartín - ONLY media/larga distancia."""
     now = datetime.now()
     is_night_time = now.hour < 6
     
@@ -449,7 +418,7 @@ async def get_train_comparison():
     
     message = None
     if is_night_time:
-        message = "Horario nocturno - Mostrando llegadas programadas para la mañana (6:00-10:00)"
+        message = "Horario nocturno - Mostrando llegadas de AVE/AVANT/ALVIA/IRYO programadas para la mañana (6:00-10:00)"
     
     return TrainComparisonResponse(
         atocha=atocha_data,
@@ -463,11 +432,11 @@ async def get_train_comparison():
 
 @api_router.get("/flights", response_model=FlightComparisonResponse)
 async def get_flight_comparison():
-    """Get flight arrivals comparison between terminals at Madrid-Barajas."""
+    """Get REAL flight arrivals comparison between terminals at Madrid-Barajas."""
     now = datetime.now()
     
-    # Generate flight data
-    all_arrivals = generate_simulated_flight_arrivals()
+    # Fetch real flight data from aeropuertomadrid-barajas.com
+    all_arrivals = await fetch_aena_arrivals()
     
     terminal_data = {}
     max_30 = 0
@@ -476,7 +445,7 @@ async def get_flight_comparison():
     winner_60 = "T4"
     
     for terminal in TERMINALS:
-        arrivals = all_arrivals[terminal]
+        arrivals = all_arrivals.get(terminal, [])
         count_30 = count_arrivals_in_window(arrivals, 30)
         count_60 = count_arrivals_in_window(arrivals, 60)
         
