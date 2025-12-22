@@ -523,11 +523,27 @@ export default function TransportMeter() {
           </View>
         ) : activeTab === 'trains' && trainData ? (
           <>
-            <View style={styles.lastUpdate}>
-              <Ionicons name="time-outline" size={14} color="#64748B" />
-              <Text style={styles.lastUpdateText}>
-                Actualizado: {formatLastUpdate(trainData.last_update)}
-              </Text>
+            <View style={styles.lastUpdateRow}>
+              <View style={styles.lastUpdate}>
+                <Ionicons name="time-outline" size={14} color="#64748B" />
+                <Text style={styles.lastUpdateText}>
+                  Actualizado: {formatLastUpdate(trainData.last_update)}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={onRefresh}
+                disabled={refreshing}
+              >
+                <Ionicons 
+                  name="refresh" 
+                  size={18} 
+                  color={refreshing ? "#64748B" : "#6366F1"} 
+                />
+                <Text style={[styles.refreshText, refreshing && styles.refreshTextDisabled]}>
+                  {refreshing ? 'Actualizando...' : 'Actualizar'}
+                </Text>
+              </TouchableOpacity>
             </View>
             {trainData.message && (
               <View style={styles.nightTimeMessage}>
