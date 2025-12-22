@@ -140,6 +140,40 @@ class NotificationSubscription(BaseModel):
     threshold: int = 10
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# Street Work Models
+class StreetActivity(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    username: str
+    action: str  # "load" or "unload"
+    latitude: float
+    longitude: float
+    street_name: str
+    city: str = "Madrid"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(MADRID_TZ))
+
+class StreetActivityCreate(BaseModel):
+    action: str  # "load" or "unload"
+    latitude: float
+    longitude: float
+    street_name: str
+
+class HotStreet(BaseModel):
+    street_name: str
+    count: int
+    last_activity: datetime
+    latitude: float
+    longitude: float
+
+class StreetWorkResponse(BaseModel):
+    hottest_street: Optional[str]
+    hottest_count: int
+    hot_streets: List[HotStreet]
+    recent_activities: List[StreetActivity]
+    total_loads: int
+    total_unloads: int
+    last_update: str
+
 # Authentication Models
 class UserInDB(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
