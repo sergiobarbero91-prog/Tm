@@ -739,16 +739,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  lastUpdateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingHorizontal: 5,
+  },
   lastUpdate: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    marginBottom: 15,
   },
   lastUpdateText: {
     color: '#64748B',
     fontSize: 12,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+  },
+  refreshText: {
+    color: '#6366F1',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  refreshTextDisabled: {
+    color: '#64748B',
   },
   nightTimeMessage: {
     flexDirection: 'row',
