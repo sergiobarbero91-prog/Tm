@@ -189,7 +189,11 @@ export default function TransportMeter() {
 
   const formatLastUpdate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Europe/Madrid'
+    });
   };
 
   const renderStationCard = (station: StationData, stationKey: string) => {
