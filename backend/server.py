@@ -478,6 +478,34 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     
     return count
 
+def calculate_peak_hour(arrivals: List[Dict]) -> Optional[Dict]:
+    """Calculate the peak hour (hour with most arrivals) for a station."""
+    if not arrivals:
+        return None
+    
+    # Count arrivals per hour
+    hour_counts = {}
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            hour = int(time_str.split(":")[0])
+            hour_counts[hour] = hour_counts.get(hour, 0) + 1
+        except:
+            pass
+    
+    if not hour_counts:
+        return None
+    
+    # Find the hour with most arrivals
+    peak_hour = max(hour_counts, key=hour_counts.get)
+    peak_count = hour_counts[peak_hour]
+    
+    return {
+        "start_hour": f"{peak_hour:02d}:00",
+        "end_hour": f"{(peak_hour + 1) % 24:02d}:00",
+        "count": peak_count
+    }
+
 def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
     """Count arrivals and also count next morning arrivals if currently night time."""
     now = datetime.now()
