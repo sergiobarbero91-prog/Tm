@@ -249,7 +249,13 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
         return await fetch_adif_arrivals_scrape(station_id)
     
-    logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains via API")
+    # If API returned no results, try scraping HTML directly
+    if not arrivals:
+        logger.info(f"Station {station_id}: API returned 0 trains, trying HTML scrape...")
+        arrivals = await fetch_adif_arrivals_scrape(station_id)
+    else:
+        logger.info(f"Station {station_id}: Found {len(arrivals)} media/larga distancia trains via API")
+    
     return arrivals
 
 async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
