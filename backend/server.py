@@ -470,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
                 hour = int(time_str.split(":")[0])
                 if 6 <= hour <= 10:
                     morning_count += 1
-            except:
+            except Exception:
                 pass
         return count, morning_count
     
