@@ -616,7 +616,7 @@ async def get_train_comparison(shift: str = "all"):
     Parameters:
     - shift: 'all' (default), 'day' (05:00-16:59), or 'night' (17:00-04:59)
     """
-    now = datetime.now()
+    now = datetime.now(MADRID_TZ)
     is_night_time = now.hour < 6
     
     # Validate shift parameter
