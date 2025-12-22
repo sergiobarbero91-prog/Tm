@@ -99,6 +99,7 @@ export default function TransportMeter() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeWindow, setTimeWindow] = useState<30 | 60>(60);
+  const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
 
