@@ -220,25 +220,35 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                                 
                                 page_arrivals = 0
                                 for h in horarios:
-                                    train_type = h.get("tren", "AVE")
-                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
-                                    type_match = re.search(r'([A-Z]+)', train_type)
-                                    if type_match:
-                                        clean_type = type_match.group(1)
-                                    else:
-                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
+                                    train_code = h.get("tren", "")
                                     
-                                    # Only include valid media/larga distancia
-                                    if is_valid_media_larga_distancia(clean_type):
-                                        arrivals.append({
-                                            "time": h.get("hora", "00:00"),
-                                            "origin": h.get("estacion", "Unknown"),
-                                            "train_type": clean_type.upper(),
-                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
-                                            "platform": h.get("via", "-") or "-",
-                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
-                                        })
-                                        page_arrivals += 1
+                                    # Try to extract train type from the code
+                                    # Format can be: "AVANT08063", "RF - AVE03063", or just "08058" (number only)
+                                    type_match = re.search(r'([A-Z]{2,})', train_code)
+                                    
+                                    if type_match:
+                                        train_type = type_match.group(1)
+                                    else:
+                                        # If no letters found, it's likely just a number from avldmd query
+                                        # which means it's definitely AV/Media/Larga Distancia
+                                        # We'll mark it as "TREN" (generic long distance)
+                                        train_type = "TREN"
+                                    
+                                    # Extract train number
+                                    number_match = re.search(r'(\d{4,5})', train_code)
+                                    train_number = number_match.group(1) if number_match else train_code
+                                    
+                                    # Since we're querying with trafficType=avldmd, all results are media/larga distancia
+                                    # So we include all trains, not just those with recognized type names
+                                    arrivals.append({
+                                        "time": h.get("hora", "00:00"),
+                                        "origin": h.get("estacion", "Unknown"),
+                                        "train_type": train_type.upper(),
+                                        "train_number": train_number,
+                                        "platform": h.get("via", "-") or "-",
+                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+                                    })
+                                    page_arrivals += 1
                                 
                                 # If we got fewer than expected results, likely no more pages
                                 if page_arrivals < 10:  # Assuming typical page size
