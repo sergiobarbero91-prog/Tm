@@ -498,22 +498,6 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     
     return count
 
-def normalize_time_string(time_str: str) -> str:
-    """Normalize time string to HH:MM format.
-    
-    Sometimes ADIF returns concatenated times like '13:0513:25' (scheduled + actual).
-    This function extracts only the first valid time.
-    """
-    if not time_str:
-        return "00:00"
-    
-    # Try to extract the first HH:MM pattern
-    match = re.match(r'(\d{1,2}:\d{2})', time_str)
-    if match:
-        return match.group(1)
-    
-    return time_str[:5] if len(time_str) >= 5 else time_str
-
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
     
