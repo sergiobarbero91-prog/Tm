@@ -584,14 +584,26 @@ async def root():
     return {"message": "TransportMeter API - Frecuencia de Trenes y Aviones en Madrid"}
 
 @api_router.get("/trains", response_model=TrainComparisonResponse)
-async def get_train_comparison():
-    """Get train arrivals comparison between Atocha and Chamartín - ONLY media/larga distancia."""
+async def get_train_comparison(shift: str = "all"):
+    """Get train arrivals comparison between Atocha and Chamartín - ONLY media/larga distancia.
+    
+    Parameters:
+    - shift: 'all' (default), 'day' (05:00-16:59), or 'night' (17:00-04:59)
+    """
     now = datetime.now()
     is_night_time = now.hour < 6
     
+    # Validate shift parameter
+    if shift not in ["all", "day", "night"]:
+        shift = "all"
+    
     # Fetch data for both stations using the API
-    atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-    chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+    atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+    chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+    
+    # Filter arrivals by shift
+    atocha_arrivals = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
+    chamartin_arrivals = filter_arrivals_by_shift(chamartin_arrivals_raw, shift)
     
     # Count arrivals in real time windows (always based on current time)
     atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
@@ -599,9 +611,9 @@ async def get_train_comparison():
     chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
     chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
     
-    # Calculate peak hours
-    atocha_peak = calculate_peak_hour(atocha_arrivals)
-    chamartin_peak = calculate_peak_hour(chamartin_arrivals)
+    # Calculate peak hours (within the selected shift)
+    atocha_peak = calculate_peak_hour(atocha_arrivals_raw, shift)
+    chamartin_peak = calculate_peak_hour(chamartin_arrivals_raw, shift)
     
     # Determine winner based on real counts
     winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
