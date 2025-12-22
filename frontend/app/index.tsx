@@ -750,13 +750,7 @@ export default function TransportMeter() {
         </View>
 
         {/* Map */}
-        <View style={styles.mapContainer}>
-          <WebView
-            source={{ html: generateMapHtml() }}
-            style={styles.map}
-            scrollEnabled={false}
-          />
-        </View>
+        {renderMap()}
 
         {/* Action Buttons */}
         <View style={styles.streetButtonsContainer}>
