@@ -12,10 +12,15 @@ import {
   Platform,
   Alert,
   Switch,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
