@@ -222,6 +222,20 @@ export default function TransportMeter() {
             trenes en {timeWindow} min
           </Text>
         </View>
+        
+        {/* Hora pico del día */}
+        {station.peak_hour && (
+          <View style={styles.peakHourContainer}>
+            <Ionicons name="time" size={16} color="#F59E0B" />
+            <Text style={styles.peakHourText}>
+              Hora pico: {station.peak_hour.start_hour} - {station.peak_hour.end_hour}
+            </Text>
+            <View style={styles.peakHourCount}>
+              <Text style={styles.peakHourCountText}>{station.peak_hour.count}</Text>
+            </View>
+          </View>
+        )}
+        
         <View style={styles.arrivalsList}>
           {station.arrivals.slice(0, 5).map((arrival, index) => (
             <View key={index} style={styles.arrivalItem}>
