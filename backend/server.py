@@ -145,14 +145,15 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
     """Fetch train arrivals from ADIF API - ONLY media/larga distancia."""
     arrivals = []
     
-    # URL paths for each station
+    # URL paths for each station (using /w/ format as recommended)
     url_paths = {
         "60000": "60000-madrid-pta-de-atocha",
         "17000": "17000-madrid-chamart%C3%ADn"
     }
     
     url_path = url_paths.get(station_id, url_paths["60000"])
-    base_url = f"https://www.adif.es/-/{url_path}"
+    # Use /w/ URL format for better compatibility
+    base_url = f"https://www.adif.es/w/{url_path}"
     asset_id = STATION_ASSETS.get(station_id, "3061889")
     
     try:
