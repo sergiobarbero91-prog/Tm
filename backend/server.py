@@ -15,6 +15,10 @@ import re
 import asyncio
 from dateutil import parser as date_parser
 import json
+import pytz
+
+# Madrid timezone
+MADRID_TZ = pytz.timezone('Europe/Madrid')
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
