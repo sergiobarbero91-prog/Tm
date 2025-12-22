@@ -335,7 +335,8 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
                 year=now.year, month=now.month, day=now.day
             )
             
-            # Handle day rollover
+            # Handle day rollover - if arrival time is before current time by more than 2 hours,
+            # assume it's for tomorrow
             if arrival_time < now - timedelta(hours=2):
                 arrival_time += timedelta(days=1)
             
@@ -347,6 +348,47 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
             pass
     
     return count
+
+def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
+    """Count arrivals and also count next day arrivals if currently night time."""
+    now = datetime.now()
+    count = 0
+    next_day_count = 0
+    
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            arrival_time = datetime.strptime(time_str, "%H:%M").replace(
+                year=now.year, month=now.month, day=now.day
+            )
+            
+            # Handle day rollover
+            if arrival_time < now - timedelta(hours=2):
+                arrival_time += timedelta(days=1)
+                next_day_count += 1
+            
+            time_diff = (arrival_time - now).total_seconds() / 60
+            
+            if 0 <= time_diff <= minutes:
+                count += 1
+        except Exception:
+            pass
+    
+    # If it's night time (00:00-06:00), show how many trains are scheduled in next hours
+    if now.hour < 6:
+        # Count morning trains (next 6 hours or until 10 AM)
+        morning_count = 0
+        for arrival in arrivals:
+            try:
+                time_str = arrival.get("time", "")
+                hour = int(time_str.split(":")[0])
+                if 6 <= hour <= 10:
+                    morning_count += 1
+            except:
+                pass
+        return count, morning_count
+    
+    return count, 0
 
 # API Endpoints
 @api_router.get("/")
