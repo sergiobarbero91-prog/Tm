@@ -1428,4 +1428,99 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 11,
   },
+  // Auth loading screen
+  authLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authLoadingText: {
+    color: '#94A3B8',
+    marginTop: 15,
+    fontSize: 16,
+  },
+  // Login screen styles
+  loginScreenContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loginScreenContent: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  loginLogoContainer: {
+    flexDirection: 'row',
+    marginBottom: 15,
+  },
+  loginAppTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  loginAppSubtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  loginFormContainer: {
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 25,
+    marginBottom: 20,
+  },
+  loginFormTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 25,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  inputIcon: {
+    padding: 15,
+  },
+  loginScreenInput: {
+    flex: 1,
+    padding: 15,
+    paddingLeft: 0,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  loginScreenButton: {
+    flexDirection: 'row',
+    backgroundColor: '#6366F1',
+    borderRadius: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    gap: 10,
+  },
+  loginScreenButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginFooter: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+  },
 });
