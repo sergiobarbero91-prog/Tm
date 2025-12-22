@@ -123,11 +123,7 @@ export default function TransportMeter() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Check for existing session
-  useEffect(() => {
-    checkExistingSession();
-  }, []);
-
+  // Define all functions first
   const checkExistingSession = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -174,6 +170,110 @@ export default function TransportMeter() {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
     setCurrentUser(null);
+  };
+
+  const registerForPushNotifications = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        return;
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: 'transport-meter',
+      });
+      setPushToken(tokenData.data);
+    } catch (error) {
+      console.log('Error getting push token:', error);
+    }
+  };
+
+  const toggleNotifications = async () => {
+    if (!pushToken) {
+      Alert.alert('Error', 'No se pudo obtener el token de notificaciones');
+      return;
+    }
+
+    try {
+      if (notificationsEnabled) {
+        await axios.delete(`${API_BASE}/api/notifications/unsubscribe/${pushToken}`);
+      } else {
+        await axios.post(`${API_BASE}/api/notifications/subscribe`, {
+          push_token: pushToken,
+          train_alerts: true,
+          flight_alerts: true,
+          threshold: 10,
+        });
+      }
+      setNotificationsEnabled(!notificationsEnabled);
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+    }
+  };
+
+  const fetchData = useCallback(async () => {
+    if (!currentUser) return; // Don't fetch if not logged in
+    try {
+      if (activeTab === 'trains') {
+        const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
+          params: { shift }
+        });
+        setTrainData(response.data);
+      } else {
+        const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
+        setFlightData(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [activeTab, shift, currentUser]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  // Register for notifications
+  useEffect(() => {
+    if (currentUser) {
+      registerForPushNotifications();
+    }
+  }, [currentUser]);
+
+  // Fetch data when logged in
+  useEffect(() => {
+    if (currentUser) {
+      setLoading(true);
+      fetchData();
+
+      // Auto-refresh every 2 minutes
+      const interval = setInterval(fetchData, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchData, currentUser]);
+
+  const formatLastUpdate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Europe/Madrid'
+    });
   };
 
   // Show loading while checking auth
