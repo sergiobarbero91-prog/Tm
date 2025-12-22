@@ -435,25 +435,101 @@ export default function TransportMeter() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>TransportMeter</Text>
-          <View style={styles.notificationToggle}>
-            <Ionicons
-              name={notificationsEnabled ? 'notifications' : 'notifications-outline'}
-              size={20}
-              color={notificationsEnabled ? '#F59E0B' : '#94A3B8'}
-            />
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: '#334155', true: '#F59E0B' }}
-              thumbColor="#FFFFFF"
-              style={styles.switch}
-            />
+          <View style={styles.headerActions}>
+            {/* User/Login Button */}
+            {currentUser ? (
+              <View style={styles.userSection}>
+                {currentUser.role === 'admin' && (
+                  <TouchableOpacity 
+                    style={styles.adminButton}
+                    onPress={() => router.push('/admin')}
+                  >
+                    <Ionicons name="settings" size={18} color="#F59E0B" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity 
+                  style={styles.userButton}
+                  onPress={handleLogout}
+                >
+                  <Ionicons name="person" size={16} color="#6366F1" />
+                  <Text style={styles.usernameText}>{currentUser.username}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.loginButton}
+                onPress={() => setShowLoginModal(true)}
+              >
+                <Ionicons name="log-in-outline" size={18} color="#6366F1" />
+                <Text style={styles.loginButtonText}>Login</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.notificationToggle}>
+              <Ionicons
+                name={notificationsEnabled ? 'notifications' : 'notifications-outline'}
+                size={20}
+                color={notificationsEnabled ? '#F59E0B' : '#94A3B8'}
+              />
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: '#334155', true: '#F59E0B' }}
+                thumbColor="#FFFFFF"
+                style={styles.switch}
+              />
+            </View>
           </View>
         </View>
         <Text style={styles.headerSubtitle}>
           Frecuencia de llegadas en Madrid
         </Text>
       </View>
+
+      {/* Login Modal */}
+      <Modal visible={showLoginModal} transparent animationType="slide">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.loginModalOverlay}
+        >
+          <View style={styles.loginModalContent}>
+            <View style={styles.loginModalHeader}>
+              <Text style={styles.loginModalTitle}>Iniciar Sesión</Text>
+              <TouchableOpacity onPress={() => setShowLoginModal(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            
+            <TextInput
+              style={styles.loginInput}
+              placeholder="Nombre de usuario"
+              placeholderTextColor="#64748B"
+              value={loginUsername}
+              onChangeText={setLoginUsername}
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.loginInput}
+              placeholder="Contraseña"
+              placeholderTextColor="#64748B"
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              secureTextEntry
+            />
+            
+            <TouchableOpacity 
+              style={styles.loginSubmitButton}
+              onPress={handleLogin}
+              disabled={loginLoading}
+            >
+              {loginLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.loginSubmitText}>Entrar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
