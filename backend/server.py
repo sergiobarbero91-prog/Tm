@@ -182,9 +182,10 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                     }
                     
+                    # Use "avldmd" for AV/Larga Distancia/Media Distancia filter
                     data = {
                         "_servicios_estacion_ServiciosEstacionPortlet_searchType": "proximasLlegadas",
-                        "_servicios_estacion_ServiciosEstacionPortlet_trafficType": "resto",  # media/larga distancia
+                        "_servicios_estacion_ServiciosEstacionPortlet_trafficType": "avldmd",  # AV/Larga Distancia/Media Distancia
                         "_servicios_estacion_ServiciosEstacionPortlet_numPage": "0",
                         "_servicios_estacion_ServiciosEstacionPortlet_commuterNetwork": "MADRID",
                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
