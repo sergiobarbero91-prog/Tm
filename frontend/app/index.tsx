@@ -157,7 +157,9 @@ export default function TransportMeter() {
   const fetchData = useCallback(async () => {
     try {
       if (activeTab === 'trains') {
-        const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`);
+        const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
+          params: { shift }
+        });
         setTrainData(response.data);
       } else {
         const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
@@ -169,7 +171,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, shift]);
 
   useEffect(() => {
     setLoading(true);
