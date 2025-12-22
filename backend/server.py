@@ -255,14 +255,19 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
                                     break
                                     
                             else:
+                                # If we have some arrivals already, don't fail
                                 logger.warning(f"Failed to fetch page {page} for station {station_id}, status: {api_response.status}")
+                                if arrivals:
+                                    logger.info(f"Keeping {len(arrivals)} trains from previous pages")
                                 break
                         
                         page += 1
                                     
     except Exception as e:
         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
-        return await fetch_adif_arrivals_scrape(station_id)
+        # Only fall back to scrape if we have no arrivals
+        if not arrivals:
+            return await fetch_adif_arrivals_scrape(station_id)
     
     # If API returned no results, try scraping HTML directly
     if not arrivals:
