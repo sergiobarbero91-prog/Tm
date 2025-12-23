@@ -165,10 +165,14 @@ class HotStreet(BaseModel):
     last_activity: datetime
     latitude: float
     longitude: float
+    distance_km: Optional[float] = None  # Distance from user in km
 
 class StreetWorkResponse(BaseModel):
     hottest_street: Optional[str]
+    hottest_street_lat: Optional[float] = None
+    hottest_street_lng: Optional[float] = None
     hottest_count: int
+    hottest_distance_km: Optional[float] = None
     hot_streets: List[HotStreet]
     recent_activities: List[StreetActivity]
     total_loads: int
