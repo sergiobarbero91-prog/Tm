@@ -343,8 +343,17 @@ export default function TransportMeter() {
   const fetchStreetData = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
+      
+      // Build params with user location if available
+      const params: any = { minutes: timeWindow };
+      if (currentLocation) {
+        params.user_lat = currentLocation.latitude;
+        params.user_lng = currentLocation.longitude;
+        params.max_distance_km = 4.0;  // ~5 min by car
+      }
+      
       const response = await axios.get<StreetWorkData>(`${API_BASE}/api/street/data`, {
-        params: { minutes: timeWindow },
+        params,
         headers: { Authorization: `Bearer ${token}` }
       });
       setStreetData(response.data);
