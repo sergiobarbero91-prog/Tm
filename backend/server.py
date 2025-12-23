@@ -75,12 +75,14 @@ TERMINALS = ["T1", "T2", "T3", "T4", "T4S"]
 
 # Models
 class TrainArrival(BaseModel):
-    time: str
+    time: str  # Hora real de llegada (con retraso si aplica)
+    scheduled_time: Optional[str] = None  # Hora programada original
     origin: str
     train_type: str
     train_number: str
     platform: Optional[str] = None
     status: Optional[str] = None
+    delay_minutes: Optional[int] = None  # Minutos de retraso
 
 class PeakHourInfo(BaseModel):
     start_hour: str
