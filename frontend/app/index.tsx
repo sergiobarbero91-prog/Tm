@@ -1693,8 +1693,16 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  earlyBadge: {
+    backgroundColor: '#10B98133',
+  },
   delayText: {
     color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  earlyText: {
+    color: '#10B981',
     fontSize: 11,
     fontWeight: '700',
   },
