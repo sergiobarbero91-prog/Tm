@@ -589,10 +589,27 @@ export default function TransportMeter() {
           {station.arrivals.slice(0, 5).map((arrival, index) => (
             <View key={index} style={styles.arrivalItem}>
               <View style={styles.arrivalTime}>
-                <Text style={styles.timeText}>{arrival.time}</Text>
+                <Text style={[
+                  styles.timeText,
+                  arrival.delay_minutes && arrival.delay_minutes > 0 && styles.delayedTimeText
+                ]}>
+                  {arrival.time}
+                </Text>
+                {arrival.delay_minutes && arrival.delay_minutes > 0 && arrival.scheduled_time && (
+                  <Text style={styles.scheduledTimeText}>
+                    ({arrival.scheduled_time})
+                  </Text>
+                )}
               </View>
               <View style={styles.arrivalInfo}>
-                <Text style={styles.trainType}>{arrival.train_type}</Text>
+                <View style={styles.trainTypeRow}>
+                  <Text style={styles.trainType}>{arrival.train_type}</Text>
+                  {arrival.delay_minutes && arrival.delay_minutes > 0 && (
+                    <View style={styles.delayBadge}>
+                      <Text style={styles.delayText}>+{arrival.delay_minutes}'</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.originText} numberOfLines={1}>
                   {arrival.origin}
                 </Text>
