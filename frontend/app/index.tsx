@@ -752,6 +752,20 @@ export default function TransportMeter() {
     );
   };
 
+  // Open Google Maps for navigation
+  const openGoogleMaps = (lat: number, lng: number, streetName: string) => {
+    const url = Platform.select({
+      ios: `maps://app?daddr=${lat},${lng}&dirflg=d`,
+      android: `google.navigation:q=${lat},${lng}&mode=d`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+    });
+    
+    Linking.openURL(url as string).catch(err => {
+      // Fallback to web Google Maps if app not available
+      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+    });
+  };
+
   const renderStreetContent = () => {
     return (
       <View style={styles.streetContainer}>
