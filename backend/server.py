@@ -1116,9 +1116,27 @@ async def register_street_activity(
 @api_router.get("/street/data", response_model=StreetWorkResponse)
 async def get_street_work_data(
     minutes: int = 60,
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None,
+    max_distance_km: float = 2.0,  # ~5 min by car
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Get street work data including hot streets for the time window."""
+    """Get street work data including hot streets for the time window.
+    
+    If user location is provided, filters and sorts by distance (max 5 min travel).
+    """
+    import math
+    
+    def haversine_distance(lat1, lon1, lat2, lon2):
+        """Calculate distance in km between two points."""
+        R = 6371  # Earth's radius in km
+        lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        return R * c
+    
     now = datetime.now(MADRID_TZ)
     time_threshold = now - timedelta(minutes=minutes)
     
