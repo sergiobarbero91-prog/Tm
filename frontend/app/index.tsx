@@ -41,12 +41,14 @@ Notifications.setNotificationHandler({
 });
 
 interface TrainArrival {
-  time: string;
+  time: string;  // Hora real de llegada
+  scheduled_time?: string;  // Hora programada original
   origin: string;
   train_type: string;
   train_number: string;
   platform?: string;
   status?: string;
+  delay_minutes?: number;  // Minutos de retraso
 }
 
 interface PeakHourInfo {
