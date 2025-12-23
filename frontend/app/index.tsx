@@ -401,7 +401,7 @@ export default function TransportMeter() {
     }
   }, [currentUser]);
 
-  // Fetch data when logged in
+  // Fetch data when logged in or when time window changes
   useEffect(() => {
     if (currentUser) {
       setLoading(true);
@@ -411,7 +411,7 @@ export default function TransportMeter() {
       const interval = setInterval(fetchData, 120000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, fetchData, currentUser]);
+  }, [activeTab, fetchData, currentUser, timeWindow]);
 
   // Get user location when switching to street tab
   useEffect(() => {
