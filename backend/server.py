@@ -1107,10 +1107,12 @@ async def get_street_work_data(
     now = datetime.now(MADRID_TZ)
     time_threshold = now - timedelta(minutes=minutes)
     
-    # Get activities in the time window
-    activities = await street_activities_collection.find({
-        "created_at": {"$gte": time_threshold}
-    }).sort("created_at", -1).to_list(1000)
+    # Get activities in the time window (exclude MongoDB _id field)
+    cursor = street_activities_collection.find(
+        {"created_at": {"$gte": time_threshold}},
+        {"_id": 0}  # Exclude _id field
+    ).sort("created_at", -1)
+    activities = await cursor.to_list(1000)
     
     # Count activities by street
     street_counts = {}
