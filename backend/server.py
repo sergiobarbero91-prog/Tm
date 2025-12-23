@@ -1249,7 +1249,10 @@ async def get_street_work_data(
     
     return StreetWorkResponse(
         hottest_street=hottest_street,
+        hottest_street_lat=hottest_lat,
+        hottest_street_lng=hottest_lng,
         hottest_count=hottest_count,
+        hottest_distance_km=hottest_distance,
         hot_streets=hot_streets,
         recent_activities=recent_activities,
         total_loads=total_loads,
