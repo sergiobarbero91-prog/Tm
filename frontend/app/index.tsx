@@ -382,7 +382,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser, timeWindow]);
+  }, [activeTab, shift, currentUser, timeWindow, fetchStreetData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
