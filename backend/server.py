@@ -697,6 +697,22 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                 # Use real time if available (for delayed/advanced flights)
                                 final_time = real_time if real_time else arrival_time
                                 
+                                # Calculate delay in minutes
+                                delay_minutes = None
+                                if real_time and arrival_time and real_time != arrival_time:
+                                    try:
+                                        sched_parts = arrival_time.split(":")
+                                        real_parts = real_time.split(":")
+                                        sched_mins = int(sched_parts[0]) * 60 + int(sched_parts[1])
+                                        real_mins = int(real_parts[0]) * 60 + int(real_parts[1])
+                                        delay = real_mins - sched_mins
+                                        # Handle day rollover
+                                        if delay < -120:
+                                            delay += 24 * 60
+                                        delay_minutes = delay if delay > 0 else delay  # Negative for early
+                                    except:
+                                        pass
+                                
                                 # Avoid duplicates
                                 existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
@@ -708,7 +724,8 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                         "airline": airline,
                                         "terminal": terminal,
                                         "gate": "-",
-                                        "status": status
+                                        "status": status,
+                                        "delay_minutes": delay_minutes
                                     })
                             except Exception as e:
                                 logger.debug(f"Error parsing flight record: {e}")
