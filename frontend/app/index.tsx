@@ -394,6 +394,26 @@ export default function TransportMeter() {
     checkExistingSession();
   }, []);
 
+  // Heartbeat to keep backend alive (every 30 seconds)
+  useEffect(() => {
+    const keepAlive = async () => {
+      try {
+        await axios.get(`${API_BASE}/api/health`);
+        console.log('[Heartbeat] Backend alive');
+      } catch (error) {
+        console.log('[Heartbeat] Backend may be sleeping, waking up...');
+      }
+    };
+
+    // Initial ping
+    keepAlive();
+    
+    // Ping every 30 seconds to keep backend awake
+    const heartbeatInterval = setInterval(keepAlive, 30000);
+    
+    return () => clearInterval(heartbeatInterval);
+  }, []);
+
   // Register for notifications
   useEffect(() => {
     if (currentUser) {
