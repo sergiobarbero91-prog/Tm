@@ -1653,10 +1653,34 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  trainTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   trainType: {
     color: '#6366F1',
     fontSize: 12,
     fontWeight: '600',
+  },
+  delayBadge: {
+    backgroundColor: '#EF444433',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  delayText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  delayedTimeText: {
+    color: '#EF4444',
+  },
+  scheduledTimeText: {
+    color: '#64748B',
+    fontSize: 10,
+    textDecorationLine: 'line-through',
   },
   originText: {
     color: '#FFFFFF',
