@@ -687,10 +687,32 @@ export default function TransportMeter() {
             {terminalData.arrivals.slice(0, 5).map((flight, index) => (
               <View key={index} style={styles.flightItem}>
                 <View style={styles.flightTime}>
-                  <Text style={styles.flightTimeText}>{flight.time}</Text>
+                  <Text style={[
+                    styles.flightTimeText,
+                    flight.delay_minutes && flight.delay_minutes > 0 && styles.delayedTimeText
+                  ]}>
+                    {flight.time}
+                  </Text>
+                  {flight.delay_minutes && flight.delay_minutes > 0 && flight.scheduled_time && (
+                    <Text style={styles.scheduledTimeText}>
+                      ({flight.scheduled_time})
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.flightInfo}>
-                  <Text style={styles.flightNumber}>{flight.flight_number}</Text>
+                  <View style={styles.trainTypeRow}>
+                    <Text style={styles.flightNumber}>{flight.flight_number}</Text>
+                    {flight.delay_minutes && flight.delay_minutes > 0 && (
+                      <View style={styles.delayBadge}>
+                        <Text style={styles.delayText}>+{flight.delay_minutes}'</Text>
+                      </View>
+                    )}
+                    {flight.delay_minutes && flight.delay_minutes < 0 && (
+                      <View style={[styles.delayBadge, styles.earlyBadge]}>
+                        <Text style={styles.earlyText}>{flight.delay_minutes}'</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.flightOrigin} numberOfLines={1}>
                     {flight.origin}
                   </Text>
