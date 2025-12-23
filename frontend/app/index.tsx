@@ -79,13 +79,15 @@ interface TrainComparison {
 }
 
 interface FlightArrival {
-  time: string;
+  time: string;  // Hora real de llegada
+  scheduled_time?: string;  // Hora programada
   origin: string;
   flight_number: string;
   airline: string;
   terminal: string;
   gate?: string;
   status?: string;
+  delay_minutes?: number;  // Minutos de retraso (negativo si adelantado)
 }
 
 interface TerminalData {
