@@ -413,6 +413,13 @@ export default function TransportMeter() {
     }
   }, [activeTab, fetchData, currentUser]);
 
+  // Get user location when switching to street tab
+  useEffect(() => {
+    if (activeTab === 'street' && currentUser && !currentLocation) {
+      getCurrentLocation();
+    }
+  }, [activeTab, currentUser]);
+
   const formatLastUpdate = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('es-ES', { 
