@@ -101,14 +101,15 @@ class StationData(BaseModel):
     peak_hour: Optional[PeakHourInfo] = None
 
 class FlightArrival(BaseModel):
-    time: str
-    scheduled_time: Optional[str] = None
+    time: str  # Hora real de llegada
+    scheduled_time: Optional[str] = None  # Hora programada
     origin: str
     flight_number: str
     airline: str
     terminal: str
     gate: Optional[str] = None
     status: Optional[str] = None
+    delay_minutes: Optional[int] = None  # Minutos de retraso
 
 class TerminalData(BaseModel):
     terminal: str
