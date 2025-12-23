@@ -1082,8 +1082,9 @@ async def register_street_activity(
     """Register a load or unload activity at current location."""
     now = datetime.now(MADRID_TZ)
     
+    activity_id = str(uuid.uuid4())
     new_activity = {
-        "id": str(uuid.uuid4()),
+        "id": activity_id,
         "user_id": current_user["id"],
         "username": current_user["username"],
         "action": activity.action,
@@ -1096,7 +1097,21 @@ async def register_street_activity(
     
     await street_activities_collection.insert_one(new_activity)
     
-    return {"message": f"Actividad '{activity.action}' registrada en {activity.street_name}", "activity": new_activity}
+    # Return a clean response without MongoDB _id
+    return {
+        "message": f"Actividad '{activity.action}' registrada en {activity.street_name}",
+        "activity": {
+            "id": activity_id,
+            "user_id": current_user["id"],
+            "username": current_user["username"],
+            "action": activity.action,
+            "latitude": activity.latitude,
+            "longitude": activity.longitude,
+            "street_name": activity.street_name,
+            "city": "Madrid",
+            "created_at": now.isoformat()
+        }
+    }
 
 @api_router.get("/street/data", response_model=StreetWorkResponse)
 async def get_street_work_data(
