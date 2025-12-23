@@ -773,15 +773,42 @@ export default function TransportMeter() {
         <View style={styles.hottestStreetCard}>
           <View style={styles.hottestStreetHeader}>
             <Ionicons name="flame" size={24} color="#EF4444" />
-            <Text style={styles.hottestStreetTitle}>Calle más caliente</Text>
+            <Text style={styles.hottestStreetTitle}>
+              {currentLocation ? 'Calle caliente más cercana' : 'Calle más caliente'}
+            </Text>
           </View>
           <Text style={styles.hottestStreetName}>
             {streetData?.hottest_street || 'Sin datos aún'}
           </Text>
           {streetData?.hottest_count > 0 && (
-            <Text style={styles.hottestStreetCount}>
-              {streetData.hottest_count} actividades en {timeWindow} min
-            </Text>
+            <View style={styles.hottestStreetInfo}>
+              <Text style={styles.hottestStreetCount}>
+                {streetData.hottest_count} actividades en {timeWindow} min
+              </Text>
+              {streetData.hottest_distance_km !== null && streetData.hottest_distance_km !== undefined && (
+                <View style={styles.distanceBadge}>
+                  <Ionicons name="location" size={14} color="#10B981" />
+                  <Text style={styles.distanceText}>
+                    {streetData.hottest_distance_km.toFixed(1)} km
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+          
+          {/* Navigate to Google Maps button */}
+          {streetData?.hottest_street && streetData?.hottest_street_lat && streetData?.hottest_street_lng && (
+            <TouchableOpacity
+              style={styles.navigateButton}
+              onPress={() => openGoogleMaps(
+                streetData.hottest_street_lat!,
+                streetData.hottest_street_lng!,
+                streetData.hottest_street!
+              )}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+            </TouchableOpacity>
           )}
         </View>
 
