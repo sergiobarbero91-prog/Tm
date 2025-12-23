@@ -1173,24 +1173,63 @@ async def get_street_work_data(
             total_unloads += 1
     
     # Sort by count and get hot streets
-    hot_streets = sorted(
-        [
-            HotStreet(
-                street_name=name,
-                count=data["count"],
-                last_activity=data["last_activity"],
-                latitude=data["latitude"],
-                longitude=data["longitude"]
-            )
-            for name, data in street_counts.items()
-        ],
-        key=lambda x: x.count,
-        reverse=True
-    )[:10]  # Top 10 hot streets
+    hot_streets_raw = []
+    for name, data in street_counts.items():
+        distance = None
+        if user_lat is not None and user_lng is not None:
+            distance = haversine_distance(user_lat, user_lng, data["latitude"], data["longitude"])
+        
+        hot_streets_raw.append({
+            "street_name": name,
+            "count": data["count"],
+            "last_activity": data["last_activity"],
+            "latitude": data["latitude"],
+            "longitude": data["longitude"],
+            "distance_km": round(distance, 2) if distance else None
+        })
     
-    # Determine hottest street
-    hottest_street = hot_streets[0].street_name if hot_streets else None
-    hottest_count = hot_streets[0].count if hot_streets else 0
+    # If user location provided, filter by distance and sort by distance first, then by count
+    if user_lat is not None and user_lng is not None:
+        # Filter streets within max_distance_km (reachable in ~5 min)
+        hot_streets_raw = [s for s in hot_streets_raw if s["distance_km"] and s["distance_km"] <= max_distance_km]
+        # Sort by distance first, then by activity count
+        hot_streets_raw.sort(key=lambda x: (x["distance_km"], -x["count"]))
+    else:
+        # Sort by count if no location
+        hot_streets_raw.sort(key=lambda x: -x["count"])
+    
+    hot_streets = [
+        HotStreet(
+            street_name=s["street_name"],
+            count=s["count"],
+            last_activity=s["last_activity"],
+            latitude=s["latitude"],
+            longitude=s["longitude"],
+            distance_km=s["distance_km"]
+        )
+        for s in hot_streets_raw[:10]  # Top 10
+    ]
+    
+    # Determine hottest street (closest with activity if location provided)
+    hottest_street = None
+    hottest_count = 0
+    hottest_lat = None
+    hottest_lng = None
+    hottest_distance = None
+    
+    if hot_streets:
+        # For hottest, prefer highest count among nearby streets
+        if user_lat is not None and user_lng is not None:
+            # Sort by count among reachable streets
+            best = max(hot_streets, key=lambda x: x.count)
+        else:
+            best = hot_streets[0]
+        
+        hottest_street = best.street_name
+        hottest_count = best.count
+        hottest_lat = best.latitude
+        hottest_lng = best.longitude
+        hottest_distance = best.distance_km
     
     # Convert activities to response format
     recent_activities = [
