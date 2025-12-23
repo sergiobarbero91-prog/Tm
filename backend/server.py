@@ -430,17 +430,41 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
                                     number_match = re.search(r'(\d{4,5})', train_code)
                                     train_number = number_match.group(1) if number_match else train_code
                                     
-                                    # Normalize time to handle concatenated times like "13:0513:25"
-                                    raw_time = h.get("hora", "00:00")
-                                    normalized_time = normalize_time_string(raw_time)
+                                    # Get scheduled and real times
+                                    scheduled_time = normalize_time_string(h.get("hora", "00:00"))
+                                    hora_estado = h.get("horaEstado", "")
+                                    
+                                    # horaEstado contains the real arrival time when there's a delay
+                                    if hora_estado and hora_estado.strip():
+                                        real_time = normalize_time_string(hora_estado)
+                                        # Calculate delay in minutes
+                                        try:
+                                            sched_parts = scheduled_time.split(":")
+                                            real_parts = real_time.split(":")
+                                            sched_mins = int(sched_parts[0]) * 60 + int(sched_parts[1])
+                                            real_mins = int(real_parts[0]) * 60 + int(real_parts[1])
+                                            delay = real_mins - sched_mins
+                                            # Handle day rollover
+                                            if delay < -120:
+                                                delay += 24 * 60
+                                            status = f"Retraso {delay} min" if delay > 0 else "Adelantado"
+                                        except:
+                                            delay = None
+                                            status = "Retrasado"
+                                    else:
+                                        real_time = scheduled_time
+                                        delay = None
+                                        status = "En hora"
                                     
                                     arrivals.append({
-                                        "time": normalized_time,
+                                        "time": real_time,  # Use real arrival time
+                                        "scheduled_time": scheduled_time,
                                         "origin": h.get("estacion", "Unknown"),
                                         "train_type": train_type.upper(),
                                         "train_number": train_number,
                                         "platform": h.get("via", "-") or "-",
-                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+                                        "status": status,
+                                        "delay_minutes": delay
                                     })
                                 
                                 success = True
