@@ -340,7 +340,7 @@ export default function TransportMeter() {
   };
 
   // Fetch street work data
-  const fetchStreetData = async () => {
+  const fetchStreetData = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       
@@ -360,7 +360,7 @@ export default function TransportMeter() {
     } catch (error) {
       console.error('Error fetching street data:', error);
     }
-  };
+  }, [timeWindow, currentLocation]);
 
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
