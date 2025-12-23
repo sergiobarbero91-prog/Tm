@@ -122,12 +122,24 @@ interface StreetActivity {
 
 interface StreetWorkData {
   hottest_street: string | null;
+  hottest_street_lat: number | null;
+  hottest_street_lng: number | null;
   hottest_count: number;
+  hottest_distance_km: number | null;
   hot_streets: HotStreet[];
   recent_activities: StreetActivity[];
   total_loads: number;
   total_unloads: number;
   last_update: string;
+}
+
+interface HotStreet {
+  street_name: string;
+  count: number;
+  last_activity: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number | null;
 }
 
 interface User {
