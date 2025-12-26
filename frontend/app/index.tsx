@@ -512,6 +512,13 @@ export default function TransportMeter() {
     }
   }, [currentUser]);
 
+  // Fetch check-in status when user logs in
+  useEffect(() => {
+    if (currentUser) {
+      fetchCheckInStatus();
+    }
+  }, [currentUser, fetchCheckInStatus]);
+
   // Fetch data when logged in or when time window changes
   useEffect(() => {
     if (currentUser) {
