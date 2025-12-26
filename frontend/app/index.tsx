@@ -1424,9 +1424,9 @@ export default function TransportMeter() {
                 Actualizado: {formatLastUpdate(flightData.last_update)}
               </Text>
             </View>
-            <Text style={styles.sectionTitle}>Terminales - Madrid Barajas</Text>
-            <View style={styles.terminalsGrid}>
-              {Object.values(flightData.terminals).map(renderTerminalCard)}
+            <Text style={styles.sectionTitle}>Zonas de Carga - Madrid Barajas</Text>
+            <View style={styles.terminalGroupsContainer}>
+              {terminalGroups.map(group => renderTerminalGroupCard(group))}
             </View>
             {renderFlightsList()}
           </>
