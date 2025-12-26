@@ -1736,6 +1736,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  lastUpdateWithRefresh: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  refreshButtonSmall: {
+    padding: 8,
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+  },
   lastUpdateRow: {
     flexDirection: 'row',
     alignItems: 'center',
