@@ -2410,6 +2410,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 15,
     marginBottom: 15,
+    alignItems: 'center',
   },
   streetButton: {
     flex: 1,
@@ -2419,6 +2420,35 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderRadius: 16,
     gap: 10,
+  },
+  streetButtonLarge: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 25,
+    borderRadius: 16,
+    gap: 8,
+  },
+  loadButtonLarge: {
+    backgroundColor: '#10B981',
+  },
+  unloadButtonLarge: {
+    backgroundColor: '#F59E0B',
+  },
+  streetButtonTextLarge: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  streetButtonHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  streetRefreshButton: {
+    backgroundColor: '#3B82F6',
+    padding: 15,
+    borderRadius: 12,
+    marginLeft: 10,
   },
   loadButton: {
     backgroundColor: '#10B981',
