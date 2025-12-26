@@ -352,6 +352,84 @@ export default function TransportMeter() {
     }
   };
 
+  // Fetch check-in status
+  const fetchCheckInStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get<CheckInStatus>(`${API_BASE}/api/checkin/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCheckInStatus(response.data);
+    } catch (error) {
+      console.error('Error fetching check-in status:', error);
+    }
+  }, []);
+
+  // Handle check-in/check-out
+  const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
+    if (checkInLoading) return;
+    
+    setCheckInLoading(true);
+    try {
+      // Get current location
+      let location = currentLocation;
+      if (!location) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          location = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude
+          };
+          setCurrentLocation(location);
+        }
+      }
+      
+      if (!location) {
+        Alert.alert('Error', 'No se pudo obtener la ubicación GPS');
+        setCheckInLoading(false);
+        return;
+      }
+      
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/checkin`, {
+        location_type: locationType,
+        location_name: locationName,
+        action: action,
+        latitude: location.latitude,
+        longitude: location.longitude
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update check-in status
+      if (response.data.is_checked_in) {
+        setCheckInStatus({
+          is_checked_in: true,
+          location_type: locationType,
+          location_name: locationName,
+          entry_time: new Date().toISOString()
+        });
+      } else {
+        setCheckInStatus({
+          is_checked_in: false,
+          location_type: null,
+          location_name: null,
+          entry_time: null
+        });
+      }
+      
+      Alert.alert('✓', response.data.message);
+      
+      // Refresh street data to show new activity
+      fetchStreetData();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo registrar');
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
   // Fetch street work data
   const fetchStreetData = useCallback(async () => {
     try {
