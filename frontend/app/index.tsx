@@ -172,6 +172,7 @@ export default function TransportMeter() {
   const [timeWindow, setTimeWindow] = useState<30 | 60>(60);
   const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [hasActiveLoad, setHasActiveLoad] = useState(false);  // For load/unload toggle
   const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
