@@ -1454,11 +1454,20 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'flights' && flightData ? (
           <>
-            <View style={styles.lastUpdate}>
-              <Ionicons name="time-outline" size={14} color="#64748B" />
-              <Text style={styles.lastUpdateText}>
-                Actualizado: {formatLastUpdate(flightData.last_update)}
-              </Text>
+            <View style={styles.lastUpdateWithRefresh}>
+              <View style={styles.lastUpdate}>
+                <Ionicons name="time-outline" size={14} color="#64748B" />
+                <Text style={styles.lastUpdateText}>
+                  Actualizado: {formatLastUpdate(flightData.last_update)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.refreshButtonSmall}
+                onPress={onRefresh}
+                disabled={refreshing}
+              >
+                <Ionicons name="refresh" size={18} color="#3B82F6" />
+              </TouchableOpacity>
             </View>
             <Text style={styles.sectionTitle}>Zonas de Carga - Madrid Barajas</Text>
             <View style={styles.terminalGroupsContainer}>
