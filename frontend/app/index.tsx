@@ -431,6 +431,19 @@ export default function TransportMeter() {
     }
   };
 
+  // Fetch load status (for load/unload toggle button)
+  const fetchLoadStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/street/load-status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setHasActiveLoad(response.data.has_active_load);
+    } catch (error) {
+      console.error('Error fetching load status:', error);
+    }
+  }, []);
+
   // Fetch street work data
   const fetchStreetData = useCallback(async () => {
     try {
@@ -449,10 +462,13 @@ export default function TransportMeter() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStreetData(response.data);
+      
+      // Also fetch load status
+      await fetchLoadStatus();
     } catch (error) {
       console.error('Error fetching street data:', error);
     }
-  }, [timeWindow, currentLocation]);
+  }, [timeWindow, currentLocation, fetchLoadStatus]);
 
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
