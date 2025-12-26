@@ -750,6 +750,7 @@ export default function TransportMeter() {
   const renderTerminalCard = (terminal: TerminalData) => {
     const isWinner = timeWindow === 30 ? terminal.is_winner_30min : terminal.is_winner_60min;
     const arrivals = timeWindow === 30 ? terminal.total_next_30min : terminal.total_next_60min;
+    const terminalName = terminal.terminal;
 
     return (
       <View
@@ -772,6 +773,27 @@ export default function TransportMeter() {
           {arrivals}
         </Text>
         <Text style={styles.terminalLabel}>vuelos</Text>
+        
+        {/* Check-in/Check-out Button for Terminal */}
+        {checkInStatus?.is_checked_in && checkInStatus.location_type === 'terminal' && checkInStatus.location_name === terminalName ? (
+          <TouchableOpacity
+            style={[styles.checkInButtonSmall, styles.checkOutButtonSmall]}
+            onPress={() => handleCheckIn('terminal', terminalName, 'exit')}
+            disabled={checkInLoading}
+          >
+            <Ionicons name="exit-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.checkInButtonTextSmall}>SALIR</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.checkInButtonSmall}
+            onPress={() => handleCheckIn('terminal', terminalName, 'entry')}
+            disabled={checkInLoading || (checkInStatus?.is_checked_in || false)}
+          >
+            <Ionicons name="enter-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.checkInButtonTextSmall}>ENTRAR</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
