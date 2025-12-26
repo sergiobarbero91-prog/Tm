@@ -1096,36 +1096,52 @@ export default function TransportMeter() {
         {/* Map */}
         {renderMap()}
 
-        {/* Action Buttons */}
+        {/* Single Toggle Button for Load/Unload */}
         <View style={styles.streetButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.streetButton, styles.loadButton]}
-            onPress={() => registerActivity('load')}
-            disabled={streetLoading}
-          >
-            {streetLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="arrow-down-circle" size={28} color="#FFFFFF" />
-                <Text style={styles.streetButtonText}>CARGADO</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {hasActiveLoad ? (
+            <TouchableOpacity
+              style={[styles.streetButtonLarge, styles.unloadButtonLarge]}
+              onPress={() => registerActivity('unload')}
+              disabled={streetLoading}
+            >
+              {streetLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="large" />
+              ) : (
+                <>
+                  <Ionicons name="arrow-up-circle" size={40} color="#FFFFFF" />
+                  <Text style={styles.streetButtonTextLarge}>DESCARGADO</Text>
+                  <Text style={styles.streetButtonHint}>Toca para registrar descarga</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.streetButtonLarge, styles.loadButtonLarge]}
+              onPress={() => registerActivity('load')}
+              disabled={streetLoading}
+            >
+              {streetLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="large" />
+              ) : (
+                <>
+                  <Ionicons name="arrow-down-circle" size={40} color="#FFFFFF" />
+                  <Text style={styles.streetButtonTextLarge}>CARGADO</Text>
+                  <Text style={styles.streetButtonHint}>Toca para registrar carga</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
           
+          {/* Refresh Button */}
           <TouchableOpacity
-            style={[styles.streetButton, styles.unloadButton]}
-            onPress={() => registerActivity('unload')}
-            disabled={streetLoading}
+            style={styles.streetRefreshButton}
+            onPress={() => {
+              setRefreshing(true);
+              fetchStreetData().finally(() => setRefreshing(false));
+            }}
+            disabled={refreshing}
           >
-            {streetLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="arrow-up-circle" size={28} color="#FFFFFF" />
-                <Text style={styles.streetButtonText}>DESCARGADO</Text>
-              </>
-            )}
+            <Ionicons name="refresh" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
