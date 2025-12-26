@@ -154,6 +154,13 @@ interface User {
   role: string;
 }
 
+interface CheckInStatus {
+  is_checked_in: boolean;
+  location_type: string | null;
+  location_name: string | null;
+  entry_time: string | null;
+}
+
 export default function TransportMeter() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('trains');
@@ -163,6 +170,8 @@ export default function TransportMeter() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeWindow, setTimeWindow] = useState<30 | 60>(60);
+  const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null);
+  const [checkInLoading, setCheckInLoading] = useState(false);
   const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
