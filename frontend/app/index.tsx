@@ -747,16 +747,61 @@ export default function TransportMeter() {
     );
   };
 
-  const renderTerminalCard = (terminal: TerminalData) => {
-    const isWinner = timeWindow === 30 ? terminal.is_winner_30min : terminal.is_winner_60min;
-    const arrivals = timeWindow === 30 ? terminal.total_next_30min : terminal.total_next_60min;
-    const terminalName = terminal.terminal;
+  // Terminal groups configuration
+  const terminalGroups = [
+    { name: 'T1', terminals: ['T1'], zoneName: 'Zona T1' },
+    { name: 'T2-T3', terminals: ['T2', 'T3'], zoneName: 'Zona T2-T3' },
+    { name: 'T4-T4S', terminals: ['T4', 'T4S'], zoneName: 'Zona T4-T4S' },
+  ];
+
+  const renderTerminalGroupCard = (group: { name: string; terminals: string[]; zoneName: string }) => {
+    if (!flightData) return null;
+    
+    // Calculate totals for the group
+    let total30min = 0;
+    let total60min = 0;
+    let allArrivals: FlightArrival[] = [];
+    
+    group.terminals.forEach(terminalName => {
+      const terminal = flightData.terminals[terminalName];
+      if (terminal) {
+        total30min += terminal.total_next_30min;
+        total60min += terminal.total_next_60min;
+        allArrivals = [...allArrivals, ...terminal.arrivals];
+      }
+    });
+    
+    const arrivals = timeWindow === 30 ? total30min : total60min;
+    
+    // Determine if this group is the winner
+    const groupTotals = terminalGroups.map(g => {
+      let t30 = 0, t60 = 0;
+      g.terminals.forEach(t => {
+        const term = flightData.terminals[t];
+        if (term) {
+          t30 += term.total_next_30min;
+          t60 += term.total_next_60min;
+        }
+      });
+      return { name: g.name, total30: t30, total60: t60 };
+    });
+    
+    const maxTotal = timeWindow === 30 
+      ? Math.max(...groupTotals.map(g => g.total30))
+      : Math.max(...groupTotals.map(g => g.total60));
+    
+    const isWinner = arrivals === maxTotal && arrivals > 0;
+    
+    // Check-in status for this group
+    const isCheckedInHere = checkInStatus?.is_checked_in && 
+      checkInStatus.location_type === 'terminal' && 
+      group.terminals.includes(checkInStatus.location_name || '');
 
     return (
       <View
-        key={terminal.terminal}
+        key={group.name}
         style={[
-          styles.terminalCard,
+          styles.terminalGroupCard,
           isWinner && styles.winnerTerminalCard,
         ]}
       >
@@ -766,19 +811,24 @@ export default function TransportMeter() {
             <Text style={styles.winnerBadgeText}>TOP</Text>
           </View>
         )}
-        <Text style={[styles.terminalName, isWinner && styles.winnerTerminalText]}>
-          {terminal.terminal}
+        <Text style={[styles.terminalGroupName, isWinner && styles.winnerTerminalText]}>
+          {group.zoneName}
         </Text>
+        <View style={styles.terminalGroupTerminals}>
+          {group.terminals.map(t => (
+            <Text key={t} style={styles.terminalGroupTerminalText}>{t}</Text>
+          ))}
+        </View>
         <Text style={[styles.terminalCount, isWinner && styles.winnerTerminalCount]}>
           {arrivals}
         </Text>
         <Text style={styles.terminalLabel}>vuelos</Text>
         
-        {/* Check-in/Check-out Button for Terminal */}
-        {checkInStatus?.is_checked_in && checkInStatus.location_type === 'terminal' && checkInStatus.location_name === terminalName ? (
+        {/* Check-in/Check-out Button for Terminal Group */}
+        {isCheckedInHere ? (
           <TouchableOpacity
             style={[styles.checkInButtonSmall, styles.checkOutButtonSmall]}
-            onPress={() => handleCheckIn('terminal', terminalName, 'exit')}
+            onPress={() => handleCheckIn('terminal', checkInStatus?.location_name || group.terminals[0], 'exit')}
             disabled={checkInLoading}
           >
             <Ionicons name="exit-outline" size={16} color="#FFFFFF" />
@@ -787,7 +837,7 @@ export default function TransportMeter() {
         ) : (
           <TouchableOpacity
             style={styles.checkInButtonSmall}
-            onPress={() => handleCheckIn('terminal', terminalName, 'entry')}
+            onPress={() => handleCheckIn('terminal', group.terminals[0], 'entry')}
             disabled={checkInLoading || (checkInStatus?.is_checked_in || false)}
           >
             <Ionicons name="enter-outline" size={16} color="#FFFFFF" />
