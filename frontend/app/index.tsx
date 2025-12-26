@@ -330,7 +330,7 @@ export default function TransportMeter() {
         return;
       }
 
-      await axios.post(`${API_BASE}/api/street/activity`, {
+      const response = await axios.post(`${API_BASE}/api/street/activity`, {
         action,
         latitude: locationData.latitude,
         longitude: locationData.longitude,
@@ -339,8 +339,11 @@ export default function TransportMeter() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Update active load state
+      setHasActiveLoad(response.data.has_active_load);
+
       Alert.alert(
-        'Éxito',
+        '✓',
         `${action === 'load' ? 'Carga' : 'Descarga'} registrada en ${locationData.street}`
       );
       
