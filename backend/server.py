@@ -180,7 +180,23 @@ class StreetWorkResponse(BaseModel):
     recent_activities: List[StreetActivity]
     total_loads: int
     total_unloads: int
+    total_station_entries: int = 0
+    total_terminal_entries: int = 0
     last_update: str
+
+# Check-in Models
+class CheckInRequest(BaseModel):
+    location_type: str  # 'station' or 'terminal'
+    location_name: str  # e.g., 'Atocha', 'T4'
+    action: str  # 'entry' or 'exit'
+    latitude: float
+    longitude: float
+
+class CheckInStatus(BaseModel):
+    is_checked_in: bool
+    location_type: Optional[str] = None
+    location_name: Optional[str] = None
+    entry_time: Optional[str] = None
 
 # Authentication Models
 class UserInDB(BaseModel):
