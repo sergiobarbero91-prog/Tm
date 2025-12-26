@@ -718,6 +718,31 @@ export default function TransportMeter() {
             </View>
           ))}
         </View>
+        
+        {/* Check-in/Check-out Button */}
+        {checkInStatus?.is_checked_in && checkInStatus.location_type === 'station' && checkInStatus.location_name === stationShortName ? (
+          <TouchableOpacity
+            style={[styles.checkInButton, styles.checkOutButton]}
+            onPress={() => handleCheckIn('station', stationShortName, 'exit')}
+            disabled={checkInLoading}
+          >
+            <Ionicons name="exit-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.checkInButtonText}>
+              {checkInLoading ? 'Registrando...' : 'SALIR DE ESTACIÓN'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.checkInButton}
+            onPress={() => handleCheckIn('station', stationShortName, 'entry')}
+            disabled={checkInLoading || (checkInStatus?.is_checked_in || false)}
+          >
+            <Ionicons name="enter-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.checkInButtonText}>
+              {checkInLoading ? 'Registrando...' : 'ENTRAR EN ESTACIÓN'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
