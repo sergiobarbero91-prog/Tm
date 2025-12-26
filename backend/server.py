@@ -1161,6 +1161,9 @@ async def register_street_activity(
     
     await street_activities_collection.insert_one(new_activity)
     
+    # Determine if there's now an active load
+    has_active_load = activity.action == "load"
+    
     # Return a clean response without MongoDB _id
     return {
         "message": f"Actividad '{activity.action}' registrada en {activity.street_name}",
@@ -1174,7 +1177,35 @@ async def register_street_activity(
             "street_name": activity.street_name,
             "city": "Madrid",
             "created_at": now.isoformat()
-        }
+        },
+        "has_active_load": has_active_load
+    }
+
+@api_router.get("/street/load-status")
+async def get_load_status(
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Check if user has an active load (load without subsequent unload)."""
+    user_id = current_user["id"]
+    now = datetime.now(MADRID_TZ)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get the most recent load/unload activity for today
+    last_activity = await street_activities_collection.find_one(
+        {
+            "user_id": user_id,
+            "action": {"$in": ["load", "unload"]},
+            "created_at": {"$gte": start_of_day}
+        },
+        sort=[("created_at", -1)]
+    )
+    
+    has_active_load = last_activity is not None and last_activity.get("action") == "load"
+    
+    return {
+        "has_active_load": has_active_load,
+        "last_action": last_activity.get("action") if last_activity else None,
+        "last_street": last_activity.get("street_name") if last_activity else None
     }
 
 @api_router.get("/street/data", response_model=StreetWorkResponse)
