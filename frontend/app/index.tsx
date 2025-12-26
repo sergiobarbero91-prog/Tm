@@ -477,10 +477,42 @@ export default function TransportMeter() {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
       if (activeTab === 'trains') {
-        const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
-          params: { shift }
-        });
-        setTrainData(response.data);
+        // Fetch trains with retry for Chamartín
+        let retryCount = 0;
+        const maxRetries = 5;
+        let trainResponse: TrainComparison | null = null;
+        
+        while (retryCount < maxRetries) {
+          const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
+            params: { shift }
+          });
+          
+          trainResponse = response.data;
+          
+          // Check if Chamartín has data
+          const chamartinHasData = response.data.chamartin?.arrivals?.length > 0;
+          
+          if (chamartinHasData) {
+            console.log(`[Trains] Chamartín data received (${response.data.chamartin.arrivals.length} trains)`);
+            break;
+          }
+          
+          retryCount++;
+          console.log(`[Trains] Chamartín sin datos, reintentando (${retryCount}/${maxRetries})...`);
+          
+          if (retryCount < maxRetries) {
+            // Wait 2 seconds before retrying
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+        
+        if (trainResponse) {
+          setTrainData(trainResponse);
+          
+          if (trainResponse.chamartin?.arrivals?.length === 0) {
+            console.log('[Trains] Chamartín: No se pudieron obtener datos después de varios intentos');
+          }
+        }
       } else if (activeTab === 'flights') {
         const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
         setFlightData(response.data);
