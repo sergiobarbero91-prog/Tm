@@ -2225,6 +2225,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  checkInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 15,
+    gap: 8,
+  },
+  checkOutButton: {
+    backgroundColor: '#EF4444',
+  },
+  checkInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  checkInButtonSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 10,
+    gap: 4,
+  },
+  checkOutButtonSmall: {
+    backgroundColor: '#EF4444',
+  },
+  checkInButtonTextSmall: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   mapContainer: {
     height: 250,
     borderRadius: 16,
