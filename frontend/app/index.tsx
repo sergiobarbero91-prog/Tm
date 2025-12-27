@@ -1197,19 +1197,74 @@ export default function TransportMeter() {
         {streetData?.recent_activities && streetData.recent_activities.length > 0 && (
           <View style={styles.recentActivityContainer}>
             <Text style={styles.recentActivityTitle}>Actividad reciente</Text>
-            {streetData.recent_activities.slice(0, 5).map((activity, index) => (
-              <View key={index} style={styles.activityItem}>
-                <Ionicons
-                  name={activity.action === 'load' ? 'arrow-down-circle' : 'arrow-up-circle'}
-                  size={20}
-                  color={activity.action === 'load' ? '#10B981' : '#F59E0B'}
-                />
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityStreet}>{activity.street_name}</Text>
-                  <Text style={styles.activityUser}>{activity.username}</Text>
+            {streetData.recent_activities.slice(0, 10).map((activity, index) => {
+              // Determine icon and color based on action type
+              let iconName: keyof typeof Ionicons.glyphMap = 'help-circle';
+              let iconColor = '#94A3B8';
+              let actionLabel = '';
+              
+              switch (activity.action) {
+                case 'load':
+                  iconName = 'arrow-down-circle';
+                  iconColor = '#10B981';
+                  actionLabel = 'Carga';
+                  break;
+                case 'unload':
+                  iconName = 'arrow-up-circle';
+                  iconColor = '#F59E0B';
+                  actionLabel = 'Descarga';
+                  break;
+                case 'station_entry':
+                  iconName = 'enter';
+                  iconColor = '#3B82F6';
+                  actionLabel = 'Entrada estación';
+                  break;
+                case 'station_exit':
+                  iconName = 'exit';
+                  iconColor = '#8B5CF6';
+                  actionLabel = 'Salida estación';
+                  break;
+                case 'terminal_entry':
+                  iconName = 'airplane';
+                  iconColor = '#3B82F6';
+                  actionLabel = 'Entrada terminal';
+                  break;
+                case 'terminal_exit':
+                  iconName = 'airplane-outline';
+                  iconColor = '#8B5CF6';
+                  actionLabel = 'Salida terminal';
+                  break;
+              }
+              
+              // Format time
+              const activityTime = new Date(activity.created_at);
+              const timeString = activityTime.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+              
+              return (
+                <View key={index} style={styles.activityItem}>
+                  <View style={styles.activityTimeColumn}>
+                    <Text style={styles.activityTimeText}>{timeString}</Text>
+                    {activity.duration_minutes !== undefined && activity.duration_minutes !== null && (
+                      <View style={styles.durationBadge}>
+                        <Ionicons name="time-outline" size={10} color="#10B981" />
+                        <Text style={styles.durationText}>{activity.duration_minutes}min</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Ionicons name={iconName} size={24} color={iconColor} />
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityAction}>{actionLabel}</Text>
+                    <Text style={styles.activityStreet} numberOfLines={1}>
+                      {activity.location_name || activity.street_name}
+                    </Text>
+                    <Text style={styles.activityUser}>{activity.username}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>
