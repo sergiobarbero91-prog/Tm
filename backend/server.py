@@ -1260,29 +1260,78 @@ async def get_street_work_data(
     ).sort("created_at", -1)
     activities = await cursor.to_list(1000)
     
-    # Count activities by street
-    street_counts = {}
+    # Separate counters for streets, stations, and terminals
+    street_counts = {}  # Only load/unload activities
+    station_counts = {}  # Only station_exit activities
+    terminal_counts = {}  # Only terminal_exit activities
+    
     total_loads = 0
     total_unloads = 0
+    total_station_entries = 0
+    total_station_exits = 0
+    total_terminal_entries = 0
+    total_terminal_exits = 0
     
     for activity in activities:
-        street = activity.get("street_name", "Desconocida")
-        if street not in street_counts:
-            street_counts[street] = {
-                "count": 0,
-                "last_activity": activity["created_at"],
-                "latitude": activity["latitude"],
-                "longitude": activity["longitude"]
-            }
-        street_counts[street]["count"] += 1
+        action = activity.get("action", "")
         
-        if activity["action"] == "load":
+        if action == "load":
             total_loads += 1
-        elif activity["action"] == "unload":
+            # Count for hot street
+            street = activity.get("street_name", "Desconocida")
+            if street not in street_counts:
+                street_counts[street] = {
+                    "count": 0,
+                    "last_activity": activity["created_at"],
+                    "latitude": activity["latitude"],
+                    "longitude": activity["longitude"]
+                }
+            street_counts[street]["count"] += 1
+            
+        elif action == "unload":
             total_unloads += 1
-        # station_entry, station_exit, terminal_entry, terminal_exit are not counted in loads/unloads
+            # Count for hot street
+            street = activity.get("street_name", "Desconocida")
+            if street not in street_counts:
+                street_counts[street] = {
+                    "count": 0,
+                    "last_activity": activity["created_at"],
+                    "latitude": activity["latitude"],
+                    "longitude": activity["longitude"]
+                }
+            street_counts[street]["count"] += 1
+            
+        elif action == "station_entry":
+            total_station_entries += 1
+            
+        elif action == "station_exit":
+            total_station_exits += 1
+            # Count for hot station (based on exits)
+            location = activity.get("location_name", "Desconocida")
+            if location not in station_counts:
+                station_counts[location] = {
+                    "count": 0,
+                    "latitude": activity["latitude"],
+                    "longitude": activity["longitude"]
+                }
+            station_counts[location]["count"] += 1
+            
+        elif action == "terminal_entry":
+            total_terminal_entries += 1
+            
+        elif action == "terminal_exit":
+            total_terminal_exits += 1
+            # Count for hot terminal (based on exits)
+            location = activity.get("location_name", "Desconocida")
+            if location not in terminal_counts:
+                terminal_counts[location] = {
+                    "count": 0,
+                    "latitude": activity["latitude"],
+                    "longitude": activity["longitude"]
+                }
+            terminal_counts[location]["count"] += 1
     
-    # Sort by count and get hot streets
+    # Sort by count and get hot streets (only load/unload)
     hot_streets_raw = []
     for name, data in street_counts.items():
         distance = None
