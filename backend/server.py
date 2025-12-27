@@ -1262,8 +1262,9 @@ async def get_street_work_data(
         
         if activity["action"] == "load":
             total_loads += 1
-        else:
+        elif activity["action"] == "unload":
             total_unloads += 1
+        # station_entry, station_exit, terminal_entry, terminal_exit are not counted in loads/unloads
     
     # Sort by count and get hot streets
     hot_streets_raw = []
