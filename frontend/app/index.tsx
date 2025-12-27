@@ -468,6 +468,55 @@ export default function TransportMeter() {
           location_name: null,
           entry_time: null
         });
+        
+        // On exit, open GPS to navigate to hottest location of the same type
+        if (action === 'exit') {
+          // Fetch latest street data to get hottest locations
+          const streetResponse = await axios.get(`${API_BASE}/api/street/data`, {
+            params: { minutes: timeWindow },
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (locationType === 'station' && streetResponse.data.hottest_street_lat) {
+            // Navigate to hottest street after exiting station
+            setTimeout(() => {
+              Alert.alert(
+                'Navegación',
+                `¿Ir a la calle caliente: ${streetResponse.data.hottest_street}?`,
+                [
+                  { text: 'No', style: 'cancel' },
+                  { 
+                    text: 'Sí', 
+                    onPress: () => openGpsNavigation(
+                      streetResponse.data.hottest_street_lat,
+                      streetResponse.data.hottest_street_lng,
+                      streetResponse.data.hottest_street
+                    )
+                  }
+                ]
+              );
+            }, 500);
+          } else if (locationType === 'terminal' && streetResponse.data.hottest_street_lat) {
+            // Navigate to hottest street after exiting terminal
+            setTimeout(() => {
+              Alert.alert(
+                'Navegación',
+                `¿Ir a la calle caliente: ${streetResponse.data.hottest_street}?`,
+                [
+                  { text: 'No', style: 'cancel' },
+                  { 
+                    text: 'Sí', 
+                    onPress: () => openGpsNavigation(
+                      streetResponse.data.hottest_street_lat,
+                      streetResponse.data.hottest_street_lng,
+                      streetResponse.data.hottest_street
+                    )
+                  }
+                ]
+              );
+            }, 500);
+          }
+        }
       }
       
       Alert.alert('✓', response.data.message);
