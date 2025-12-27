@@ -1176,7 +1176,7 @@ export default function TransportMeter() {
           {streetData?.hottest_street && streetData?.hottest_street_lat && streetData?.hottest_street_lng && (
             <TouchableOpacity
               style={styles.navigateButton}
-              onPress={() => openGoogleMaps(
+              onPress={() => openGpsNavigation(
                 streetData.hottest_street_lat!,
                 streetData.hottest_street_lng!,
                 streetData.hottest_street!
@@ -1206,7 +1206,7 @@ export default function TransportMeter() {
           {streetData?.hottest_station && streetData?.hottest_station_lat && streetData?.hottest_station_lng && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonStation]}
-              onPress={() => openGoogleMaps(
+              onPress={() => openGpsNavigation(
                 streetData.hottest_station_lat!,
                 streetData.hottest_station_lng!,
                 streetData.hottest_station!
@@ -1236,7 +1236,7 @@ export default function TransportMeter() {
           {streetData?.hottest_terminal && streetData?.hottest_terminal_lat && streetData?.hottest_terminal_lng && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonTerminal]}
-              onPress={() => openGoogleMaps(
+              onPress={() => openGpsNavigation(
                 streetData.hottest_terminal_lat!,
                 streetData.hottest_terminal_lng!,
                 streetData.hottest_terminal!
