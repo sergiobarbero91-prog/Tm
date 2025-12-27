@@ -1418,9 +1418,16 @@ export default function TransportMeter() {
                 style={styles.adminButton}
                 onPress={() => router.push('/admin')}
               >
-                <Ionicons name="settings" size={18} color="#F59E0B" />
+                <Ionicons name="shield" size={18} color="#F59E0B" />
               </TouchableOpacity>
             )}
+            {/* Settings Button */}
+            <TouchableOpacity 
+              style={styles.settingsButton}
+              onPress={() => setShowSettings(true)}
+            >
+              <Ionicons name="settings-outline" size={20} color="#94A3B8" />
+            </TouchableOpacity>
             {/* User Button */}
             <TouchableOpacity 
               style={styles.userButton}
