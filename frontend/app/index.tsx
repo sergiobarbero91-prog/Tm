@@ -1192,6 +1192,18 @@ export default function TransportMeter() {
             <Text style={styles.streetStatLabel}>Descargas</Text>
           </View>
         </View>
+        <View style={styles.streetStatsContainer}>
+          <View style={[styles.streetStatCard, styles.streetStatCardSmall]}>
+            <Ionicons name="train" size={16} color="#3B82F6" />
+            <Text style={styles.streetStatNumberSmall}>{streetData?.total_station_entries || 0}</Text>
+            <Text style={styles.streetStatLabelSmall}>Estaciones</Text>
+          </View>
+          <View style={[styles.streetStatCard, styles.streetStatCardSmall]}>
+            <Ionicons name="airplane" size={16} color="#3B82F6" />
+            <Text style={styles.streetStatNumberSmall}>{streetData?.total_terminal_entries || 0}</Text>
+            <Text style={styles.streetStatLabelSmall}>Terminales</Text>
+          </View>
+        </View>
 
         {/* Recent Activity */}
         {streetData?.recent_activities && streetData.recent_activities.length > 0 && (
