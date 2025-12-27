@@ -173,17 +173,33 @@ class HotStreet(BaseModel):
     distance_km: Optional[float] = None  # Distance from user in km
 
 class StreetWorkResponse(BaseModel):
+    # Hottest street (only load/unload activities)
     hottest_street: Optional[str]
     hottest_street_lat: Optional[float] = None
     hottest_street_lng: Optional[float] = None
     hottest_count: int
     hottest_distance_km: Optional[float] = None
     hot_streets: List[HotStreet]
+    
+    # Hottest station (based on exits)
+    hottest_station: Optional[str] = None
+    hottest_station_count: int = 0
+    hottest_station_lat: Optional[float] = None
+    hottest_station_lng: Optional[float] = None
+    
+    # Hottest terminal (based on exits)
+    hottest_terminal: Optional[str] = None
+    hottest_terminal_count: int = 0
+    hottest_terminal_lat: Optional[float] = None
+    hottest_terminal_lng: Optional[float] = None
+    
     recent_activities: List[StreetActivity]
     total_loads: int
     total_unloads: int
     total_station_entries: int = 0
+    total_station_exits: int = 0
     total_terminal_entries: int = 0
+    total_terminal_exits: int = 0
     last_update: str
 
 # Check-in Models
