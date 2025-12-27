@@ -181,6 +181,8 @@ interface CheckInStatus {
   entry_time: string | null;
 }
 
+type GpsApp = 'google' | 'waze';
+
 export default function TransportMeter() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('trains');
@@ -193,6 +195,8 @@ export default function TransportMeter() {
   const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [hasActiveLoad, setHasActiveLoad] = useState(false);  // For load/unload toggle
+  const [gpsApp, setGpsApp] = useState<GpsApp>('google');
+  const [showSettings, setShowSettings] = useState(false);
   const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
