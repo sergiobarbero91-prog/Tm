@@ -1112,17 +1112,33 @@ export default function TransportMeter() {
     );
   };
 
-  // Open Google Maps for navigation
-  const openGoogleMaps = (lat: number, lng: number, streetName: string) => {
-    const url = Platform.select({
-      ios: `maps://app?daddr=${lat},${lng}&dirflg=d`,
-      android: `google.navigation:q=${lat},${lng}&mode=d`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-    });
+  // Open GPS app for navigation (Google Maps or Waze)
+  const openGpsNavigation = (lat: number, lng: number, placeName: string) => {
+    let url: string;
     
-    Linking.openURL(url as string).catch(err => {
-      // Fallback to web Google Maps if app not available
-      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+    if (gpsApp === 'waze') {
+      // Waze URL scheme
+      url = Platform.select({
+        ios: `waze://?ll=${lat},${lng}&navigate=yes`,
+        android: `waze://?ll=${lat},${lng}&navigate=yes`,
+        default: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+      }) as string;
+    } else {
+      // Google Maps URL scheme
+      url = Platform.select({
+        ios: `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`,
+        android: `google.navigation:q=${lat},${lng}&mode=d`,
+        default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+      }) as string;
+    }
+    
+    Linking.openURL(url).catch(err => {
+      // Fallback to web version
+      if (gpsApp === 'waze') {
+        Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+      } else {
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+      }
     });
   };
 
