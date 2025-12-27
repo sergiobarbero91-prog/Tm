@@ -263,6 +263,29 @@ export default function TransportMeter() {
     setCurrentUser(null);
   };
 
+  // Load GPS preference on mount
+  const loadGpsPreference = async () => {
+    try {
+      const savedGps = await AsyncStorage.getItem('gps_app');
+      if (savedGps === 'waze' || savedGps === 'google') {
+        setGpsApp(savedGps);
+      }
+    } catch (error) {
+      console.log('Error loading GPS preference:', error);
+    }
+  };
+
+  // Save GPS preference
+  const saveGpsPreference = async (app: GpsApp) => {
+    try {
+      await AsyncStorage.setItem('gps_app', app);
+      setGpsApp(app);
+      Alert.alert('✓', `GPS cambiado a ${app === 'google' ? 'Google Maps' : 'Waze'}`);
+    } catch (error) {
+      console.log('Error saving GPS preference:', error);
+    }
+  };
+
   const registerForPushNotifications = async () => {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
