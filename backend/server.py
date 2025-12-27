@@ -1334,11 +1334,17 @@ async def get_street_work_data(
             latitude=a["latitude"],
             longitude=a["longitude"],
             street_name=a["street_name"],
+            location_name=a.get("location_name"),
             city=a.get("city", "Madrid"),
-            created_at=a["created_at"]
+            created_at=a["created_at"],
+            duration_minutes=a.get("duration_minutes")
         )
         for a in activities[:20]  # Last 20 activities
     ]
+    
+    # Count station and terminal entries
+    total_station_entries = sum(1 for a in activities if a["action"] == "station_entry")
+    total_terminal_entries = sum(1 for a in activities if a["action"] == "terminal_entry")
     
     return StreetWorkResponse(
         hottest_street=hottest_street,
@@ -1350,6 +1356,8 @@ async def get_street_work_data(
         recent_activities=recent_activities,
         total_loads=total_loads,
         total_unloads=total_unloads,
+        total_station_entries=total_station_entries,
+        total_terminal_entries=total_terminal_entries,
         last_update=now.isoformat()
     )
 
