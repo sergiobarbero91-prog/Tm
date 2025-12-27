@@ -1390,6 +1390,32 @@ async def get_street_work_data(
         hottest_lng = best.longitude
         hottest_distance = best.distance_km
     
+    # Determine hottest station (based on exits)
+    hottest_station = None
+    hottest_station_count = 0
+    hottest_station_lat = None
+    hottest_station_lng = None
+    
+    if station_counts:
+        best_station = max(station_counts.items(), key=lambda x: x[1]["count"])
+        hottest_station = best_station[0]
+        hottest_station_count = best_station[1]["count"]
+        hottest_station_lat = best_station[1]["latitude"]
+        hottest_station_lng = best_station[1]["longitude"]
+    
+    # Determine hottest terminal (based on exits)
+    hottest_terminal = None
+    hottest_terminal_count = 0
+    hottest_terminal_lat = None
+    hottest_terminal_lng = None
+    
+    if terminal_counts:
+        best_terminal = max(terminal_counts.items(), key=lambda x: x[1]["count"])
+        hottest_terminal = best_terminal[0]
+        hottest_terminal_count = best_terminal[1]["count"]
+        hottest_terminal_lat = best_terminal[1]["latitude"]
+        hottest_terminal_lng = best_terminal[1]["longitude"]
+    
     # Convert activities to response format
     recent_activities = [
         StreetActivity(
@@ -1408,10 +1434,6 @@ async def get_street_work_data(
         for a in activities[:20]  # Last 20 activities
     ]
     
-    # Count station and terminal entries
-    total_station_entries = sum(1 for a in activities if a["action"] == "station_entry")
-    total_terminal_entries = sum(1 for a in activities if a["action"] == "terminal_entry")
-    
     return StreetWorkResponse(
         hottest_street=hottest_street,
         hottest_street_lat=hottest_lat,
@@ -1419,11 +1441,21 @@ async def get_street_work_data(
         hottest_count=hottest_count,
         hottest_distance_km=hottest_distance,
         hot_streets=hot_streets,
+        hottest_station=hottest_station,
+        hottest_station_count=hottest_station_count,
+        hottest_station_lat=hottest_station_lat,
+        hottest_station_lng=hottest_station_lng,
+        hottest_terminal=hottest_terminal,
+        hottest_terminal_count=hottest_terminal_count,
+        hottest_terminal_lat=hottest_terminal_lat,
+        hottest_terminal_lng=hottest_terminal_lng,
         recent_activities=recent_activities,
         total_loads=total_loads,
         total_unloads=total_unloads,
         total_station_entries=total_station_entries,
+        total_station_exits=total_station_exits,
         total_terminal_entries=total_terminal_entries,
+        total_terminal_exits=total_terminal_exits,
         last_update=now.isoformat()
     )
 
