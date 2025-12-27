@@ -2587,7 +2587,7 @@ const styles = StyleSheet.create({
   streetStatsContainer: {
     flexDirection: 'row',
     gap: 15,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   streetStatCard: {
     flex: 1,
@@ -2596,15 +2596,30 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: 'center',
   },
+  streetStatCardSmall: {
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
   streetStatNumber: {
     color: '#FFFFFF',
     fontSize: 32,
+    fontWeight: 'bold',
+  },
+  streetStatNumberSmall: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: 'bold',
   },
   streetStatLabel: {
     color: '#94A3B8',
     fontSize: 14,
     marginTop: 4,
+  },
+  streetStatLabelSmall: {
+    color: '#94A3B8',
+    fontSize: 12,
   },
   recentActivityContainer: {
     backgroundColor: '#1E293B',
