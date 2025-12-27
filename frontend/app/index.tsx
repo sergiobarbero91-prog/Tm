@@ -2539,10 +2539,24 @@ const styles = StyleSheet.create({
     marginTop: 15,
     gap: 8,
   },
+  navigateButtonStation: {
+    backgroundColor: '#3B82F6',
+  },
+  navigateButtonTerminal: {
+    backgroundColor: '#8B5CF6',
+  },
   navigateButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  stationCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  terminalHotCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#8B5CF6',
   },
   checkInButton: {
     flexDirection: 'row',
