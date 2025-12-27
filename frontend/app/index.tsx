@@ -2612,10 +2612,40 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
-    gap: 12,
+    gap: 10,
+  },
+  activityTimeColumn: {
+    alignItems: 'center',
+    minWidth: 50,
+  },
+  activityTimeText: {
+    color: '#6366F1',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B98133',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+    gap: 2,
+  },
+  durationText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontWeight: '600',
   },
   activityInfo: {
     flex: 1,
+  },
+  activityAction: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   activityStreet: {
     color: '#FFFFFF',
@@ -2623,7 +2653,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activityUser: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: '#64748B',
+    fontSize: 11,
   },
 });
