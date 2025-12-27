@@ -582,6 +582,7 @@ export default function TransportMeter() {
   // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
+    loadGpsPreference();
   }, []);
 
   // Heartbeat to keep backend alive (every 30 seconds)
