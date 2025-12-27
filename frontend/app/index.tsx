@@ -1905,6 +1905,82 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
+  settingsButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  settingsModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    paddingBottom: 15,
+  },
+  settingsTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  settingsSection: {
+    marginBottom: 20,
+  },
+  settingsSectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  settingsDescription: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginBottom: 15,
+  },
+  gpsOptions: {
+    gap: 10,
+  },
+  gpsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 15,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  gpsOptionActive: {
+    borderColor: '#10B981',
+    backgroundColor: '#10B98120',
+  },
+  gpsOptionText: {
+    flex: 1,
+    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  gpsOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  settingsCloseButton: {
+    backgroundColor: '#6366F1',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+  },
+  settingsCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   loginInput: {
     backgroundColor: '#0F172A',
     borderRadius: 10,
