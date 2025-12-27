@@ -1724,6 +1724,82 @@ export default function TransportMeter() {
           Datos basados en horarios de ADIF y AENA
         </Text>
       </View>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.settingsModal}>
+            <View style={styles.settingsHeader}>
+              <Text style={styles.settingsTitle}>Ajustes</Text>
+              <TouchableOpacity onPress={() => setShowSettings(false)}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>GPS Externo</Text>
+              <Text style={styles.settingsDescription}>
+                Elige la aplicación para navegación
+              </Text>
+              
+              <View style={styles.gpsOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.gpsOption,
+                    gpsApp === 'google' && styles.gpsOptionActive
+                  ]}
+                  onPress={() => saveGpsPreference('google')}
+                >
+                  <Ionicons 
+                    name="logo-google" 
+                    size={28} 
+                    color={gpsApp === 'google' ? '#FFFFFF' : '#94A3B8'} 
+                  />
+                  <Text style={[
+                    styles.gpsOptionText,
+                    gpsApp === 'google' && styles.gpsOptionTextActive
+                  ]}>
+                    Google Maps
+                  </Text>
+                  {gpsApp === 'google' && (
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                  )}
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.gpsOption,
+                    gpsApp === 'waze' && styles.gpsOptionActive
+                  ]}
+                  onPress={() => saveGpsPreference('waze')}
+                >
+                  <Ionicons 
+                    name="navigate" 
+                    size={28} 
+                    color={gpsApp === 'waze' ? '#FFFFFF' : '#94A3B8'} 
+                  />
+                  <Text style={[
+                    styles.gpsOptionText,
+                    gpsApp === 'waze' && styles.gpsOptionTextActive
+                  ]}>
+                    Waze
+                  </Text>
+                  {gpsApp === 'waze' && (
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.settingsCloseButton}
+              onPress={() => setShowSettings(false)}
+            >
+              <Text style={styles.settingsCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
