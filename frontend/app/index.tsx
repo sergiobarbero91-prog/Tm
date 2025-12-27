@@ -118,11 +118,13 @@ interface StreetActivity {
   id: string;
   user_id: string;
   username: string;
-  action: string;
+  action: string;  // "load", "unload", "station_entry", "station_exit", "terminal_entry", "terminal_exit"
   latitude: number;
   longitude: number;
   street_name: string;
+  location_name?: string;  // Name of station or terminal
   created_at: string;
+  duration_minutes?: number;  // Duration for completed activities
 }
 
 interface StreetWorkData {
@@ -135,6 +137,8 @@ interface StreetWorkData {
   recent_activities: StreetActivity[];
   total_loads: number;
   total_unloads: number;
+  total_station_entries: number;
+  total_terminal_entries: number;
   last_update: string;
 }
 
