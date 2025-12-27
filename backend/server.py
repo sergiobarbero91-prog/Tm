@@ -149,12 +149,14 @@ class StreetActivity(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     username: str
-    action: str  # "load" or "unload"
+    action: str  # "load", "unload", "station_entry", "station_exit", "terminal_entry", "terminal_exit"
     latitude: float
     longitude: float
     street_name: str
+    location_name: Optional[str] = None  # Name of station or terminal
     city: str = "Madrid"
     created_at: datetime = Field(default_factory=lambda: datetime.now(MADRID_TZ))
+    duration_minutes: Optional[int] = None  # Duration for completed activities
 
 class StreetActivityCreate(BaseModel):
     action: str  # "load" or "unload"
