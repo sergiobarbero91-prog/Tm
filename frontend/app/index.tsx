@@ -1203,12 +1203,6 @@ export default function TransportMeter() {
               <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
             </TouchableOpacity>
           )}
-              )}
-            >
-              <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Map */}
