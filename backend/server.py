@@ -1376,10 +1376,21 @@ async def register_checkin(
             "location_name": checkin.location_name,
             "entry_time": now.isoformat()
         }
+        duration_minutes = None
     else:  # exit
         action_type = f"{checkin.location_type}_exit"
-        # Clear active check-in
+        duration_minutes = None
+        
+        # Calculate duration if there was an entry
         if user_id in active_checkins:
+            entry_time_str = active_checkins[user_id].get("entry_time")
+            if entry_time_str:
+                try:
+                    entry_time = datetime.fromisoformat(entry_time_str)
+                    duration = now - entry_time
+                    duration_minutes = int(duration.total_seconds() / 60)
+                except:
+                    pass
             del active_checkins[user_id]
     
     # Get street name from coordinates
@@ -1408,7 +1419,8 @@ async def register_checkin(
         "location_type": checkin.location_type,
         "location_name": checkin.location_name,
         "city": "Madrid",
-        "created_at": now
+        "created_at": now,
+        "duration_minutes": duration_minutes
     }
     
     await street_activities_collection.insert_one(new_activity)
@@ -1423,7 +1435,8 @@ async def register_checkin(
             "action": action_type,
             "location_name": checkin.location_name,
             "street_name": street_name,
-            "created_at": now.isoformat()
+            "created_at": now.isoformat(),
+            "duration_minutes": duration_minutes
         },
         "is_checked_in": checkin.action == "entry"
     }
