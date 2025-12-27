@@ -1102,12 +1102,12 @@ export default function TransportMeter() {
   const renderStreetContent = () => {
     return (
       <View style={styles.streetContainer}>
-        {/* Hottest Street Display */}
+        {/* === CALLE CALIENTE === */}
         <View style={styles.hottestStreetCard}>
           <View style={styles.hottestStreetHeader}>
-            <Ionicons name="flame" size={24} color="#EF4444" />
+            <Ionicons name="car" size={24} color="#10B981" />
             <Text style={styles.hottestStreetTitle}>
-              {currentLocation ? 'Calle caliente más cercana' : 'Calle más caliente'}
+              {currentLocation ? 'Calle caliente más cercana' : 'Calle caliente'}
             </Text>
           </View>
           <Text style={styles.hottestStreetName}>
@@ -1116,7 +1116,7 @@ export default function TransportMeter() {
           {streetData?.hottest_count > 0 && (
             <View style={styles.hottestStreetInfo}>
               <Text style={styles.hottestStreetCount}>
-                {streetData.hottest_count} actividades en {timeWindow} min
+                {streetData.hottest_count} cargas/descargas en {timeWindow} min
               </Text>
               {streetData.hottest_distance_km !== null && streetData.hottest_distance_km !== undefined && (
                 <View style={styles.distanceBadge}>
@@ -1137,6 +1137,72 @@ export default function TransportMeter() {
                 streetData.hottest_street_lat!,
                 streetData.hottest_street_lng!,
                 streetData.hottest_street!
+              )}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* === ESTACIÓN CALIENTE === */}
+        <View style={[styles.hottestStreetCard, styles.stationCard]}>
+          <View style={styles.hottestStreetHeader}>
+            <Ionicons name="train" size={24} color="#3B82F6" />
+            <Text style={styles.hottestStreetTitle}>Estación caliente</Text>
+          </View>
+          <Text style={styles.hottestStreetName}>
+            {streetData?.hottest_station || 'Sin datos aún'}
+          </Text>
+          {streetData?.hottest_station_count > 0 && (
+            <Text style={styles.hottestStreetCount}>
+              {streetData.hottest_station_count} salidas en {timeWindow} min
+            </Text>
+          )}
+          
+          {streetData?.hottest_station && streetData?.hottest_station_lat && streetData?.hottest_station_lng && (
+            <TouchableOpacity
+              style={[styles.navigateButton, styles.navigateButtonStation]}
+              onPress={() => openGoogleMaps(
+                streetData.hottest_station_lat!,
+                streetData.hottest_station_lng!,
+                streetData.hottest_station!
+              )}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* === TERMINAL CALIENTE === */}
+        <View style={[styles.hottestStreetCard, styles.terminalHotCard]}>
+          <View style={styles.hottestStreetHeader}>
+            <Ionicons name="airplane" size={24} color="#8B5CF6" />
+            <Text style={styles.hottestStreetTitle}>Terminal caliente</Text>
+          </View>
+          <Text style={styles.hottestStreetName}>
+            {streetData?.hottest_terminal || 'Sin datos aún'}
+          </Text>
+          {streetData?.hottest_terminal_count > 0 && (
+            <Text style={styles.hottestStreetCount}>
+              {streetData.hottest_terminal_count} salidas en {timeWindow} min
+            </Text>
+          )}
+          
+          {streetData?.hottest_terminal && streetData?.hottest_terminal_lat && streetData?.hottest_terminal_lng && (
+            <TouchableOpacity
+              style={[styles.navigateButton, styles.navigateButtonTerminal]}
+              onPress={() => openGoogleMaps(
+                streetData.hottest_terminal_lat!,
+                streetData.hottest_terminal_lng!,
+                streetData.hottest_terminal!
+              )}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+            </TouchableOpacity>
+          )}
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
