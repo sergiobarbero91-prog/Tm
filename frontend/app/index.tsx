@@ -507,6 +507,19 @@ export default function TransportMeter() {
     }
   }, []);
 
+  // Fetch queue status (people waiting)
+  const fetchQueueStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/queue/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setQueueStatus(response.data);
+    } catch (error) {
+      console.log('Error fetching queue status:', error);
+    }
+  }, []);
+
   // Taxi question state (for entry)
   const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<{
