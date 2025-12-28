@@ -204,17 +204,25 @@ class StreetWorkResponse(BaseModel):
     hottest_distance_km: Optional[float] = None
     hot_streets: List[HotStreet]
     
-    # Hottest station (based on exits)
+    # Hottest station (based on weighted score)
     hottest_station: Optional[str] = None
     hottest_station_count: int = 0
     hottest_station_lat: Optional[float] = None
     hottest_station_lng: Optional[float] = None
+    hottest_station_score: Optional[float] = None
+    hottest_station_avg_load_time: Optional[float] = None
+    hottest_station_arrivals: Optional[int] = None
+    hottest_station_exits: Optional[int] = None
     
-    # Hottest terminal (based on exits)
+    # Hottest terminal (based on weighted score)
     hottest_terminal: Optional[str] = None
     hottest_terminal_count: int = 0
     hottest_terminal_lat: Optional[float] = None
     hottest_terminal_lng: Optional[float] = None
+    hottest_terminal_score: Optional[float] = None
+    hottest_terminal_avg_load_time: Optional[float] = None
+    hottest_terminal_arrivals: Optional[int] = None
+    hottest_terminal_exits: Optional[int] = None
     
     recent_activities: List[StreetActivity]
     total_loads: int
