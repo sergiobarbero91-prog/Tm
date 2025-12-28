@@ -213,6 +213,8 @@ class StreetWorkResponse(BaseModel):
     hottest_station_avg_load_time: Optional[float] = None
     hottest_station_arrivals: Optional[int] = None
     hottest_station_exits: Optional[int] = None
+    hottest_station_future_arrivals: Optional[int] = None
+    hottest_station_low_arrivals_alert: bool = False
     
     # Hottest terminal (based on weighted score)
     hottest_terminal: Optional[str] = None
@@ -223,6 +225,8 @@ class StreetWorkResponse(BaseModel):
     hottest_terminal_avg_load_time: Optional[float] = None
     hottest_terminal_arrivals: Optional[int] = None
     hottest_terminal_exits: Optional[int] = None
+    hottest_terminal_future_arrivals: Optional[int] = None
+    hottest_terminal_low_arrivals_alert: bool = False
     
     recent_activities: List[StreetActivity]
     total_loads: int
