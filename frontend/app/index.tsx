@@ -681,6 +681,9 @@ export default function TransportMeter() {
 
   // Get user location when switching to street tab - Real-time tracking
   useEffect(() => {
+    let isMounted = true;
+    let watchSubscription: Location.LocationSubscription | null = null;
+    
     const startLocationTracking = async () => {
       if (activeTab === 'street' && currentUser) {
         try {
@@ -689,42 +692,41 @@ export default function TransportMeter() {
             Alert.alert('Permiso denegado', 'Se necesita acceso a la ubicación para esta función');
             return;
           }
+          if (!isMounted) return;
           setLocationPermission(true);
           
           // Get initial location
           const initialLocation = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High
           });
+          if (!isMounted) return;
           setCurrentLocation({
             latitude: initialLocation.coords.latitude,
             longitude: initialLocation.coords.longitude
           });
           
-          // Start watching position for real-time updates
-          // First, clean up any existing watcher
-          if (locationWatcherRef.current) {
+          // Start watching position for real-time updates (only on native platforms)
+          if (Platform.OS !== 'web') {
             try {
-              await locationWatcherRef.current.remove();
-            } catch (e) {
-              console.log('Previous watcher cleanup skipped');
+              watchSubscription = await Location.watchPositionAsync(
+                {
+                  accuracy: Location.Accuracy.High,
+                  timeInterval: 5000,
+                  distanceInterval: 10,
+                },
+                (location) => {
+                  if (isMounted) {
+                    setCurrentLocation({
+                      latitude: location.coords.latitude,
+                      longitude: location.coords.longitude
+                    });
+                  }
+                }
+              );
+            } catch (watchError) {
+              console.log('Watch position not available, using polling');
             }
-            locationWatcherRef.current = null;
           }
-          
-          const subscription = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 5000, // Update every 5 seconds
-              distanceInterval: 10, // Or when moved 10 meters
-            },
-            (location) => {
-              setCurrentLocation({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude
-              });
-            }
-          );
-          locationWatcherRef.current = subscription;
         } catch (error) {
           console.error('Error starting location tracking:', error);
         }
@@ -733,15 +735,15 @@ export default function TransportMeter() {
     
     startLocationTracking();
     
-    // Cleanup: stop watching when leaving street tab
+    // Cleanup
     return () => {
-      if (locationWatcherRef.current) {
+      isMounted = false;
+      if (watchSubscription) {
         try {
-          locationWatcherRef.current.remove();
+          watchSubscription.remove();
         } catch (e) {
-          console.log('Location watcher cleanup error:', e);
+          // Ignore cleanup errors
         }
-        locationWatcherRef.current = null;
       }
     };
   }, [activeTab, currentUser]);
