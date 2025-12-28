@@ -73,6 +73,29 @@ VALID_TRAIN_TYPES = ["AVE", "AVANT", "ALVIA", "IRYO", "OUIGO", "AVLO", "EUROMED"
 
 TERMINALS = ["T1", "T2", "T3", "T4", "T4S"]
 
+# Coordinates for stations and terminals (for hotspot calculation)
+STATION_COORDS = {
+    "Atocha": {"lat": 40.4065, "lng": -3.6895},
+    "Chamartín": {"lat": 40.4722, "lng": -3.6825}
+}
+
+TERMINAL_COORDS = {
+    "T1": {"lat": 40.4936, "lng": -3.5668},
+    "T2-T3": {"lat": 40.4950, "lng": -3.5700},
+    "T4-T4S": {"lat": 40.4719, "lng": -3.5357}
+}
+
+# Terminal groupings for zone calculation
+TERMINAL_GROUPS = {
+    "T1": "T1",
+    "T2": "T2-T3",
+    "T3": "T2-T3",
+    "T2-T3": "T2-T3",
+    "T4": "T4-T4S",
+    "T4S": "T4-T4S",
+    "T4-T4S": "T4-T4S"
+}
+
 # Models
 class TrainArrival(BaseModel):
     time: str  # Hora real de llegada (con retraso si aplica)
