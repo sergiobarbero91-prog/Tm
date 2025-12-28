@@ -1800,6 +1800,7 @@ async def get_street_work_data(
         if taxi_doc:
             hottest_station_taxi_status = taxi_doc.get("taxi_status")
             hottest_station_taxi_time = taxi_doc.get("reported_at").isoformat() if taxi_doc.get("reported_at") else None
+            hottest_station_taxi_reporter = taxi_doc.get("reported_by")
     
     # Find hottest terminal
     hottest_terminal = None
@@ -1814,6 +1815,7 @@ async def get_street_work_data(
     hottest_terminal_low_arrivals_alert = False
     hottest_terminal_taxi_status = None
     hottest_terminal_taxi_time = None
+    hottest_terminal_taxi_reporter = None
     
     if terminal_scores:
         best_terminal_name = max(terminal_scores.keys(), key=lambda x: terminal_scores[x]["score"])
