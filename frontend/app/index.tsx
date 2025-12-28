@@ -1263,6 +1263,16 @@ export default function TransportMeter() {
             </View>
           )}
           
+          {/* Alert for low train arrivals */}
+          {streetData?.hottest_station_low_arrivals_alert && (
+            <View style={styles.lowArrivalsAlert}>
+              <Ionicons name="warning" size={18} color="#F59E0B" />
+              <Text style={styles.lowArrivalsAlertText}>
+                ⚠️ Pocos trenes: Solo {streetData.hottest_station_future_arrivals || 0} llegadas próximas
+              </Text>
+            </View>
+          )}
+          
           {streetData?.hottest_station && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonStation]}
@@ -1308,6 +1318,16 @@ export default function TransportMeter() {
                   {streetData.hottest_terminal_exits || 0} salidas
                 </Text>
               </View>
+            </View>
+          )}
+          
+          {/* Alert for low flight arrivals */}
+          {streetData?.hottest_terminal_low_arrivals_alert && (
+            <View style={styles.lowArrivalsAlert}>
+              <Ionicons name="warning" size={18} color="#F59E0B" />
+              <Text style={styles.lowArrivalsAlertText}>
+                ⚠️ Pocos vuelos: Solo {streetData.hottest_terminal_future_arrivals || 0} llegadas próximas
+              </Text>
             </View>
           )}
           
