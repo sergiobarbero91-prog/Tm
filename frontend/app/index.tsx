@@ -1259,17 +1259,13 @@ export default function TransportMeter() {
             </View>
           )}
           
-          {streetData?.hottest_station && streetData?.hottest_station_lat && streetData?.hottest_station_lng && (
+          {streetData?.hottest_station && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonStation]}
-              onPress={() => openGpsNavigation(
-                streetData.hottest_station_lat!,
-                streetData.hottest_station_lng!,
-                streetData.hottest_station!
-              )}
+              onPress={() => openGpsApp()}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
+              <Text style={styles.navigateButtonText}>Abrir GPS</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1311,17 +1307,13 @@ export default function TransportMeter() {
             </View>
           )}
           
-          {streetData?.hottest_terminal && streetData?.hottest_terminal_lat && streetData?.hottest_terminal_lng && (
+          {streetData?.hottest_terminal && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonTerminal]}
-              onPress={() => openGpsNavigation(
-                streetData.hottest_terminal_lat!,
-                streetData.hottest_terminal_lng!,
-                streetData.hottest_terminal!
-              )}
+              onPress={() => openGpsApp()}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
+              <Text style={styles.navigateButtonText}>Abrir GPS</Text>
             </TouchableOpacity>
           )}
         </View>
