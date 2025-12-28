@@ -1293,18 +1293,55 @@ async def register_street_activity(
 ):
     """Register a load or unload activity at current location."""
     now = datetime.now(MADRID_TZ)
+    user_id = current_user["id"]
     
     activity_id = str(uuid.uuid4())
+    duration_minutes = None
+    distance_km = None
+    
+    # If this is an unload, calculate duration and distance from last load
+    if activity.action == "unload":
+        # Find the most recent load for this user
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        last_load = await street_activities_collection.find_one(
+            {
+                "user_id": user_id,
+                "action": "load",
+                "created_at": {"$gte": start_of_day}
+            },
+            sort=[("created_at", -1)]
+        )
+        
+        if last_load:
+            # Calculate duration
+            load_time = last_load.get("created_at")
+            if load_time:
+                if load_time.tzinfo is None:
+                    load_time = MADRID_TZ.localize(load_time)
+                duration = now - load_time
+                duration_minutes = int(duration.total_seconds() / 60)
+            
+            # Calculate distance using haversine
+            load_lat = last_load.get("latitude", 0)
+            load_lng = last_load.get("longitude", 0)
+            if load_lat and load_lng:
+                distance_km = round(haversine_distance(
+                    load_lat, load_lng,
+                    activity.latitude, activity.longitude
+                ), 2)
+    
     new_activity = {
         "id": activity_id,
-        "user_id": current_user["id"],
+        "user_id": user_id,
         "username": current_user["username"],
         "action": activity.action,
         "latitude": activity.latitude,
         "longitude": activity.longitude,
         "street_name": activity.street_name,
         "city": "Madrid",
-        "created_at": now
+        "created_at": now,
+        "duration_minutes": duration_minutes,
+        "distance_km": distance_km
     }
     
     await street_activities_collection.insert_one(new_activity)
@@ -1317,14 +1354,16 @@ async def register_street_activity(
         "message": f"Actividad '{activity.action}' registrada en {activity.street_name}",
         "activity": {
             "id": activity_id,
-            "user_id": current_user["id"],
+            "user_id": user_id,
             "username": current_user["username"],
             "action": activity.action,
             "latitude": activity.latitude,
             "longitude": activity.longitude,
             "street_name": activity.street_name,
             "city": "Madrid",
-            "created_at": now.isoformat()
+            "created_at": now.isoformat(),
+            "duration_minutes": duration_minutes,
+            "distance_km": distance_km
         },
         "has_active_load": has_active_load
     }
