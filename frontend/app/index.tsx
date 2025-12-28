@@ -681,7 +681,23 @@ export default function TransportMeter() {
   // Get user location when switching to street tab - Real-time tracking
   useEffect(() => {
     let isMounted = true;
-    let watchSubscription: Location.LocationSubscription | null = null;
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    const updateLocation = async () => {
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High
+        });
+        if (isMounted) {
+          setCurrentLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude
+          });
+        }
+      } catch (error) {
+        console.log('Location update error:', error);
+      }
+    };
     
     const startLocationTracking = async () => {
       if (activeTab === 'street' && currentUser) {
@@ -695,37 +711,11 @@ export default function TransportMeter() {
           setLocationPermission(true);
           
           // Get initial location
-          const initialLocation = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High
-          });
-          if (!isMounted) return;
-          setCurrentLocation({
-            latitude: initialLocation.coords.latitude,
-            longitude: initialLocation.coords.longitude
-          });
+          await updateLocation();
           
-          // Start watching position for real-time updates (only on native platforms)
-          if (Platform.OS !== 'web') {
-            try {
-              watchSubscription = await Location.watchPositionAsync(
-                {
-                  accuracy: Location.Accuracy.High,
-                  timeInterval: 5000,
-                  distanceInterval: 10,
-                },
-                (location) => {
-                  if (isMounted) {
-                    setCurrentLocation({
-                      latitude: location.coords.latitude,
-                      longitude: location.coords.longitude
-                    });
-                  }
-                }
-              );
-            } catch (watchError) {
-              console.log('Watch position not available, using polling');
-            }
-          }
+          // Start polling for location updates (works on all platforms)
+          intervalId = setInterval(updateLocation, 5000); // Update every 5 seconds
+          
         } catch (error) {
           console.error('Error starting location tracking:', error);
         }
@@ -737,12 +727,8 @@ export default function TransportMeter() {
     // Cleanup
     return () => {
       isMounted = false;
-      if (watchSubscription) {
-        try {
-          watchSubscription.remove();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
   }, [activeTab, currentUser]);
