@@ -1550,6 +1550,20 @@ export default function TransportMeter() {
             </View>
           )}
           
+          {/* Taxi status display for hot terminal */}
+          {streetData?.hottest_terminal_taxi_status && streetData?.hottest_terminal_taxi_time && (
+            <View style={styles.taxiStatusContainerSmall}>
+              <Ionicons name="car" size={14} color="#F59E0B" />
+              <Text style={styles.taxiStatusTextSmall}>
+                {streetData.hottest_terminal_taxi_status === 'poco' ? '🟢 Pocos' : 
+                 streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+              </Text>
+              <Text style={styles.taxiTimeTextSmall}>
+                {formatTime(streetData.hottest_terminal_taxi_time)}
+              </Text>
+            </View>
+          )}
+          
           {streetData?.hottest_terminal && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonTerminal]}
