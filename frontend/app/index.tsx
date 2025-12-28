@@ -394,32 +394,11 @@ export default function TransportMeter() {
         `${action === 'load' ? 'Carga' : 'Descarga'} registrada en ${locationData.street}`
       );
       
-      // After loading, offer to navigate to hottest station
+      // After loading, open GPS app directly
       if (action === 'load') {
-        const streetResponse = await axios.get(`${API_BASE}/api/street/data`, {
-          params: { minutes: timeWindow },
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (streetResponse.data.hottest_station_lat) {
-          setTimeout(() => {
-            Alert.alert(
-              'Navegación',
-              `¿Ir a la estación caliente: ${streetResponse.data.hottest_station}?`,
-              [
-                { text: 'No', style: 'cancel' },
-                { 
-                  text: 'Sí', 
-                  onPress: () => openGpsNavigation(
-                    streetResponse.data.hottest_station_lat,
-                    streetResponse.data.hottest_station_lng,
-                    streetResponse.data.hottest_station
-                  )
-                }
-              ]
-            );
-          }, 500);
-        }
+        setTimeout(() => {
+          openGpsApp();
+        }, 500);
       }
       
       // Refresh street data
