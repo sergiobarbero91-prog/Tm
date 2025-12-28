@@ -1516,14 +1516,31 @@ async def get_street_work_data(
                         prev_load_times_by_terminal[terminal_zone] = []
                     prev_load_times_by_terminal[terminal_zone].append(duration)
     
-    # ===== GET REAL TRAIN ARRIVALS DATA =====
-    try:
-        atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-        chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
-    except Exception as e:
-        logger.error(f"Error fetching train data for hotspot: {e}")
-        atocha_arrivals_raw = []
-        chamartin_arrivals_raw = []
+    # ===== GET REAL TRAIN ARRIVALS DATA (WITH CACHE) =====
+    now_ts = datetime.now()
+    cache_valid_trains = (
+        arrival_cache["trains"]["timestamp"] is not None and
+        (now_ts - arrival_cache["trains"]["timestamp"]).total_seconds() < CACHE_TTL_SECONDS
+    )
+    
+    if cache_valid_trains:
+        atocha_arrivals_raw = arrival_cache["trains"]["data"].get("atocha", [])
+        chamartin_arrivals_raw = arrival_cache["trains"]["data"].get("chamartin", [])
+        logger.info("Using cached train data")
+    else:
+        try:
+            atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+            chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+            arrival_cache["trains"]["data"] = {
+                "atocha": atocha_arrivals_raw,
+                "chamartin": chamartin_arrivals_raw
+            }
+            arrival_cache["trains"]["timestamp"] = now_ts
+            logger.info("Fetched and cached new train data")
+        except Exception as e:
+            logger.error(f"Error fetching train data for hotspot: {e}")
+            atocha_arrivals_raw = arrival_cache["trains"]["data"].get("atocha", [])
+            chamartin_arrivals_raw = arrival_cache["trains"]["data"].get("chamartin", [])
     
     # Count PAST arrivals (previous window: from -2*minutes to -minutes)
     atocha_prev_arrivals = count_arrivals_in_past_window(atocha_arrivals_raw, minutes * 2, minutes)
@@ -1538,12 +1555,24 @@ async def get_street_work_data(
         "Chamartín": {"prev": chamartin_prev_arrivals, "future": chamartin_future_arrivals}
     }
     
-    # ===== GET REAL FLIGHT ARRIVALS DATA =====
-    try:
-        flight_data = await fetch_aena_arrivals()
-    except Exception as e:
-        logger.error(f"Error fetching flight data for hotspot: {e}")
-        flight_data = {t: [] for t in TERMINALS}
+    # ===== GET REAL FLIGHT ARRIVALS DATA (WITH CACHE) =====
+    cache_valid_flights = (
+        arrival_cache["flights"]["timestamp"] is not None and
+        (now_ts - arrival_cache["flights"]["timestamp"]).total_seconds() < CACHE_TTL_SECONDS
+    )
+    
+    if cache_valid_flights:
+        flight_data = arrival_cache["flights"]["data"]
+        logger.info("Using cached flight data")
+    else:
+        try:
+            flight_data = await fetch_aena_arrivals()
+            arrival_cache["flights"]["data"] = flight_data
+            arrival_cache["flights"]["timestamp"] = now_ts
+            logger.info("Fetched and cached new flight data")
+        except Exception as e:
+            logger.error(f"Error fetching flight data for hotspot: {e}")
+            flight_data = arrival_cache["flights"]["data"] if arrival_cache["flights"]["data"] else {t: [] for t in TERMINALS}
     
     # Group flights by terminal zone and count arrivals
     flight_arrivals_data = {
