@@ -1153,19 +1153,36 @@ export default function TransportMeter() {
     const markers = streetData?.hot_streets || [];
     
     if (Platform.OS === 'web') {
-      // Use iframe for web
-      const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${center.longitude - 0.05}%2C${center.latitude - 0.03}%2C${center.longitude + 0.05}%2C${center.latitude + 0.03}&layer=mapnik&marker=${center.latitude}%2C${center.longitude}`;
+      // Use iframe for web with marker on current location
+      const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${center.longitude - 0.02}%2C${center.latitude - 0.01}%2C${center.longitude + 0.02}%2C${center.latitude + 0.01}&layer=mapnik&marker=${center.latitude}%2C${center.longitude}`;
       return (
         <View style={styles.mapContainer}>
           <iframe
             src={mapUrl}
             style={{ width: '100%', height: '100%', border: 0 }}
             title="Map"
+            key={`map-${center.latitude.toFixed(5)}-${center.longitude.toFixed(5)}`}
           />
-          {markers.length > 0 && (
-            <View style={styles.mapOverlay}>
+          <View style={styles.mapOverlay}>
+            <View style={styles.locationIndicator}>
+              <View style={styles.locationDot} />
+              <Text style={styles.locationIndicatorText}>
+                📍 Siguiendo ubicación
+              </Text>
+            </View>
+            {markers.length > 0 && (
               <Text style={styles.mapOverlayText}>
-                📍 {markers.length} zonas activas
+                {markers.length} zonas activas
+              </Text>
+            )}
+          </View>
+          {currentLocation && (
+            <View style={styles.coordsDisplay}>
+              <Text style={styles.coordsText}>
+                Lat: {currentLocation.latitude.toFixed(6)}
+              </Text>
+              <Text style={styles.coordsText}>
+                Lng: {currentLocation.longitude.toFixed(6)}
               </Text>
             </View>
           )}
