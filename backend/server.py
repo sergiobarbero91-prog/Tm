@@ -1421,31 +1421,144 @@ async def get_street_work_data(
         hottest_lng = best.longitude
         hottest_distance = best.distance_km
     
-    # Determine hottest station (based on exits)
+    # ============== NEW HOTSPOT SCORING ALGORITHM ==============
+    # Score = 33% avg_load_time + 33% arrivals + 33% exits
+    # Each component is normalized to 0-100 scale
+    
+    # Calculate station scores
+    station_scores = {}
+    for station_name, coords in STATION_COORDS.items():
+        # 1. Average load time near this station (within 2km radius)
+        station_load_times = []
+        for activity in activities:
+            if activity.get("action") in ["load", "unload"] and activity.get("duration_minutes"):
+                act_lat = activity.get("latitude", 0)
+                act_lng = activity.get("longitude", 0)
+                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
+                if dist <= 2.0:  # Within 2km of station
+                    station_load_times.append(activity["duration_minutes"])
+        
+        avg_load_time = sum(station_load_times) / len(station_load_times) if station_load_times else 0
+        
+        # 2. Number of exits from this station
+        exit_count = station_counts.get(station_name, {}).get("count", 0)
+        
+        # 3. Number of train arrivals in last 30 min (we'll estimate based on typical schedule)
+        # For now, use exit_count as a proxy since arrivals drive exits
+        arrivals_estimate = exit_count * 2  # Rough estimate: 2 arrivals per exit on average
+        
+        station_scores[station_name] = {
+            "avg_load_time": avg_load_time,
+            "exits": exit_count,
+            "arrivals": arrivals_estimate,
+            "coords": coords
+        }
+    
+    # Calculate terminal scores
+    terminal_scores = {}
+    for terminal_zone, coords in TERMINAL_COORDS.items():
+        # 1. Average load time near this terminal zone (within 2km radius)
+        terminal_load_times = []
+        for activity in activities:
+            if activity.get("action") in ["load", "unload"] and activity.get("duration_minutes"):
+                act_lat = activity.get("latitude", 0)
+                act_lng = activity.get("longitude", 0)
+                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
+                if dist <= 2.0:  # Within 2km of terminal
+                    terminal_load_times.append(activity["duration_minutes"])
+        
+        avg_load_time = sum(terminal_load_times) / len(terminal_load_times) if terminal_load_times else 0
+        
+        # 2. Number of exits from terminals in this zone
+        exit_count = 0
+        for term_name, term_data in terminal_counts.items():
+            grouped = TERMINAL_GROUPS.get(term_name, term_name)
+            if grouped == terminal_zone:
+                exit_count += term_data.get("count", 0)
+        
+        # 3. Number of flight arrivals (estimate based on exits)
+        arrivals_estimate = exit_count * 3  # More passengers per flight
+        
+        terminal_scores[terminal_zone] = {
+            "avg_load_time": avg_load_time,
+            "exits": exit_count,
+            "arrivals": arrivals_estimate,
+            "coords": coords
+        }
+    
+    # Normalize and calculate final scores
+    def calculate_weighted_score(scores_dict):
+        if not scores_dict:
+            return {}
+        
+        # Find max values for normalization
+        max_load_time = max((s["avg_load_time"] for s in scores_dict.values()), default=1) or 1
+        max_exits = max((s["exits"] for s in scores_dict.values()), default=1) or 1
+        max_arrivals = max((s["arrivals"] for s in scores_dict.values()), default=1) or 1
+        
+        result = {}
+        for name, data in scores_dict.items():
+            # Normalize to 0-100 scale
+            norm_load_time = (data["avg_load_time"] / max_load_time) * 100 if max_load_time > 0 else 0
+            norm_exits = (data["exits"] / max_exits) * 100 if max_exits > 0 else 0
+            norm_arrivals = (data["arrivals"] / max_arrivals) * 100 if max_arrivals > 0 else 0
+            
+            # Weighted score: 33% each
+            final_score = (norm_load_time * 0.33) + (norm_exits * 0.33) + (norm_arrivals * 0.33)
+            
+            result[name] = {
+                **data,
+                "score": round(final_score, 2)
+            }
+        
+        return result
+    
+    station_scores = calculate_weighted_score(station_scores)
+    terminal_scores = calculate_weighted_score(terminal_scores)
+    
+    # Find hottest station
     hottest_station = None
     hottest_station_count = 0
     hottest_station_lat = None
     hottest_station_lng = None
+    hottest_station_score = None
+    hottest_station_avg_load_time = None
+    hottest_station_arrivals = None
+    hottest_station_exits = None
     
-    if station_counts:
-        best_station = max(station_counts.items(), key=lambda x: x[1]["count"])
-        hottest_station = best_station[0]
-        hottest_station_count = best_station[1]["count"]
-        hottest_station_lat = best_station[1]["latitude"]
-        hottest_station_lng = best_station[1]["longitude"]
+    if station_scores:
+        best_station_name = max(station_scores.keys(), key=lambda x: station_scores[x]["score"])
+        best_station = station_scores[best_station_name]
+        hottest_station = best_station_name
+        hottest_station_count = best_station["exits"]
+        hottest_station_lat = best_station["coords"]["lat"]
+        hottest_station_lng = best_station["coords"]["lng"]
+        hottest_station_score = best_station["score"]
+        hottest_station_avg_load_time = round(best_station["avg_load_time"], 1)
+        hottest_station_arrivals = best_station["arrivals"]
+        hottest_station_exits = best_station["exits"]
     
-    # Determine hottest terminal (based on exits)
+    # Find hottest terminal
     hottest_terminal = None
     hottest_terminal_count = 0
     hottest_terminal_lat = None
     hottest_terminal_lng = None
+    hottest_terminal_score = None
+    hottest_terminal_avg_load_time = None
+    hottest_terminal_arrivals = None
+    hottest_terminal_exits = None
     
-    if terminal_counts:
-        best_terminal = max(terminal_counts.items(), key=lambda x: x[1]["count"])
-        hottest_terminal = best_terminal[0]
-        hottest_terminal_count = best_terminal[1]["count"]
-        hottest_terminal_lat = best_terminal[1]["latitude"]
-        hottest_terminal_lng = best_terminal[1]["longitude"]
+    if terminal_scores:
+        best_terminal_name = max(terminal_scores.keys(), key=lambda x: terminal_scores[x]["score"])
+        best_terminal = terminal_scores[best_terminal_name]
+        hottest_terminal = best_terminal_name
+        hottest_terminal_count = best_terminal["exits"]
+        hottest_terminal_lat = best_terminal["coords"]["lat"]
+        hottest_terminal_lng = best_terminal["coords"]["lng"]
+        hottest_terminal_score = best_terminal["score"]
+        hottest_terminal_avg_load_time = round(best_terminal["avg_load_time"], 1)
+        hottest_terminal_arrivals = best_terminal["arrivals"]
+        hottest_terminal_exits = best_terminal["exits"]
     
     # Convert activities to response format
     recent_activities = [
