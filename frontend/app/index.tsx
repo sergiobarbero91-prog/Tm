@@ -1025,7 +1025,7 @@ export default function TransportMeter() {
                      taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
             </Text>
             <Text style={styles.taxiTimeText}>
-              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)} por {taxiStatus[`station_${stationShortName}`].reported_by})
             </Text>
           </View>
         )}
