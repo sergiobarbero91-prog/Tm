@@ -2927,6 +2927,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  rangeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  rangeText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '500',
+  },
   navigateButton: {
     flexDirection: 'row',
     alignItems: 'center',
