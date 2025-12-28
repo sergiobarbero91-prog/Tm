@@ -496,21 +496,28 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Taxi question state
+  // Taxi question state (for entry)
   const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<{
     locationType: 'station' | 'terminal';
     locationName: string;
   } | null>(null);
 
-  // Handle check-in/check-out with taxi question for entry
+  // Queue question state (for exit - people waiting)
+  const [showQueueQuestion, setShowQueueQuestion] = useState(false);
+  const [pendingCheckOut, setPendingCheckOut] = useState<{
+    locationType: 'station' | 'terminal';
+    locationName: string;
+  } | null>(null);
+
+  // Handle check-in/check-out with questions
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
     if (checkInLoading) return;
     
-    // For 'exit' action, open GPS immediately
+    // For 'exit' action, show queue question modal
     if (action === 'exit') {
-      openGpsApp();
-      await performCheckIn(locationType, locationName, action, null);
+      setPendingCheckOut({ locationType, locationName });
+      setShowQueueQuestion(true);
       return;
     }
     
@@ -519,17 +526,28 @@ export default function TransportMeter() {
     setShowTaxiQuestion(true);
   };
 
-  // Handle taxi answer
+  // Handle queue answer (for exit)
+  const handleQueueAnswer = async (answer: string | null) => {
+    setShowQueueQuestion(false);
+    if (pendingCheckOut) {
+      await performCheckIn(pendingCheckOut.locationType, pendingCheckOut.locationName, 'exit', null, answer);
+      setPendingCheckOut(null);
+      // Open GPS after check-out
+      openGpsApp();
+    }
+  };
+
+  // Handle taxi answer (for entry)
   const handleTaxiAnswer = (answer: string | null) => {
     setShowTaxiQuestion(false);
     if (pendingCheckIn) {
-      performCheckIn(pendingCheckIn.locationType, pendingCheckIn.locationName, 'entry', answer);
+      performCheckIn(pendingCheckIn.locationType, pendingCheckIn.locationName, 'entry', answer, null);
       setPendingCheckIn(null);
     }
   };
 
   // Actual check-in logic
-  const performCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit', taxiAnswer: string | null) => {
+  const performCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit', taxiAnswer: string | null, queueAnswer: string | null = null) => {
     setCheckInLoading(true);
     try {
       // Get current location
