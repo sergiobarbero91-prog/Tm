@@ -1561,7 +1561,7 @@ export default function TransportMeter() {
                  streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
               </Text>
               <Text style={styles.taxiTimeTextSmall}>
-                {formatTime(streetData.hottest_terminal_taxi_time)}
+                {formatTime(streetData.hottest_terminal_taxi_time)} por {streetData.hottest_terminal_taxi_reporter}
               </Text>
             </View>
           )}
