@@ -2021,6 +2021,47 @@ async def get_checkin_status(
     
     return CheckInStatus(is_checked_in=False)
 
+@api_router.get("/taxi/status")
+async def get_taxi_status(
+    location_type: Optional[str] = None,
+    location_name: Optional[str] = None,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get the latest taxi status for stations and terminals."""
+    # Build query
+    query = {}
+    if location_type:
+        query["location_type"] = location_type
+    if location_name:
+        query["location_name"] = location_name
+    
+    # Get the most recent taxi status for each location
+    pipeline = [
+        {"$match": query} if query else {"$match": {}},
+        {"$sort": {"reported_at": -1}},
+        {"$group": {
+            "_id": {"location_type": "$location_type", "location_name": "$location_name"},
+            "taxi_status": {"$first": "$taxi_status"},
+            "reported_at": {"$first": "$reported_at"},
+            "reported_by": {"$first": "$reported_by"}
+        }}
+    ]
+    
+    results = await taxi_status_collection.aggregate(pipeline).to_list(100)
+    
+    taxi_data = {}
+    for r in results:
+        key = f"{r['_id']['location_type']}_{r['_id']['location_name']}"
+        taxi_data[key] = {
+            "location_type": r["_id"]["location_type"],
+            "location_name": r["_id"]["location_name"],
+            "taxi_status": r["taxi_status"],
+            "reported_at": r["reported_at"].isoformat() if r["reported_at"] else None,
+            "reported_by": r["reported_by"]
+        }
+    
+    return taxi_data
+
 # ============== ADMIN ENDPOINTS ==============
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
