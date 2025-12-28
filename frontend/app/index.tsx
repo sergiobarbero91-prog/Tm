@@ -654,11 +654,60 @@ export default function TransportMeter() {
     }
   }, [activeTab, fetchData, currentUser, timeWindow]);
 
-  // Get user location when switching to street tab
+  // Get user location when switching to street tab - Real-time tracking
   useEffect(() => {
-    if (activeTab === 'street' && currentUser && !currentLocation) {
-      getCurrentLocation();
-    }
+    const startLocationTracking = async () => {
+      if (activeTab === 'street' && currentUser) {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permiso denegado', 'Se necesita acceso a la ubicación para esta función');
+            return;
+          }
+          setLocationPermission(true);
+          
+          // Get initial location
+          const initialLocation = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High
+          });
+          setCurrentLocation({
+            latitude: initialLocation.coords.latitude,
+            longitude: initialLocation.coords.longitude
+          });
+          
+          // Start watching position for real-time updates
+          if (locationWatcherRef.current) {
+            locationWatcherRef.current.remove();
+          }
+          
+          locationWatcherRef.current = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.High,
+              timeInterval: 3000, // Update every 3 seconds
+              distanceInterval: 5, // Or when moved 5 meters
+            },
+            (location) => {
+              setCurrentLocation({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+              });
+            }
+          );
+        } catch (error) {
+          console.error('Error starting location tracking:', error);
+        }
+      }
+    };
+    
+    startLocationTracking();
+    
+    // Cleanup: stop watching when leaving street tab
+    return () => {
+      if (locationWatcherRef.current) {
+        locationWatcherRef.current.remove();
+        locationWatcherRef.current = null;
+      }
+    };
   }, [activeTab, currentUser]);
 
   const formatLastUpdate = (isoString: string) => {
