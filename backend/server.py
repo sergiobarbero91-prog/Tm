@@ -2193,19 +2193,25 @@ async def get_taxi_status(
 async def get_queue_status(
     location_type: Optional[str] = None,
     location_name: Optional[str] = None,
+    minutes: int = 60,  # Time window to filter - only show data from previous window
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Get the latest queue status (people waiting) for stations and terminals."""
-    # Build query
-    query = {}
+    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
+    now = datetime.now(MADRID_TZ)
+    # Previous window: from (now - 2*minutes) to (now - minutes)
+    previous_window_start = now - timedelta(minutes=minutes * 2)
+    previous_window_end = now - timedelta(minutes=minutes)
+    
+    # Build query with time filter
+    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
     if location_type:
         query["location_type"] = location_type
     if location_name:
         query["location_name"] = location_name
     
-    # Get the most recent queue status for each location
+    # Get the most recent queue status for each location within time window
     pipeline = [
-        {"$match": query} if query else {"$match": {}},
+        {"$match": query},
         {"$sort": {"reported_at": -1}},
         {"$group": {
             "_id": {"location_type": "$location_type", "location_name": "$location_name"},
