@@ -1421,100 +1421,160 @@ async def get_street_work_data(
         hottest_lng = best.longitude
         hottest_distance = best.distance_km
     
-    # ============== NEW HOTSPOT SCORING ALGORITHM ==============
-    # Score = 33% avg_load_time + 33% arrivals + 33% exits
-    # Each component is normalized to 0-100 scale
+    # ============== NEW HOTSPOT SCORING ALGORITHM (4 variables @ 25% each) ==============
+    # Score = 25% previous_exits + 25% previous_arrivals + 25% previous_avg_load_time + 25% future_arrivals
+    # Previous window: from (now - 2*minutes) to (now - minutes)
+    # Future window: from now to (now + minutes)
     
-    # Calculate station scores
+    # Get activities from PREVIOUS time window for scoring
+    previous_window_start = now - timedelta(minutes=minutes * 2)
+    previous_window_end = now - timedelta(minutes=minutes)
+    
+    cursor_previous = street_activities_collection.find(
+        {"created_at": {"$gte": previous_window_start, "$lt": previous_window_end}},
+        {"_id": 0}
+    ).sort("created_at", -1)
+    previous_activities = await cursor_previous.to_list(1000)
+    
+    # Count previous window exits by station/terminal
+    prev_station_exits = {}
+    prev_terminal_exits = {}
+    prev_load_times_by_station = {}
+    prev_load_times_by_terminal = {}
+    
+    for activity in previous_activities:
+        action = activity.get("action", "")
+        
+        if action == "station_exit":
+            location = activity.get("location_name", "Desconocida")
+            prev_station_exits[location] = prev_station_exits.get(location, 0) + 1
+            
+        elif action == "terminal_exit":
+            location = activity.get("location_name", "Desconocida")
+            grouped = TERMINAL_GROUPS.get(location, location)
+            prev_terminal_exits[grouped] = prev_terminal_exits.get(grouped, 0) + 1
+            
+        elif action in ["load", "unload"] and activity.get("duration_minutes"):
+            act_lat = activity.get("latitude", 0)
+            act_lng = activity.get("longitude", 0)
+            duration = activity["duration_minutes"]
+            
+            # Check proximity to stations
+            for station_name, coords in STATION_COORDS.items():
+                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
+                if dist <= 2.0:
+                    if station_name not in prev_load_times_by_station:
+                        prev_load_times_by_station[station_name] = []
+                    prev_load_times_by_station[station_name].append(duration)
+            
+            # Check proximity to terminals
+            for terminal_zone, coords in TERMINAL_COORDS.items():
+                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
+                if dist <= 2.0:
+                    if terminal_zone not in prev_load_times_by_terminal:
+                        prev_load_times_by_terminal[terminal_zone] = []
+                    prev_load_times_by_terminal[terminal_zone].append(duration)
+    
+    # Get real train arrivals count (we'll use API data if available)
+    # For previous window arrivals and future arrivals, we need to call the train/flight scraping
+    # Since that's expensive, we'll estimate based on typical schedules
+    # Atocha: ~15 trains/hour, Chamartín: ~12 trains/hour
+    # T1: ~8 flights/hour, T2-T3: ~10 flights/hour, T4-T4S: ~15 flights/hour
+    
+    trains_per_hour = {
+        "Atocha": 15,
+        "Chamartín": 12
+    }
+    
+    flights_per_hour = {
+        "T1": 8,
+        "T2-T3": 10,
+        "T4-T4S": 15
+    }
+    
+    # Calculate station scores with 4 variables @ 25% each
     station_scores = {}
     for station_name, coords in STATION_COORDS.items():
-        # 1. Average load time near this station (within 2km radius)
-        station_load_times = []
-        for activity in activities:
-            if activity.get("action") in ["load", "unload"] and activity.get("duration_minutes"):
-                act_lat = activity.get("latitude", 0)
-                act_lng = activity.get("longitude", 0)
-                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
-                if dist <= 2.0:  # Within 2km of station
-                    station_load_times.append(activity["duration_minutes"])
+        # 1. Previous exits (25%)
+        prev_exits = prev_station_exits.get(station_name, 0)
         
-        avg_load_time = sum(station_load_times) / len(station_load_times) if station_load_times else 0
+        # 2. Previous arrivals (25%) - estimated from schedule
+        prev_arrivals = int(trains_per_hour.get(station_name, 10) * (minutes / 60))
         
-        # 2. Number of exits from this station
-        exit_count = station_counts.get(station_name, {}).get("count", 0)
+        # 3. Previous avg load time (25%)
+        load_times = prev_load_times_by_station.get(station_name, [])
+        prev_avg_load_time = sum(load_times) / len(load_times) if load_times else 0
         
-        # 3. Number of train arrivals in last 30 min (we'll estimate based on typical schedule)
-        # For now, use exit_count as a proxy since arrivals drive exits
-        arrivals_estimate = exit_count * 2  # Rough estimate: 2 arrivals per exit on average
+        # 4. Future arrivals (25%) - estimated from schedule
+        future_arrivals = int(trains_per_hour.get(station_name, 10) * (minutes / 60))
         
         station_scores[station_name] = {
-            "avg_load_time": avg_load_time,
-            "exits": exit_count,
-            "arrivals": arrivals_estimate,
+            "prev_exits": prev_exits,
+            "prev_arrivals": prev_arrivals,
+            "prev_avg_load_time": prev_avg_load_time,
+            "future_arrivals": future_arrivals,
             "coords": coords
         }
     
-    # Calculate terminal scores
+    # Calculate terminal scores with 4 variables @ 25% each
     terminal_scores = {}
     for terminal_zone, coords in TERMINAL_COORDS.items():
-        # 1. Average load time near this terminal zone (within 2km radius)
-        terminal_load_times = []
-        for activity in activities:
-            if activity.get("action") in ["load", "unload"] and activity.get("duration_minutes"):
-                act_lat = activity.get("latitude", 0)
-                act_lng = activity.get("longitude", 0)
-                dist = haversine_distance(coords["lat"], coords["lng"], act_lat, act_lng)
-                if dist <= 2.0:  # Within 2km of terminal
-                    terminal_load_times.append(activity["duration_minutes"])
+        # 1. Previous exits (25%)
+        prev_exits = prev_terminal_exits.get(terminal_zone, 0)
         
-        avg_load_time = sum(terminal_load_times) / len(terminal_load_times) if terminal_load_times else 0
+        # 2. Previous arrivals (25%) - estimated from schedule
+        prev_arrivals = int(flights_per_hour.get(terminal_zone, 10) * (minutes / 60))
         
-        # 2. Number of exits from terminals in this zone
-        exit_count = 0
-        for term_name, term_data in terminal_counts.items():
-            grouped = TERMINAL_GROUPS.get(term_name, term_name)
-            if grouped == terminal_zone:
-                exit_count += term_data.get("count", 0)
+        # 3. Previous avg load time (25%)
+        load_times = prev_load_times_by_terminal.get(terminal_zone, [])
+        prev_avg_load_time = sum(load_times) / len(load_times) if load_times else 0
         
-        # 3. Number of flight arrivals (estimate based on exits)
-        arrivals_estimate = exit_count * 3  # More passengers per flight
+        # 4. Future arrivals (25%) - estimated from schedule
+        future_arrivals = int(flights_per_hour.get(terminal_zone, 10) * (minutes / 60))
         
         terminal_scores[terminal_zone] = {
-            "avg_load_time": avg_load_time,
-            "exits": exit_count,
-            "arrivals": arrivals_estimate,
+            "prev_exits": prev_exits,
+            "prev_arrivals": prev_arrivals,
+            "prev_avg_load_time": prev_avg_load_time,
+            "future_arrivals": future_arrivals,
             "coords": coords
         }
     
-    # Normalize and calculate final scores
-    def calculate_weighted_score(scores_dict):
+    # Normalize and calculate final scores (4 variables @ 25% each)
+    def calculate_weighted_score_4vars(scores_dict):
         if not scores_dict:
             return {}
         
         # Find max values for normalization
-        max_load_time = max((s["avg_load_time"] for s in scores_dict.values()), default=1) or 1
-        max_exits = max((s["exits"] for s in scores_dict.values()), default=1) or 1
-        max_arrivals = max((s["arrivals"] for s in scores_dict.values()), default=1) or 1
+        max_prev_exits = max((s["prev_exits"] for s in scores_dict.values()), default=1) or 1
+        max_prev_arrivals = max((s["prev_arrivals"] for s in scores_dict.values()), default=1) or 1
+        max_prev_load_time = max((s["prev_avg_load_time"] for s in scores_dict.values()), default=1) or 1
+        max_future_arrivals = max((s["future_arrivals"] for s in scores_dict.values()), default=1) or 1
         
         result = {}
         for name, data in scores_dict.items():
             # Normalize to 0-100 scale
-            norm_load_time = (data["avg_load_time"] / max_load_time) * 100 if max_load_time > 0 else 0
-            norm_exits = (data["exits"] / max_exits) * 100 if max_exits > 0 else 0
-            norm_arrivals = (data["arrivals"] / max_arrivals) * 100 if max_arrivals > 0 else 0
+            norm_prev_exits = (data["prev_exits"] / max_prev_exits) * 100 if max_prev_exits > 0 else 0
+            norm_prev_arrivals = (data["prev_arrivals"] / max_prev_arrivals) * 100 if max_prev_arrivals > 0 else 0
+            norm_prev_load_time = (data["prev_avg_load_time"] / max_prev_load_time) * 100 if max_prev_load_time > 0 else 0
+            norm_future_arrivals = (data["future_arrivals"] / max_future_arrivals) * 100 if max_future_arrivals > 0 else 0
             
-            # Weighted score: 33% each
-            final_score = (norm_load_time * 0.33) + (norm_exits * 0.33) + (norm_arrivals * 0.33)
+            # Weighted score: 25% each
+            final_score = (norm_prev_exits * 0.25) + (norm_prev_arrivals * 0.25) + (norm_prev_load_time * 0.25) + (norm_future_arrivals * 0.25)
             
             result[name] = {
                 **data,
-                "score": round(final_score, 2)
+                "score": round(final_score, 2),
+                # For backward compatibility, map to old field names
+                "exits": data["prev_exits"],
+                "arrivals": data["prev_arrivals"] + data["future_arrivals"],
+                "avg_load_time": data["prev_avg_load_time"]
             }
         
         return result
     
-    station_scores = calculate_weighted_score(station_scores)
-    terminal_scores = calculate_weighted_score(terminal_scores)
+    station_scores = calculate_weighted_score_4vars(station_scores)
+    terminal_scores = calculate_weighted_score_4vars(terminal_scores)
     
     # Find hottest station
     hottest_station = None
