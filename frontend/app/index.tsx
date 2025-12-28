@@ -425,6 +425,11 @@ export default function TransportMeter() {
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
     if (checkInLoading) return;
     
+    // For 'exit' action, open GPS immediately
+    if (action === 'exit') {
+      openGpsApp();
+    }
+    
     setCheckInLoading(true);
     try {
       // Get current location
@@ -473,14 +478,6 @@ export default function TransportMeter() {
           location_name: null,
           entry_time: null
         });
-        
-        // On exit, open GPS to navigate to hottest location of the same type
-        if (action === 'exit') {
-          // Open GPS app directly on exit (without destination)
-          setTimeout(() => {
-            openGpsApp();
-          }, 500);
-        }
       }
       
       Alert.alert('✓', response.data.message);
