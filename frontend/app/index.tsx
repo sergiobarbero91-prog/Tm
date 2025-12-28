@@ -190,6 +190,16 @@ interface TaxiStatusData {
   };
 }
 
+interface QueueStatusData {
+  [key: string]: {
+    location_type: string;
+    location_name: string;
+    queue_status: string;
+    reported_at: string;
+    reported_by: string;
+  };
+}
+
 interface HotStreet {
   street_name: string;
   count: number;
