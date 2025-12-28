@@ -1921,6 +1921,8 @@ async def get_street_work_data(
         hottest_street_lat=hottest_lat,
         hottest_street_lng=hottest_lng,
         hottest_count=hottest_count,
+        hottest_percentage=hottest_percentage,
+        hottest_total_loads=hottest_total_loads,
         hottest_distance_km=hottest_distance,
         hot_streets=hot_streets,
         hottest_station=hottest_station,
