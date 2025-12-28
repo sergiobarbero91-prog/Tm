@@ -2220,12 +2220,9 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
             <Text style={styles.sectionTitle}>Zonas de Carga - Madrid Barajas</Text>
-            {/* First row: T1 vs T2-T3 */}
+            {/* First row: T1 and T2-T3 */}
             <View style={styles.comparisonContainer}>
               {renderTerminalCard(terminalGroups[0])}
-              <View style={styles.vsSeparator}>
-                <Text style={styles.vsText}>VS</Text>
-              </View>
               {renderTerminalCard(terminalGroups[1])}
             </View>
             {/* Second row: T4-T4S centered */}
