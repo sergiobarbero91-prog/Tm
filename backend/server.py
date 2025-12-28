@@ -1662,8 +1662,8 @@ async def get_street_work_data(
     # Calculate station scores with 4 variables @ 25% each
     station_scores = {}
     for station_name, coords in STATION_COORDS.items():
-        # 1. Previous exits (25%)
-        prev_exits = prev_station_exits.get(station_name, 0)
+        # 1. Current exits (25%) - from CURRENT time window (station_counts)
+        current_exits = station_counts.get(station_name, {}).get("count", 0)
         
         # 2. Previous arrivals (25%) - REAL DATA from API
         prev_arrivals = train_arrivals_data.get(station_name, {}).get("prev", 0)
@@ -1676,7 +1676,7 @@ async def get_street_work_data(
         future_arrivals = train_arrivals_data.get(station_name, {}).get("future", 0)
         
         station_scores[station_name] = {
-            "prev_exits": prev_exits,
+            "prev_exits": current_exits,  # Using current exits now
             "prev_arrivals": prev_arrivals,
             "prev_avg_load_time": prev_avg_load_time,
             "future_arrivals": future_arrivals,
@@ -1686,8 +1686,12 @@ async def get_street_work_data(
     # Calculate terminal scores with 4 variables @ 25% each
     terminal_scores = {}
     for terminal_zone, coords in TERMINAL_COORDS.items():
-        # 1. Previous exits (25%)
-        prev_exits = prev_terminal_exits.get(terminal_zone, 0)
+        # 1. Current exits (25%) - from CURRENT time window (terminal_counts grouped by zone)
+        current_exits = 0
+        for term_name, term_data in terminal_counts.items():
+            grouped = TERMINAL_GROUPS.get(term_name, term_name)
+            if grouped == terminal_zone:
+                current_exits += term_data.get("count", 0)
         
         # 2. Previous arrivals (25%) - REAL DATA from API
         prev_arrivals = flight_arrivals_data.get(terminal_zone, {}).get("prev", 0)
@@ -1700,7 +1704,7 @@ async def get_street_work_data(
         future_arrivals = flight_arrivals_data.get(terminal_zone, {}).get("future", 0)
         
         terminal_scores[terminal_zone] = {
-            "prev_exits": prev_exits,
+            "prev_exits": current_exits,  # Using current exits now
             "prev_arrivals": prev_arrivals,
             "prev_avg_load_time": prev_avg_load_time,
             "future_arrivals": future_arrivals,
