@@ -1581,15 +1581,15 @@ async def get_street_work_data(
         # 1. Previous exits (25%)
         prev_exits = prev_terminal_exits.get(terminal_zone, 0)
         
-        # 2. Previous arrivals (25%) - estimated from schedule
-        prev_arrivals = int(flights_per_hour.get(terminal_zone, 10) * (minutes / 60))
+        # 2. Previous arrivals (25%) - REAL DATA from API
+        prev_arrivals = flight_arrivals_data.get(terminal_zone, {}).get("prev", 0)
         
         # 3. Previous avg load time (25%)
         load_times = prev_load_times_by_terminal.get(terminal_zone, [])
         prev_avg_load_time = sum(load_times) / len(load_times) if load_times else 0
         
-        # 4. Future arrivals (25%) - estimated from schedule
-        future_arrivals = int(flights_per_hour.get(terminal_zone, 10) * (minutes / 60))
+        # 4. Future arrivals (25%) - REAL DATA from API
+        future_arrivals = flight_arrivals_data.get(terminal_zone, {}).get("future", 0)
         
         terminal_scores[terminal_zone] = {
             "prev_exits": prev_exits,
