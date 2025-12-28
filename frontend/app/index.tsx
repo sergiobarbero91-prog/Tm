@@ -1227,14 +1227,36 @@ export default function TransportMeter() {
           <View style={styles.hottestStreetHeader}>
             <Ionicons name="train" size={24} color="#3B82F6" />
             <Text style={styles.hottestStreetTitle}>Estación caliente</Text>
+            {streetData?.hottest_station_score !== null && streetData?.hottest_station_score !== undefined && (
+              <View style={styles.scoreBadge}>
+                <Text style={styles.scoreBadgeText}>{streetData.hottest_station_score.toFixed(0)}%</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.hottestStreetName}>
             {streetData?.hottest_station || 'Sin datos aún'}
           </Text>
-          {streetData?.hottest_station_count > 0 && (
-            <Text style={styles.hottestStreetCount}>
-              {streetData.hottest_station_count} salidas en {timeWindow} min
-            </Text>
+          {streetData?.hottest_station && (
+            <View style={styles.scoreDetailsContainer}>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_station_avg_load_time || 0} min carga
+                </Text>
+              </View>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="train-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_station_arrivals || 0} llegadas
+                </Text>
+              </View>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="exit-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_station_exits || 0} salidas
+                </Text>
+              </View>
+            </View>
           )}
           
           {streetData?.hottest_station && streetData?.hottest_station_lat && streetData?.hottest_station_lng && (
@@ -1247,7 +1269,7 @@ export default function TransportMeter() {
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1257,14 +1279,36 @@ export default function TransportMeter() {
           <View style={styles.hottestStreetHeader}>
             <Ionicons name="airplane" size={24} color="#8B5CF6" />
             <Text style={styles.hottestStreetTitle}>Terminal caliente</Text>
+            {streetData?.hottest_terminal_score !== null && streetData?.hottest_terminal_score !== undefined && (
+              <View style={[styles.scoreBadge, styles.scoreBadgeTerminal]}>
+                <Text style={styles.scoreBadgeText}>{streetData.hottest_terminal_score.toFixed(0)}%</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.hottestStreetName}>
             {streetData?.hottest_terminal || 'Sin datos aún'}
           </Text>
-          {streetData?.hottest_terminal_count > 0 && (
-            <Text style={styles.hottestStreetCount}>
-              {streetData.hottest_terminal_count} salidas en {timeWindow} min
-            </Text>
+          {streetData?.hottest_terminal && (
+            <View style={styles.scoreDetailsContainer}>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_terminal_avg_load_time || 0} min carga
+                </Text>
+              </View>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="airplane-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_terminal_arrivals || 0} llegadas
+                </Text>
+              </View>
+              <View style={styles.scoreDetailItem}>
+                <Ionicons name="exit-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.scoreDetailText}>
+                  {streetData.hottest_terminal_exits || 0} salidas
+                </Text>
+              </View>
+            </View>
           )}
           
           {streetData?.hottest_terminal && streetData?.hottest_terminal_lat && streetData?.hottest_terminal_lng && (
@@ -1277,7 +1321,7 @@ export default function TransportMeter() {
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
             </TouchableOpacity>
           )}
         </View>
