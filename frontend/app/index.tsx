@@ -494,31 +494,31 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Fetch taxi status
+  // Fetch taxi status (filtered by time window)
   const fetchTaxiStatus = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/taxi/status`, {
+      const response = await axios.get(`${API_BASE}/api/taxi/status?minutes=${timeWindow}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTaxiStatus(response.data);
     } catch (error) {
       console.log('Error fetching taxi status:', error);
     }
-  }, []);
+  }, [timeWindow]);
 
-  // Fetch queue status (people waiting)
+  // Fetch queue status (people waiting) (filtered by time window)
   const fetchQueueStatus = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/queue/status`, {
+      const response = await axios.get(`${API_BASE}/api/queue/status?minutes=${timeWindow}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setQueueStatus(response.data);
     } catch (error) {
       console.log('Error fetching queue status:', error);
     }
-  }, []);
+  }, [timeWindow]);
 
   // Taxi question state (for entry)
   const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
