@@ -3625,6 +3625,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#EF4444',
   },
+  // Queue options (gente esperando) - colores invertidos: poca=malo(rojo), mucha=bueno(verde)
+  queueOptionPoco: {
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  queueOptionNormal: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+  },
+  queueOptionMucho: {
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
   taxiOptionEmoji: {
     fontSize: 32,
     marginBottom: 8,
