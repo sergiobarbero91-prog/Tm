@@ -1648,6 +1648,8 @@ async def get_street_work_data(
     hottest_station_avg_load_time = None
     hottest_station_arrivals = None
     hottest_station_exits = None
+    hottest_station_future_arrivals = None
+    hottest_station_low_arrivals_alert = False
     
     if station_scores:
         best_station_name = max(station_scores.keys(), key=lambda x: station_scores[x]["score"])
