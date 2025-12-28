@@ -1121,8 +1121,8 @@ export default function TransportMeter() {
           <View style={styles.taxiStatusContainerSmall}>
             <Ionicons name="car" size={14} color="#F59E0B" />
             <Text style={styles.taxiStatusTextSmall}>
-              {taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'poco' ? '🔴' : 
-               taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🟢'}
+              {taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'poco' ? '🟢' : 
+               taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
             </Text>
             <Text style={styles.taxiTimeTextSmall}>
               {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
