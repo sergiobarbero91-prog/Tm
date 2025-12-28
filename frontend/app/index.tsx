@@ -124,7 +124,8 @@ interface StreetActivity {
   street_name: string;
   location_name?: string;  // Name of station or terminal
   created_at: string;
-  duration_minutes?: number;  // Duration for completed activities
+  duration_minutes?: number;  // Duration for completed activities (unload)
+  distance_km?: number;  // Distance traveled for unload (from load point)
 }
 
 interface StreetWorkData {
