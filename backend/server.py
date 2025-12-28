@@ -821,7 +821,11 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                     except:
                                         pass
                                 
-                                # Avoid duplicates
+                                # Avoid duplicates and filter out cancelled/landed flights
+                                # Only show flights that are still expected to arrive
+                                if status in ["Cancelado", "Aterrizado"]:
+                                    continue  # Skip cancelled and already landed flights
+                                    
                                 existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
                                     terminal_arrivals[terminal].append({
