@@ -39,7 +39,7 @@ arrival_cache = {
     "trains": {"data": {}, "timestamp": None},
     "flights": {"data": {}, "timestamp": None}
 }
-CACHE_TTL_SECONDS = 60  # Cache data for 60 seconds
+CACHE_TTL_SECONDS = 30  # Cache data for 30 seconds for more real-time updates
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
