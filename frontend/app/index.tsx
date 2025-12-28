@@ -1116,7 +1116,8 @@ export default function TransportMeter() {
     { name: 'T4-T4S', terminals: ['T4', 'T4S'], zoneName: 'Zona T4-T4S' },
   ];
 
-  const renderTerminalGroupCard = (group: { name: string; terminals: string[]; zoneName: string }) => {
+  // Render terminal card similar to station card (horizontal layout with flights below)
+  const renderTerminalCard = (group: { name: string; terminals: string[]; zoneName: string }) => {
     if (!flightData) return null;
     
     // Calculate totals for the group
@@ -1132,6 +1133,9 @@ export default function TransportMeter() {
         allArrivals = [...allArrivals, ...terminal.arrivals];
       }
     });
+    
+    // Sort arrivals by time
+    allArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
     const arrivals = timeWindow === 30 ? total30min : total60min;
     
@@ -1161,90 +1165,143 @@ export default function TransportMeter() {
 
     // Get taxi exits for this terminal group
     const taxiExits = streetData?.exits_by_terminal?.[group.zoneName] || 0;
+    const terminalKey = group.terminals[0];
 
     return (
       <View
         key={group.name}
         style={[
-          styles.terminalGroupCard,
-          isWinner && styles.winnerTerminalCard,
+          styles.stationCard,
+          isWinner && styles.winnerCard,
         ]}
       >
         {isWinner && (
-          <View style={[styles.winnerBadge, styles.winnerBadgeFlight]}>
-            <Ionicons name="trophy" size={14} color="#FFFFFF" />
-            <Text style={styles.winnerBadgeText}>TOP</Text>
+          <View style={styles.winnerBadge}>
+            <Ionicons name="trophy" size={16} color="#FFFFFF" />
+            <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
           </View>
         )}
-        <Text style={[styles.terminalGroupName, isWinner && styles.winnerTerminalText]}>
-          {group.zoneName}
-        </Text>
-        <View style={styles.terminalGroupTerminals}>
-          {group.terminals.map(t => (
-            <Text key={t} style={styles.terminalGroupTerminalText}>{t}</Text>
-          ))}
+        <View style={styles.stationHeader}>
+          <Ionicons name="airplane" size={28} color={isWinner ? '#F59E0B' : '#3B82F6'} />
+          <Text style={[styles.stationName, isWinner && styles.winnerText]}>
+            {group.zoneName}
+          </Text>
         </View>
-        <Text style={[styles.terminalCount, isWinner && styles.winnerTerminalCount]}>
-          {arrivals}
-        </Text>
-        <Text style={styles.terminalLabel}>vuelos</Text>
+        <View style={styles.arrivalCount}>
+          <Text style={[styles.arrivalNumber, isWinner && styles.winnerNumber]}>
+            {arrivals}
+          </Text>
+          <Text style={styles.arrivalLabel}>
+            vuelos en {timeWindow} min
+          </Text>
+        </View>
         
         {/* Salidas de taxistas en ventana anterior */}
-        <View style={styles.taxiExitsContainerSmall}>
-          <Ionicons name="car" size={14} color="#10B981" />
-          <Text style={styles.taxiExitsTextSmall}>{taxiExits} salidas</Text>
+        <View style={styles.taxiExitsContainer}>
+          <Ionicons name="car" size={18} color="#10B981" />
+          <Text style={styles.taxiExitsText}>
+            {taxiExits} salidas taxi (vent. anterior)
+          </Text>
         </View>
         
-        {/* Check-in/Check-out Button for Terminal Group */}
+        {/* Taxi status display */}
+        {taxiStatus[`terminal_${terminalKey}`] && (
+          <View style={styles.taxiStatusContainer}>
+            <Ionicons name="car" size={16} color="#F59E0B" />
+            <Text style={styles.taxiStatusText}>
+              Taxis: {taxiStatus[`terminal_${terminalKey}`].taxi_status === 'poco' ? '🟢 Pocos' : 
+                     taxiStatus[`terminal_${terminalKey}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+            </Text>
+            <Text style={styles.taxiTimeText}>
+              ({formatTime(taxiStatus[`terminal_${terminalKey}`].reported_at)} por {taxiStatus[`terminal_${terminalKey}`].reported_by})
+            </Text>
+          </View>
+        )}
+        
+        {/* Queue status display (people waiting) */}
+        {queueStatus[`terminal_${terminalKey}`] && (
+          <View style={styles.queueStatusContainer}>
+            <Ionicons name="people" size={16} color="#6366F1" />
+            <Text style={styles.taxiStatusText}>
+              Gente: {queueStatus[`terminal_${terminalKey}`].queue_status === 'poco' ? '🔴 Poca' : 
+                     queueStatus[`terminal_${terminalKey}`].queue_status === 'normal' ? '🟡 Normal' : '🟢 Mucha'}
+            </Text>
+            <Text style={styles.taxiTimeText}>
+              ({formatTime(queueStatus[`terminal_${terminalKey}`].reported_at)} por {queueStatus[`terminal_${terminalKey}`].reported_by})
+            </Text>
+          </View>
+        )}
+        
+        {/* Flight arrivals list */}
+        <View style={styles.arrivalsList}>
+          {allArrivals.slice(0, 5).map((flight, index) => (
+            <View key={index} style={styles.arrivalItem}>
+              <View style={styles.arrivalTime}>
+                <Text style={[
+                  styles.timeText,
+                  flight.delay_minutes && flight.delay_minutes > 0 && styles.delayedTimeText
+                ]}>
+                  {flight.time}
+                </Text>
+                {flight.delay_minutes && flight.delay_minutes > 0 && flight.scheduled_time && (
+                  <Text style={styles.scheduledTimeText}>
+                    ({flight.scheduled_time})
+                  </Text>
+                )}
+              </View>
+              <View style={styles.arrivalInfo}>
+                <View style={styles.trainTypeRow}>
+                  <Text style={styles.trainType}>{flight.flight_number}</Text>
+                  {flight.delay_minutes && flight.delay_minutes > 0 && (
+                    <View style={styles.delayBadge}>
+                      <Text style={styles.delayText}>+{flight.delay_minutes}'</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.originText} numberOfLines={1}>
+                  {flight.origin}
+                </Text>
+              </View>
+              <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
+                <Text style={[styles.platformText, { color: '#3B82F6' }]}>
+                  {flight.terminal}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+        
+        {/* Check-in/Check-out Button */}
         {isCheckedInHere ? (
           <TouchableOpacity
-            style={[styles.checkInButtonSmall, styles.checkOutButtonSmall]}
-            onPress={() => handleCheckIn('terminal', checkInStatus?.location_name || group.terminals[0], 'exit')}
+            style={[styles.checkInButton, styles.checkOutButton]}
+            onPress={() => handleCheckIn('terminal', checkInStatus?.location_name || terminalKey, 'exit')}
             disabled={checkInLoading}
           >
-            <Ionicons name="exit-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.checkInButtonTextSmall}>SALIR</Text>
+            <Ionicons name="exit-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.checkInButtonText}>
+              {checkInLoading ? 'Registrando...' : 'SALIR DE TERMINAL'}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.checkInButtonSmall}
-            onPress={() => handleCheckIn('terminal', group.terminals[0], 'entry')}
+            style={[styles.checkInButton, { backgroundColor: '#3B82F6' }]}
+            onPress={() => handleCheckIn('terminal', terminalKey, 'entry')}
             disabled={checkInLoading || (checkInStatus?.is_checked_in || false)}
           >
-            <Ionicons name="enter-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.checkInButtonTextSmall}>ENTRAR</Text>
+            <Ionicons name="enter-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.checkInButtonText}>
+              {checkInLoading ? 'Registrando...' : 'ENTRAR EN TERMINAL'}
+            </Text>
           </TouchableOpacity>
-        )}
-        
-        {/* Taxi status display for terminal */}
-        {taxiStatus[`terminal_${group.terminals[0]}`] && (
-          <View style={styles.taxiStatusContainerSmall}>
-            <Ionicons name="car" size={14} color="#F59E0B" />
-            <Text style={styles.taxiStatusTextSmall}>
-              {taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'poco' ? '🟢' : 
-               taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
-            </Text>
-            <Text style={styles.taxiTimeTextSmall}>
-              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
-            </Text>
-          </View>
-        )}
-        
-        {/* Queue status display for terminal (people waiting) */}
-        {queueStatus[`terminal_${group.terminals[0]}`] && (
-          <View style={styles.queueStatusContainerSmall}>
-            <Ionicons name="people" size={14} color="#6366F1" />
-            <Text style={styles.taxiStatusTextSmall}>
-              {queueStatus[`terminal_${group.terminals[0]}`].queue_status === 'poco' ? '🔴' : 
-               queueStatus[`terminal_${group.terminals[0]}`].queue_status === 'normal' ? '🟡' : '🟢'}
-            </Text>
-            <Text style={styles.taxiTimeTextSmall}>
-              {formatTime(queueStatus[`terminal_${group.terminals[0]}`].reported_at)} por {queueStatus[`terminal_${group.terminals[0]}`].reported_by}
-            </Text>
-          </View>
         )}
       </View>
     );
+  };
+
+  // Keep old function for reference but won't be used
+  const renderTerminalGroupCard = (group: { name: string; terminals: string[]; zoneName: string }) => {
+    return renderTerminalCard(group);
   };
 
   const renderFlightsList = () => {
