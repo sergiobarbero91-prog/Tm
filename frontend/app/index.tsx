@@ -2220,15 +2220,12 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
             <Text style={styles.sectionTitle}>Zonas de Carga - Madrid Barajas</Text>
-            {/* First row: T1 and T2-T3 */}
-            <View style={styles.comparisonContainer}>
-              {renderTerminalCard(terminalGroups[0])}
-              {renderTerminalCard(terminalGroups[1])}
-            </View>
-            {/* Second row: T4-T4S centered */}
-            <View style={[styles.comparisonContainer, { justifyContent: 'center' }]}>
-              {renderTerminalCard(terminalGroups[2])}
-            </View>
+            {/* T1 */}
+            {renderTerminalCard(terminalGroups[0])}
+            {/* T2-T3 */}
+            {renderTerminalCard(terminalGroups[1])}
+            {/* T4-T4S */}
+            {renderTerminalCard(terminalGroups[2])}
           </>
         ) : activeTab === 'street' ? (
           renderStreetContent()
