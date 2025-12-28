@@ -1964,6 +1964,8 @@ async def get_street_work_data(
         hottest_terminal_taxi_status=hottest_terminal_taxi_status,
         hottest_terminal_taxi_time=hottest_terminal_taxi_time,
         hottest_terminal_taxi_reporter=hottest_terminal_taxi_reporter,
+        exits_by_station=prev_station_exits,
+        exits_by_terminal=prev_terminal_exits,
         recent_activities=recent_activities,
         total_loads=total_loads,
         total_unloads=total_unloads,
