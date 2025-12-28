@@ -2020,6 +2020,17 @@ async def register_checkin(
                 except:
                     pass
             del active_checkins[user_id]
+        
+        # Save queue status if provided (people waiting)
+        if checkin.queue_status:
+            await queue_status_collection.insert_one({
+                "location_type": checkin.location_type,
+                "location_name": checkin.location_name,
+                "queue_status": checkin.queue_status,
+                "reported_at": now,
+                "reported_by": current_user.get("username", "unknown"),
+                "user_id": user_id
+            })
     
     # Get street name from coordinates
     street_name = f"{checkin.location_name}"
