@@ -1528,26 +1528,65 @@ async def get_street_work_data(
         for s in hot_streets_raw[:10]  # Top 10
     ]
     
-    # Determine hottest street (closest with activity if location provided)
+    # Determine hottest street based on percentage of total loads
+    # Rules:
+    # - If no data, show nothing
+    # - If only one location, show it (100%)
+    # - If multiple locations, show the one with highest percentage (if >= 10%)
     hottest_street = None
     hottest_count = 0
     hottest_lat = None
     hottest_lng = None
     hottest_distance = None
+    hottest_percentage = None
+    hottest_total_loads = total_loads  # Total "load" actions for context
     
-    if hot_streets:
-        # For hottest, prefer highest count among nearby streets
-        if user_lat is not None and user_lng is not None:
-            # Sort by count among reachable streets
-            best = max(hot_streets, key=lambda x: x.count)
-        else:
-            best = hot_streets[0]
+    if hot_streets and total_loads > 0:
+        # Calculate percentage for each street based on "load" actions only
+        # We need to recalculate using only "load" actions (not unload)
+        load_counts = {}
+        for activity in activities:
+            if activity.get("action") == "load":
+                street = activity.get("street_name", "Desconocida")
+                if street not in load_counts:
+                    load_counts[street] = {
+                        "count": 0,
+                        "latitude": activity.get("latitude"),
+                        "longitude": activity.get("longitude")
+                    }
+                load_counts[street]["count"] += 1
         
-        hottest_street = best.street_name
-        hottest_count = best.count
-        hottest_lat = best.latitude
-        hottest_lng = best.longitude
-        hottest_distance = best.distance_km
+        if load_counts:
+            # Calculate percentages
+            street_percentages = []
+            for street_name, data in load_counts.items():
+                percentage = (data["count"] / total_loads) * 100
+                distance = None
+                if user_lat is not None and user_lng is not None:
+                    distance = haversine_distance(user_lat, user_lng, data["latitude"], data["longitude"])
+                street_percentages.append({
+                    "name": street_name,
+                    "count": data["count"],
+                    "percentage": percentage,
+                    "lat": data["latitude"],
+                    "lng": data["longitude"],
+                    "distance": distance
+                })
+            
+            # Sort by percentage (highest first)
+            street_percentages.sort(key=lambda x: -x["percentage"])
+            
+            # Get the highest percentage street
+            best = street_percentages[0]
+            
+            # Show if it's the only one (100%) or if it has >= 10%
+            if best["percentage"] >= 10 or len(street_percentages) == 1:
+                hottest_street = best["name"]
+                hottest_count = best["count"]
+                hottest_lat = best["lat"]
+                hottest_lng = best["lng"]
+                hottest_distance = round(best["distance"], 2) if best["distance"] else None
+                hottest_percentage = round(best["percentage"], 1)
     
     # ============== NEW HOTSPOT SCORING ALGORITHM (4 variables @ 25% each) ==============
     # Score = 25% previous_exits + 25% previous_arrivals + 25% previous_avg_load_time + 25% future_arrivals
