@@ -235,6 +235,12 @@ class StreetWorkResponse(BaseModel):
     hottest_terminal_future_arrivals: Optional[int] = None
     hottest_terminal_low_arrivals_alert: bool = False
     
+    # Taxi status for hottest locations
+    hottest_station_taxi_status: Optional[str] = None
+    hottest_station_taxi_time: Optional[str] = None
+    hottest_terminal_taxi_status: Optional[str] = None
+    hottest_terminal_taxi_time: Optional[str] = None
+    
     recent_activities: List[StreetActivity]
     total_loads: int
     total_unloads: int
@@ -251,6 +257,14 @@ class CheckInRequest(BaseModel):
     action: str  # 'entry' or 'exit'
     latitude: float
     longitude: float
+    taxi_status: Optional[str] = None  # 'poco', 'normal', 'mucho' - only for 'entry'
+
+class TaxiStatusResponse(BaseModel):
+    location_type: str
+    location_name: str
+    taxi_status: str  # 'poco', 'normal', 'mucho'
+    reported_at: str
+    reported_by: str
 
 class CheckInStatus(BaseModel):
     is_checked_in: bool
