@@ -2101,7 +2101,7 @@ export default function TransportMeter() {
                 style={[styles.taxiOption, styles.taxiOptionPoco]}
                 onPress={() => handleTaxiAnswer('poco')}
               >
-                <Text style={styles.taxiOptionEmoji}>🔴</Text>
+                <Text style={styles.taxiOptionEmoji}>🟢</Text>
                 <Text style={styles.taxiOptionText}>Pocos</Text>
               </TouchableOpacity>
               
@@ -2117,7 +2117,7 @@ export default function TransportMeter() {
                 style={[styles.taxiOption, styles.taxiOptionMucho]}
                 onPress={() => handleTaxiAnswer('mucho')}
               >
-                <Text style={styles.taxiOptionEmoji}>🟢</Text>
+                <Text style={styles.taxiOptionEmoji}>🔴</Text>
                 <Text style={styles.taxiOptionText}>Muchos</Text>
               </TouchableOpacity>
             </View>
