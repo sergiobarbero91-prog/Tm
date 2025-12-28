@@ -2885,6 +2885,23 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
   },
+  lowArrivalsAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    gap: 8,
+  },
+  lowArrivalsAlertText: {
+    color: '#92400E',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
   checkInButton: {
     flexDirection: 'row',
     alignItems: 'center',
