@@ -2101,11 +2101,19 @@ async def get_taxi_status(
     taxi_data = {}
     for r in results:
         key = f"{r['_id']['location_type']}_{r['_id']['location_name']}"
+        # Convert UTC to Madrid timezone for display
+        reported_at = r["reported_at"]
+        if reported_at:
+            if reported_at.tzinfo is None:
+                reported_at = pytz.utc.localize(reported_at)
+            reported_at_str = reported_at.astimezone(MADRID_TZ).isoformat()
+        else:
+            reported_at_str = None
         taxi_data[key] = {
             "location_type": r["_id"]["location_type"],
             "location_name": r["_id"]["location_name"],
             "taxi_status": r["taxi_status"],
-            "reported_at": r["reported_at"].isoformat() if r["reported_at"] else None,
+            "reported_at": reported_at_str,
             "reported_by": r["reported_by"]
         }
     
