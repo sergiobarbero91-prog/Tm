@@ -1005,6 +1005,20 @@ export default function TransportMeter() {
             </Text>
           </TouchableOpacity>
         )}
+        
+        {/* Taxi status display */}
+        {taxiStatus[`station_${stationShortName}`] && (
+          <View style={styles.taxiStatusContainer}>
+            <Ionicons name="car" size={16} color="#F59E0B" />
+            <Text style={styles.taxiStatusText}>
+              Taxis: {taxiStatus[`station_${stationShortName}`].taxi_status === 'poco' ? '🔴 Pocos' : 
+                     taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🟢 Muchos'}
+            </Text>
+            <Text style={styles.taxiTimeText}>
+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
