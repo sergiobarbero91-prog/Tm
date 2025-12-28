@@ -1133,14 +1133,12 @@ export default function TransportMeter() {
     let url: string;
     
     if (gpsApp === 'waze') {
-      // Waze URL scheme - open app without destination
       url = Platform.select({
         ios: `waze://`,
         android: `waze://`,
-        default: `https://waze.com/`
+        default: `https://waze.com/live-map`
       }) as string;
     } else {
-      // Google Maps URL scheme - open app without destination
       url = Platform.select({
         ios: `comgooglemaps://`,
         android: `geo:0,0`,
@@ -1148,14 +1146,19 @@ export default function TransportMeter() {
       }) as string;
     }
     
-    Linking.openURL(url).catch(err => {
-      // Fallback to web version
-      if (gpsApp === 'waze') {
-        Linking.openURL(`https://waze.com/`);
-      } else {
-        Linking.openURL(`https://www.google.com/maps`);
-      }
-    });
+    // On web, use window.open to avoid popup blockers
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank');
+    } else {
+      Linking.openURL(url).catch(err => {
+        // Fallback to web version
+        if (gpsApp === 'waze') {
+          Linking.openURL(`https://waze.com/live-map`);
+        } else {
+          Linking.openURL(`https://www.google.com/maps`);
+        }
+      });
+    }
   };
 
   // Open GPS app for navigation (Google Maps or Waze) with destination
