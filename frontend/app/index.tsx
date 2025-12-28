@@ -145,6 +145,8 @@ interface StreetWorkData {
   hottest_station_avg_load_time: number | null;
   hottest_station_arrivals: number | null;
   hottest_station_exits: number | null;
+  hottest_station_future_arrivals: number | null;
+  hottest_station_low_arrivals_alert: boolean;
   
   // Hottest terminal (based on weighted score)
   hottest_terminal: string | null;
@@ -155,6 +157,8 @@ interface StreetWorkData {
   hottest_terminal_avg_load_time: number | null;
   hottest_terminal_arrivals: number | null;
   hottest_terminal_exits: number | null;
+  hottest_terminal_future_arrivals: number | null;
+  hottest_terminal_low_arrivals_alert: boolean;
   
   recent_activities: StreetActivity[];
   total_loads: number;
