@@ -678,6 +678,7 @@ export default function TransportMeter() {
         setFlightData(response.data);
       } else if (activeTab === 'street') {
         await fetchStreetData();
+        await fetchTaxiStatus();
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -685,7 +686,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser, timeWindow, fetchStreetData]);
+  }, [activeTab, shift, currentUser, timeWindow, fetchStreetData, fetchTaxiStatus]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
