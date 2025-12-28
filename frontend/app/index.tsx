@@ -1335,48 +1335,97 @@ export default function TransportMeter() {
   };
 
   // Open GPS app without destination (just open the app)
-  const openGpsApp = () => {
-    let url: string;
-    
+  const openGpsApp = async () => {
     if (gpsApp === 'waze') {
-      url = `https://waze.com/live-map`;
+      // Try Waze app first
+      const wazeAppUrl = Platform.select({
+        ios: 'waze://',
+        android: 'waze://',
+        default: 'https://waze.com/live-map'
+      }) as string;
+      
+      try {
+        const canOpen = await Linking.canOpenURL(wazeAppUrl);
+        if (canOpen) {
+          await Linking.openURL(wazeAppUrl);
+        } else {
+          // Fallback to web
+          await Linking.openURL('https://waze.com/live-map');
+        }
+      } catch (err) {
+        console.error('Error opening Waze:', err);
+        await Linking.openURL('https://waze.com/live-map');
+      }
     } else {
-      url = `https://www.google.com/maps`;
+      // Google Maps
+      const googleAppUrl = Platform.select({
+        ios: 'comgooglemaps://',
+        android: 'google.navigation:',
+        default: 'https://www.google.com/maps'
+      }) as string;
+      
+      try {
+        const canOpen = await Linking.canOpenURL(googleAppUrl);
+        if (canOpen) {
+          await Linking.openURL(googleAppUrl);
+        } else {
+          await Linking.openURL('https://www.google.com/maps');
+        }
+      } catch (err) {
+        console.error('Error opening Google Maps:', err);
+        await Linking.openURL('https://www.google.com/maps');
+      }
     }
-    
-    Linking.openURL(url).catch(err => {
-      console.error('Error opening GPS:', err);
-    });
   };
 
   // Open GPS app for navigation (Google Maps or Waze) with destination
-  const openGpsNavigation = (lat: number, lng: number, placeName: string) => {
-    let url: string;
-    
+  const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
     if (gpsApp === 'waze') {
-      // Waze URL scheme
-      url = Platform.select({
+      // Waze URL scheme with navigation
+      const wazeAppUrl = Platform.select({
         ios: `waze://?ll=${lat},${lng}&navigate=yes`,
         android: `waze://?ll=${lat},${lng}&navigate=yes`,
         default: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
       }) as string;
+      
+      try {
+        const canOpen = await Linking.canOpenURL('waze://');
+        if (canOpen) {
+          await Linking.openURL(wazeAppUrl);
+        } else {
+          // Fallback to web with deep link attempt
+          await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+        }
+      } catch (err) {
+        console.error('Error opening Waze navigation:', err);
+        await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+      }
     } else {
       // Google Maps URL scheme
-      url = Platform.select({
+      const googleAppUrl = Platform.select({
         ios: `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`,
         android: `google.navigation:q=${lat},${lng}&mode=d`,
         default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
       }) as string;
-    }
-    
-    Linking.openURL(url).catch(err => {
-      // Fallback to web version
-      if (gpsApp === 'waze') {
-        Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
-      } else {
-        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+      
+      try {
+        const baseScheme = Platform.select({
+          ios: 'comgooglemaps://',
+          android: 'google.navigation:',
+          default: ''
+        }) as string;
+        
+        const canOpen = baseScheme ? await Linking.canOpenURL(baseScheme) : false;
+        if (canOpen) {
+          await Linking.openURL(googleAppUrl);
+        } else {
+          await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+        }
+      } catch (err) {
+        console.error('Error opening Google Maps navigation:', err);
+        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
       }
-    });
+    }
   };
 
   const renderStreetContent = () => {
