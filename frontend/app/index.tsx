@@ -1077,6 +1077,20 @@ export default function TransportMeter() {
             </Text>
           </View>
         )}
+        
+        {/* Queue status display (people waiting) */}
+        {queueStatus[`station_${stationShortName}`] && (
+          <View style={styles.queueStatusContainer}>
+            <Ionicons name="people" size={16} color="#6366F1" />
+            <Text style={styles.taxiStatusText}>
+              Gente: {queueStatus[`station_${stationShortName}`].queue_status === 'poco' ? '🔴 Poca' : 
+                     queueStatus[`station_${stationShortName}`].queue_status === 'normal' ? '🟡 Normal' : '🟢 Mucha'}
+            </Text>
+            <Text style={styles.taxiTimeText}>
+              ({formatTime(queueStatus[`station_${stationShortName}`].reported_at)} por {queueStatus[`station_${stationShortName}`].reported_by})
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
