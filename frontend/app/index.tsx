@@ -2838,6 +2838,37 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#8B5CF6',
   },
+  scoreBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 'auto',
+  },
+  scoreBadgeTerminal: {
+    backgroundColor: '#8B5CF6',
+  },
+  scoreBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  scoreDetailsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  scoreDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  scoreDetailText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
   checkInButton: {
     flexDirection: 'row',
     alignItems: 'center',
