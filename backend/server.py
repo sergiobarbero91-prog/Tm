@@ -188,7 +188,8 @@ class StreetActivity(BaseModel):
     location_name: Optional[str] = None  # Name of station or terminal
     city: str = "Madrid"
     created_at: datetime = Field(default_factory=lambda: datetime.now(MADRID_TZ))
-    duration_minutes: Optional[int] = None  # Duration for completed activities
+    duration_minutes: Optional[int] = None  # Duration for completed activities (unload)
+    distance_km: Optional[float] = None  # Distance traveled (for unload - from load point)
 
 class StreetActivityCreate(BaseModel):
     action: str  # "load" or "unload"
