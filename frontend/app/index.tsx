@@ -170,6 +170,10 @@ interface StreetWorkData {
   hottest_terminal_taxi_time?: string | null;
   hottest_terminal_taxi_reporter?: string | null;
   
+  // Exits by location in previous window
+  exits_by_station: { [key: string]: number };
+  exits_by_terminal: { [key: string]: number };
+  
   recent_activities: StreetActivity[];
   total_loads: number;
   total_unloads: number;
