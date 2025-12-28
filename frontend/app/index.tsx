@@ -492,6 +492,13 @@ export default function TransportMeter() {
     }
   }, []);
 
+  // Taxi question state
+  const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
+  const [pendingCheckIn, setPendingCheckIn] = useState<{
+    locationType: 'station' | 'terminal';
+    locationName: string;
+  } | null>(null);
+
   // Handle check-in/check-out with taxi question for entry
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
     if (checkInLoading) return;
@@ -503,30 +510,18 @@ export default function TransportMeter() {
       return;
     }
     
-    // For 'entry' action, ask about taxi status first
-    Alert.alert(
-      '🚕 ¿Cuántos taxis hay esperando?',
-      `Estás entrando a ${locationName}`,
-      [
-        { 
-          text: 'Poco', 
-          onPress: () => performCheckIn(locationType, locationName, action, 'poco')
-        },
-        { 
-          text: 'Normal', 
-          onPress: () => performCheckIn(locationType, locationName, action, 'normal')
-        },
-        { 
-          text: 'Mucho', 
-          onPress: () => performCheckIn(locationType, locationName, action, 'mucho')
-        },
-        {
-          text: 'No sé',
-          style: 'cancel',
-          onPress: () => performCheckIn(locationType, locationName, action, null)
-        }
-      ]
-    );
+    // For 'entry' action, show taxi question modal
+    setPendingCheckIn({ locationType, locationName });
+    setShowTaxiQuestion(true);
+  };
+
+  // Handle taxi answer
+  const handleTaxiAnswer = (answer: string | null) => {
+    setShowTaxiQuestion(false);
+    if (pendingCheckIn) {
+      performCheckIn(pendingCheckIn.locationType, pendingCheckIn.locationName, 'entry', answer);
+      setPendingCheckIn(null);
+    }
   };
 
   // Actual check-in logic
