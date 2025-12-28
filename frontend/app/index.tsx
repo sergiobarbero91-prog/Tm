@@ -701,15 +701,21 @@ export default function TransportMeter() {
           });
           
           // Start watching position for real-time updates
+          // First, clean up any existing watcher
           if (locationWatcherRef.current) {
-            locationWatcherRef.current.remove();
+            try {
+              await locationWatcherRef.current.remove();
+            } catch (e) {
+              console.log('Previous watcher cleanup skipped');
+            }
+            locationWatcherRef.current = null;
           }
           
-          locationWatcherRef.current = await Location.watchPositionAsync(
+          const subscription = await Location.watchPositionAsync(
             {
               accuracy: Location.Accuracy.High,
-              timeInterval: 3000, // Update every 3 seconds
-              distanceInterval: 5, // Or when moved 5 meters
+              timeInterval: 5000, // Update every 5 seconds
+              distanceInterval: 10, // Or when moved 10 meters
             },
             (location) => {
               setCurrentLocation({
@@ -718,6 +724,7 @@ export default function TransportMeter() {
               });
             }
           );
+          locationWatcherRef.current = subscription;
         } catch (error) {
           console.error('Error starting location tracking:', error);
         }
@@ -729,7 +736,11 @@ export default function TransportMeter() {
     // Cleanup: stop watching when leaving street tab
     return () => {
       if (locationWatcherRef.current) {
-        locationWatcherRef.current.remove();
+        try {
+          locationWatcherRef.current.remove();
+        } catch (e) {
+          console.log('Location watcher cleanup error:', e);
+        }
         locationWatcherRef.current = null;
       }
     };
