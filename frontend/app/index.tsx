@@ -225,7 +225,6 @@ export default function TransportMeter() {
   const [currentStreet, setCurrentStreet] = useState<string>('');
   const [streetLoading, setStreetLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
-  const locationWatcherRef = React.useRef<Location.LocationSubscription | null>(null);
 
   // Define all functions first
   const checkExistingSession = async () => {
