@@ -1190,7 +1190,37 @@ export default function TransportMeter() {
     );
   };
 
-  // Open GPS app for navigation (Google Maps or Waze)
+  // Open GPS app without destination (just open the app)
+  const openGpsApp = () => {
+    let url: string;
+    
+    if (gpsApp === 'waze') {
+      // Waze URL scheme - open app without destination
+      url = Platform.select({
+        ios: `waze://`,
+        android: `waze://`,
+        default: `https://waze.com/`
+      }) as string;
+    } else {
+      // Google Maps URL scheme - open app without destination
+      url = Platform.select({
+        ios: `comgooglemaps://`,
+        android: `geo:0,0`,
+        default: `https://www.google.com/maps`
+      }) as string;
+    }
+    
+    Linking.openURL(url).catch(err => {
+      // Fallback to web version
+      if (gpsApp === 'waze') {
+        Linking.openURL(`https://waze.com/`);
+      } else {
+        Linking.openURL(`https://www.google.com/maps`);
+      }
+    });
+  };
+
+  // Open GPS app for navigation (Google Maps or Waze) with destination
   const openGpsNavigation = (lat: number, lng: number, placeName: string) => {
     let url: string;
     
