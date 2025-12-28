@@ -541,7 +541,8 @@ export default function TransportMeter() {
     } catch (error) {
       console.error('Error fetching street data:', error);
     }
-  }, [timeWindow, fetchLoadStatus]); // Removed currentLocation dependency to prevent constant refetching
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeWindow, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
 
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
