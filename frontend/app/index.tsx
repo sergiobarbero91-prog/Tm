@@ -3024,11 +3024,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    flexDirection: 'column',
+    gap: 4,
   },
   mapOverlayText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
+  },
+  locationIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  locationIndicatorText: {
+    color: '#22C55E',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  coordsDisplay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  coordsText: {
+    color: '#9CA3AF',
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   streetButtonsContainer: {
     flexDirection: 'row',
