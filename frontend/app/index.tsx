@@ -786,8 +786,8 @@ export default function TransportMeter() {
       setLoading(true);
       fetchData();
 
-      // Auto-refresh every 2 minutes
-      const interval = setInterval(fetchData, 120000);
+      // Auto-refresh every 30 seconds for real-time data
+      const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
   }, [activeTab, fetchData, currentUser, timeWindow]);
