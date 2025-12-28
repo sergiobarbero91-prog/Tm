@@ -136,17 +136,25 @@ interface StreetWorkData {
   hottest_distance_km: number | null;
   hot_streets: HotStreet[];
   
-  // Hottest station (based on exits)
+  // Hottest station (based on weighted score)
   hottest_station: string | null;
   hottest_station_count: number;
   hottest_station_lat: number | null;
   hottest_station_lng: number | null;
+  hottest_station_score: number | null;
+  hottest_station_avg_load_time: number | null;
+  hottest_station_arrivals: number | null;
+  hottest_station_exits: number | null;
   
-  // Hottest terminal (based on exits)
+  // Hottest terminal (based on weighted score)
   hottest_terminal: string | null;
   hottest_terminal_count: number;
   hottest_terminal_lat: number | null;
   hottest_terminal_lng: number | null;
+  hottest_terminal_score: number | null;
+  hottest_terminal_avg_load_time: number | null;
+  hottest_terminal_arrivals: number | null;
+  hottest_terminal_exits: number | null;
   
   recent_activities: StreetActivity[];
   total_loads: number;
