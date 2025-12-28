@@ -1754,8 +1754,11 @@ async def get_street_work_data(
         terminal_flights = flight_data.get(terminal, [])
         grouped = TERMINAL_GROUPS.get(terminal, terminal)
         
+        # Use raw data for past arrivals
         prev_count = count_arrivals_in_past_window(terminal_flights, minutes * 2, minutes)
-        future_count = count_arrivals_in_window(terminal_flights, minutes)
+        # Filter for future arrivals (exclude cancelled and landed)
+        filtered_flights = filter_future_arrivals(terminal_flights, "flight")
+        future_count = count_arrivals_in_window(filtered_flights, minutes)
         
         flight_arrivals_data[grouped]["prev"] += prev_count
         flight_arrivals_data[grouped]["future"] += future_count
