@@ -965,6 +965,26 @@ export default function TransportMeter() {
     const stationShortName = stationKey === 'atocha' ? 'Atocha' : 'Chamartín';
     const taxiExits = streetData?.exits_by_station?.[stationShortName] || 0;
 
+    // Filter arrivals to only show those within the selected time window
+    const now = new Date();
+    const filteredArrivals = station.arrivals.filter(arrival => {
+      try {
+        const [hours, minutes] = arrival.time.split(':').map(Number);
+        const arrivalDate = new Date();
+        arrivalDate.setHours(hours, minutes, 0, 0);
+        
+        // Handle day rollover
+        if (arrivalDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000) {
+          arrivalDate.setDate(arrivalDate.getDate() + 1);
+        }
+        
+        const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
+        return diffMinutes >= 0 && diffMinutes <= timeWindow;
+      } catch {
+        return false;
+      }
+    });
+
     return (
       <View
         key={stationKey}
