@@ -3098,6 +3098,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  taxiStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  taxiStatusText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  taxiTimeText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+  },
   checkInButton: {
     flexDirection: 'row',
     alignItems: 'center',
