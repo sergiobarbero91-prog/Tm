@@ -1158,6 +1158,9 @@ export default function TransportMeter() {
       checkInStatus.location_type === 'terminal' && 
       group.terminals.includes(checkInStatus.location_name || '');
 
+    // Get taxi exits for this terminal group
+    const taxiExits = streetData?.exits_by_terminal?.[group.zoneName] || 0;
+
     return (
       <View
         key={group.name}
@@ -1184,6 +1187,12 @@ export default function TransportMeter() {
           {arrivals}
         </Text>
         <Text style={styles.terminalLabel}>vuelos</Text>
+        
+        {/* Salidas de taxistas en ventana anterior */}
+        <View style={styles.taxiExitsContainerSmall}>
+          <Ionicons name="car" size={14} color="#10B981" />
+          <Text style={styles.taxiExitsTextSmall}>{taxiExits} salidas</Text>
+        </View>
         
         {/* Check-in/Check-out Button for Terminal Group */}
         {isCheckedInHere ? (
