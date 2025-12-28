@@ -1773,6 +1773,8 @@ async def get_street_work_data(
     hottest_station_exits = None
     hottest_station_future_arrivals = None
     hottest_station_low_arrivals_alert = False
+    hottest_station_taxi_status = None
+    hottest_station_taxi_time = None
     
     if station_scores:
         best_station_name = max(station_scores.keys(), key=lambda x: station_scores[x]["score"])
@@ -1787,6 +1789,15 @@ async def get_street_work_data(
         hottest_station_exits = best_station["exits"]
         hottest_station_future_arrivals = best_station["future_arrivals"]
         hottest_station_low_arrivals_alert = best_station["future_arrivals"] < 5
+        
+        # Get taxi status for hottest station
+        taxi_doc = await taxi_status_collection.find_one(
+            {"location_type": "station", "location_name": best_station_name},
+            sort=[("reported_at", -1)]
+        )
+        if taxi_doc:
+            hottest_station_taxi_status = taxi_doc.get("taxi_status")
+            hottest_station_taxi_time = taxi_doc.get("reported_at").isoformat() if taxi_doc.get("reported_at") else None
     
     # Find hottest terminal
     hottest_terminal = None
@@ -1799,6 +1810,8 @@ async def get_street_work_data(
     hottest_terminal_exits = None
     hottest_terminal_future_arrivals = None
     hottest_terminal_low_arrivals_alert = False
+    hottest_terminal_taxi_status = None
+    hottest_terminal_taxi_time = None
     
     if terminal_scores:
         best_terminal_name = max(terminal_scores.keys(), key=lambda x: terminal_scores[x]["score"])
@@ -1813,6 +1826,16 @@ async def get_street_work_data(
         hottest_terminal_exits = best_terminal["exits"]
         hottest_terminal_future_arrivals = best_terminal["future_arrivals"]
         hottest_terminal_low_arrivals_alert = best_terminal["future_arrivals"] < 7
+        
+        # Get taxi status for hottest terminal (check all terminals in the group)
+        terminal_taxi_query = {"location_type": "terminal", "location_name": {"$in": [best_terminal_name, best_terminal_name.replace("-", ""), *best_terminal_name.split("-")]}}
+        taxi_doc = await taxi_status_collection.find_one(
+            terminal_taxi_query,
+            sort=[("reported_at", -1)]
+        )
+        if taxi_doc:
+            hottest_terminal_taxi_status = taxi_doc.get("taxi_status")
+            hottest_terminal_taxi_time = taxi_doc.get("reported_at").isoformat() if taxi_doc.get("reported_at") else None
     
     # Convert activities to response format
     recent_activities = [
