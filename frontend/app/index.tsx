@@ -1128,32 +1128,14 @@ export default function TransportMeter() {
     let url: string;
     
     if (gpsApp === 'waze') {
-      url = Platform.select({
-        ios: `waze://`,
-        android: `waze://`,
-        default: `https://waze.com/live-map`
-      }) as string;
+      url = `https://waze.com/live-map`;
     } else {
-      url = Platform.select({
-        ios: `comgooglemaps://`,
-        android: `geo:0,0`,
-        default: `https://www.google.com/maps`
-      }) as string;
+      url = `https://www.google.com/maps`;
     }
     
-    // On web, use window.open to avoid popup blockers
-    if (Platform.OS === 'web') {
-      window.open(url, '_blank');
-    } else {
-      Linking.openURL(url).catch(err => {
-        // Fallback to web version
-        if (gpsApp === 'waze') {
-          Linking.openURL(`https://waze.com/live-map`);
-        } else {
-          Linking.openURL(`https://www.google.com/maps`);
-        }
-      });
-    }
+    Linking.openURL(url).catch(err => {
+      console.error('Error opening GPS:', err);
+    });
   };
 
   // Open GPS app for navigation (Google Maps or Waze) with destination
