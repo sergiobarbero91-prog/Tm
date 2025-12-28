@@ -1706,13 +1706,18 @@ async def get_street_work_data(
             atocha_arrivals_raw = arrival_cache["trains"]["data"].get("atocha", [])
             chamartin_arrivals_raw = arrival_cache["trains"]["data"].get("chamartin", [])
     
+    # Filter out arrived and cancelled trains
+    atocha_arrivals_filtered = filter_future_arrivals(atocha_arrivals_raw, "train")
+    chamartin_arrivals_filtered = filter_future_arrivals(chamartin_arrivals_raw, "train")
+    
     # Count PAST arrivals (previous window: from -2*minutes to -minutes)
+    # Use raw data for past arrivals since we want to count what already arrived
     atocha_prev_arrivals = count_arrivals_in_past_window(atocha_arrivals_raw, minutes * 2, minutes)
     chamartin_prev_arrivals = count_arrivals_in_past_window(chamartin_arrivals_raw, minutes * 2, minutes)
     
-    # Count FUTURE arrivals (next window: from now to +minutes)
-    atocha_future_arrivals = count_arrivals_in_window(atocha_arrivals_raw, minutes)
-    chamartin_future_arrivals = count_arrivals_in_window(chamartin_arrivals_raw, minutes)
+    # Count FUTURE arrivals (next window: from now to +minutes) - use filtered data
+    atocha_future_arrivals = count_arrivals_in_window(atocha_arrivals_filtered, minutes)
+    chamartin_future_arrivals = count_arrivals_in_window(chamartin_arrivals_filtered, minutes)
     
     train_arrivals_data = {
         "Atocha": {"prev": atocha_prev_arrivals, "future": atocha_future_arrivals},
