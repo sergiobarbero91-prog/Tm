@@ -917,6 +917,9 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
     Works for both flights and trains.
     
+    Flights/trains with delays are included but will be shown in their correct time window
+    based on their REAL arrival time (with delay), not their scheduled time.
+    
     Args:
         arrivals: List of arrival dicts
         arrival_type: "flight" or "train" to determine status keywords
@@ -930,9 +933,6 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
     else:  # train
         exclude_statuses = ["llegado", "cancelado", "suprimido"]
     
-    # Maximum delay to consider (flights/trains with more delay are likely not useful)
-    MAX_DELAY_MINUTES = 120  # 2 hours
-    
     for arrival in arrivals:
         try:
             # Skip arrivals that have already arrived or are cancelled
@@ -940,12 +940,8 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
             if any(excl in status for excl in exclude_statuses):
                 continue
             
-            # Skip arrivals with excessive delay (more than 2 hours)
-            delay_minutes = arrival.get("delay_minutes", 0)
-            if delay_minutes and delay_minutes > MAX_DELAY_MINUTES:
-                continue
-            
-            # Also check if the arrival time is in the future
+            # The "time" field contains the REAL arrival time (with delay included)
+            # So flights with delay will naturally appear in the correct time window
             time_str = arrival.get("time", "")
             arrival_time = datetime.strptime(time_str, "%H:%M")
             arrival_time = MADRID_TZ.localize(arrival_time.replace(
