@@ -50,6 +50,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 users_collection = db['users']
 street_activities_collection = db['street_activities']
+taxi_status_collection = db['taxi_status']
 
 # Create the main app without a prefix
 app = FastAPI()
