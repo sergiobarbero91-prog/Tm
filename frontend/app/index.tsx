@@ -1831,11 +1831,22 @@ export default function TransportMeter() {
                 <View key={index} style={styles.activityItem}>
                   <View style={styles.activityTimeColumn}>
                     <Text style={styles.activityTimeText}>{timeString}</Text>
-                    {activity.duration_minutes !== undefined && activity.duration_minutes !== null && (
-                      <View style={styles.durationBadge}>
-                        <Ionicons name="time-outline" size={10} color="#10B981" />
-                        <Text style={styles.durationText}>{activity.duration_minutes}min</Text>
-                      </View>
+                    {/* Show duration and distance for unload activities */}
+                    {activity.action === 'unload' && (
+                      <>
+                        {activity.duration_minutes !== undefined && activity.duration_minutes !== null && (
+                          <View style={styles.durationBadge}>
+                            <Ionicons name="time-outline" size={10} color="#10B981" />
+                            <Text style={styles.durationText}>{activity.duration_minutes}min</Text>
+                          </View>
+                        )}
+                        {activity.distance_km !== undefined && activity.distance_km !== null && (
+                          <View style={styles.distanceBadgeSmall}>
+                            <Ionicons name="navigate-outline" size={10} color="#6366F1" />
+                            <Text style={styles.distanceTextSmall}>{activity.distance_km}km</Text>
+                          </View>
+                        )}
+                      </>
                     )}
                   </View>
                   <Ionicons name={iconName} size={24} color={iconColor} />
