@@ -2224,6 +2224,54 @@ export default function TransportMeter() {
           </View>
         </View>
       )}
+
+      {/* Queue Question Modal (for exit - people waiting) */}
+      {showQueueQuestion && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.taxiQuestionModal}>
+            <View style={styles.taxiQuestionHeader}>
+              <Ionicons name="people" size={40} color="#6366F1" />
+              <Text style={styles.taxiQuestionTitle}>👥 ¿Cuánta gente hay esperando?</Text>
+              <Text style={styles.taxiQuestionSubtitle}>
+                Saliendo de {pendingCheckOut?.locationName}
+              </Text>
+            </View>
+            
+            <View style={styles.taxiOptions}>
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.queueOptionPoco]}
+                onPress={() => handleQueueAnswer('poco')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🔴</Text>
+                <Text style={styles.taxiOptionText}>Poca</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.queueOptionNormal]}
+                onPress={() => handleQueueAnswer('normal')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🟡</Text>
+                <Text style={styles.taxiOptionText}>Normal</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.queueOptionMucho]}
+                onPress={() => handleQueueAnswer('mucho')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🟢</Text>
+                <Text style={styles.taxiOptionText}>Mucha</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.taxiSkipButton}
+              onPress={() => handleQueueAnswer(null)}
+            >
+              <Text style={styles.taxiSkipButtonText}>No sé / Omitir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
