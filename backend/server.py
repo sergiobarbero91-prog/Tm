@@ -247,6 +247,10 @@ class StreetWorkResponse(BaseModel):
     hottest_terminal_taxi_time: Optional[str] = None
     hottest_terminal_taxi_reporter: Optional[str] = None
     
+    # Exits by location in previous window (for displaying in cards)
+    exits_by_station: dict = {}  # {"Atocha": 5, "Chamartin": 3}
+    exits_by_terminal: dict = {}  # {"T1": 2, "T4": 4}
+    
     recent_activities: List[StreetActivity]
     total_loads: int
     total_unloads: int
