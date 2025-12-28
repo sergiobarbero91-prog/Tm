@@ -1893,6 +1893,17 @@ async def register_checkin(
             "entry_time": now.isoformat()
         }
         duration_minutes = None
+        
+        # Save taxi status if provided
+        if checkin.taxi_status:
+            await taxi_status_collection.insert_one({
+                "location_type": checkin.location_type,
+                "location_name": checkin.location_name,
+                "taxi_status": checkin.taxi_status,
+                "reported_at": now,
+                "reported_by": current_user.get("username", "unknown"),
+                "user_id": user_id
+            })
     else:  # exit
         action_type = f"{checkin.location_type}_exit"
         duration_minutes = None
