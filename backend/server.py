@@ -1997,7 +1997,8 @@ async def get_street_work_data(
             location_name=a.get("location_name"),
             city=a.get("city", "Madrid"),
             created_at=a["created_at"],
-            duration_minutes=a.get("duration_minutes")
+            duration_minutes=a.get("duration_minutes"),
+            distance_km=a.get("distance_km")
         )
         for a in activities[:20]  # Last 20 activities
     ]
