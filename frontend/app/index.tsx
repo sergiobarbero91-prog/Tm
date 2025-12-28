@@ -363,33 +363,38 @@ export default function TransportMeter() {
       };
       setCurrentLocation(coords);
 
-      // Get street name using reverse geocoding
+      // Get street name - always try backend Nominatim first (more reliable)
       let street = 'Calle desconocida';
+      const token = await AsyncStorage.getItem('token');
+      
+      // Try backend Nominatim first (more reliable)
       try {
-        const addresses = await Location.reverseGeocodeAsync(coords);
-        if (addresses.length > 0) {
-          const addr = addresses[0];
-          // Try multiple fields to get the best street name
-          street = addr.street || addr.name || addr.streetNumber || addr.district || 'Calle desconocida';
-          
-          // If still unknown, try to get from backend using Nominatim
-          if (street === 'Calle desconocida' || street === 'null' || !street) {
-            const token = await AsyncStorage.getItem('token');
-            try {
-              const geoResponse = await axios.get(`${API_BASE}/api/geocode/reverse`, {
-                params: { lat: coords.latitude, lng: coords.longitude },
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (geoResponse.data.street) {
-                street = geoResponse.data.street;
-              }
-            } catch (geoError) {
-              console.log('Backend geocode failed, using default');
+        const geoResponse = await axios.get(`${API_BASE}/api/geocode/reverse`, {
+          params: { lat: coords.latitude, lng: coords.longitude },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 5000
+        });
+        if (geoResponse.data.street && geoResponse.data.street !== 'Calle desconocida') {
+          street = geoResponse.data.street;
+        }
+      } catch (backendError) {
+        console.log('Backend geocode failed, trying expo location');
+      }
+      
+      // Fallback to Expo Location if backend failed
+      if (street === 'Calle desconocida') {
+        try {
+          const addresses = await Location.reverseGeocodeAsync(coords);
+          if (addresses.length > 0) {
+            const addr = addresses[0];
+            const expoStreet = addr.street || addr.name || addr.district;
+            if (expoStreet && expoStreet !== 'null' && expoStreet.trim() !== '') {
+              street = expoStreet;
             }
           }
+        } catch (geoError) {
+          console.log('Expo geocoding also failed');
         }
-      } catch (geoError) {
-        console.error('Geocoding error:', geoError);
       }
       
       setCurrentStreet(street);
