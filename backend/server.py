@@ -930,11 +930,19 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
     else:  # train
         exclude_statuses = ["llegado", "cancelado", "suprimido"]
     
+    # Maximum delay to consider (flights/trains with more delay are likely not useful)
+    MAX_DELAY_MINUTES = 120  # 2 hours
+    
     for arrival in arrivals:
         try:
             # Skip arrivals that have already arrived or are cancelled
             status = arrival.get("status", "").lower()
             if any(excl in status for excl in exclude_statuses):
+                continue
+            
+            # Skip arrivals with excessive delay (more than 2 hours)
+            delay_minutes = arrival.get("delay_minutes", 0)
+            if delay_minutes and delay_minutes > MAX_DELAY_MINUTES:
                 continue
             
             # Also check if the arrival time is in the future
