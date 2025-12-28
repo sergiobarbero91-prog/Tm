@@ -479,15 +479,58 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Handle check-in/check-out
+  // Fetch taxi status
+  const fetchTaxiStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/taxi/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTaxiStatus(response.data);
+    } catch (error) {
+      console.log('Error fetching taxi status:', error);
+    }
+  }, []);
+
+  // Handle check-in/check-out with taxi question for entry
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
     if (checkInLoading) return;
     
     // For 'exit' action, open GPS immediately
     if (action === 'exit') {
       openGpsApp();
+      await performCheckIn(locationType, locationName, action, null);
+      return;
     }
     
+    // For 'entry' action, ask about taxi status first
+    Alert.alert(
+      '🚕 ¿Cuántos taxis hay esperando?',
+      `Estás entrando a ${locationName}`,
+      [
+        { 
+          text: 'Poco', 
+          onPress: () => performCheckIn(locationType, locationName, action, 'poco')
+        },
+        { 
+          text: 'Normal', 
+          onPress: () => performCheckIn(locationType, locationName, action, 'normal')
+        },
+        { 
+          text: 'Mucho', 
+          onPress: () => performCheckIn(locationType, locationName, action, 'mucho')
+        },
+        {
+          text: 'No sé',
+          style: 'cancel',
+          onPress: () => performCheckIn(locationType, locationName, action, null)
+        }
+      ]
+    );
+  };
+
+  // Actual check-in logic
+  const performCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit', taxiAnswer: string | null) => {
     setCheckInLoading(true);
     try {
       // Get current location
@@ -516,7 +559,8 @@ export default function TransportMeter() {
         location_name: locationName,
         action: action,
         latitude: location.latitude,
-        longitude: location.longitude
+        longitude: location.longitude,
+        taxi_status: taxiAnswer
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
