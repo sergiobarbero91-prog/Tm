@@ -3130,6 +3130,22 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 11,
   },
+  taxiStatusContainerSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 6,
+    borderRadius: 6,
+    marginTop: 6,
+    gap: 4,
+  },
+  taxiStatusTextSmall: {
+    fontSize: 12,
+  },
+  taxiTimeTextSmall: {
+    color: '#9CA3AF',
+    fontSize: 9,
+  },
   checkInButton: {
     flexDirection: 'row',
     alignItems: 'center',
