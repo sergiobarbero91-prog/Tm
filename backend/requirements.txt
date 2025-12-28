@@ -20,6 +20,8 @@ email-validator==2.3.0
 fastapi==0.110.1
 flake8==7.3.0
 frozenlist==1.8.0
+geographiclib==2.1
+geopy==2.4.1
 h11==0.16.0
 idna==3.11
 iniconfig==2.3.0
