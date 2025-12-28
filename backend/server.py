@@ -263,11 +263,19 @@ class CheckInRequest(BaseModel):
     latitude: float
     longitude: float
     taxi_status: Optional[str] = None  # 'poco', 'normal', 'mucho' - only for 'entry'
+    queue_status: Optional[str] = None  # 'poco', 'normal', 'mucho' - only for 'exit' (people waiting)
 
 class TaxiStatusResponse(BaseModel):
     location_type: str
     location_name: str
     taxi_status: str  # 'poco', 'normal', 'mucho'
+    reported_at: str
+    reported_by: str
+
+class QueueStatusResponse(BaseModel):
+    location_type: str
+    location_name: str
+    queue_status: str  # 'poco', 'normal', 'mucho'
     reported_at: str
     reported_by: str
 
