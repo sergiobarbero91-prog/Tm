@@ -1393,10 +1393,10 @@ export default function TransportMeter() {
           <Text style={styles.hottestStreetName}>
             {streetData?.hottest_street || 'Sin datos aún'}
           </Text>
-          {streetData?.hottest_count > 0 && (
+          {streetData?.hottest_street && streetData.hottest_count > 0 && (
             <View style={styles.hottestStreetInfo}>
               <Text style={styles.hottestStreetCount}>
-                {streetData.hottest_count} cargas/descargas en {timeWindow} min
+                {streetData.hottest_count} cargas ({streetData.hottest_percentage?.toFixed(1) || 0}% de {streetData.hottest_total_loads || 0} totales)
               </Text>
               {streetData.hottest_distance_km !== null && streetData.hottest_distance_km !== undefined && (
                 <View style={styles.distanceBadge}>
