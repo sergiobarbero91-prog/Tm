@@ -1840,6 +1840,7 @@ async def get_street_work_data(
         if taxi_doc:
             hottest_terminal_taxi_status = taxi_doc.get("taxi_status")
             hottest_terminal_taxi_time = taxi_doc.get("reported_at").isoformat() if taxi_doc.get("reported_at") else None
+            hottest_terminal_taxi_reporter = taxi_doc.get("reported_by")
     
     # Convert activities to response format
     recent_activities = [
