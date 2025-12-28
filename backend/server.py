@@ -209,6 +209,8 @@ class StreetWorkResponse(BaseModel):
     hottest_street_lat: Optional[float] = None
     hottest_street_lng: Optional[float] = None
     hottest_count: int
+    hottest_percentage: Optional[float] = None  # Percentage of total street loads
+    hottest_total_loads: int = 0  # Total loads for context
     hottest_distance_km: Optional[float] = None
     hot_streets: List[HotStreet]
     
