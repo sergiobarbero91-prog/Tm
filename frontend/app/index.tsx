@@ -1302,6 +1302,16 @@ export default function TransportMeter() {
             </View>
           )}
           
+          {/* Range indicator: 75m before and 75m after */}
+          {streetData?.hottest_street && streetData?.hottest_street_lat && (
+            <View style={styles.rangeIndicator}>
+              <Ionicons name="resize-outline" size={16} color="#6B7280" />
+              <Text style={styles.rangeText}>
+                Zona activa: 75m ↔ 75m (150m total)
+              </Text>
+            </View>
+          )}
+          
           {/* Navigate to Google Maps button */}
           {streetData?.hottest_street && streetData?.hottest_street_lat && streetData?.hottest_street_lng && (
             <TouchableOpacity
@@ -1313,7 +1323,7 @@ export default function TransportMeter() {
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con Google Maps</Text>
+              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
             </TouchableOpacity>
           )}
         </View>
