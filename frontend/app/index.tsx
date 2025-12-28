@@ -517,7 +517,7 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Fetch street work data
+  // Fetch street work data - only called manually or on interval, not on every location change
   const fetchStreetData = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -541,7 +541,7 @@ export default function TransportMeter() {
     } catch (error) {
       console.error('Error fetching street data:', error);
     }
-  }, [timeWindow, currentLocation, fetchLoadStatus]);
+  }, [timeWindow, fetchLoadStatus]); // Removed currentLocation dependency to prevent constant refetching
 
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
