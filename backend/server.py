@@ -1660,6 +1660,8 @@ async def get_street_work_data(
         hottest_station_avg_load_time = round(best_station["avg_load_time"], 1)
         hottest_station_arrivals = best_station["arrivals"]
         hottest_station_exits = best_station["exits"]
+        hottest_station_future_arrivals = best_station["future_arrivals"]
+        hottest_station_low_arrivals_alert = best_station["future_arrivals"] < 5
     
     # Find hottest terminal
     hottest_terminal = None
@@ -1670,6 +1672,8 @@ async def get_street_work_data(
     hottest_terminal_avg_load_time = None
     hottest_terminal_arrivals = None
     hottest_terminal_exits = None
+    hottest_terminal_future_arrivals = None
+    hottest_terminal_low_arrivals_alert = False
     
     if terminal_scores:
         best_terminal_name = max(terminal_scores.keys(), key=lambda x: terminal_scores[x]["score"])
@@ -1682,6 +1686,8 @@ async def get_street_work_data(
         hottest_terminal_avg_load_time = round(best_terminal["avg_load_time"], 1)
         hottest_terminal_arrivals = best_terminal["arrivals"]
         hottest_terminal_exits = best_terminal["exits"]
+        hottest_terminal_future_arrivals = best_terminal["future_arrivals"]
+        hottest_terminal_low_arrivals_alert = best_terminal["future_arrivals"] < 7
     
     # Convert activities to response format
     recent_activities = [
