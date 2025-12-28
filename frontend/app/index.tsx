@@ -133,6 +133,8 @@ interface StreetWorkData {
   hottest_street_lat: number | null;
   hottest_street_lng: number | null;
   hottest_count: number;
+  hottest_percentage: number | null;
+  hottest_total_loads: number;
   hottest_distance_km: number | null;
   hot_streets: HotStreet[];
   
