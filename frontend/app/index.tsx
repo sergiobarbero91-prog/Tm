@@ -577,7 +577,8 @@ export default function TransportMeter() {
         action: action,
         latitude: location.latitude,
         longitude: location.longitude,
-        taxi_status: taxiAnswer
+        taxi_status: taxiAnswer,
+        queue_status: queueAnswer
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
