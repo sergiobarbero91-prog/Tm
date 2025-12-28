@@ -239,8 +239,10 @@ class StreetWorkResponse(BaseModel):
     # Taxi status for hottest locations
     hottest_station_taxi_status: Optional[str] = None
     hottest_station_taxi_time: Optional[str] = None
+    hottest_station_taxi_reporter: Optional[str] = None
     hottest_terminal_taxi_status: Optional[str] = None
     hottest_terminal_taxi_time: Optional[str] = None
+    hottest_terminal_taxi_reporter: Optional[str] = None
     
     recent_activities: List[StreetActivity]
     total_loads: int
