@@ -228,6 +228,7 @@ export default function TransportMeter() {
   const [shift, setShift] = useState<'all' | 'day' | 'night'>('all');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
