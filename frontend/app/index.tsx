@@ -804,6 +804,21 @@ export default function TransportMeter() {
     });
   };
 
+  // Format time for taxi status display
+  const formatTime = (isoString: string | null | undefined) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'Europe/Madrid'
+      });
+    } catch {
+      return '';
+    }
+  };
+
   // Show loading while checking auth
   if (!authChecked) {
     return (
