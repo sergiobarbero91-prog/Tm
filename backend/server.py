@@ -835,6 +835,36 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
     
     return count
 
+def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minutes_end: int) -> int:
+    """Count arrivals that happened between minutes_start and minutes_end ago.
+    E.g., count_arrivals_in_past_window(arrivals, 60, 30) counts arrivals from -60 to -30 minutes ago.
+    """
+    now = datetime.now(MADRID_TZ)
+    count = 0
+    
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            # Parse time and set to today in Madrid timezone
+            arrival_time = datetime.strptime(time_str, "%H:%M")
+            arrival_time = MADRID_TZ.localize(arrival_time.replace(
+                year=now.year, month=now.month, day=now.day
+            ))
+            
+            # Handle day rollover (if arrival time is much later than now, it was yesterday)
+            if arrival_time > now + timedelta(hours=12):
+                arrival_time -= timedelta(days=1)
+            
+            time_diff = (now - arrival_time).total_seconds() / 60  # Positive = past
+            
+            # Check if arrival is within the past window
+            if minutes_end <= time_diff <= minutes_start:
+                count += 1
+        except Exception:
+            pass
+    
+    return count
+
 def filter_future_flights(arrivals: List[Dict]) -> List[Dict]:
     """Filter flights to only include those that haven't arrived yet (excluding 'Aterrizado')."""
     now = datetime.now(MADRID_TZ)
