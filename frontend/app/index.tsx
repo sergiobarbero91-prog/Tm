@@ -163,8 +163,10 @@ interface StreetWorkData {
   // Taxi status for hottest locations
   hottest_station_taxi_status?: string | null;
   hottest_station_taxi_time?: string | null;
+  hottest_station_taxi_reporter?: string | null;
   hottest_terminal_taxi_status?: string | null;
   hottest_terminal_taxi_time?: string | null;
+  hottest_terminal_taxi_reporter?: string | null;
   
   recent_activities: StreetActivity[];
   total_loads: number;
