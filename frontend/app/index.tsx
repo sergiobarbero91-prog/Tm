@@ -3436,4 +3436,69 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 11,
   },
+  taxiQuestionModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  taxiQuestionHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  taxiQuestionTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  taxiQuestionSubtitle: {
+    color: '#94A3B8',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  taxiOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    width: '100%',
+  },
+  taxiOption: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#374151',
+  },
+  taxiOptionPoco: {
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  taxiOptionNormal: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+  },
+  taxiOptionMucho: {
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
+  taxiOptionEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  taxiOptionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  taxiSkipButton: {
+    marginTop: 20,
+    padding: 12,
+  },
+  taxiSkipButtonText: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
 });
