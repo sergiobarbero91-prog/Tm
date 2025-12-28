@@ -1085,8 +1085,12 @@ async def get_train_comparison(shift: str = "all"):
     chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
     
     # Filter arrivals by shift
-    atocha_arrivals = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
-    chamartin_arrivals = filter_arrivals_by_shift(chamartin_arrivals_raw, shift)
+    atocha_arrivals_shift = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
+    chamartin_arrivals_shift = filter_arrivals_by_shift(chamartin_arrivals_raw, shift)
+    
+    # Filter out arrived and cancelled trains (only show future arrivals)
+    atocha_arrivals = filter_future_arrivals(atocha_arrivals_shift, "train")
+    chamartin_arrivals = filter_future_arrivals(chamartin_arrivals_shift, "train")
     
     # Count arrivals in real time windows (always based on current time)
     atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
