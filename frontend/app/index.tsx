@@ -2083,6 +2083,54 @@ export default function TransportMeter() {
           </View>
         </View>
       )}
+
+      {/* Taxi Question Modal */}
+      {showTaxiQuestion && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.taxiQuestionModal}>
+            <View style={styles.taxiQuestionHeader}>
+              <Ionicons name="car" size={40} color="#F59E0B" />
+              <Text style={styles.taxiQuestionTitle}>🚕 ¿Cuántos taxis hay?</Text>
+              <Text style={styles.taxiQuestionSubtitle}>
+                Entrando a {pendingCheckIn?.locationName}
+              </Text>
+            </View>
+            
+            <View style={styles.taxiOptions}>
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.taxiOptionPoco]}
+                onPress={() => handleTaxiAnswer('poco')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🔴</Text>
+                <Text style={styles.taxiOptionText}>Pocos</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.taxiOptionNormal]}
+                onPress={() => handleTaxiAnswer('normal')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🟡</Text>
+                <Text style={styles.taxiOptionText}>Normal</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.taxiOption, styles.taxiOptionMucho]}
+                onPress={() => handleTaxiAnswer('mucho')}
+              >
+                <Text style={styles.taxiOptionEmoji}>🟢</Text>
+                <Text style={styles.taxiOptionText}>Muchos</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.taxiSkipButton}
+              onPress={() => handleTaxiAnswer(null)}
+            >
+              <Text style={styles.taxiSkipButtonText}>No sé / Omitir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
