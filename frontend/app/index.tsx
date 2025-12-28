@@ -3696,6 +3696,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  distanceBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F133',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 2,
+    gap: 2,
+  },
+  distanceTextSmall: {
+    color: '#6366F1',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   activityInfo: {
     flex: 1,
   },
