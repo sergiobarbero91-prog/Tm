@@ -34,6 +34,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Security
 security = HTTPBearer(auto_error=False)
 
+# Cache for train/flight data (to avoid excessive API calls)
+arrival_cache = {
+    "trains": {"data": {}, "timestamp": None},
+    "flights": {"data": {}, "timestamp": None}
+}
+CACHE_TTL_SECONDS = 60  # Cache data for 60 seconds
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
