@@ -1036,7 +1036,7 @@ export default function TransportMeter() {
         )}
         
         <View style={styles.arrivalsList}>
-          {station.arrivals.slice(0, 5).map((arrival, index) => (
+          {filteredArrivals.slice(0, 5).map((arrival, index) => (
             <View key={index} style={styles.arrivalItem}>
               <View style={styles.arrivalTime}>
                 <Text style={[
