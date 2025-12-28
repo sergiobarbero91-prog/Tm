@@ -1847,7 +1847,14 @@ async def get_street_work_data(
         )
         if taxi_doc:
             hottest_terminal_taxi_status = taxi_doc.get("taxi_status")
-            hottest_terminal_taxi_time = taxi_doc.get("reported_at").isoformat() if taxi_doc.get("reported_at") else None
+            # Convert UTC to Madrid timezone for display
+            reported_at = taxi_doc.get("reported_at")
+            if reported_at:
+                if reported_at.tzinfo is None:
+                    reported_at = pytz.utc.localize(reported_at)
+                hottest_terminal_taxi_time = reported_at.astimezone(MADRID_TZ).isoformat()
+            else:
+                hottest_terminal_taxi_time = None
             hottest_terminal_taxi_reporter = taxi_doc.get("reported_by")
     
     # Convert activities to response format
