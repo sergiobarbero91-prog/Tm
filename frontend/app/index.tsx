@@ -1140,7 +1140,7 @@ export default function TransportMeter() {
                taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
             </Text>
             <Text style={styles.taxiTimeTextSmall}>
-              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
+              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
             </Text>
           </View>
         )}
