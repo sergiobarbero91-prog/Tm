@@ -962,6 +962,7 @@ export default function TransportMeter() {
     const isWinner = timeWindow === 30 ? station.is_winner_30min : station.is_winner_60min;
     const arrivals = timeWindow === 30 ? station.total_next_30min : station.total_next_60min;
     const stationShortName = stationKey === 'atocha' ? 'Atocha' : 'Chamartín';
+    const taxiExits = streetData?.exits_by_station?.[stationShortName] || 0;
 
     return (
       <View
@@ -989,6 +990,14 @@ export default function TransportMeter() {
           </Text>
           <Text style={styles.arrivalLabel}>
             trenes en {timeWindow} min
+          </Text>
+        </View>
+        
+        {/* Salidas de taxistas en ventana anterior */}
+        <View style={styles.taxiExitsContainer}>
+          <Ionicons name="car" size={18} color="#10B981" />
+          <Text style={styles.taxiExitsText}>
+            {taxiExits} salidas taxi (vent. anterior)
           </Text>
         </View>
         
