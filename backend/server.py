@@ -1505,22 +1505,51 @@ async def get_street_work_data(
                         prev_load_times_by_terminal[terminal_zone] = []
                     prev_load_times_by_terminal[terminal_zone].append(duration)
     
-    # Get real train arrivals count (we'll use API data if available)
-    # For previous window arrivals and future arrivals, we need to call the train/flight scraping
-    # Since that's expensive, we'll estimate based on typical schedules
-    # Atocha: ~15 trains/hour, Chamartín: ~12 trains/hour
-    # T1: ~8 flights/hour, T2-T3: ~10 flights/hour, T4-T4S: ~15 flights/hour
+    # ===== GET REAL TRAIN ARRIVALS DATA =====
+    try:
+        atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+        chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+    except Exception as e:
+        logger.error(f"Error fetching train data for hotspot: {e}")
+        atocha_arrivals_raw = []
+        chamartin_arrivals_raw = []
     
-    trains_per_hour = {
-        "Atocha": 15,
-        "Chamartín": 12
+    # Count PAST arrivals (previous window: from -2*minutes to -minutes)
+    atocha_prev_arrivals = count_arrivals_in_past_window(atocha_arrivals_raw, minutes * 2, minutes)
+    chamartin_prev_arrivals = count_arrivals_in_past_window(chamartin_arrivals_raw, minutes * 2, minutes)
+    
+    # Count FUTURE arrivals (next window: from now to +minutes)
+    atocha_future_arrivals = count_arrivals_in_window(atocha_arrivals_raw, minutes)
+    chamartin_future_arrivals = count_arrivals_in_window(chamartin_arrivals_raw, minutes)
+    
+    train_arrivals_data = {
+        "Atocha": {"prev": atocha_prev_arrivals, "future": atocha_future_arrivals},
+        "Chamartín": {"prev": chamartin_prev_arrivals, "future": chamartin_future_arrivals}
     }
     
-    flights_per_hour = {
-        "T1": 8,
-        "T2-T3": 10,
-        "T4-T4S": 15
+    # ===== GET REAL FLIGHT ARRIVALS DATA =====
+    try:
+        flight_data = await fetch_aena_arrivals()
+    except Exception as e:
+        logger.error(f"Error fetching flight data for hotspot: {e}")
+        flight_data = {t: [] for t in TERMINALS}
+    
+    # Group flights by terminal zone and count arrivals
+    flight_arrivals_data = {
+        "T1": {"prev": 0, "future": 0},
+        "T2-T3": {"prev": 0, "future": 0},
+        "T4-T4S": {"prev": 0, "future": 0}
     }
+    
+    for terminal in TERMINALS:
+        terminal_flights = flight_data.get(terminal, [])
+        grouped = TERMINAL_GROUPS.get(terminal, terminal)
+        
+        prev_count = count_arrivals_in_past_window(terminal_flights, minutes * 2, minutes)
+        future_count = count_arrivals_in_window(terminal_flights, minutes)
+        
+        flight_arrivals_data[grouped]["prev"] += prev_count
+        flight_arrivals_data[grouped]["future"] += future_count
     
     # Calculate station scores with 4 variables @ 25% each
     station_scores = {}
@@ -1528,15 +1557,15 @@ async def get_street_work_data(
         # 1. Previous exits (25%)
         prev_exits = prev_station_exits.get(station_name, 0)
         
-        # 2. Previous arrivals (25%) - estimated from schedule
-        prev_arrivals = int(trains_per_hour.get(station_name, 10) * (minutes / 60))
+        # 2. Previous arrivals (25%) - REAL DATA from API
+        prev_arrivals = train_arrivals_data.get(station_name, {}).get("prev", 0)
         
         # 3. Previous avg load time (25%)
         load_times = prev_load_times_by_station.get(station_name, [])
         prev_avg_load_time = sum(load_times) / len(load_times) if load_times else 0
         
-        # 4. Future arrivals (25%) - estimated from schedule
-        future_arrivals = int(trains_per_hour.get(station_name, 10) * (minutes / 60))
+        # 4. Future arrivals (25%) - REAL DATA from API
+        future_arrivals = train_arrivals_data.get(station_name, {}).get("future", 0)
         
         station_scores[station_name] = {
             "prev_exits": prev_exits,
