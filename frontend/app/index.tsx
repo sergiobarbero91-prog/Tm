@@ -160,6 +160,12 @@ interface StreetWorkData {
   hottest_terminal_future_arrivals: number | null;
   hottest_terminal_low_arrivals_alert: boolean;
   
+  // Taxi status for hottest locations
+  hottest_station_taxi_status?: string | null;
+  hottest_station_taxi_time?: string | null;
+  hottest_terminal_taxi_status?: string | null;
+  hottest_terminal_taxi_time?: string | null;
+  
   recent_activities: StreetActivity[];
   total_loads: number;
   total_unloads: number;
@@ -168,6 +174,16 @@ interface StreetWorkData {
   total_terminal_entries: number;
   total_terminal_exits: number;
   last_update: string;
+}
+
+interface TaxiStatusData {
+  [key: string]: {
+    location_type: string;
+    location_name: string;
+    taxi_status: string;
+    reported_at: string;
+    reported_by: string;
+  };
 }
 
 interface HotStreet {
