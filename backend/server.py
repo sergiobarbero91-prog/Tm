@@ -2182,6 +2182,55 @@ async def get_taxi_status(
     
     return taxi_data
 
+@api_router.get("/queue/status")
+async def get_queue_status(
+    location_type: Optional[str] = None,
+    location_name: Optional[str] = None,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get the latest queue status (people waiting) for stations and terminals."""
+    # Build query
+    query = {}
+    if location_type:
+        query["location_type"] = location_type
+    if location_name:
+        query["location_name"] = location_name
+    
+    # Get the most recent queue status for each location
+    pipeline = [
+        {"$match": query} if query else {"$match": {}},
+        {"$sort": {"reported_at": -1}},
+        {"$group": {
+            "_id": {"location_type": "$location_type", "location_name": "$location_name"},
+            "queue_status": {"$first": "$queue_status"},
+            "reported_at": {"$first": "$reported_at"},
+            "reported_by": {"$first": "$reported_by"}
+        }}
+    ]
+    
+    results = await queue_status_collection.aggregate(pipeline).to_list(100)
+    
+    queue_data = {}
+    for r in results:
+        key = f"{r['_id']['location_type']}_{r['_id']['location_name']}"
+        # Convert UTC to Madrid timezone for display
+        reported_at = r["reported_at"]
+        if reported_at:
+            if reported_at.tzinfo is None:
+                reported_at = pytz.utc.localize(reported_at)
+            reported_at_str = reported_at.astimezone(MADRID_TZ).isoformat()
+        else:
+            reported_at_str = None
+        queue_data[key] = {
+            "location_type": r["_id"]["location_type"],
+            "location_name": r["_id"]["location_name"],
+            "queue_status": r["queue_status"],
+            "reported_at": reported_at_str,
+            "reported_by": r["reported_by"]
+        }
+    
+    return queue_data
+
 # ============== ADMIN ENDPOINTS ==============
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
