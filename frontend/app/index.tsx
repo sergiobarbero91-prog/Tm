@@ -367,6 +367,11 @@ export default function TransportMeter() {
 
   // Register street activity (load or unload)
   const registerActivity = async (action: 'load' | 'unload') => {
+    // For 'load' action, open GPS immediately (before waiting for location/API)
+    if (action === 'load') {
+      openGpsApp();
+    }
+    
     setStreetLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
@@ -393,13 +398,6 @@ export default function TransportMeter() {
         '✓',
         `${action === 'load' ? 'Carga' : 'Descarga'} registrada en ${locationData.street}`
       );
-      
-      // After loading, open GPS app directly
-      if (action === 'load') {
-        setTimeout(() => {
-          openGpsApp();
-        }, 500);
-      }
       
       // Refresh street data
       fetchStreetData();
