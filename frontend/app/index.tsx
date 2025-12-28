@@ -3474,7 +3474,7 @@ const styles = StyleSheet.create({
   },
   taxiOptionPoco: {
     borderWidth: 2,
-    borderColor: '#EF4444',
+    borderColor: '#10B981',
   },
   taxiOptionNormal: {
     borderWidth: 2,
@@ -3482,7 +3482,7 @@ const styles = StyleSheet.create({
   },
   taxiOptionMucho: {
     borderWidth: 2,
-    borderColor: '#10B981',
+    borderColor: '#EF4444',
   },
   taxiOptionEmoji: {
     fontSize: 32,
