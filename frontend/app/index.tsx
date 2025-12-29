@@ -3434,7 +3434,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  stationCard: {
+  stationHotCard: {
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
   },
