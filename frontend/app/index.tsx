@@ -551,6 +551,55 @@ export default function TransportMeter() {
     addressName: string;
   } | null>(null);
   const [calculatingFare, setCalculatingFare] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const destinationInputRef = React.useRef<any>(null);
+
+  // Voice input function
+  const startVoiceInput = () => {
+    if (Platform.OS === 'web') {
+      // Use Web Speech API on web
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+        
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setDestinationAddress(transcript);
+          setIsListening(false);
+        };
+        
+        recognition.onerror = () => {
+          setIsListening(false);
+          Alert.alert('Error', 'No se pudo reconocer la voz. Intenta de nuevo.');
+        };
+        
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognition.start();
+      } else {
+        Alert.alert('No disponible', 'El reconocimiento de voz no está disponible en este navegador.');
+      }
+    } else {
+      // On mobile, focus the input and show a hint to use the keyboard's voice input
+      if (destinationInputRef.current) {
+        destinationInputRef.current.focus();
+      }
+      Alert.alert(
+        '🎤 Dictado por voz',
+        'Usa el botón de micrófono en tu teclado para dictar la dirección.',
+        [{ text: 'Entendido' }]
+      );
+    }
+  };
 
   // Handle check-in/check-out with questions
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
