@@ -2847,7 +2847,8 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 2,
     borderColor: 'transparent',
-    marginBottom: 15,
+    marginBottom: 25,
+    marginTop: 10,
   },
   winnerCard: {
     borderColor: '#F59E0B',
