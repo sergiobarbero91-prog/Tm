@@ -2846,9 +2846,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 2,
-    borderColor: 'transparent',
-    marginBottom: 25,
-    marginTop: 10,
+    borderColor: '#374151',
+    marginBottom: 30,
+    marginTop: 15,
+    marginHorizontal: 5,
   },
   winnerCard: {
     borderColor: '#F59E0B',
