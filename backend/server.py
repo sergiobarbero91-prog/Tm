@@ -1370,6 +1370,89 @@ async def geocode_address(
         logger.error(f"Error geocoding address: {e}")
         raise HTTPException(status_code=500, detail=f"Error al geocodificar: {str(e)}")
 
+class SearchAddressRequest(BaseModel):
+    query: str
+    city: str = "Madrid"
+
+@api_router.post("/search-addresses")
+async def search_addresses(
+    request: SearchAddressRequest,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Search for addresses and return multiple suggestions."""
+    try:
+        from geopy.geocoders import Nominatim
+        
+        geolocator = Nominatim(user_agent="commute-pulse-app")
+        
+        # Prepare search query - add Madrid and España for better results
+        search_query = request.query
+        if "madrid" not in request.query.lower():
+            search_query = f"{request.query}, Madrid, España"
+        
+        # Get multiple results
+        locations = geolocator.geocode(
+            search_query, 
+            exactly_one=False, 
+            limit=5,
+            addressdetails=True
+        )
+        
+        if not locations:
+            # Try converting written numbers to digits
+            query_converted = convert_written_numbers(request.query)
+            if query_converted != request.query:
+                search_query = f"{query_converted}, Madrid, España"
+                locations = geolocator.geocode(
+                    search_query,
+                    exactly_one=False,
+                    limit=5,
+                    addressdetails=True
+                )
+        
+        if not locations:
+            return {"suggestions": []}
+        
+        suggestions = []
+        for loc in locations:
+            lat = loc.latitude
+            lng = loc.longitude
+            is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
+            
+            suggestions.append({
+                "address": loc.address,
+                "latitude": lat,
+                "longitude": lng,
+                "is_inside_m30": is_inside_m30
+            })
+        
+        return {"suggestions": suggestions}
+    except Exception as e:
+        logger.error(f"Error searching addresses: {e}")
+        return {"suggestions": []}
+
+def convert_written_numbers(text: str) -> str:
+    """Convert Spanish written numbers to digits."""
+    number_map = {
+        'cero': '0', 'uno': '1', 'una': '1', 'dos': '2', 'tres': '3',
+        'cuatro': '4', 'cinco': '5', 'seis': '6', 'siete': '7',
+        'ocho': '8', 'nueve': '9', 'diez': '10', 'once': '11',
+        'doce': '12', 'trece': '13', 'catorce': '14', 'quince': '15',
+        'dieciséis': '16', 'dieciseis': '16', 'diecisiete': '17',
+        'dieciocho': '18', 'diecinueve': '19', 'veinte': '20',
+        'veintiuno': '21', 'veintidós': '22', 'veintidos': '22',
+        'veintitrés': '23', 'veintitres': '23', 'veinticuatro': '24',
+        'veinticinco': '25', 'treinta': '30', 'cuarenta': '40',
+        'cincuenta': '50', 'sesenta': '60', 'setenta': '70',
+        'ochenta': '80', 'noventa': '90', 'cien': '100'
+    }
+    
+    result = text.lower()
+    for word, digit in number_map.items():
+        result = result.replace(word, digit)
+    
+    return result
+
 # ============== STREET WORK ENDPOINTS ==============
 
 @api_router.post("/street/activity")
