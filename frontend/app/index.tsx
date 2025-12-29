@@ -602,7 +602,7 @@ export default function TransportMeter() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const { is_inside_m30 } = response.data;
+      const { is_inside_m30, latitude, longitude, address } = response.data;
       
       // Get current time and day
       const now = new Date();
@@ -630,7 +630,14 @@ export default function TransportMeter() {
         }
       }
       
-      setFareResult({ tarifa, suplemento, isInsideM30: is_inside_m30 });
+      setFareResult({ 
+        tarifa, 
+        suplemento, 
+        isInsideM30: is_inside_m30,
+        latitude,
+        longitude,
+        addressName: address
+      });
     } catch (error) {
       console.error('Error calculating fare:', error);
       Alert.alert('Error', 'No se pudo calcular la tarifa. Verifica la dirección.');
