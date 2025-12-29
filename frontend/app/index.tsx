@@ -646,7 +646,18 @@ export default function TransportMeter() {
     }
   };
 
-  // Close destination modal and open GPS
+  // Navigate to destination with GPS
+  const navigateToDestination = () => {
+    if (fareResult) {
+      openGpsNavigation(fareResult.latitude, fareResult.longitude, fareResult.addressName);
+    }
+    setShowDestinationModal(false);
+    setDestinationAddress('');
+    setFareResult(null);
+    setPendingCheckOut(null);
+  };
+
+  // Close destination modal and open GPS (without destination)
   const closeDestinationModal = () => {
     setShowDestinationModal(false);
     setDestinationAddress('');
