@@ -542,6 +542,19 @@ export default function TransportMeter() {
   // Destination/Fare modal state (for terminal exit)
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [destinationAddress, setDestinationAddress] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{
+    address: string;
+    latitude: number;
+    longitude: number;
+    is_inside_m30: boolean;
+  }>>([]);
+  const [searchingAddresses, setSearchingAddresses] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<{
+    address: string;
+    latitude: number;
+    longitude: number;
+    is_inside_m30: boolean;
+  } | null>(null);
   const [fareResult, setFareResult] = useState<{
     tarifa: string;
     suplemento: string;
@@ -553,6 +566,60 @@ export default function TransportMeter() {
   const [calculatingFare, setCalculatingFare] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const destinationInputRef = React.useRef<any>(null);
+  const searchTimeoutRef = React.useRef<any>(null);
+
+  // Search addresses with debounce
+  const searchAddresses = async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+    
+    setSearchingAddresses(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/search-addresses`, {
+        query,
+        city: 'Madrid'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setAddressSuggestions(response.data.suggestions || []);
+    } catch (error) {
+      console.log('Error searching addresses:', error);
+      setAddressSuggestions([]);
+    } finally {
+      setSearchingAddresses(false);
+    }
+  };
+
+  // Handle address input change with debounce
+  const handleAddressChange = (text: string) => {
+    setDestinationAddress(text);
+    setSelectedAddress(null);
+    setFareResult(null);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchAddresses(text);
+    }, 500);
+  };
+
+  // Select address from suggestions
+  const selectAddress = (suggestion: typeof addressSuggestions[0]) => {
+    setSelectedAddress(suggestion);
+    setDestinationAddress(suggestion.address);
+    setAddressSuggestions([]);
+    
+    // Calculate fare immediately
+    calculateFareFromAddress(suggestion);
+  };
 
   // Voice input function
   const startVoiceInput = () => {
@@ -573,6 +640,8 @@ export default function TransportMeter() {
           const transcript = event.results[0][0].transcript;
           setDestinationAddress(transcript);
           setIsListening(false);
+          // Search for addresses after voice input
+          searchAddresses(transcript);
         };
         
         recognition.onerror = () => {
