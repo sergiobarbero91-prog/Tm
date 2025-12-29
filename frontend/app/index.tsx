@@ -2537,6 +2537,72 @@ export default function TransportMeter() {
           </View>
         </View>
       )}
+
+      {/* Destination & Fare Modal (for terminal exit) */}
+      {showDestinationModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.destinationModal}>
+            <View style={styles.destinationHeader}>
+              <Ionicons name="location" size={40} color="#3B82F6" />
+              <Text style={styles.destinationTitle}>📍 ¿A dónde vas?</Text>
+              <Text style={styles.destinationSubtitle}>
+                Introduce la dirección de destino
+              </Text>
+            </View>
+            
+            <TextInput
+              style={styles.destinationInput}
+              placeholder="Ej: Calle Gran Vía 1, Madrid"
+              placeholderTextColor="#6B7280"
+              value={destinationAddress}
+              onChangeText={setDestinationAddress}
+              autoFocus={true}
+              multiline={false}
+            />
+            
+            <TouchableOpacity
+              style={[styles.calculateButton, calculatingFare && styles.calculateButtonDisabled]}
+              onPress={calculateFare}
+              disabled={calculatingFare || !destinationAddress.trim()}
+            >
+              {calculatingFare ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="calculator" size={20} color="#FFFFFF" />
+                  <Text style={styles.calculateButtonText}>Calcular Tarifa</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {fareResult && (
+              <View style={styles.fareResultContainer}>
+                <View style={[
+                  styles.fareResultBox,
+                  fareResult.isInsideM30 ? styles.fareInsideM30 : styles.fareOutsideM30
+                ]}>
+                  <Text style={styles.fareLocationText}>
+                    {fareResult.isInsideM30 ? '📍 Dentro de la M30' : '📍 Fuera de la M30'}
+                  </Text>
+                  <Text style={styles.fareMainText}>{fareResult.tarifa}</Text>
+                  <View style={styles.fareDivider} />
+                  <Text style={styles.fareSupplementText}>{fareResult.suplemento}</Text>
+                </View>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.destinationCloseButton}
+              onPress={closeDestinationModal}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.destinationCloseButtonText}>
+                {fareResult ? 'Continuar al GPS' : 'Omitir y abrir GPS'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
