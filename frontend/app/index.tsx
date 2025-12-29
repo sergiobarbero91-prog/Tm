@@ -2620,15 +2620,36 @@ export default function TransportMeter() {
               </Text>
             </View>
             
-            <TextInput
-              style={styles.destinationInput}
-              placeholder="Ej: Calle Gran Vía 1, Madrid"
-              placeholderTextColor="#6B7280"
-              value={destinationAddress}
-              onChangeText={setDestinationAddress}
-              autoFocus={true}
-              multiline={false}
-            />
+            <View style={styles.destinationInputContainer}>
+              <TextInput
+                ref={destinationInputRef}
+                style={styles.destinationInputWithMic}
+                placeholder="Ej: Calle Gran Vía 1, Madrid"
+                placeholderTextColor="#6B7280"
+                value={destinationAddress}
+                onChangeText={setDestinationAddress}
+                autoFocus={true}
+                multiline={false}
+              />
+              <TouchableOpacity
+                style={[styles.micButton, isListening && styles.micButtonActive]}
+                onPress={startVoiceInput}
+                disabled={isListening}
+              >
+                <Ionicons 
+                  name={isListening ? "mic" : "mic-outline"} 
+                  size={24} 
+                  color={isListening ? "#FFFFFF" : "#3B82F6"} 
+                />
+              </TouchableOpacity>
+            </View>
+            
+            {isListening && (
+              <View style={styles.listeningIndicator}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.listeningText}>Escuchando...</Text>
+              </View>
+            )}
             
             <TouchableOpacity
               style={[styles.calculateButton, calculatingFare && styles.calculateButtonDisabled]}
