@@ -2609,6 +2609,15 @@ export default function TransportMeter() {
                   <View style={styles.fareDivider} />
                   <Text style={styles.fareSupplementText}>{fareResult.suplemento}</Text>
                 </View>
+                
+                {/* Navigate to destination button */}
+                <TouchableOpacity
+                  style={styles.navigateToDestButton}
+                  onPress={navigateToDestination}
+                >
+                  <Ionicons name="navigate" size={22} color="#FFFFFF" />
+                  <Text style={styles.navigateToDestButtonText}>Ir al destino</Text>
+                </TouchableOpacity>
               </View>
             )}
             
@@ -2616,9 +2625,9 @@ export default function TransportMeter() {
               style={styles.destinationCloseButton}
               onPress={closeDestinationModal}
             >
-              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Ionicons name="close-circle" size={20} color="#FFFFFF" />
               <Text style={styles.destinationCloseButtonText}>
-                {fareResult ? 'Continuar al GPS' : 'Omitir y abrir GPS'}
+                {fareResult ? 'Cerrar sin navegar' : 'Omitir y abrir GPS'}
               </Text>
             </TouchableOpacity>
           </View>
