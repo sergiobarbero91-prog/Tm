@@ -1655,7 +1655,7 @@ export default function TransportMeter() {
         </View>
 
         {/* === ESTACIÓN CALIENTE === */}
-        <View style={[styles.hottestStreetCard, styles.stationCard]}>
+        <View style={[styles.hottestStreetCard, styles.stationHotCard]}>
           <View style={styles.hottestStreetHeader}>
             <Ionicons name="train" size={24} color="#3B82F6" />
             <Text style={styles.hottestStreetTitle}>Estación caliente</Text>
