@@ -546,6 +546,9 @@ export default function TransportMeter() {
     tarifa: string;
     suplemento: string;
     isInsideM30: boolean;
+    latitude: number;
+    longitude: number;
+    addressName: string;
   } | null>(null);
   const [calculatingFare, setCalculatingFare] = useState(false);
 
