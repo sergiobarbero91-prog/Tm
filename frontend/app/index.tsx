@@ -696,6 +696,8 @@ export default function TransportMeter() {
       if (pendingCheckOut.locationType === 'terminal') {
         setShowDestinationModal(true);
         setDestinationAddress('');
+        setAddressSuggestions([]);
+        setSelectedAddress(null);
         setFareResult(null);
       } else {
         // For stations, just open GPS
@@ -705,8 +707,89 @@ export default function TransportMeter() {
     }
   };
 
-  // Calculate fare based on destination
+  // Calculate fare from selected address
+  const calculateFareFromAddress = (address: { latitude: number; longitude: number; address: string; is_inside_m30: boolean }) => {
+    // Get current time and day
+    const now = new Date();
+    const hour = now.getHours();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isDaytime = hour >= 6 && hour < 21;
+    
+    let tarifa: string;
+    let suplemento: string;
+    
+    if (address.is_inside_m30) {
+      tarifa = 'Tarifa 4';
+      suplemento = '33';
+    } else {
+      // Outside M30
+      if (!isWeekend && isDaytime) {
+        // Weekday daytime (6:00-21:00)
+        tarifa = 'Tarifa 3 + Tarifa 1 cambio automático';
+        suplemento = '22 + Tarifa 1';
+      } else {
+        // Weekday night (21:00-6:00) or weekend
+        tarifa = 'Tarifa 3 + Tarifa 2 cambio automático';
+        suplemento = '22 + Tarifa 2';
+      }
+    }
+    
+    setFareResult({ 
+      tarifa, 
+      suplemento, 
+      isInsideM30: address.is_inside_m30,
+      latitude: address.latitude,
+      longitude: address.longitude,
+      addressName: address.address
+    });
+  };
+
+  // Calculate fare based on destination (manual search)
   const calculateFare = async () => {
+    if (!destinationAddress.trim()) return;
+    
+    // If already selected from suggestions, use that
+    if (selectedAddress) {
+      calculateFareFromAddress(selectedAddress);
+      return;
+    }
+    
+    setCalculatingFare(true);
+    try {
+      // Search for addresses first
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/search-addresses`, {
+        query: destinationAddress,
+        city: 'Madrid'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const suggestions = response.data.suggestions || [];
+      
+      if (suggestions.length === 0) {
+        Alert.alert('Error', 'No se encontraron direcciones. Por favor, verifica y corrige la dirección.');
+        return;
+      }
+      
+      if (suggestions.length === 1) {
+        // Only one result, use it directly
+        selectAddress(suggestions[0]);
+      } else {
+        // Multiple results, show suggestions
+        setAddressSuggestions(suggestions);
+      }
+    } catch (error) {
+      console.error('Error calculating fare:', error);
+      Alert.alert('Error', 'No se pudo buscar la dirección. Verifica la dirección.');
+    } finally {
+      setCalculatingFare(false);
+    }
+  };
+
+  // Old calculate fare function - keeping for backward compatibility
+  const calculateFareOld = async () => {
     if (!destinationAddress.trim()) return;
     
     setCalculatingFare(true);
