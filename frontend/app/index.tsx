@@ -539,6 +539,16 @@ export default function TransportMeter() {
     locationName: string;
   } | null>(null);
 
+  // Destination/Fare modal state (for terminal exit)
+  const [showDestinationModal, setShowDestinationModal] = useState(false);
+  const [destinationAddress, setDestinationAddress] = useState('');
+  const [fareResult, setFareResult] = useState<{
+    tarifa: string;
+    suplemento: string;
+    isInsideM30: boolean;
+  } | null>(null);
+  const [calculatingFare, setCalculatingFare] = useState(false);
+
   // Handle check-in/check-out with questions
   const handleCheckIn = async (locationType: 'station' | 'terminal', locationName: string, action: 'entry' | 'exit') => {
     if (checkInLoading) return;
@@ -560,10 +570,79 @@ export default function TransportMeter() {
     setShowQueueQuestion(false);
     if (pendingCheckOut) {
       await performCheckIn(pendingCheckOut.locationType, pendingCheckOut.locationName, 'exit', null, answer);
-      setPendingCheckOut(null);
-      // Open GPS after check-out
-      openGpsApp();
+      
+      // If terminal exit, show destination modal for fare calculation
+      if (pendingCheckOut.locationType === 'terminal') {
+        setShowDestinationModal(true);
+        setDestinationAddress('');
+        setFareResult(null);
+      } else {
+        // For stations, just open GPS
+        setPendingCheckOut(null);
+        openGpsApp();
+      }
     }
+  };
+
+  // Calculate fare based on destination
+  const calculateFare = async () => {
+    if (!destinationAddress.trim()) return;
+    
+    setCalculatingFare(true);
+    try {
+      // Geocode the destination address
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/geocode-address`, {
+        address: destinationAddress,
+        city: 'Madrid'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const { is_inside_m30 } = response.data;
+      
+      // Get current time and day
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isDaytime = hour >= 6 && hour < 21;
+      
+      let tarifa: string;
+      let suplemento: string;
+      
+      if (is_inside_m30) {
+        tarifa = 'Tarifa 4';
+        suplemento = '33';
+      } else {
+        // Outside M30
+        if (!isWeekend && isDaytime) {
+          // Weekday daytime (6:00-21:00)
+          tarifa = 'Tarifa 3 + Tarifa 1 cambio automático';
+          suplemento = '22 + Tarifa 1';
+        } else {
+          // Weekday night (21:00-6:00) or weekend
+          tarifa = 'Tarifa 3 + Tarifa 2 cambio automático';
+          suplemento = '22 + Tarifa 2';
+        }
+      }
+      
+      setFareResult({ tarifa, suplemento, isInsideM30: is_inside_m30 });
+    } catch (error) {
+      console.error('Error calculating fare:', error);
+      Alert.alert('Error', 'No se pudo calcular la tarifa. Verifica la dirección.');
+    } finally {
+      setCalculatingFare(false);
+    }
+  };
+
+  // Close destination modal and open GPS
+  const closeDestinationModal = () => {
+    setShowDestinationModal(false);
+    setDestinationAddress('');
+    setFareResult(null);
+    setPendingCheckOut(null);
+    openGpsApp();
   };
 
   // Handle taxi answer (for entry)
