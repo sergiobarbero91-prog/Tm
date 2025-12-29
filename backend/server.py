@@ -1288,6 +1288,88 @@ async def change_own_password(
     
     return {"message": "Contraseña actualizada correctamente"}
 
+# ============== GEOCODING & FARE ENDPOINTS ==============
+
+# Approximate polygon for M30 Madrid (simplified)
+# These coordinates form a rough polygon around the M30 ring road
+M30_POLYGON = [
+    (40.4752, -3.7223),  # North
+    (40.4699, -3.6899),  # Northeast
+    (40.4542, -3.6677),  # East
+    (40.4319, -3.6653),  # Southeast
+    (40.4067, -3.6764),  # South-Southeast
+    (40.3933, -3.6936),  # South
+    (40.3892, -3.7132),  # South-Southwest
+    (40.3969, -3.7377),  # Southwest
+    (40.4142, -3.7511),  # West
+    (40.4367, -3.7529),  # Northwest
+    (40.4584, -3.7423),  # North-Northwest
+    (40.4752, -3.7223),  # Close polygon
+]
+
+def point_in_polygon(lat: float, lng: float, polygon: list) -> bool:
+    """Check if a point is inside a polygon using ray casting algorithm."""
+    n = len(polygon)
+    inside = False
+    
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i]
+        xj, yj = polygon[j]
+        
+        if ((yi > lng) != (yj > lng)) and (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    
+    return inside
+
+class GeocodeAddressRequest(BaseModel):
+    address: str
+    city: str = "Madrid"
+
+@api_router.post("/geocode-address")
+async def geocode_address(
+    request: GeocodeAddressRequest,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Geocode an address and determine if it's inside the M30."""
+    try:
+        from geopy.geocoders import Nominatim
+        
+        geolocator = Nominatim(user_agent="commute-pulse-app")
+        
+        # Add city to search if not already included
+        search_address = request.address
+        if request.city.lower() not in request.address.lower():
+            search_address = f"{request.address}, {request.city}, España"
+        
+        location = geolocator.geocode(search_address)
+        
+        if not location:
+            # Try with just the address
+            location = geolocator.geocode(request.address)
+        
+        if not location:
+            raise HTTPException(status_code=404, detail="No se encontró la dirección")
+        
+        lat = location.latitude
+        lng = location.longitude
+        
+        # Check if inside M30
+        is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
+        
+        return {
+            "address": location.address,
+            "latitude": lat,
+            "longitude": lng,
+            "is_inside_m30": is_inside_m30
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error geocoding address: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al geocodificar: {str(e)}")
+
 # ============== STREET WORK ENDPOINTS ==============
 
 @api_router.post("/street/activity")
