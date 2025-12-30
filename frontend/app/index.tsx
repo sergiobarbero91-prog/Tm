@@ -591,10 +591,37 @@ export default function TransportMeter() {
   }, []);
 
   const sendEmergencyAlert = async (alertType: 'companions' | 'companions_police') => {
-    // Use current location or a default Madrid location if GPS not available
-    const alertLocation = currentLocation || { latitude: 40.4168, longitude: -3.7038 };
+    console.log('sendEmergencyAlert called, currentLocation:', currentLocation);
     
-    // Always send alert - use approximate location if GPS not available
+    // Try to get fresh location if we don't have one
+    let alertLocation = currentLocation;
+    
+    if (!alertLocation) {
+      try {
+        console.log('No current location, trying to get fresh location...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High
+          });
+          alertLocation = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude
+          };
+          setCurrentLocation(alertLocation);
+          console.log('Got fresh location:', alertLocation);
+        }
+      } catch (error) {
+        console.log('Error getting fresh location:', error);
+      }
+    }
+    
+    // If still no location, use Madrid center as fallback
+    if (!alertLocation) {
+      console.log('Using Madrid center as fallback location');
+      alertLocation = { latitude: 40.4168, longitude: -3.7038 };
+    }
+    
     await doSendAlert(alertType, alertLocation);
   };
 
