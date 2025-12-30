@@ -257,6 +257,27 @@ export default function TransportMeter() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
+  // Emergency SOS states
+  const [showSosModal, setShowSosModal] = useState(false);
+  const [myActiveAlert, setMyActiveAlert] = useState<{
+    alert_id: string;
+    alert_type: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [activeAlerts, setActiveAlerts] = useState<Array<{
+    alert_id: string;
+    user_id: string;
+    username: string;
+    alert_type: string;
+    latitude: number;
+    longitude: number;
+    created_at: string;
+    is_own: boolean;
+  }>>([]);
+  const [showAlertNotification, setShowAlertNotification] = useState(false);
+  const [sendingAlert, setSendingAlert] = useState(false);
+
   // Street work states
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [currentStreet, setCurrentStreet] = useState<string>('');
