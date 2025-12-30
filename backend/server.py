@@ -2828,8 +2828,9 @@ app.add_middleware(
 async def calculate_and_cache_hottest_street(minutes: int = 60):
     """Calculate hottest street data and save to MongoDB for persistence."""
     try:
-        now = datetime.now(MADRID_TZ)
-        time_threshold = now - timedelta(minutes=minutes)
+        # Use UTC for MongoDB comparisons since MongoDB stores dates in UTC
+        now_utc = datetime.utcnow()
+        time_threshold = now_utc - timedelta(minutes=minutes)
         
         # Get activities in the time window
         cursor = street_activities_collection.find(
