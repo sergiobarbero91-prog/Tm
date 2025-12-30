@@ -4563,6 +4563,17 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
   mapOverlay: {
     position: 'absolute',
     bottom: 10,
