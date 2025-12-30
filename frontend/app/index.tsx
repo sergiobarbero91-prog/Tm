@@ -651,27 +651,42 @@ export default function TransportMeter() {
           longitude: location.longitude
         });
         
-        // If police option, try to open phone dialer with 112
+        setShowSosModal(false);
+        
+        // If police option, open phone dialer with 112
         if (alertType === 'companions_police') {
-          if (Platform.OS === 'web') {
-            // On web, show alert with the number to call
-            setTimeout(() => {
+          // Try to open tel:112 on all platforms
+          try {
+            const phoneUrl = 'tel:112';
+            const canOpen = await Linking.canOpenURL(phoneUrl);
+            console.log('Can open tel:112:', canOpen);
+            
+            if (canOpen) {
+              await Linking.openURL(phoneUrl);
+            } else {
+              // Fallback: show alert with number
               Alert.alert(
-                '🚨 Llama al 112',
-                'Copia este número y llámalo: 112',
+                '🚨 LLAMA AL 112',
+                'Marca este número de emergencia: 112',
                 [{ text: 'Entendido' }]
               );
-            }, 500);
-          } else {
-            // On mobile, open the phone dialer
-            Linking.openURL('tel:112').catch(() => {
-              Alert.alert('Llamar al 112', 'No se pudo abrir el teléfono. Llama manualmente al 112.');
-            });
+            }
+          } catch (phoneError) {
+            console.log('Error opening phone:', phoneError);
+            Alert.alert(
+              '🚨 LLAMA AL 112',
+              'No se pudo abrir el teléfono automáticamente.\n\nMarca manualmente: 112',
+              [{ text: 'Entendido' }]
+            );
           }
+          
+          // Show confirmation after a delay
+          setTimeout(() => {
+            Alert.alert('✅ Alerta enviada', 'Tus compañeros han sido notificados. Recuerda llamar al 112.');
+          }, 1000);
+        } else {
+          Alert.alert('✅ Alerta enviada', 'Tus compañeros han sido notificados de tu situación.');
         }
-        
-        setShowSosModal(false);
-        Alert.alert('✅ Alerta enviada', 'Tus compañeros han sido notificados de tu situación.');
       }
       
       // Force refresh alerts
