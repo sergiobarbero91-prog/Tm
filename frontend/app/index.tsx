@@ -546,6 +546,114 @@ export default function TransportMeter() {
     }
   }, [timeWindow]);
 
+  // Emergency alert functions
+  const fetchActiveAlerts = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/emergency/alerts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const alerts = response.data.alerts || [];
+      setActiveAlerts(alerts);
+      
+      // Check if there are alerts from other users
+      const otherAlerts = alerts.filter((a: any) => !a.is_own);
+      if (otherAlerts.length > 0 && !showAlertNotification) {
+        setShowAlertNotification(true);
+      } else if (otherAlerts.length === 0) {
+        setShowAlertNotification(false);
+      }
+    } catch (error) {
+      console.log('Error fetching alerts:', error);
+    }
+  }, [showAlertNotification]);
+
+  const fetchMyAlert = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/emergency/my-alert`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.has_active_alert) {
+        setMyActiveAlert(response.data.alert);
+      } else {
+        setMyActiveAlert(null);
+      }
+    } catch (error) {
+      console.log('Error fetching my alert:', error);
+    }
+  }, []);
+
+  const sendEmergencyAlert = async (alertType: 'companions' | 'companions_police') => {
+    if (!currentLocation) {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación. Activa el GPS.');
+      return;
+    }
+    
+    setSendingAlert(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/emergency/alert`, {
+        alert_type: alertType,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.alert_id) {
+        setMyActiveAlert({
+          alert_id: response.data.alert_id,
+          alert_type: alertType,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude
+        });
+        
+        // If police option, open phone dialer with 112
+        if (alertType === 'companions_police') {
+          Linking.openURL('tel:112');
+        }
+        
+        Alert.alert('Alerta enviada', 'Tus compañeros han sido notificados de tu situación.');
+      }
+      
+      setShowSosModal(false);
+    } catch (error) {
+      console.log('Error sending alert:', error);
+      Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
+    } finally {
+      setSendingAlert(false);
+    }
+  };
+
+  const resolveEmergencyAlert = async () => {
+    if (!myActiveAlert) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/emergency/resolve/${myActiveAlert.alert_id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setMyActiveAlert(null);
+      Alert.alert('Resuelto', 'Tu alerta ha sido marcada como resuelta.');
+    } catch (error) {
+      console.log('Error resolving alert:', error);
+      Alert.alert('Error', 'No se pudo resolver la alerta.');
+    }
+  };
+
+  const openAlertLocation = (latitude: number, longitude: number, username: string) => {
+    const address = `Ubicación de ${username}`;
+    openGpsNavigation(latitude, longitude, address);
+  };
+
   // Taxi question state (for entry)
   const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<{
