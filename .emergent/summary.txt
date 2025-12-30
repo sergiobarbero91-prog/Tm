@@ -1,210 +1,193 @@
 <analysis>
-<original_problem_statement>
-The user's application is a logistics and transport monitoring tool for Madrid. The current session started with a request to fix a display issue with taxi reporter names. Since then, the user has requested and reported a series of new features and bugs, including:
 
-1.  **Timezone Correction:** Timestamps for taxi reports were showing in UTC, not Madrid time.
-2.  **Hottest Street Logic Rework:** The logic for determining the hottest street needed to be changed from a simple count to a percentage-based system (>10% of total loads). The user also reported that this data was lost on refresh.
-3.  **Waze Integration Fix:** The Waze navigation button was opening a web page instead of the native application.
-4.  **People Waiting Feature:** A new feature to report crowd levels (Poca, Normal, Mucha) upon checking out of a station or terminal, similar to the existing taxi reporting feature. This status should also be displayed on the location cards.
-5.  **Data Filtering and Display Logic:**
-    *   Taxi and crowd status should only be displayed if reported within the user-selected time window (30/60 mins).
-    *   The main counters on station/terminal cards should show driver *exits* from the previous window, not future train/flight arrivals.
-6.  **Real-Time Data Improvements:** Requested more frequent data updates (reduced caching) and filtering of Canceled or Landed flights/trains from lists and counts. This was requested for flights, trains, and the street tab.
-7.  **Unload Activity Enhancement:** Unload events in the recent activity list should show the total duration and distance traveled since the corresponding load event.
-8.  **UI Redesign (Flights Tab):** A major request to redesign the Flights tab to look and function exactly like the Trains tab, with vertically stacked, individually boxed cards for each terminal area.
-9.  **Bug Fixes (UI/Data):**
-    *   Lists of arriving flights/trains were showing all future arrivals, not just those within the selected time window.
-    *   Terminal cards on the Flights tab were not visually separated into distinct boxes.
-10. **Airport Fare Calculator (New Major Feature):**
-    *   After checking out from an *airport terminal*, prompt the user for a destination address (with voice input support).
-    *   Show an autocomplete list of addresses to correct transcription errors (e.g., 3 vs tres).
-    *   Calculate and display a specific taxi fare based on whether the destination is inside/outside the M-30 ring road and the time of day/week.
-    *   Provide a Go to destination button that opens the user's preferred GPS app with the route pre-filled.
+<original_problem_statement>
+The user's application is a logistics and transport monitoring tool for Madrid. The goal is to provide real-time data and utility features for taxi drivers.
+
+During this session, the user requested the following features and bug fixes:
+1.  **GPS Navigation by Address:** Change the functionality of the Go to destination buttons to open GPS apps (Waze, Google Maps) with a textual address search query instead of raw latitude/longitude coordinates, as the app's map data might be outdated.
+2.  **Voice Input Improvement:** Enhance the voice recognition for address input to correctly handle numbers spoken as words in Spanish (e.g., convert tres to 3).
+3.  **SOS/Emergency Button:**
+    *   Add a discrete SOS button, always visible on the main screen.
+    *   When pressed, a modal should appear with three options: Sí, todo bien (dismiss), No, avisar compañeros (send an alert with location to other users), and No, compañeros + Policía (send an alert and open the phone dialer with 112).
+    *   Users who receive an alert should see a prominent banner with the colleague's name and buttons to open their location in a GPS app or call 112.
+    *   The user who created the alert must have an option to resolve it, which removes the banner for all other users.
+    *   The location sent with the alert must be accurate, requesting permissions if necessary.
+4.  **Street Fare Calculator (New Major Feature):**
+    *   When a driver presses the Cargado (Loaded) button on the Street tab, a modal should appear.
+    *   This modal should prompt for a destination address with both text and voice input, including autocomplete suggestions.
+    *   Upon calculating, it should display a fare range based on complex rules:
+        *   **Weekday (6:00-21:00):** Range from (2.50 + 1.20 * km) to (2.50 + 1.20 * km + 5%).
+        *   **Night/Weekend:** Range from (3.20 + 1.50 * km) to (3.20 + 1.50 * km + 5%).
+    *   The result should show the calculated distance and a disclaimer to verify with GPS.
+    *   An Open GPS button should then be available.
+5.  **Bug Fixes & General Review:**
+    *   Fix crashes and errors on the Street tab and when using the SOS feature, particularly on iOS/Safari.
+    *   Address an issue where upcoming trains/flights were not being displayed on the cards during overnight hours.
+    *   The user requested an exhaustive review of the application to find and fix any remaining bugs.
 </original_problem_statement>
 
 **User's preferred language**: español
 
 **what currently exists?**
-A full-stack application with a React Native (Expo) frontend and a Python (FastAPI) backend. The application has become significantly more complex during this session.
-- **Backend ():** A large monolithic FastAPI server. It now handles: real-time data scraping with time-windowed filtering, a percentage-based hotspot algorithm, geocoding via , M-30 boundary checking using a polygon, address autocomplete search, and persistence for user activities, taxi reports, and crowd reports in a MongoDB database.
-- **Frontend ():** A massive monolithic React Native screen that manages all application state and UI. It includes a tabbed interface, real-time map, and numerous custom modals for user input: GPS settings, taxi reporting, crowd level reporting, and a new destination address input with voice support and autocomplete suggestions for fare calculation.
-- **Features:** The app displays real-time transport data with advanced filtering, identifies hotspots, allows detailed activity logging (including duration/distance), and facilitates user reporting of taxi and crowd status. The latest feature in development is an airport-specific fare calculator.
+A full-stack application with a React Native (Expo) frontend and a Python (FastAPI) backend.
+- **Backend ():** The monolithic FastAPI server has been significantly enhanced. It now features a robust background caching system for external APIs (AENA/ADIF) that pre-loads data on startup and refreshes it every 30 seconds. A critical architectural flaw was fixed by migrating the  state from an in-memory dictionary to a persistent MongoDB collection. It also includes new endpoints and a database collection () to manage the SOS/Emergency alert system.
+- **Frontend ():** The monolithic React Native screen has grown even larger. It now includes a full UI for the SOS/Emergency feature (button, modals, notification banner) with polling to check for active alerts. It also contains a new, separate modal and logic for the Street Fare Calculator. The logic for handling GPS navigation and voice input has also been improved. Several critical bugs causing crashes have been resolved.
 
 **Last working item**:
-    - Last item agent was working: Implementing an address autocomplete system for the new Airport Fare Calculator. The user reported that voice input was unreliable (e.g., transcribing 3 as tres), leading to geocoding failures. The agent created a new backend endpoint () and updated the frontend to show a list of address suggestions as the user types or speaks, allowing them to select the correct one before calculating the fare.
+    - Last item agent was working: Implementing the Street Fare Calculator feature, requested after the Cargado button is pressed on the Street tab. The agent built the UI modal, added state management, and implemented functions for address search and fare calculation based on distance, time of day, and day of the week.
     - Status: IN PROGRESS
-    - Agent Testing Done: N
+    - Agent Testing Done: Y (Agent performed manual testing via screenshots and , debugging several issues like incorrect API methods (GET vs POST), missing imports (), and handling cases where user location is unavailable).
     - Which testing method agent to use? Frontend testing agent
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Finish Airport Fare Calculator with Autocomplete (P0)
-  - Issue 2:  state is lost on server restart (P1)
-  - Issue 3: Hottest Street data is lost on refresh (P2)
+  - Issue 1: Finish and Verify Street Fare Calculator (P0)
+  - Issue 2: Hottest Street data is lost on server restart/refresh (P1)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent has created the backend endpoint () and the frontend UI elements ( for suggestions). The logic to fetch suggestions as the user types is in place. The  function has been created. The final step is to ensure that selecting a suggestion from the list correctly populates the input and triggers the fare calculation.
+     - Attempted fixes: The agent has successfully implemented the UI, the address autocomplete (fixing a GET/POST mismatch), and the core calculation logic. A fallback for when the user's location is unavailable was also added. The feature appears functional based on the agent's tests.
      - Next debug checklist: 
-       1. Verify that when a user selects an address from the suggestion list, the  function is called with the correct address data.
-       2. Ensure the  state is updated correctly.
-       3. Confirm the Go to destination button becomes active and functions correctly after the fare is calculated.
-       4. Test the entire flow: Check-out from a terminal -> Answer queue question -> Enter address via text/voice -> See suggestions -> Select suggestion -> See fare -> Click Go to destination.
-     - Why fix this issue and what will be achieved with the fix? This will complete the multi-step Airport Fare Calculator feature, making it robust against transcription errors and providing a complete user flow from checkout to navigation.
-     - Status:  IN PROGRESS
+        1. Conduct a full end-to-end test of the feature from a user perspective.
+        2. Verify the fare calculation logic is correct for all scenarios (weekday, night, weekend).
+        3. Ensure the Open GPS button works correctly after a fare is calculated.
+        4. Test voice input and number normalization (tres -> 3) within this new modal.
+     - Why fix this issue and what will be achieved with the fix? This will complete a major feature request, providing drivers with a convenient way to estimate fares for street pickups.
+     - Status:  USER VERIFICATION PENDING
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
+     - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: None. This is a long-standing critical issue identified in the previous handover.
+     - Attempted fixes: None in this session. This issue was identified in the previous handover and has been deferred.
      - Next debug checklist: 
-       1. Refactor  to persist the  dictionary into a dedicated MongoDB collection (e.g., ).
-       2. Update  and  to read from and write to this new collection instead of the in-memory dictionary.
-       3. Ensure user sessions are correctly restored on app start by checking the database.
-     - Why fix this issue and what will be achieved with the fix? This will fix a critical architectural flaw, making the check-in/check-out feature reliable and preventing data loss on server restarts, which currently breaks the user experience.
+       1. Analyze the  endpoint in .
+       2. The hottest street is calculated on-the-fly. This logic needs to be modified to persist the result.
+       3. A good approach would be to store the result in a dedicated document or collection in MongoDB, with a timestamp, and have the endpoint read from there. The background cache refresh task could be updated to also refresh this value.
+     - Why fix this issue and what will be achieved with the fix? It will provide a stable and consistent user experience on the Street tab, preventing the Hottest Street card from disappearing on refresh. This is the last remaining critical piece of in-memory state.
      - Status:  NOT STARTED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
-  - Issue 3: 
-     - Attempted fixes: None. The agent implemented the new percentage-based logic for Hottest Street but did not address the user's report that the data is lost on refresh.
-     - Next debug checklist: 
-       1. Analyze the  endpoint. The hottest street is calculated on-the-fly and not persisted.
-       2. Decide on a persistence strategy: either cache the result with a short TTL or save the calculated hottest street to a dedicated collection or document in MongoDB.
-       3. Implement the chosen persistence mechanism.
-     - Why fix this issue and what will be achieved with the fix? This will provide a consistent user experience on the Street tab, preventing the Hottest Street card from disappearing or changing unexpectedly on a page refresh.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
      - Should Test frontend/backend/both after fix? backend
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: Complete Airport Fare Calculator (P0)
+  - Task 1: Complete and Verify Street Fare Calculator (P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: The agent has added the UI and backend for address autocomplete. The next step is to connect the selection of an address from the suggestion list to the fare calculation logic in the frontend () and test the end-to-end flow.
-     - What will be achieved with this? A fully functional airport fare calculator with robust address input and navigation integration.
+     - Where to resume: The feature is implemented and appears to be working. The next step is for the user to test it and provide feedback. The agent should be prepared to fix any bugs or make adjustments based on that feedback.
+     - What will be achieved with this? A fully functional fare calculator for street pickups, as requested by the user.
      - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on something: Waiting for user feedback.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Refactor  to use MongoDB for persistence.
-    - (P1) Persist Hottest Street calculation result to prevent data loss on refresh.
+    - (P1) Persist Hottest Street calculation result to MongoDB to prevent data loss on refresh.
     Future Tasks:
     - (P2) Refactor monolithic  and  files into smaller, manageable modules to reduce technical debt.
-    - (P3) Implement Push Notifications.
+    - (P3) Implement Push Notifications (as a more efficient alternative to polling for SOS alerts).
     - (P4) Assist with deployment.
 
 **Completed work in this session**
-- **Timezone Correction:** Fixed a bug where taxi report timestamps were displayed in UTC instead of Madrid time by converting datetimes on the backend.
-- **Hottest Street Logic:** Reworked the algorithm to be based on the percentage of total load activities, as requested.
-- **Waze Integration:** Fixed the Waze button to open the native app using Universal Links instead of a web browser. **(User Verified)**
-- **People Waiting Feature:**
-  - Implemented a new modal on station/terminal checkout to report crowd levels.
-  - Created a backend endpoint and database collection to store this data.
-  - Displayed the reported crowd status on the respective station/terminal cards.
-- **Data Filtering & Display:**
-  - Filtered taxi and crowd status reports to only show data from within the selected time window (30/60 min).
-  - Changed station and terminal cards to display driver exit counts from the previous window instead of future train/flight arrivals.
-- **Real-Time Data Enhancements:**
-  - Reduced backend cache TTL to 30 seconds for fresher data.
-  - Implemented backend filtering to exclude Canceled and Landed flights and trains from all lists and counts.
-- **Activity Logging:** Enhanced unload activities to calculate and display the total duration and distance traveled from the corresponding load event.
-- **Major UI Rework & Bug Fixes:**
-  - Completely redesigned the Flights tab to have vertically stacked, individually-boxed cards, matching the user's explicit request to mirror the Trains tab layout. **(User Verified)**
-  - Fixed a critical UI bug caused by conflicting stylesheet definitions () that prevented cards from being visually separated. **(User Verified)**
-  - Fixed a bug where arrival lists on cards showed all future arrivals instead of only those within the selected time window. **(User Verified)**
+- **CRITICAL Architectural Fix:** Migrated the  state from an in-memory dictionary to a persistent MongoDB collection, fixing a major data loss issue on server restarts.
+- **Backend Caching Overhaul:** Implemented a robust background caching system for AENA/ADIF data. The system pre-loads data on startup and refreshes it every 30 seconds, dramatically improving frontend load times and resilience against external API failures.
+- **Feature: SOS/Emergency System:**
+    - Implemented a complete backend with a new  collection and API endpoints to create, view, and resolve alerts.
+    - Implemented a full frontend UI including an always-visible SOS button, a confirmation modal, and a notification banner for incoming alerts from other users.
+    - Logic was added to handle location sharing, opening the dialer with 112, and resolving alerts.
+- **Enhancement: GPS Navigation:** Modified the app to open GPS apps with a textual address search query instead of coordinates for Hottest Street and Fare Calculator navigation. Alert navigation was correctly kept as coordinate-based for precision.
+- **Enhancement: Voice Input:** Added a function to normalize Spanish numbers-as-words to digits (e.g., tres -> 3) for more reliable address input.
+- **Bug Fix: Arrival Lists:** Corrected the logic on station/terminal cards to display the list of upcoming arrivals even during overnight hours when no arrivals are scheduled within the next 60 minutes.
+- **Bug Fix: Multiple Crashes:**
+    - Fixed a crash on iOS/Safari by adding a missing  style.
+    - Fixed a crash on the Street tab by refactoring the rendering logic to be more robust and handle null data gracefully before it's loaded.
+- **Infrastructure: Preview URL Fix:** Diagnosed and fixed the broken web preview by correcting the  file with the right URL.
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1: A warning  appears in the backend logs. This has not been investigated as it does not appear to affect functionality.
+   - The Hottest Street data loss issue remains pending (now P1 priority).
+   - A  warning  still appears in backend logs but has been ignored as it seems non-critical.
 
 **Known issue recurrence from previous fork**
-  - The critical issue of  being stored in-memory was present in the previous fork and remains unfixed.
+  - The critical issue of  being in-memory was a recurrence from the previous fork, but it has been **RESOLVED** in this session.
+  - The issue of Hottest Street data being in-memory is now the main recurring architectural problem.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Python, MongoDB (), Pydantic,  (for reverse geocoding, address search, and distance calculation),  (for timezone conversions), Shapely (for M-30 polygon checking), in-memory caching.
-- **Frontend:** React Native, Expo, TypeScript, , React Hooks (, , ).
-- **Linking:**  with Universal Links () for robust app opening.
-- **Geolocation:**  for user tracking.
-- **UI:** Multiple custom Modals, ,  for dynamic lists,  for web/mobile differences.
-- **Architectural Flaws:** Critical state (, hottest street calculation) is still stored in-memory on the backend, guaranteeing data loss on restart. The codebase is heavily monolithic.
+- **Backend:** FastAPI, Python, MongoDB (), Pydantic,  for periodic cache refresh, , , Shapely.
+- **Frontend:** React Native, Expo, TypeScript, , React Hooks (, , , ), .
+- **State Management:** Local React state () for all UI and data states. Active alerts are managed via polling in a  hook.
+- **Persistence:** User sessions () and SOS alerts () are now fully persistent in MongoDB.
 
 **key DB schema**
   - **users**: 
   - **activities**: 
   - **taxi_reports**: 
-  - **queue_status_reports**:  (New collection)
-
-**changes in tech stack**
-  - **Backend:** Added  for timezone handling and  for geometric operations (M-30 check).
+  - **queue_status_reports**: 
+  - **active_checkins**:  (New, replaces in-memory dict)
+  - **emergency_alerts**:  (New)
 
 **All files of reference**
-- : Heavily modified. Added new endpoints (, , ), new data models, timezone logic, M-30 polygon checking, and updated logic in almost all existing endpoints.
-- : Massively updated. Added multiple new state variables, new modals (queue reporting, destination/fare), address autocomplete logic, voice input handling, and completely refactored the rendering of the Flights tab.
+- : Heavily modified. Added background tasks for caching, new MongoDB collections for check-ins and alerts, new endpoints for the SOS system, and fixed various bugs.
+- : Massively updated. Added the entire SOS feature UI and logic (button, modals, banner, polling). Added the new Street Fare Calculator modal and logic. Implemented fixes for GPS navigation, voice input, and multiple rendering crashes.
 
 **Areas that need refactoring**:
-- **CRITICAL: In-Memory State:**  in  MUST be migrated to MongoDB to prevent data loss. The on-the-fly hottest street calculation should also be persisted.
-- **Monolithic Files:**  is now over 4000 lines and  is over 2000 lines. They are extremely difficult to maintain and urgently need to be broken down into smaller components, custom hooks, and backend routers/services.
+- **CRITICAL: Monolithic Files:**  and  are extremely large and difficult to maintain. They urgently need to be broken down into smaller components, custom hooks, and separate API routers/services. The technical debt is very high.
+- **Hottest Street Persistence:** The logic for calculating the hottest street is still in-memory and calculated on-the-fly in . This is the last major piece of data that is not persistent and should be migrated to MongoDB.
+- **Polling to WebSockets:** The SOS alert system currently uses HTTP polling every 5 seconds. This is inefficient and should be refactored to use WebSockets for real-time, push-based communication.
 
 **key api endpoints**
-- : Heavily modified to include exit counts per location and percentage-based hottest street.
-- : Modified to accept  on exit.
-- , : Modified to accept a  parameter for time-windowed filtering.
-- : Modified to calculate and save duration/distance for unload actions.
--  (New):  endpoint to geocode an address and check if it's within the M-30.
--  (New):  endpoint to provide address autocomplete suggestions.
-- , : Modified to filter out canceled/landed items.
+-  (POST): Create a new emergency alert.
+-  (GET): Get all active alerts (used for polling).
+-  (POST): Resolve an emergency alert.
+-  (GET): Get the current user's own active alert.
+-  (POST): Logic updated to use MongoDB.
+-  (GET): Logic updated to use MongoDB.
+-  (POST): Endpoint name changed from  (singular) and method to POST.
 
 **Critical Info for New Agent**
-- **CRITICAL ARCHITECTURAL FLAW:** The highest priority technical debt is migrating the in-memory  dictionary in  to MongoDB to make the check-in feature reliable. This has been postponed for too long.
-- **Monoliths:** Be prepared to work with two extremely large, monolithic files ( and ). Be very careful when making changes to avoid unintended side effects.
-- **Waze Linking:** The Waze integration now uses Universal Links (), which is the correct and robust method. Do not revert to custom URL schemes ().
-- **Styling Conflicts:** Be aware that conflicting style definitions have caused major UI bugs in the past. If a style isn't applying as expected, search the entire file for duplicate style names.
+- **Persistence is Key:** The agent successfully migrated  to MongoDB. The next logical step is to do the same for the Hottest Street calculation to eliminate the last major source of data loss on refresh.
+- **External API Unreliability:** The ADIF (trains) and AENA (flights) APIs are unstable. A background caching system is now in place to mitigate this, but be aware that initial data loading can still be slow if the cache is cold and the APIs are failing.
+- **Platform Specifics:** Be mindful of platform differences.  works on mobile but not desktop. Location permissions behave differently. Test on both web and mobile if possible.
+- **Monoliths:** You will be working in two very large files. Use search carefully and be aware that changes can have unintended side effects. Refactoring is a high-priority future task.
 
 **documents created in this job**
 None.
 
-**Last 10 User Messages and any pending HUMAN messages**
-- 10. User requests that after fare calculation, a button appears to open GPS with the destination. (Status: **IN PROGRESS**)
-- 9. User requests the ability to input the destination address by voice. (Status: **IN PROGRESS**)
-- 8. User reports that voice input is unreliable and requests an autocomplete suggestion list for addresses. (Status: **IN PROGRESS**)
-- 7. User wants the individual terminal zones on the Flights tab to be in separate, visually distinct boxes, just like the train stations. (Status: **RESOLVED**)
-- 6. User reports that flights with large delays are appearing in the current time window incorrectly. (Status: **RESOLVED**)
-- 5. User wants the redesign of the Flights tab to be vertical cards, not horizontal. (Status: **RESOLVED**)
-- 4. User wants the new People Waiting status to be displayed on station/terminal cards. (Status: **RESOLVED**)
-- 3. User requests a new feature to report crowd levels (People Waiting) upon checkout. (Status: **RESOLVED**)
-- 2. User reports the Waze navigation button opens the browser, not the app. (Status: **RESOLVED**)
-- 1. User reports a timezone bug with taxi timestamps. (Status: **RESOLVED**)
+**Last 10 User Messages and any pending HUMAN messages** 
+- 10. User requests a comprehensive final review of the app to fix any remaining errors. (Status: **RESOLVED**)
+- 9. User requests the implementation of a fare calculator for street pickups. (Status: **IN PROGRESS**)
+- 8. User reports that sharing location for an emergency alert is not working correctly; it sends text instead of coordinates. (Status: **RESOLVED**)
+- 7. User reports that the button to call 112 is not working. (Status: **RESOLVED**, with clarification on platform limitations)
+- 6. User reports a crash on the Street tab. (Status: **RESOLVED**)
+- 5. User reports the app is crashing with an El objeto no se puede encontrar aquí error. (Status: **RESOLVED**)
+- 4. User reports that the SOS system is not notifying other users or opening the dialer. (Status: **RESOLVED**)
+- 3. User requests the implementation of the SOS/Emergency alert system. (Status: **RESOLVED**)
+- 2. User requests an improvement to voice recognition for numbers. (Status: **RESOLVED**)
+- 1. User requests that GPS navigation use address search instead of coordinates. (Status: **RESOLVED**)
 
 **Project Health Check:**
-- **Broken:** The in-memory  implementation is a critical flaw that causes data loss on every server restart. The check-in feature is fundamentally unreliable.
+- **Broken:** The Hottest Street calculation is not persistent and is lost on every server restart, leading to a degraded user experience on the Street tab.
 - **Mocked:** None.
 
 **3rd Party Integrations**
-- **geopy (Nominatim/OpenStreetMap):** Used for reverse geocoding, address search, and distance calculations. No API key required.
-- **OpenStreetMap:** Used via a  on the frontend for map display. No API key required.
-- **Google Maps / Waze:** External navigation via URL schemes/Universal Links.
-- **Shapely:** Used on the backend for geometric polygon operations.
+- **geopy (Nominatim/OpenStreetMap):** Used for geocoding and address search. No API key required.
+- **OpenStreetMap:** Used via a / on the frontend for map display.
+- **ADIF & AENA APIs:** Unofficial, scraped endpoints for real-time train and flight data. They are unreliable.
+- **Google Maps / Waze:** External navigation via URL schemes.
 
 **Testing status**
   - Testing agent used after significant changes: NO
-  - Troubleshoot agent used after agent stuck in loop: NO
+  - Troubleshoot agent used after agent stuck in loop: YES (Used once to debug the preview URL issue, though the final fix was user-guided).
   - Test files created: []
-  - Known regressions: None
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- **Username:** 
-- **Password:** 
+- **Username:**  / 
+- **Password:**  / 
 
 **What agent forgot to execute**
-- **CRITICAL:** The agent has twice ignored/postponed fixing the in-memory  state issue, which is a major architectural flaw and the highest priority technical debt.
-- The agent did not address the user's report that Hottest Street data is lost on refresh, which is another in-memory state problem.
-- The agent has not taken any steps to refactor the increasingly large and unmaintainable monolithic files (, ), despite this being noted as a future task.
+- The agent successfully addressed the highest priority persistence issue () but did not address the second one mentioned in the initial handover: making the Hottest Street data persistent. This remains a pending task.
 
 </analysis>
