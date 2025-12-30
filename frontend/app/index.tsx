@@ -5416,6 +5416,78 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  // Street Fare styles
+  streetFareResultContainer: {
+    width: '100%',
+    marginTop: 15,
+  },
+  streetFareBox: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  streetFareType: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  streetFareRates: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  streetFareRateText: {
+    color: '#D1D5DB',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  streetFarePriceRange: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  streetFarePrice: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  streetFareDistance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  streetFareDistanceText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  streetFareWarning: {
+    color: '#F59E0B',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  streetFareNavigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 10,
+  },
+  streetFareNavigateText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   // SOS Button styles
   sosButton: {
     width: 36,
