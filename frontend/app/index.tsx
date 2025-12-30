@@ -1347,7 +1347,7 @@ export default function TransportMeter() {
     }
   }, [activeTab, fetchData, currentUser, timeWindow]);
 
-  // Get user location when switching to street tab - Real-time tracking
+  // Request location permission and track location - ALWAYS (for emergency alerts)
   useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout | null = null;
@@ -1362,6 +1362,7 @@ export default function TransportMeter() {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude
           });
+          console.log('Location updated:', location.coords.latitude, location.coords.longitude);
         }
       } catch (error) {
         console.log('Location update error:', error);
@@ -1369,21 +1370,31 @@ export default function TransportMeter() {
     };
     
     const startLocationTracking = async () => {
-      if (activeTab === 'street' && currentUser) {
+      // Request location permission as soon as user logs in
+      if (currentUser) {
         try {
+          console.log('Requesting location permission...');
           const { status } = await Location.requestForegroundPermissionsAsync();
+          console.log('Location permission status:', status);
+          
           if (status !== 'granted') {
-            Alert.alert('Permiso denegado', 'Se necesita acceso a la ubicación para esta función');
+            Alert.alert(
+              'Permiso de ubicación',
+              'Para usar la función de emergencia y otras características, necesitamos acceso a tu ubicación.',
+              [
+                { text: 'Entendido' }
+              ]
+            );
             return;
           }
           if (!isMounted) return;
           setLocationPermission(true);
           
-          // Get initial location
+          // Get initial location immediately
           await updateLocation();
           
-          // Start polling for location updates (works on all platforms)
-          intervalId = setInterval(updateLocation, 5000); // Update every 5 seconds
+          // Start polling for location updates every 10 seconds (works on all platforms)
+          intervalId = setInterval(updateLocation, 10000);
           
         } catch (error) {
           console.error('Error starting location tracking:', error);
@@ -1400,7 +1411,7 @@ export default function TransportMeter() {
         clearInterval(intervalId);
       }
     };
-  }, [activeTab, currentUser]);
+  }, [currentUser]);
 
   // Poll for emergency alerts every 10 seconds
   useEffect(() => {
