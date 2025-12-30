@@ -2306,6 +2306,7 @@ async def register_checkin(
     # Get street name from coordinates
     street_name = f"{checkin.location_name}"
     try:
+        from geopy.geocoders import Nominatim
         geolocator = Nominatim(user_agent="transport_meter_app")
         location = geolocator.reverse(f"{checkin.latitude}, {checkin.longitude}", language="es")
         if location and location.raw.get('address'):
