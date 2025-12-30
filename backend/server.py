@@ -2994,6 +2994,13 @@ async def startup_db_client():
     except Exception as e:
         logger.error(f"Error preloading cache: {e}")
     
+    # Preload hottest street cache on startup
+    try:
+        await calculate_and_cache_hottest_street(minutes=60)
+        logger.info("Preloaded hottest street cache")
+    except Exception as e:
+        logger.error(f"Error preloading hottest street cache: {e}")
+    
     # Start background refresh task
     asyncio.create_task(refresh_cache_periodically())
     logger.info("Background cache refresh task started")
