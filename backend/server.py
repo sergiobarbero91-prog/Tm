@@ -2865,7 +2865,7 @@ async def calculate_and_cache_hottest_street(minutes: int = 60):
             "hottest_lng": None,
             "hottest_percentage": None,
             "hottest_total_loads": total_loads,
-            "calculated_at": now,
+            "calculated_at": now_utc,
             "minutes_window": minutes
         }
         
