@@ -779,6 +779,155 @@ export default function TransportMeter() {
     }
   };
 
+  // ============ STREET FARE CALCULATION FUNCTIONS ============
+  
+  // Search street addresses with debounce
+  const searchStreetAddresses = async (query: string) => {
+    if (query.length < 3) {
+      setStreetAddressSuggestions([]);
+      return;
+    }
+    
+    setStreetSearchingAddresses(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/search-address`, {
+        params: { query, city: 'Madrid' },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.suggestions) {
+        setStreetAddressSuggestions(response.data.suggestions);
+      }
+    } catch (error) {
+      console.log('Error searching addresses:', error);
+    } finally {
+      setStreetSearchingAddresses(false);
+    }
+  };
+
+  // Handle street address input change with debounce
+  const handleStreetAddressChange = (text: string) => {
+    setStreetDestinationAddress(text);
+    setStreetSelectedAddress(null);
+    setStreetFareResult(null);
+    
+    if (streetSearchTimeoutRef.current) {
+      clearTimeout(streetSearchTimeoutRef.current);
+    }
+    
+    streetSearchTimeoutRef.current = setTimeout(() => {
+      const normalizedText = normalizeSpanishNumbers(text);
+      if (normalizedText !== text) {
+        setStreetDestinationAddress(normalizedText);
+      }
+      searchStreetAddresses(normalizedText);
+    }, 500);
+  };
+
+  // Select a street address suggestion
+  const selectStreetAddress = (suggestion: typeof streetAddressSuggestions[0]) => {
+    setStreetSelectedAddress(suggestion);
+    setStreetDestinationAddress(suggestion.address);
+    setStreetAddressSuggestions([]);
+  };
+
+  // Calculate street fare based on distance and time
+  const calculateStreetFare = async () => {
+    if (!streetSelectedAddress || !currentLocation) {
+      Alert.alert('Error', 'Selecciona una dirección de destino');
+      return;
+    }
+    
+    setStreetCalculatingFare(true);
+    try {
+      // Calculate distance using Haversine formula (approximate)
+      const R = 6371; // Earth's radius in km
+      const lat1 = currentLocation.latitude * Math.PI / 180;
+      const lat2 = streetSelectedAddress.latitude * Math.PI / 180;
+      const dLat = (streetSelectedAddress.latitude - currentLocation.latitude) * Math.PI / 180;
+      const dLon = (streetSelectedAddress.longitude - currentLocation.longitude) * Math.PI / 180;
+      
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance_km = R * c;
+      
+      // Add 20% for real road distance (streets are not straight lines)
+      const adjusted_distance = distance_km * 1.2;
+      
+      // Determine if it's night/weekend fare
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+      
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isNightTime = hour >= 21 || hour < 6;
+      const isNightOrWeekend = isWeekend || isNightTime;
+      
+      let base_fare: number;
+      let per_km_rate: number;
+      
+      if (isNightOrWeekend) {
+        // Night/Weekend fare: 3.20€ + 1.50€/km
+        base_fare = 3.20;
+        per_km_rate = 1.50;
+      } else {
+        // Day fare (Mon-Fri 6:00-21:00): 2.50€ + 1.20€/km
+        base_fare = 2.50;
+        per_km_rate = 1.20;
+      }
+      
+      const fare_min = base_fare + (adjusted_distance * per_km_rate);
+      const fare_max = fare_min * 1.05; // +5%
+      
+      setStreetFareResult({
+        distance_km: adjusted_distance,
+        fare_min: fare_min,
+        fare_max: fare_max,
+        is_night_or_weekend: isNightOrWeekend,
+        base_fare: base_fare,
+        per_km_rate: per_km_rate
+      });
+      
+    } catch (error) {
+      console.log('Error calculating fare:', error);
+      Alert.alert('Error', 'No se pudo calcular la tarifa');
+    } finally {
+      setStreetCalculatingFare(false);
+    }
+  };
+
+  // Open GPS for street fare destination
+  const openStreetFareGps = () => {
+    if (streetSelectedAddress) {
+      openGpsNavigation(
+        streetSelectedAddress.latitude,
+        streetSelectedAddress.longitude,
+        streetSelectedAddress.address
+      );
+    }
+  };
+
+  // Close street fare modal and register load activity
+  const handleStreetFareComplete = async () => {
+    // Register the load activity
+    await registerActivity('load');
+    
+    // Open GPS if we have a destination
+    if (streetSelectedAddress) {
+      openStreetFareGps();
+    }
+    
+    // Close modal and reset state
+    setShowStreetFareModal(false);
+    setStreetDestinationAddress('');
+    setStreetAddressSuggestions([]);
+    setStreetSelectedAddress(null);
+    setStreetFareResult(null);
+  };
+
   // Taxi question state (for entry)
   const [showTaxiQuestion, setShowTaxiQuestion] = useState(false);
   const [pendingCheckIn, setPendingCheckIn] = useState<{
