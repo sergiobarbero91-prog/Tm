@@ -591,18 +591,33 @@ export default function TransportMeter() {
   }, []);
 
   const sendEmergencyAlert = async (alertType: 'companions' | 'companions_police') => {
+    // Use current location or a default Madrid location if GPS not available
+    const alertLocation = currentLocation || { latitude: 40.4168, longitude: -3.7038 };
+    
     if (!currentLocation) {
-      Alert.alert('Error', 'No se pudo obtener tu ubicación. Activa el GPS.');
+      // Show warning but continue with approximate location
+      Alert.alert(
+        'Aviso', 
+        'No se pudo obtener tu ubicación exacta. Se enviará una ubicación aproximada de Madrid.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Enviar de todos modos', onPress: () => doSendAlert(alertType, alertLocation) }
+        ]
+      );
       return;
     }
     
+    await doSendAlert(alertType, alertLocation);
+  };
+
+  const doSendAlert = async (alertType: 'companions' | 'companions_police', location: {latitude: number, longitude: number}) => {
     setSendingAlert(true);
     try {
       const token = await AsyncStorage.getItem('token');
       const response = await axios.post(`${API_BASE}/api/emergency/alert`, {
         alert_type: alertType,
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude
+        latitude: location.latitude,
+        longitude: location.longitude
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -611,20 +626,36 @@ export default function TransportMeter() {
         setMyActiveAlert({
           alert_id: response.data.alert_id,
           alert_type: alertType,
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude
+          latitude: location.latitude,
+          longitude: location.longitude
         });
         
-        // If police option, open phone dialer with 112
+        // If police option, try to open phone dialer with 112
         if (alertType === 'companions_police') {
-          Linking.openURL('tel:112');
+          if (Platform.OS === 'web') {
+            // On web, show alert with the number to call
+            Alert.alert(
+              '🚨 Llama al 112',
+              'Copia este número y llámalo: 112',
+              [{ text: 'Entendido' }]
+            );
+          } else {
+            // On mobile, open the phone dialer
+            Linking.openURL('tel:112').catch(() => {
+              Alert.alert('Llamar al 112', 'No se pudo abrir el teléfono. Llama manualmente al 112.');
+            });
+          }
         }
         
-        Alert.alert('Alerta enviada', 'Tus compañeros han sido notificados de tu situación.');
+        Alert.alert('✅ Alerta enviada', 'Tus compañeros han sido notificados de tu situación.');
       }
       
       setShowSosModal(false);
-    } catch (error) {
+      
+      // Force refresh alerts
+      fetchActiveAlerts();
+      
+    } catch (error: any) {
       console.log('Error sending alert:', error);
       Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
     } finally {
