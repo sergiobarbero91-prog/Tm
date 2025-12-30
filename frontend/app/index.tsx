@@ -4426,6 +4426,43 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontSize: 14,
   },
+  searchingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    gap: 8,
+  },
+  searchingText: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
+  suggestionsContainer: {
+    maxHeight: 180,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+    gap: 12,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionAddress: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  suggestionM30Status: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   calculateButton: {
     backgroundColor: '#3B82F6',
     flexDirection: 'row',
