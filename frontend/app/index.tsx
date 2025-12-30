@@ -3536,6 +3536,159 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Street Fare Modal */}
+      {showStreetFareModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.destinationModalContent}>
+            <Text style={styles.destinationTitle}>💵 Calcular Tarifa</Text>
+            <Text style={styles.destinationSubtitle}>
+              Introduce la dirección de destino
+            </Text>
+            
+            <View style={styles.destinationInputContainer}>
+              <TextInput
+                ref={streetDestinationInputRef}
+                style={styles.destinationInputWithMic}
+                placeholder="Ej: Calle Gran Vía 1, Madrid"
+                placeholderTextColor="#6B7280"
+                value={streetDestinationAddress}
+                onChangeText={handleStreetAddressChange}
+                autoFocus={true}
+                multiline={false}
+              />
+              <TouchableOpacity
+                style={styles.micButton}
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                    if (SpeechRecognition) {
+                      const recognition = new SpeechRecognition();
+                      recognition.lang = 'es-ES';
+                      recognition.interimResults = false;
+                      recognition.onresult = (event: any) => {
+                        const transcript = normalizeSpanishNumbers(event.results[0][0].transcript);
+                        setStreetDestinationAddress(transcript);
+                        searchStreetAddresses(transcript);
+                      };
+                      recognition.start();
+                    }
+                  } else {
+                    Alert.alert('🎤 Dictado por voz', 'Usa el botón de micrófono en tu teclado.');
+                  }
+                }}
+              >
+                <Ionicons name="mic-outline" size={24} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Searching indicator */}
+            {streetSearchingAddresses && (
+              <View style={styles.searchingContainer}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.searchingText}>Buscando direcciones...</Text>
+              </View>
+            )}
+            
+            {/* Address Suggestions */}
+            {streetAddressSuggestions.length > 0 && !streetFareResult && (
+              <ScrollView style={styles.suggestionsContainer} nestedScrollEnabled>
+                {streetAddressSuggestions.map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => selectStreetAddress(suggestion)}
+                  >
+                    <Ionicons name="location" size={20} color="#3B82F6" />
+                    <View style={styles.suggestionTextContainer}>
+                      <Text style={styles.suggestionAddress} numberOfLines={2}>
+                        {suggestion.address}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+            
+            {/* Calculate Button */}
+            <TouchableOpacity
+              style={[
+                styles.calculateButton, 
+                (streetCalculatingFare || !streetSelectedAddress) && styles.calculateButtonDisabled
+              ]}
+              onPress={calculateStreetFare}
+              disabled={streetCalculatingFare || !streetSelectedAddress}
+            >
+              {streetCalculatingFare ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="calculator" size={20} color="#FFFFFF" />
+                  <Text style={styles.calculateButtonText}>Calcular Tarifa</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {/* Fare Result */}
+            {streetFareResult && (
+              <View style={styles.streetFareResultContainer}>
+                <View style={styles.streetFareBox}>
+                  <Text style={styles.streetFareType}>
+                    {streetFareResult.is_night_or_weekend ? '🌙 Tarifa Nocturna/Fin de semana' : '☀️ Tarifa Diurna (L-V 6:00-21:00)'}
+                  </Text>
+                  
+                  <View style={styles.streetFareRates}>
+                    <Text style={styles.streetFareRateText}>
+                      Base: {streetFareResult.base_fare.toFixed(2)}€ + {streetFareResult.per_km_rate.toFixed(2)}€/km
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.streetFarePriceRange}>
+                    <Text style={styles.streetFarePrice}>
+                      {streetFareResult.fare_min.toFixed(2)}€ - {streetFareResult.fare_max.toFixed(2)}€
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.streetFareDistance}>
+                    <Ionicons name="navigate" size={16} color="#6B7280" />
+                    <Text style={styles.streetFareDistanceText}>
+                      {streetFareResult.distance_km.toFixed(1)} km aproximados
+                    </Text>
+                  </View>
+                  
+                  <Text style={styles.streetFareWarning}>
+                    ⚠️ Verifica los kilómetros con el GPS durante el trayecto
+                  </Text>
+                </View>
+                
+                {/* Navigate and Register Button */}
+                <TouchableOpacity
+                  style={styles.streetFareNavigateButton}
+                  onPress={handleStreetFareComplete}
+                >
+                  <Ionicons name="navigate" size={24} color="#FFFFFF" />
+                  <Text style={styles.streetFareNavigateText}>Abrir GPS e Ir</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            {/* Close/Cancel Button */}
+            <TouchableOpacity
+              style={styles.destinationCloseButton}
+              onPress={() => {
+                setShowStreetFareModal(false);
+                setStreetDestinationAddress('');
+                setStreetAddressSuggestions([]);
+                setStreetSelectedAddress(null);
+                setStreetFareResult(null);
+              }}
+            >
+              <Ionicons name="close-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.destinationCloseButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Alert Notification Banner (when other user has emergency) */}
       {activeAlerts.filter(a => !a.is_own).length > 0 && (
         <View style={styles.alertNotificationBanner}>
