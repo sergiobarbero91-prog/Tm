@@ -2809,6 +2809,108 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============== HOTTEST STREET CACHE FUNCTIONS ==============
+
+async def calculate_and_cache_hottest_street(minutes: int = 60):
+    """Calculate hottest street data and save to MongoDB for persistence."""
+    try:
+        now = datetime.now(MADRID_TZ)
+        time_threshold = now - timedelta(minutes=minutes)
+        
+        # Get activities in the time window
+        cursor = street_activities_collection.find(
+            {"created_at": {"$gte": time_threshold}},
+            {"_id": 0}
+        ).sort("created_at", -1)
+        activities = await cursor.to_list(1000)
+        
+        # Count loads per street
+        load_counts = {}
+        total_loads = 0
+        
+        for activity in activities:
+            if activity.get("action") == "load":
+                total_loads += 1
+                street = activity.get("street_name", "Desconocida")
+                if street not in load_counts:
+                    load_counts[street] = {
+                        "count": 0,
+                        "latitude": activity.get("latitude"),
+                        "longitude": activity.get("longitude")
+                    }
+                load_counts[street]["count"] += 1
+        
+        # Calculate hottest street
+        hottest_street_data = {
+            "hottest_street": None,
+            "hottest_count": 0,
+            "hottest_lat": None,
+            "hottest_lng": None,
+            "hottest_percentage": None,
+            "hottest_total_loads": total_loads,
+            "calculated_at": now,
+            "minutes_window": minutes
+        }
+        
+        if load_counts and total_loads > 0:
+            street_percentages = []
+            for street_name, data in load_counts.items():
+                percentage = (data["count"] / total_loads) * 100
+                street_percentages.append({
+                    "name": street_name,
+                    "count": data["count"],
+                    "percentage": percentage,
+                    "lat": data["latitude"],
+                    "lng": data["longitude"]
+                })
+            
+            street_percentages.sort(key=lambda x: -x["percentage"])
+            best = street_percentages[0]
+            
+            if best["percentage"] >= 10 or len(street_percentages) == 1:
+                hottest_street_data["hottest_street"] = best["name"]
+                hottest_street_data["hottest_count"] = best["count"]
+                hottest_street_data["hottest_lat"] = best["lat"]
+                hottest_street_data["hottest_lng"] = best["lng"]
+                hottest_street_data["hottest_percentage"] = round(best["percentage"], 1)
+        
+        # Save to MongoDB (upsert based on minutes_window)
+        await hottest_street_cache_collection.update_one(
+            {"minutes_window": minutes},
+            {"$set": hottest_street_data},
+            upsert=True
+        )
+        
+        logger.info(f"Hottest street cache updated: {hottest_street_data['hottest_street']} ({hottest_street_data['hottest_percentage']}%)")
+        return hottest_street_data
+        
+    except Exception as e:
+        logger.error(f"Error calculating hottest street cache: {e}")
+        return None
+
+
+async def get_cached_hottest_street(minutes: int = 60):
+    """Get cached hottest street data from MongoDB."""
+    try:
+        cached = await hottest_street_cache_collection.find_one({"minutes_window": minutes})
+        if cached:
+            # Check if cache is still fresh (less than 60 seconds old)
+            calc_time = cached.get("calculated_at")
+            if calc_time:
+                # Handle both datetime and string formats
+                if isinstance(calc_time, str):
+                    calc_time = date_parser.parse(calc_time)
+                if not calc_time.tzinfo:
+                    calc_time = MADRID_TZ.localize(calc_time)
+                age = (datetime.now(MADRID_TZ) - calc_time).total_seconds()
+                if age < 60:  # Use cache if less than 60 seconds old
+                    return cached
+        return None
+    except Exception as e:
+        logger.error(f"Error getting cached hottest street: {e}")
+        return None
+
+
 # Background task for cache refresh
 async def refresh_cache_periodically():
     """Background task to refresh cache every 30 seconds."""
