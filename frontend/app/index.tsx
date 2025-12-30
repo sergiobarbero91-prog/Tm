@@ -3377,11 +3377,17 @@ export default function TransportMeter() {
                 {alert.alert_type === 'companions_police' && (
                   <TouchableOpacity
                     style={styles.alertCallButton}
-                    onPress={() => {
-                      if (Platform.OS === 'web') {
-                        Alert.alert('Llamar 112', 'Copia y llama: 112');
-                      } else {
-                        Linking.openURL('tel:112');
+                    onPress={async () => {
+                      try {
+                        const phoneUrl = 'tel:112';
+                        const canOpen = await Linking.canOpenURL(phoneUrl);
+                        if (canOpen) {
+                          await Linking.openURL(phoneUrl);
+                        } else {
+                          Alert.alert('🚨 LLAMA AL 112', 'Marca este número de emergencia: 112');
+                        }
+                      } catch (error) {
+                        Alert.alert('🚨 LLAMA AL 112', 'Marca manualmente: 112');
                       }
                     }}
                   >
