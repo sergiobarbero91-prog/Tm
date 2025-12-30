@@ -2838,6 +2838,8 @@ async def calculate_and_cache_hottest_street(minutes: int = 60):
         ).sort("created_at", -1)
         activities = await cursor.to_list(1000)
         
+        logger.info(f"Hottest street calc: Found {len(activities)} activities in last {minutes} minutes")
+        
         # Count loads per street
         load_counts = {}
         total_loads = 0
