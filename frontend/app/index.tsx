@@ -3270,7 +3270,7 @@ export default function TransportMeter() {
       )}
 
       {/* Alert Notification Banner (when other user has emergency) */}
-      {showAlertNotification && activeAlerts.filter(a => !a.is_own).length > 0 && (
+      {activeAlerts.filter(a => !a.is_own).length > 0 && (
         <View style={styles.alertNotificationBanner}>
           {activeAlerts.filter(a => !a.is_own).map((alert) => (
             <View key={alert.alert_id} style={styles.alertNotificationItem}>
@@ -3298,24 +3298,19 @@ export default function TransportMeter() {
                 {alert.alert_type === 'companions_police' && (
                   <TouchableOpacity
                     style={styles.alertCallButton}
-                    onPress={() => Linking.openURL('tel:112')}
+                    onPress={() => {
+                      if (Platform.OS === 'web') {
+                        Alert.alert('Llamar 112', 'Copia y llama: 112');
+                      } else {
+                        Linking.openURL('tel:112');
+                      }
+                    }}
                   >
                     <Ionicons name="call" size={18} color="#FFFFFF" />
                     <Text style={styles.alertCallButtonText}>Llamar 112</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <TouchableOpacity
-                style={styles.alertDismissButton}
-                onPress={() => {
-                  const remaining = activeAlerts.filter(a => a.alert_id !== alert.alert_id && !a.is_own);
-                  if (remaining.length === 0) {
-                    setShowAlertNotification(false);
-                  }
-                }}
-              >
-                <Text style={styles.alertDismissText}>Entendido</Text>
-              </TouchableOpacity>
             </View>
           ))}
         </View>
