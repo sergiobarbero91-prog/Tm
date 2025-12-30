@@ -836,19 +836,22 @@ export default function TransportMeter() {
 
   // Calculate street fare based on distance and time
   const calculateStreetFare = async () => {
-    if (!streetSelectedAddress || !currentLocation) {
+    if (!streetSelectedAddress) {
       Alert.alert('Error', 'Selecciona una dirección de destino');
       return;
     }
+    
+    // Use current location or Madrid center as fallback
+    const fromLocation = currentLocation || { latitude: 40.4168, longitude: -3.7038 };
     
     setStreetCalculatingFare(true);
     try {
       // Calculate distance using Haversine formula (approximate)
       const R = 6371; // Earth's radius in km
-      const lat1 = currentLocation.latitude * Math.PI / 180;
+      const lat1 = fromLocation.latitude * Math.PI / 180;
       const lat2 = streetSelectedAddress.latitude * Math.PI / 180;
-      const dLat = (streetSelectedAddress.latitude - currentLocation.latitude) * Math.PI / 180;
-      const dLon = (streetSelectedAddress.longitude - currentLocation.longitude) * Math.PI / 180;
+      const dLat = (streetSelectedAddress.latitude - fromLocation.latitude) * Math.PI / 180;
+      const dLon = (streetSelectedAddress.longitude - fromLocation.longitude) * Math.PI / 180;
       
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
                 Math.cos(lat1) * Math.cos(lat2) *
