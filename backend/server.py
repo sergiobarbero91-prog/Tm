@@ -2917,9 +2917,11 @@ async def get_cached_hottest_street(minutes: int = 60):
                 # Handle both datetime and string formats
                 if isinstance(calc_time, str):
                     calc_time = date_parser.parse(calc_time)
-                if not calc_time.tzinfo:
-                    calc_time = MADRID_TZ.localize(calc_time)
-                age = (datetime.now(MADRID_TZ) - calc_time).total_seconds()
+                # Use UTC for comparison since MongoDB stores in UTC
+                now_utc = datetime.utcnow()
+                if calc_time.tzinfo:
+                    calc_time = calc_time.replace(tzinfo=None)  # Remove timezone for UTC comparison
+                age = (now_utc - calc_time).total_seconds()
                 if age < 60:  # Use cache if less than 60 seconds old
                     return cached
         return None
