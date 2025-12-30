@@ -1375,6 +1375,25 @@ export default function TransportMeter() {
     };
   }, [activeTab, currentUser]);
 
+  // Poll for emergency alerts every 10 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // Initial fetch
+    fetchActiveAlerts();
+    fetchMyAlert();
+    
+    // Set up polling
+    const alertInterval = setInterval(() => {
+      fetchActiveAlerts();
+      fetchMyAlert();
+    }, 10000); // Check every 10 seconds
+    
+    return () => {
+      clearInterval(alertInterval);
+    };
+  }, [currentUser, fetchActiveAlerts, fetchMyAlert]);
+
   const formatLastUpdate = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('es-ES', { 
