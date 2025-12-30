@@ -2670,7 +2670,7 @@ export default function TransportMeter() {
           ) : (
             <TouchableOpacity
               style={[styles.streetButtonLarge, styles.loadButtonLarge]}
-              onPress={() => registerActivity('load')}
+              onPress={() => setShowStreetFareModal(true)}
               disabled={streetLoading}
             >
               {streetLoading ? (
@@ -2679,7 +2679,7 @@ export default function TransportMeter() {
                 <>
                   <Ionicons name="arrow-down-circle" size={40} color="#FFFFFF" />
                   <Text style={styles.streetButtonTextLarge}>CARGADO</Text>
-                  <Text style={styles.streetButtonHint}>Toca para registrar carga</Text>
+                  <Text style={styles.streetButtonHint}>Toca para calcular tarifa</Text>
                 </>
               )}
             </TouchableOpacity>
