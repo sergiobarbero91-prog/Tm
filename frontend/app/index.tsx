@@ -2301,7 +2301,7 @@ export default function TransportMeter() {
           )}
           
           {/* Range indicator: 75m before and 75m after */}
-          {streetData?.hottest_street && streetData?.hottest_street_lat && (
+          {streetData.hottest_street && streetData.hottest_street_lat && (
             <View style={styles.rangeIndicator}>
               <Ionicons name="resize-outline" size={16} color="#6B7280" />
               <Text style={styles.rangeText}>
@@ -2311,13 +2311,13 @@ export default function TransportMeter() {
           )}
           
           {/* Navigate to Google Maps button */}
-          {streetData?.hottest_street && streetData?.hottest_street_lat && streetData?.hottest_street_lng && (
+          {streetData.hottest_street && streetData.hottest_street_lat && streetData.hottest_street_lng && (
             <TouchableOpacity
               style={styles.navigateButton}
               onPress={() => openGpsNavigation(
-                streetData.hottest_street_lat!,
-                streetData.hottest_street_lng!,
-                streetData.hottest_street!
+                streetData.hottest_street_lat,
+                streetData.hottest_street_lng,
+                streetData.hottest_street
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
