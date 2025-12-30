@@ -2358,17 +2358,17 @@ async def get_checkin_status(
     """Get current check-in status for the user."""
     user_id = current_user["id"]
     
-    # Check active check-ins in memory
-    if user_id in active_checkins:
-        checkin = active_checkins[user_id]
+    # Check active check-ins in MongoDB (persistent storage)
+    active_checkin = await get_active_checkin(user_id)
+    if active_checkin:
         return CheckInStatus(
             is_checked_in=True,
-            location_type=checkin["location_type"],
-            location_name=checkin["location_name"],
-            entry_time=checkin["entry_time"]
+            location_type=active_checkin["location_type"],
+            location_name=active_checkin["location_name"],
+            entry_time=active_checkin["entry_time"]
         )
     
-    # Also check if there's an entry without exit in DB (for persistence across restarts)
+    # Also check if there's an entry without exit in street activities (backup check)
     now = datetime.now(MADRID_TZ)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
@@ -2389,17 +2389,18 @@ async def get_checkin_status(
         }).to_list(1)
         
         if not exits:
-            # Still checked in
-            active_checkins[user_id] = {
-                "location_type": last_entry.get("location_type", "station"),
-                "location_name": last_entry.get("location_name", "Unknown"),
-                "entry_time": last_entry["created_at"].isoformat()
-            }
+            # Still checked in - restore to active_checkins collection
+            location_type = last_entry.get("location_type", "station")
+            location_name = last_entry.get("location_name", "Unknown")
+            entry_time = last_entry["created_at"].isoformat()
+            
+            await set_active_checkin(user_id, location_type, location_name, entry_time)
+            
             return CheckInStatus(
                 is_checked_in=True,
-                location_type=last_entry.get("location_type", "station"),
-                location_name=last_entry.get("location_name", "Unknown"),
-                entry_time=last_entry["created_at"].isoformat()
+                location_type=location_type,
+                location_name=location_name,
+                entry_time=entry_time
             )
     
     return CheckInStatus(is_checked_in=False)
