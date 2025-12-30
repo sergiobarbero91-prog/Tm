@@ -2222,8 +2222,27 @@ async def get_street_work_data(
 
 # ============== CHECK-IN/CHECK-OUT ENDPOINTS ==============
 
-# Store for active check-ins (in production, use Redis or similar)
-active_checkins = {}
+# Helper functions for active check-ins (using MongoDB for persistence)
+async def get_active_checkin(user_id: str):
+    """Get active check-in from MongoDB."""
+    return await active_checkins_collection.find_one({"user_id": user_id})
+
+async def set_active_checkin(user_id: str, location_type: str, location_name: str, entry_time: str):
+    """Set or update active check-in in MongoDB."""
+    await active_checkins_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "user_id": user_id,
+            "location_type": location_type,
+            "location_name": location_name,
+            "entry_time": entry_time
+        }},
+        upsert=True
+    )
+
+async def delete_active_checkin(user_id: str):
+    """Delete active check-in from MongoDB."""
+    await active_checkins_collection.delete_one({"user_id": user_id})
 
 @api_router.post("/checkin")
 async def register_checkin(
