@@ -61,6 +61,7 @@ taxi_status_collection = db['taxi_status']
 queue_status_collection = db['queue_status']  # People waiting at stations/terminals
 active_checkins_collection = db['active_checkins']  # Persistent active check-ins
 emergency_alerts_collection = db['emergency_alerts']  # Emergency SOS alerts
+hottest_street_cache_collection = db['hottest_street_cache']  # Persistent hottest street cache
 
 # Create the main app without a prefix
 app = FastAPI()
