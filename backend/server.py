@@ -2954,6 +2954,12 @@ async def refresh_cache_periodically():
                     logger.error(f"Background: Error refreshing flight cache: {e}")
                 finally:
                     cache_refresh_in_progress["flights"] = False
+            
+            # Refresh hottest street cache (every 30 seconds)
+            try:
+                await calculate_and_cache_hottest_street(minutes=60)
+            except Exception as e:
+                logger.error(f"Background: Error refreshing hottest street cache: {e}")
                     
         except Exception as e:
             logger.error(f"Background cache refresh error: {e}")
