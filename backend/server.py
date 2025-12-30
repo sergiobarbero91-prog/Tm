@@ -313,6 +313,22 @@ class CheckInStatus(BaseModel):
     location_name: Optional[str] = None
     entry_time: Optional[str] = None
 
+# Emergency Alert Models
+class EmergencyAlertRequest(BaseModel):
+    alert_type: str  # 'companions' or 'companions_police'
+    latitude: float
+    longitude: float
+
+class EmergencyAlertResponse(BaseModel):
+    id: str
+    user_id: str
+    username: str
+    alert_type: str  # 'companions' or 'companions_police'
+    latitude: float
+    longitude: float
+    created_at: str
+    is_active: bool
+
 # Authentication Models
 class UserInDB(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
