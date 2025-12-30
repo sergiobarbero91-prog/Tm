@@ -2626,7 +2626,7 @@ export default function TransportMeter() {
         </TouchableOpacity>
       </View>
 
-      {/* Time Window Selector */}
+      {/* Time Window Selector with SOS Button */}
       <View style={styles.timeWindowContainer}>
         <Text style={styles.timeWindowLabel}>Ventana de tiempo:</Text>
         <View style={styles.timeWindowButtons}>
@@ -2663,6 +2663,21 @@ export default function TransportMeter() {
             </Text>
           </TouchableOpacity>
         </View>
+        
+        {/* SOS Button - always visible */}
+        <TouchableOpacity
+          style={[
+            styles.sosButton,
+            myActiveAlert && styles.sosButtonActive
+          ]}
+          onPress={() => myActiveAlert ? setShowSosModal(true) : setShowSosModal(true)}
+        >
+          <Ionicons 
+            name={myActiveAlert ? "alert-circle" : "shield-checkmark-outline"} 
+            size={18} 
+            color={myActiveAlert ? "#FFFFFF" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Shift Selector - Only for trains */}
