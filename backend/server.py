@@ -2653,10 +2653,86 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Background task for cache refresh
+async def refresh_cache_periodically():
+    """Background task to refresh cache every 30 seconds."""
+    while True:
+        try:
+            await asyncio.sleep(CACHE_TTL_SECONDS)
+            logger.info("Background cache refresh starting...")
+            
+            # Refresh train data
+            if not cache_refresh_in_progress["trains"]:
+                cache_refresh_in_progress["trains"] = True
+                try:
+                    atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+                    chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+                    
+                    if atocha_arrivals or chamartin_arrivals:
+                        arrival_cache["trains"]["data"] = {
+                            "atocha": atocha_arrivals,
+                            "chamartin": chamartin_arrivals
+                        }
+                        arrival_cache["trains"]["timestamp"] = datetime.now()
+                        arrival_cache["trains"]["last_successful"] = datetime.now()
+                        logger.info(f"Background: Train cache refreshed - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
+                except Exception as e:
+                    logger.error(f"Background: Error refreshing train cache: {e}")
+                finally:
+                    cache_refresh_in_progress["trains"] = False
+            
+            # Refresh flight data
+            if not cache_refresh_in_progress["flights"]:
+                cache_refresh_in_progress["flights"] = True
+                try:
+                    flight_data = await fetch_aena_arrivals()
+                    if flight_data:
+                        arrival_cache["flights"]["data"] = flight_data
+                        arrival_cache["flights"]["timestamp"] = datetime.now()
+                        arrival_cache["flights"]["last_successful"] = datetime.now()
+                        total_flights = sum(len(v) for v in flight_data.values())
+                        logger.info(f"Background: Flight cache refreshed - {total_flights} flights")
+                except Exception as e:
+                    logger.error(f"Background: Error refreshing flight cache: {e}")
+                finally:
+                    cache_refresh_in_progress["flights"] = False
+                    
+        except Exception as e:
+            logger.error(f"Background cache refresh error: {e}")
+            await asyncio.sleep(10)  # Wait a bit before retrying
+
 @app.on_event("startup")
 async def startup_db_client():
-    """Create default admin user on startup."""
+    """Create default admin user and preload cache on startup."""
     await create_default_admin()
+    
+    # Preload cache on startup
+    logger.info("Preloading arrival cache on startup...")
+    try:
+        # Fetch train data
+        atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+        chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+        arrival_cache["trains"]["data"] = {
+            "atocha": atocha_arrivals,
+            "chamartin": chamartin_arrivals
+        }
+        arrival_cache["trains"]["timestamp"] = datetime.now()
+        arrival_cache["trains"]["last_successful"] = datetime.now()
+        logger.info(f"Preloaded train cache - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
+        
+        # Fetch flight data
+        flight_data = await fetch_aena_arrivals()
+        arrival_cache["flights"]["data"] = flight_data
+        arrival_cache["flights"]["timestamp"] = datetime.now()
+        arrival_cache["flights"]["last_successful"] = datetime.now()
+        total_flights = sum(len(v) for v in flight_data.values())
+        logger.info(f"Preloaded flight cache - {total_flights} flights")
+    except Exception as e:
+        logger.error(f"Error preloading cache: {e}")
+    
+    # Start background refresh task
+    asyncio.create_task(refresh_cache_periodically())
+    logger.info("Background cache refresh task started")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
