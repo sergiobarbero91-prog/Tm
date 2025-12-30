@@ -36,10 +36,17 @@ security = HTTPBearer(auto_error=False)
 
 # Cache for train/flight data (to avoid excessive API calls)
 arrival_cache = {
-    "trains": {"data": {}, "timestamp": None},
-    "flights": {"data": {}, "timestamp": None}
+    "trains": {"data": {}, "timestamp": None, "last_successful": None},
+    "flights": {"data": {}, "timestamp": None, "last_successful": None}
 }
 CACHE_TTL_SECONDS = 30  # Cache data for 30 seconds for more real-time updates
+CACHE_FALLBACK_TTL_SECONDS = 300  # Use stale data for up to 5 minutes if API fails
+
+# Flag to prevent concurrent cache refreshes
+cache_refresh_in_progress = {
+    "trains": False,
+    "flights": False
+}
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
