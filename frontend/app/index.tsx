@@ -605,9 +605,14 @@ export default function TransportMeter() {
       clearTimeout(searchTimeoutRef.current);
     }
     
-    // Set new timeout for search
+    // Set new timeout for search - normalize numbers before searching
     searchTimeoutRef.current = setTimeout(() => {
-      searchAddresses(text);
+      const normalizedText = normalizeSpanishNumbers(text);
+      // Update the input if normalization changed something
+      if (normalizedText !== text) {
+        setDestinationAddress(normalizedText);
+      }
+      searchAddresses(normalizedText);
     }, 500);
   };
 
