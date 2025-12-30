@@ -278,6 +278,32 @@ export default function TransportMeter() {
   const [showAlertNotification, setShowAlertNotification] = useState(false);
   const [sendingAlert, setSendingAlert] = useState(false);
 
+  // Street fare calculation states
+  const [showStreetFareModal, setShowStreetFareModal] = useState(false);
+  const [streetDestinationAddress, setStreetDestinationAddress] = useState('');
+  const [streetAddressSuggestions, setStreetAddressSuggestions] = useState<Array<{
+    address: string;
+    latitude: number;
+    longitude: number;
+  }>>([]);
+  const [streetSelectedAddress, setStreetSelectedAddress] = useState<{
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [streetFareResult, setStreetFareResult] = useState<{
+    distance_km: number;
+    fare_min: number;
+    fare_max: number;
+    is_night_or_weekend: boolean;
+    base_fare: number;
+    per_km_rate: number;
+  } | null>(null);
+  const [streetSearchingAddresses, setStreetSearchingAddresses] = useState(false);
+  const [streetCalculatingFare, setStreetCalculatingFare] = useState(false);
+  const streetSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const streetDestinationInputRef = useRef<any>(null);
+
   // Street work states
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [currentStreet, setCurrentStreet] = useState<string>('');
