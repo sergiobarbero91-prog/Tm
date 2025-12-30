@@ -703,9 +703,39 @@ export default function TransportMeter() {
     }
   };
 
-  const openAlertLocation = (latitude: number, longitude: number, username: string) => {
-    const address = `Ubicación de ${username}`;
-    openGpsNavigation(latitude, longitude, address);
+  const openAlertLocation = async (latitude: number, longitude: number, username: string) => {
+    // Open GPS with exact coordinates for emergency location
+    try {
+      if (gpsApp === 'waze') {
+        // Waze with coordinates - navigate directly to the point
+        await Linking.openURL(`https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`);
+      } else {
+        // Google Maps with coordinates
+        if (Platform.OS === 'ios') {
+          const canOpen = await Linking.canOpenURL('comgooglemaps://');
+          if (canOpen) {
+            await Linking.openURL(`comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`);
+            return;
+          }
+        } else if (Platform.OS === 'android') {
+          const canOpen = await Linking.canOpenURL('google.navigation:');
+          if (canOpen) {
+            await Linking.openURL(`google.navigation:q=${latitude},${longitude}&mode=d`);
+            return;
+          }
+        }
+        // Fallback to web Google Maps with coordinates
+        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`);
+      }
+    } catch (err) {
+      console.error('Error opening GPS for alert location:', err);
+      // Final fallback
+      if (gpsApp === 'waze') {
+        await Linking.openURL(`https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`);
+      } else {
+        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`);
+      }
+    }
   };
 
   // Taxi question state (for entry)
