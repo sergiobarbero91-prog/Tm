@@ -1815,7 +1815,21 @@ async def get_street_work_data(
     hottest_percentage = None
     hottest_total_loads = total_loads  # Total "load" actions for context
     
-    if hot_streets and total_loads > 0:
+    # Try to use cached hottest street data first (if no user location provided)
+    # This provides persistence across server restarts
+    if user_lat is None and user_lng is None and minutes == 60:
+        cached_hottest = await get_cached_hottest_street(minutes=60)
+        if cached_hottest:
+            hottest_street = cached_hottest.get("hottest_street")
+            hottest_count = cached_hottest.get("hottest_count", 0)
+            hottest_lat = cached_hottest.get("hottest_lat")
+            hottest_lng = cached_hottest.get("hottest_lng")
+            hottest_percentage = cached_hottest.get("hottest_percentage")
+            hottest_total_loads = cached_hottest.get("hottest_total_loads", total_loads)
+            logger.info(f"Using cached hottest street: {hottest_street}")
+    
+    # If no cache hit, calculate on-the-fly
+    if hottest_street is None and hot_streets and total_loads > 0:
         # Calculate percentage for each street based on "load" actions only
         # We need to recalculate using only "load" actions (not unload)
         load_counts = {}
