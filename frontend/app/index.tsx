@@ -2779,7 +2779,7 @@ export default function TransportMeter() {
                 placeholder="Ej: Calle Gran Vía 1, Madrid"
                 placeholderTextColor="#6B7280"
                 value={destinationAddress}
-                onChangeText={setDestinationAddress}
+                onChangeText={handleAddressChange}
                 autoFocus={true}
                 multiline={false}
               />
@@ -2803,10 +2803,47 @@ export default function TransportMeter() {
               </View>
             )}
             
+            {/* Address Suggestions List */}
+            {searchingAddresses && (
+              <View style={styles.searchingContainer}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.searchingText}>Buscando direcciones...</Text>
+              </View>
+            )}
+            
+            {addressSuggestions.length > 0 && !fareResult && (
+              <ScrollView style={styles.suggestionsContainer} nestedScrollEnabled>
+                {addressSuggestions.map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => selectAddress(suggestion)}
+                  >
+                    <Ionicons 
+                      name={suggestion.is_inside_m30 ? "location" : "location-outline"} 
+                      size={20} 
+                      color={suggestion.is_inside_m30 ? "#10B981" : "#F59E0B"} 
+                    />
+                    <View style={styles.suggestionTextContainer}>
+                      <Text style={styles.suggestionAddress} numberOfLines={2}>
+                        {suggestion.address}
+                      </Text>
+                      <Text style={[
+                        styles.suggestionM30Status,
+                        { color: suggestion.is_inside_m30 ? '#10B981' : '#F59E0B' }
+                      ]}>
+                        {suggestion.is_inside_m30 ? '📍 Dentro M30' : '📍 Fuera M30'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+            
             <TouchableOpacity
-              style={[styles.calculateButton, calculatingFare && styles.calculateButtonDisabled]}
+              style={[styles.calculateButton, (calculatingFare || addressSuggestions.length > 0) && styles.calculateButtonDisabled]}
               onPress={calculateFare}
-              disabled={calculatingFare || !destinationAddress.trim()}
+              disabled={calculatingFare || !destinationAddress.trim() || addressSuggestions.length > 0}
             >
               {calculatingFare ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
