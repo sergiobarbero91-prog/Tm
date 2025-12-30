@@ -3156,6 +3156,139 @@ export default function TransportMeter() {
           </View>
         </View>
       )}
+
+      {/* SOS Modal */}
+      {showSosModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.sosModalContent}>
+            {myActiveAlert ? (
+              // User has active alert - show resolve option
+              <>
+                <View style={styles.sosActiveHeader}>
+                  <Ionicons name="alert-circle" size={50} color="#EF4444" />
+                  <Text style={styles.sosActiveTitle}>Alerta Activa</Text>
+                </View>
+                <Text style={styles.sosActiveDescription}>
+                  Tu alerta de emergencia está activa. Tus compañeros pueden ver tu ubicación.
+                </Text>
+                <TouchableOpacity
+                  style={styles.sosResolveButton}
+                  onPress={resolveEmergencyAlert}
+                >
+                  <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                  <Text style={styles.sosResolveButtonText}>Ya estoy bien - Resolver alerta</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sosCancelButton}
+                  onPress={() => setShowSosModal(false)}
+                >
+                  <Text style={styles.sosCancelButtonText}>Cerrar</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // No active alert - show question
+              <>
+                <Text style={styles.sosTitle}>¿Estás bien?</Text>
+                <Text style={styles.sosDescription}>
+                  Selecciona una opción si necesitas ayuda
+                </Text>
+                
+                <TouchableOpacity
+                  style={styles.sosOptionOk}
+                  onPress={() => setShowSosModal(false)}
+                >
+                  <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+                  <Text style={styles.sosOptionOkText}>Sí, todo bien</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.sosOptionAlert, sendingAlert && styles.sosOptionDisabled]}
+                  onPress={() => sendEmergencyAlert('companions')}
+                  disabled={sendingAlert}
+                >
+                  <Ionicons name="people" size={28} color="#F59E0B" />
+                  <View style={styles.sosOptionTextContainer}>
+                    <Text style={styles.sosOptionAlertText}>No, avisar compañeros</Text>
+                    <Text style={styles.sosOptionAlertSubtext}>
+                      Notificar a otros taxistas de tu ubicación
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.sosOptionEmergency, sendingAlert && styles.sosOptionDisabled]}
+                  onPress={() => sendEmergencyAlert('companions_police')}
+                  disabled={sendingAlert}
+                >
+                  <Ionicons name="call" size={28} color="#EF4444" />
+                  <View style={styles.sosOptionTextContainer}>
+                    <Text style={styles.sosOptionEmergencyText}>No, compañeros + Policía</Text>
+                    <Text style={styles.sosOptionEmergencySubtext}>
+                      Notificar compañeros y llamar al 112
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                
+                {sendingAlert && (
+                  <ActivityIndicator size="small" color="#3B82F6" style={{ marginTop: 10 }} />
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Alert Notification Banner (when other user has emergency) */}
+      {showAlertNotification && activeAlerts.filter(a => !a.is_own).length > 0 && (
+        <View style={styles.alertNotificationBanner}>
+          {activeAlerts.filter(a => !a.is_own).map((alert) => (
+            <View key={alert.alert_id} style={styles.alertNotificationItem}>
+              <View style={styles.alertNotificationHeader}>
+                <Ionicons 
+                  name={alert.alert_type === 'companions_police' ? "warning" : "alert-circle"} 
+                  size={24} 
+                  color={alert.alert_type === 'companions_police' ? "#EF4444" : "#F59E0B"} 
+                />
+                <Text style={styles.alertNotificationTitle}>
+                  {alert.alert_type === 'companions_police' ? '🚨 EMERGENCIA' : '⚠️ Compañero en problemas'}
+                </Text>
+              </View>
+              <Text style={styles.alertNotificationText}>
+                {alert.username} necesita ayuda
+              </Text>
+              <View style={styles.alertNotificationActions}>
+                <TouchableOpacity
+                  style={styles.alertNavigateButton}
+                  onPress={() => openAlertLocation(alert.latitude, alert.longitude, alert.username)}
+                >
+                  <Ionicons name="navigate" size={18} color="#FFFFFF" />
+                  <Text style={styles.alertNavigateButtonText}>Ir a su ubicación</Text>
+                </TouchableOpacity>
+                {alert.alert_type === 'companions_police' && (
+                  <TouchableOpacity
+                    style={styles.alertCallButton}
+                    onPress={() => Linking.openURL('tel:112')}
+                  >
+                    <Ionicons name="call" size={18} color="#FFFFFF" />
+                    <Text style={styles.alertCallButtonText}>Llamar 112</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.alertDismissButton}
+                onPress={() => {
+                  const remaining = activeAlerts.filter(a => a.alert_id !== alert.alert_id && !a.is_own);
+                  if (remaining.length === 0) {
+                    setShowAlertNotification(false);
+                  }
+                }}
+              >
+                <Text style={styles.alertDismissText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
