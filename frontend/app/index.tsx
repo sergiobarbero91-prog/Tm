@@ -2259,6 +2259,18 @@ export default function TransportMeter() {
   };
 
   const renderStreetContent = () => {
+    // Safety check - if no streetData yet, show loading
+    if (!streetData) {
+      return (
+        <View style={styles.streetContainer}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Cargando datos de calle...</Text>
+          </View>
+        </View>
+      );
+    }
+    
     return (
       <View style={styles.streetContainer}>
         {/* === CALLE CALIENTE === */}
@@ -2270,14 +2282,14 @@ export default function TransportMeter() {
             </Text>
           </View>
           <Text style={styles.hottestStreetName}>
-            {streetData?.hottest_street || 'Sin datos aún'}
+            {streetData.hottest_street || 'Sin datos aún'}
           </Text>
-          {streetData?.hottest_street && streetData.hottest_count > 0 && (
+          {streetData.hottest_street && streetData.hottest_count > 0 && (
             <View style={styles.hottestStreetInfo}>
               <Text style={styles.hottestStreetCount}>
-                {streetData.hottest_count} cargas ({streetData.hottest_percentage?.toFixed(1) || 0}% de {streetData.hottest_total_loads || 0} totales)
+                {streetData.hottest_count} cargas ({(streetData.hottest_percentage || 0).toFixed(1)}% de {streetData.hottest_total_loads || 0} totales)
               </Text>
-              {streetData.hottest_distance_km !== null && streetData.hottest_distance_km !== undefined && (
+              {streetData.hottest_distance_km != null && (
                 <View style={styles.distanceBadge}>
                   <Ionicons name="location" size={14} color="#10B981" />
                   <Text style={styles.distanceText}>
