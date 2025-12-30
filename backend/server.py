@@ -2256,12 +2256,13 @@ async def register_checkin(
     # Determine action type for street activity
     if checkin.action == "entry":
         action_type = f"{checkin.location_type}_entry"
-        # Store active check-in
-        active_checkins[user_id] = {
-            "location_type": checkin.location_type,
-            "location_name": checkin.location_name,
-            "entry_time": now.isoformat()
-        }
+        # Store active check-in in MongoDB
+        await set_active_checkin(
+            user_id=user_id,
+            location_type=checkin.location_type,
+            location_name=checkin.location_name,
+            entry_time=now.isoformat()
+        )
         duration_minutes = None
         
         # Save taxi status if provided
@@ -2278,9 +2279,10 @@ async def register_checkin(
         action_type = f"{checkin.location_type}_exit"
         duration_minutes = None
         
-        # Calculate duration if there was an entry
-        if user_id in active_checkins:
-            entry_time_str = active_checkins[user_id].get("entry_time")
+        # Calculate duration if there was an entry (from MongoDB)
+        active_checkin = await get_active_checkin(user_id)
+        if active_checkin:
+            entry_time_str = active_checkin.get("entry_time")
             if entry_time_str:
                 try:
                     entry_time = datetime.fromisoformat(entry_time_str)
@@ -2288,7 +2290,7 @@ async def register_checkin(
                     duration_minutes = int(duration.total_seconds() / 60)
                 except:
                     pass
-            del active_checkins[user_id]
+            await delete_active_checkin(user_id)
         
         # Save queue status if provided (people waiting)
         if checkin.queue_status:
