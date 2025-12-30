@@ -791,8 +791,10 @@ export default function TransportMeter() {
     setStreetSearchingAddresses(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/search-address`, {
-        params: { query, city: 'Madrid' },
+      const response = await axios.post(`${API_BASE}/api/search-addresses`, {
+        query,
+        city: 'Madrid'
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
