@@ -622,6 +622,96 @@ export default function TransportMeter() {
   };
 
   // Voice input function
+  // Function to convert Spanish number words to digits
+  const normalizeSpanishNumbers = (text: string): string => {
+    const numberWords: { [key: string]: string } = {
+      // Unidades
+      'cero': '0', 'uno': '1', 'una': '1', 'dos': '2', 'tres': '3', 'cuatro': '4',
+      'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9',
+      'diez': '10', 'once': '11', 'doce': '12', 'trece': '13', 'catorce': '14',
+      'quince': '15', 'dieciséis': '16', 'dieciseis': '16', 'diecisiete': '17',
+      'dieciocho': '18', 'diecinueve': '19',
+      // Decenas
+      'veinte': '20', 'veintiuno': '21', 'veintiuna': '21', 'veintidos': '22', 'veintidós': '22',
+      'veintitres': '23', 'veintitrés': '23', 'veinticuatro': '24', 'veinticinco': '25',
+      'veintiseis': '26', 'veintiséis': '26', 'veintisiete': '27', 'veintiocho': '28',
+      'veintinueve': '29', 'treinta': '30', 'cuarenta': '40', 'cincuenta': '50',
+      'sesenta': '60', 'setenta': '70', 'ochenta': '80', 'noventa': '90',
+      // Centenas
+      'cien': '100', 'ciento': '100', 'doscientos': '200', 'doscientas': '200',
+      'trescientos': '300', 'trescientas': '300', 'cuatrocientos': '400', 'cuatrocientas': '400',
+      'quinientos': '500', 'quinientas': '500', 'seiscientos': '600', 'seiscientas': '600',
+      'setecientos': '700', 'setecientas': '700', 'ochocientos': '800', 'ochocientas': '800',
+      'novecientos': '900', 'novecientas': '900',
+      // Otros
+      'primero': '1', 'primera': '1', 'segundo': '2', 'segunda': '2',
+      'tercero': '3', 'tercera': '3', 'cuarto': '4', 'cuarta': '4',
+      'quinto': '5', 'quinta': '5', 'sexto': '6', 'sexta': '6',
+      'séptimo': '7', 'septimo': '7', 'séptima': '7', 'septima': '7',
+      'octavo': '8', 'octava': '8', 'noveno': '9', 'novena': '9',
+      'décimo': '10', 'decimo': '10', 'décima': '10', 'decima': '10',
+    };
+    
+    let result = text.toLowerCase();
+    
+    // Handle compound numbers like "treinta y uno" -> "31"
+    result = result.replace(/treinta y uno/gi, '31').replace(/treinta y una/gi, '31');
+    result = result.replace(/treinta y dos/gi, '32').replace(/treinta y tres/gi, '33');
+    result = result.replace(/treinta y cuatro/gi, '34').replace(/treinta y cinco/gi, '35');
+    result = result.replace(/treinta y seis/gi, '36').replace(/treinta y siete/gi, '37');
+    result = result.replace(/treinta y ocho/gi, '38').replace(/treinta y nueve/gi, '39');
+    
+    result = result.replace(/cuarenta y uno/gi, '41').replace(/cuarenta y una/gi, '41');
+    result = result.replace(/cuarenta y dos/gi, '42').replace(/cuarenta y tres/gi, '43');
+    result = result.replace(/cuarenta y cuatro/gi, '44').replace(/cuarenta y cinco/gi, '45');
+    result = result.replace(/cuarenta y seis/gi, '46').replace(/cuarenta y siete/gi, '47');
+    result = result.replace(/cuarenta y ocho/gi, '48').replace(/cuarenta y nueve/gi, '49');
+    
+    result = result.replace(/cincuenta y uno/gi, '51').replace(/cincuenta y una/gi, '51');
+    result = result.replace(/cincuenta y dos/gi, '52').replace(/cincuenta y tres/gi, '53');
+    result = result.replace(/cincuenta y cuatro/gi, '54').replace(/cincuenta y cinco/gi, '55');
+    result = result.replace(/cincuenta y seis/gi, '56').replace(/cincuenta y siete/gi, '57');
+    result = result.replace(/cincuenta y ocho/gi, '58').replace(/cincuenta y nueve/gi, '59');
+    
+    result = result.replace(/sesenta y uno/gi, '61').replace(/sesenta y una/gi, '61');
+    result = result.replace(/sesenta y dos/gi, '62').replace(/sesenta y tres/gi, '63');
+    result = result.replace(/sesenta y cuatro/gi, '64').replace(/sesenta y cinco/gi, '65');
+    result = result.replace(/sesenta y seis/gi, '66').replace(/sesenta y siete/gi, '67');
+    result = result.replace(/sesenta y ocho/gi, '68').replace(/sesenta y nueve/gi, '69');
+    
+    result = result.replace(/setenta y uno/gi, '71').replace(/setenta y una/gi, '71');
+    result = result.replace(/setenta y dos/gi, '72').replace(/setenta y tres/gi, '73');
+    result = result.replace(/setenta y cuatro/gi, '74').replace(/setenta y cinco/gi, '75');
+    result = result.replace(/setenta y seis/gi, '76').replace(/setenta y siete/gi, '77');
+    result = result.replace(/setenta y ocho/gi, '78').replace(/setenta y nueve/gi, '79');
+    
+    result = result.replace(/ochenta y uno/gi, '81').replace(/ochenta y una/gi, '81');
+    result = result.replace(/ochenta y dos/gi, '82').replace(/ochenta y tres/gi, '83');
+    result = result.replace(/ochenta y cuatro/gi, '84').replace(/ochenta y cinco/gi, '85');
+    result = result.replace(/ochenta y seis/gi, '86').replace(/ochenta y siete/gi, '87');
+    result = result.replace(/ochenta y ocho/gi, '88').replace(/ochenta y nueve/gi, '89');
+    
+    result = result.replace(/noventa y uno/gi, '91').replace(/noventa y una/gi, '91');
+    result = result.replace(/noventa y dos/gi, '92').replace(/noventa y tres/gi, '93');
+    result = result.replace(/noventa y cuatro/gi, '94').replace(/noventa y cinco/gi, '95');
+    result = result.replace(/noventa y seis/gi, '96').replace(/noventa y siete/gi, '97');
+    result = result.replace(/noventa y ocho/gi, '98').replace(/noventa y nueve/gi, '99');
+    
+    // Replace individual number words (sorted by length to avoid partial replacements)
+    const sortedWords = Object.keys(numberWords).sort((a, b) => b.length - a.length);
+    for (const word of sortedWords) {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      result = result.replace(regex, numberWords[word]);
+    }
+    
+    // Capitalize first letter
+    if (result.length > 0) {
+      result = result.charAt(0).toUpperCase() + result.slice(1);
+    }
+    
+    return result;
+  };
+
   const startVoiceInput = () => {
     if (Platform.OS === 'web') {
       // Use Web Speech API on web
@@ -637,11 +727,13 @@ export default function TransportMeter() {
         };
         
         recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setDestinationAddress(transcript);
+          const rawTranscript = event.results[0][0].transcript;
+          // Normalize Spanish numbers to digits
+          const normalizedTranscript = normalizeSpanishNumbers(rawTranscript);
+          setDestinationAddress(normalizedTranscript);
           setIsListening(false);
           // Search for addresses after voice input
-          searchAddresses(transcript);
+          searchAddresses(normalizedTranscript);
         };
         
         recognition.onerror = () => {
