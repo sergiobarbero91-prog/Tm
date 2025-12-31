@@ -821,13 +821,16 @@ export default function TransportMeter() {
       clearTimeout(streetSearchTimeoutRef.current);
     }
     
+    // Normalize Spanish numbers immediately for display
+    const normalizedText = normalizeSpanishNumbers(text);
+    if (normalizedText !== text) {
+      setStreetDestinationAddress(normalizedText);
+    }
+    
+    // Reduced debounce time from 500ms to 300ms for faster response
     streetSearchTimeoutRef.current = setTimeout(() => {
-      const normalizedText = normalizeSpanishNumbers(text);
-      if (normalizedText !== text) {
-        setStreetDestinationAddress(normalizedText);
-      }
       searchStreetAddresses(normalizedText);
-    }, 500);
+    }, 300);
   };
 
   // Select a street address suggestion
