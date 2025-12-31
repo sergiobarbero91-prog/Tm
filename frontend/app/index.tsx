@@ -1574,6 +1574,21 @@ export default function TransportMeter() {
     fetchData();
   }, [fetchData]);
 
+  // Cleanup timeouts on unmount to prevent DOM errors
+  useEffect(() => {
+    return () => {
+      // Clear search timeouts
+      if (streetSearchTimeoutRef.current) {
+        clearTimeout(streetSearchTimeoutRef.current);
+        streetSearchTimeoutRef.current = null;
+      }
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
