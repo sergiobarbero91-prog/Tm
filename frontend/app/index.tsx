@@ -3145,7 +3145,7 @@ export default function TransportMeter() {
           />
         }
       >
-        {loading ? (
+        {loading || isTabTransitioning ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6366F1" />
             <Text style={styles.loadingText}>Cargando datos...</Text>
