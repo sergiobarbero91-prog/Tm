@@ -1418,54 +1418,108 @@ async def search_addresses(
     request: SearchAddressRequest,
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Search for addresses and return multiple suggestions."""
+    """Search for addresses using Photon API (faster than Nominatim) with fallback."""
     try:
+        # First, convert any written numbers to digits
+        query = convert_written_numbers(request.query)
+        
+        # Add Madrid context if not present
+        if "madrid" not in query.lower():
+            search_query = f"{query}, Madrid"
+        else:
+            search_query = query
+        
+        suggestions = []
+        
+        # Try Photon API first (faster, better autocomplete)
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Photon API - fast geocoding powered by OpenStreetMap
+                photon_url = "https://photon.komoot.io/api/"
+                params = {
+                    "q": search_query,
+                    "limit": 7,
+                    "lang": "es",
+                    "lat": 40.4168,  # Madrid center for better local results
+                    "lon": -3.7038,
+                    "location_bias_scale": 0.5  # Prefer results near Madrid
+                }
+                
+                async with session.get(photon_url, params=params, timeout=3) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        features = data.get("features", [])
+                        
+                        for feature in features:
+                            props = feature.get("properties", {})
+                            geom = feature.get("geometry", {})
+                            coords = geom.get("coordinates", [])
+                            
+                            if len(coords) >= 2:
+                                lng, lat = coords[0], coords[1]
+                                
+                                # Build address string
+                                parts = []
+                                if props.get("street"):
+                                    street = props["street"]
+                                    if props.get("housenumber"):
+                                        street = f"{street} {props['housenumber']}"
+                                    parts.append(street)
+                                elif props.get("name"):
+                                    parts.append(props["name"])
+                                
+                                if props.get("city") or props.get("locality"):
+                                    parts.append(props.get("city") or props.get("locality"))
+                                
+                                if not parts:
+                                    continue
+                                
+                                address = ", ".join(parts)
+                                
+                                # Check if inside M30
+                                is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
+                                
+                                suggestions.append({
+                                    "address": address,
+                                    "latitude": lat,
+                                    "longitude": lng,
+                                    "is_inside_m30": is_inside_m30
+                                })
+                        
+                        if suggestions:
+                            logger.info(f"Photon found {len(suggestions)} results for '{query}'")
+                            return {"suggestions": suggestions[:5]}
+        
+        except Exception as photon_error:
+            logger.warning(f"Photon API failed: {photon_error}, falling back to Nominatim")
+        
+        # Fallback to Nominatim if Photon fails
         from geopy.geocoders import Nominatim
         
-        geolocator = Nominatim(user_agent="commute-pulse-app")
+        geolocator = Nominatim(user_agent="commute-pulse-app-v2", timeout=5)
         
-        # Prepare search query - add Madrid and España for better results
-        search_query = request.query
-        if "madrid" not in request.query.lower():
-            search_query = f"{request.query}, Madrid, España"
-        
-        # Get multiple results
         locations = geolocator.geocode(
-            search_query, 
+            f"{search_query}, España", 
             exactly_one=False, 
             limit=5,
             addressdetails=True
         )
         
-        if not locations:
-            # Try converting written numbers to digits
-            query_converted = convert_written_numbers(request.query)
-            if query_converted != request.query:
-                search_query = f"{query_converted}, Madrid, España"
-                locations = geolocator.geocode(
-                    search_query,
-                    exactly_one=False,
-                    limit=5,
-                    addressdetails=True
-                )
-        
-        if not locations:
-            return {"suggestions": []}
-        
-        suggestions = []
-        for loc in locations:
-            lat = loc.latitude
-            lng = loc.longitude
-            is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
-            
-            suggestions.append({
-                "address": loc.address,
-                "latitude": lat,
-                "longitude": lng,
-                "is_inside_m30": is_inside_m30
-            })
+        if locations:
+            for loc in locations:
+                lat = loc.latitude
+                lng = loc.longitude
+                is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
+                
+                suggestions.append({
+                    "address": loc.address,
+                    "latitude": lat,
+                    "longitude": lng,
+                    "is_inside_m30": is_inside_m30
+                })
         
         return {"suggestions": suggestions}
+        
     except Exception as e:
         logger.error(f"Error searching addresses: {e}")
         return {"suggestions": []}
