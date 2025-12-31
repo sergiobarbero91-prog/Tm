@@ -2926,10 +2926,14 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
           onPress={() => {
-            if (activeTab !== 'trains') {
+            if (activeTab !== 'trains' && !isTabTransitioning) {
+              setIsTabTransitioning(true);
               setLoading(true);
-              // Use setTimeout to allow current render to complete before changing tab
-              setTimeout(() => setActiveTab('trains'), 0);
+              // Use requestAnimationFrame to allow current render to complete
+              requestAnimationFrame(() => {
+                setActiveTab('trains');
+                setTimeout(() => setIsTabTransitioning(false), 100);
+              });
             }
           }}
         >
@@ -2950,9 +2954,13 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
           onPress={() => {
-            if (activeTab !== 'flights') {
+            if (activeTab !== 'flights' && !isTabTransitioning) {
+              setIsTabTransitioning(true);
               setLoading(true);
-              setTimeout(() => setActiveTab('flights'), 0);
+              requestAnimationFrame(() => {
+                setActiveTab('flights');
+                setTimeout(() => setIsTabTransitioning(false), 100);
+              });
             }
           }}
         >
@@ -2973,9 +2981,13 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
           onPress={() => {
-            if (activeTab !== 'street') {
+            if (activeTab !== 'street' && !isTabTransitioning) {
+              setIsTabTransitioning(true);
               setLoading(true);
-              setTimeout(() => setActiveTab('street'), 0);
+              requestAnimationFrame(() => {
+                setActiveTab('street');
+                setTimeout(() => setIsTabTransitioning(false), 100);
+              });
             }
           }}
         >
