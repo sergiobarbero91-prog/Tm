@@ -2922,7 +2922,13 @@ export default function TransportMeter() {
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
-          onPress={() => setActiveTab('trains')}
+          onPress={() => {
+            if (activeTab !== 'trains') {
+              setLoading(true);
+              // Use setTimeout to allow current render to complete before changing tab
+              setTimeout(() => setActiveTab('trains'), 0);
+            }
+          }}
         >
           <Ionicons
             name="train"
@@ -2940,7 +2946,12 @@ export default function TransportMeter() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
-          onPress={() => setActiveTab('flights')}
+          onPress={() => {
+            if (activeTab !== 'flights') {
+              setLoading(true);
+              setTimeout(() => setActiveTab('flights'), 0);
+            }
+          }}
         >
           <Ionicons
             name="airplane"
@@ -2958,7 +2969,12 @@ export default function TransportMeter() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
-          onPress={() => setActiveTab('street')}
+          onPress={() => {
+            if (activeTab !== 'street') {
+              setLoading(true);
+              setTimeout(() => setActiveTab('street'), 0);
+            }
+          }}
         >
           <Ionicons
             name="car"
