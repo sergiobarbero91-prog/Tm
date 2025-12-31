@@ -852,18 +852,21 @@ export default function TransportMeter() {
     
     setStreetCalculatingFare(true);
     try {
+      // Get auth token
+      const authToken = await AsyncStorage.getItem('token');
+      
       // Call backend to get real route distance using OSRM
       let distance_km: number;
       let routeSource = 'osrm';
       
       try {
-        const routeResponse = await axios.post(`${API_URL}/api/calculate-route-distance`, {
+        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
           origin_lat: fromLocation.latitude,
           origin_lng: fromLocation.longitude,
           dest_lat: streetSelectedAddress.latitude,
           dest_lng: streetSelectedAddress.longitude
         }, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${authToken}` },
           timeout: 15000
         });
         
