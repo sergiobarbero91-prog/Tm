@@ -2336,20 +2336,25 @@ export default function TransportMeter() {
   };
 
   // Render map component (WebView for mobile, iframe for web)
+  // Using stable key to avoid DOM errors from iframe recreation
   const renderMap = () => {
     const center = currentLocation || { latitude: 40.4168, longitude: -3.7038 };
     const markers = streetData?.hot_streets || [];
     
     if (Platform.OS === 'web') {
       // Use iframe for web with marker on current location
+      // Round to 3 decimals (~100m) for stable key to avoid constant iframe recreation
+      const stableKey = `map-${center.latitude.toFixed(3)}-${center.longitude.toFixed(3)}`;
       const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${center.longitude - 0.02}%2C${center.latitude - 0.01}%2C${center.longitude + 0.02}%2C${center.latitude + 0.01}&layer=mapnik&marker=${center.latitude}%2C${center.longitude}`;
+      
       return (
         <View style={styles.mapContainer}>
           <iframe
             src={mapUrl}
             style={{ width: '100%', height: '100%', border: 0 }}
             title="Map"
-            key={`map-${center.latitude.toFixed(5)}-${center.longitude.toFixed(5)}`}
+            key={stableKey}
+            loading="lazy"
           />
           <View style={styles.mapOverlay}>
             <View style={styles.locationIndicator}>
