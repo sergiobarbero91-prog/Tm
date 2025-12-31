@@ -2452,39 +2452,66 @@ export default function TransportMeter() {
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
     try {
-      // Encode the address for URL - use address instead of coordinates for better accuracy
-      const encodedAddress = encodeURIComponent(placeName);
+      // On mobile, use coordinates for direct app opening (more reliable)
+      // On web, use address for better user experience
       
-      if (gpsApp === 'waze') {
-        // Waze Universal Link with address search - more accurate than coordinates
-        // q parameter searches for the address text
-        await Linking.openURL(`https://waze.com/ul?q=${encodedAddress}&navigate=yes`);
-      } else {
-        // Google Maps with address
-        if (Platform.OS === 'ios') {
-          const canOpen = await Linking.canOpenURL('comgooglemaps://');
-          if (canOpen) {
-            await Linking.openURL(`comgooglemaps://?daddr=${encodedAddress}&directionsmode=driving`);
+      if (Platform.OS === 'ios') {
+        // iOS - try to open native apps first with coordinates
+        if (gpsApp === 'waze') {
+          const canOpenWaze = await Linking.canOpenURL('waze://');
+          if (canOpenWaze) {
+            // Waze deep link with coordinates
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
             return;
           }
-        } else if (Platform.OS === 'android') {
-          const canOpen = await Linking.canOpenURL('google.navigation:');
-          if (canOpen) {
-            await Linking.openURL(`google.navigation:q=${encodedAddress}&mode=d`);
+        } else {
+          // Google Maps
+          const canOpenGMaps = await Linking.canOpenURL('comgooglemaps://');
+          if (canOpenGMaps) {
+            // Google Maps deep link with coordinates
+            await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
             return;
           }
         }
-        // Fallback to web Google Maps with address
-        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`);
+        // Fallback to Apple Maps on iOS
+        await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
+        return;
+        
+      } else if (Platform.OS === 'android') {
+        // Android - use intent URLs with coordinates
+        if (gpsApp === 'waze') {
+          const canOpenWaze = await Linking.canOpenURL('waze://');
+          if (canOpenWaze) {
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
+            return;
+          }
+        } else {
+          // Google Maps navigation intent with coordinates
+          const canOpenNav = await Linking.canOpenURL('google.navigation:');
+          if (canOpenNav) {
+            await Linking.openURL(`google.navigation:q=${lat},${lng}&mode=d`);
+            return;
+          }
+          // Alternative: geo intent
+          await Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}`);
+          return;
+        }
+      }
+      
+      // Web fallback - use address for better display
+      const encodedAddress = encodeURIComponent(placeName);
+      if (gpsApp === 'waze') {
+        await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+      } else {
+        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
       }
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
-      const encodedAddress = encodeURIComponent(placeName);
-      // Final fallback to web versions with address
+      // Final fallback with coordinates
       if (gpsApp === 'waze') {
-        await Linking.openURL(`https://waze.com/ul?q=${encodedAddress}&navigate=yes`);
+        await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
       } else {
-        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`);
+        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
       }
     }
   };
