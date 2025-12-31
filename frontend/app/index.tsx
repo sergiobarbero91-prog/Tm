@@ -846,21 +846,48 @@ export default function TransportMeter() {
     
     setStreetCalculatingFare(true);
     try {
-      // Calculate distance using Haversine formula (approximate)
-      const R = 6371; // Earth's radius in km
-      const lat1 = fromLocation.latitude * Math.PI / 180;
-      const lat2 = streetSelectedAddress.latitude * Math.PI / 180;
-      const dLat = (streetSelectedAddress.latitude - fromLocation.latitude) * Math.PI / 180;
-      const dLon = (streetSelectedAddress.longitude - fromLocation.longitude) * Math.PI / 180;
+      // Call backend to get real route distance using OSRM
+      let distance_km: number;
+      let routeSource = 'osrm';
       
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1) * Math.cos(lat2) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance_km = R * c;
-      
-      // Add 20% for real road distance (streets are not straight lines)
-      const adjusted_distance = distance_km * 1.2;
+      try {
+        const routeResponse = await axios.post(`${API_URL}/api/calculate-route-distance`, {
+          origin_lat: fromLocation.latitude,
+          origin_lng: fromLocation.longitude,
+          dest_lat: streetSelectedAddress.latitude,
+          dest_lng: streetSelectedAddress.longitude
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000
+        });
+        
+        if (routeResponse.data.success) {
+          distance_km = routeResponse.data.distance_km;
+          routeSource = routeResponse.data.source;
+          console.log(`Route calculated via ${routeSource}: ${distance_km}km (straight line: ${routeResponse.data.straight_line_km}km)`);
+        } else {
+          throw new Error('Route calculation failed');
+        }
+      } catch (routeError) {
+        console.log('OSRM route failed, using local Haversine fallback:', routeError);
+        
+        // Fallback: Calculate distance using Haversine formula with 1.3x urban factor
+        const R = 6371; // Earth's radius in km
+        const lat1 = fromLocation.latitude * Math.PI / 180;
+        const lat2 = streetSelectedAddress.latitude * Math.PI / 180;
+        const dLat = (streetSelectedAddress.latitude - fromLocation.latitude) * Math.PI / 180;
+        const dLon = (streetSelectedAddress.longitude - fromLocation.longitude) * Math.PI / 180;
+        
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1) * Math.cos(lat2) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const straight_line_km = R * c;
+        
+        // Apply urban route factor of 1.3 (typical for Madrid)
+        distance_km = straight_line_km * 1.3;
+        routeSource = 'haversine_estimated';
+      }
       
       // Determine if it's night/weekend fare
       const now = new Date();
@@ -884,11 +911,11 @@ export default function TransportMeter() {
         per_km_rate = 1.20;
       }
       
-      const fare_min = base_fare + (adjusted_distance * per_km_rate);
+      const fare_min = base_fare + (distance_km * per_km_rate);
       const fare_max = fare_min * 1.05; // +5%
       
       setStreetFareResult({
-        distance_km: adjusted_distance,
+        distance_km: distance_km,
         fare_min: fare_min,
         fare_max: fare_max,
         is_night_or_weekend: isNightOrWeekend,
