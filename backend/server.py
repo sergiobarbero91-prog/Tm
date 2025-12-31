@@ -1603,6 +1603,102 @@ async def get_load_status(
         "last_street": last_activity.get("street_name") if last_activity else None
     }
 
+
+# ============== ROUTE DISTANCE CALCULATION ==============
+
+class RouteDistanceRequest(BaseModel):
+    origin_lat: float
+    origin_lng: float
+    dest_lat: float
+    dest_lng: float
+
+
+@api_router.post("/calculate-route-distance")
+async def calculate_route_distance(
+    request: RouteDistanceRequest,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """
+    Calculate real driving distance between two points using OSRM (Open Source Routing Machine).
+    This gives the actual route distance, not the straight-line distance.
+    
+    Returns distance in km and estimated duration in minutes.
+    """
+    try:
+        # Use OSRM demo server (free, but rate-limited for production use)
+        # For production, consider hosting your own OSRM instance or using a paid service
+        osrm_url = f"http://router.project-osrm.org/route/v1/driving/{request.origin_lng},{request.origin_lat};{request.dest_lng},{request.dest_lat}"
+        
+        params = {
+            "overview": "false",  # Don't need the polyline
+            "alternatives": "false"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(osrm_url, params=params, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    if data.get("code") == "Ok" and data.get("routes"):
+                        route = data["routes"][0]
+                        distance_meters = route.get("distance", 0)
+                        duration_seconds = route.get("duration", 0)
+                        
+                        distance_km = round(distance_meters / 1000, 2)
+                        duration_minutes = round(duration_seconds / 60, 1)
+                        
+                        # Also calculate straight-line distance for comparison
+                        straight_line_km = round(haversine_distance(
+                            request.origin_lat, request.origin_lng,
+                            request.dest_lat, request.dest_lng
+                        ), 2)
+                        
+                        # Calculate the route factor (how much longer the real route is)
+                        route_factor = round(distance_km / straight_line_km, 2) if straight_line_km > 0 else 1.0
+                        
+                        logger.info(f"Route calculated: {distance_km}km (straight: {straight_line_km}km, factor: {route_factor}x)")
+                        
+                        return {
+                            "success": True,
+                            "distance_km": distance_km,
+                            "duration_minutes": duration_minutes,
+                            "straight_line_km": straight_line_km,
+                            "route_factor": route_factor,
+                            "source": "osrm"
+                        }
+                    else:
+                        # OSRM couldn't find a route, fall back to Haversine with factor
+                        raise Exception(f"OSRM error: {data.get('code', 'Unknown')}")
+                else:
+                    raise Exception(f"OSRM HTTP error: {response.status}")
+                    
+    except Exception as e:
+        logger.warning(f"OSRM routing failed: {e}, using Haversine fallback with 1.3x factor")
+        
+        # Fallback: Use Haversine distance with a typical urban route factor of 1.3
+        # This accounts for the fact that roads aren't straight
+        straight_line_km = round(haversine_distance(
+            request.origin_lat, request.origin_lng,
+            request.dest_lat, request.dest_lng
+        ), 2)
+        
+        # Apply urban route factor (typically routes are 1.2-1.4x longer than straight line in cities)
+        estimated_km = round(straight_line_km * 1.3, 2)
+        
+        # Estimate duration: ~30 km/h average in Madrid traffic
+        estimated_duration = round((estimated_km / 30) * 60, 1)
+        
+        return {
+            "success": True,
+            "distance_km": estimated_km,
+            "duration_minutes": estimated_duration,
+            "straight_line_km": straight_line_km,
+            "route_factor": 1.3,
+            "source": "haversine_estimated",
+            "note": "Estimación basada en factor urbano típico (1.3x)"
+        }
+
+
 @api_router.get("/geocode/reverse")
 async def reverse_geocode(
     lat: float,
