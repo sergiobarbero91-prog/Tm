@@ -1439,7 +1439,6 @@ async def search_addresses(
                 params = {
                     "q": search_query,
                     "limit": 7,
-                    "lang": "es",
                     "lat": 40.4168,  # Madrid center for better local results
                     "lon": -3.7038,
                     "location_bias_scale": 0.5  # Prefer results near Madrid
