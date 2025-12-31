@@ -2457,63 +2457,67 @@ export default function TransportMeter() {
 
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
+    // On mobile, try to open native apps directly with coordinates
+    // The URL schemes will automatically open the app if installed
+    
     try {
-      // On mobile, use coordinates for direct app opening (more reliable)
-      // On web, use address for better user experience
-      
       if (Platform.OS === 'ios') {
-        // iOS - try to open native apps first with coordinates
+        // iOS - use URL schemes that will open apps directly
         if (gpsApp === 'waze') {
-          const canOpenWaze = await Linking.canOpenURL('waze://');
-          if (canOpenWaze) {
-            // Waze deep link with coordinates
-            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
-            return;
-          }
+          // Waze URL scheme - will open app or App Store if not installed
+          const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+          await Linking.openURL(wazeUrl);
         } else {
-          // Google Maps
-          const canOpenGMaps = await Linking.canOpenURL('comgooglemaps://');
-          if (canOpenGMaps) {
-            // Google Maps deep link with coordinates
+          // Google Maps - use comgooglemaps:// for direct app opening
+          // This URL scheme opens the app directly on iOS
+          try {
             await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
-            return;
+          } catch {
+            // If Google Maps not installed, try Apple Maps
+            try {
+              await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
+            } catch {
+              // Final fallback to web
+              await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+            }
           }
         }
-        // Fallback to Apple Maps on iOS
-        await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
-        return;
-        
       } else if (Platform.OS === 'android') {
-        // Android - use intent URLs with coordinates
+        // Android - use intent URLs
         if (gpsApp === 'waze') {
-          const canOpenWaze = await Linking.canOpenURL('waze://');
-          if (canOpenWaze) {
+          // Waze intent URL
+          try {
             await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
-            return;
+          } catch {
+            // Fallback to web Waze
+            await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
           }
         } else {
-          // Google Maps navigation intent with coordinates
-          const canOpenNav = await Linking.canOpenURL('google.navigation:');
-          if (canOpenNav) {
+          // Google Maps navigation intent
+          try {
             await Linking.openURL(`google.navigation:q=${lat},${lng}&mode=d`);
-            return;
+          } catch {
+            // Fallback to geo intent or web
+            try {
+              await Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}`);
+            } catch {
+              await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+            }
           }
-          // Alternative: geo intent
-          await Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}`);
-          return;
         }
-      }
-      
-      // Web fallback - use address for better display
-      const encodedAddress = encodeURIComponent(placeName);
-      if (gpsApp === 'waze') {
-        await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
       } else {
-        await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+        // Web - use URLs that will prompt to open app or show in browser
+        if (gpsApp === 'waze') {
+          // Waze universal link - opens app on mobile, web on desktop
+          await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+        } else {
+          // Google Maps URL
+          await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+        }
       }
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
-      // Final fallback with coordinates
+      // Final fallback
       if (gpsApp === 'waze') {
         await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
       } else {
