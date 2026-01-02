@@ -2461,56 +2461,82 @@ export default function TransportMeter() {
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
     // Open GPS navigation app with destination coordinates
-    // Note: In Expo Go, custom URL schemes may not work directly.
-    // In standalone builds, they will work with the LSApplicationQueriesSchemes in app.json
-    
+    // URLs for each GPS app
     const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-    const appleMapsUrl = `maps://?daddr=${lat},${lng}&dirflg=d`;
     
     try {
-      if (gpsApp === 'waze') {
-        // Waze - Universal Link works best across all platforms
-        await Linking.openURL(wazeUrl);
-      } else {
-        // Google Maps
-        if (Platform.OS === 'ios') {
-          // On iOS, try Apple Maps first (opens directly without Safari)
-          // Then Google Maps web URL as fallback
+      // For WEB - always use https URLs that open in new tab
+      if (Platform.OS === 'web') {
+        if (gpsApp === 'waze') {
+          await Linking.openURL(wazeUrl);
+        } else {
+          await Linking.openURL(googleMapsUrl);
+        }
+        return;
+      }
+      
+      // For iOS
+      if (Platform.OS === 'ios') {
+        if (gpsApp === 'waze') {
+          // Try waze:// scheme first, fallback to universal link
           try {
-            await Linking.openURL(appleMapsUrl);
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
           } catch {
-            await Linking.openURL(googleMapsUrl);
+            await Linking.openURL(wazeUrl);
           }
-        } else if (Platform.OS === 'android') {
-          // Android: Try google.navigation intent first
+        } else {
+          // Google Maps - try comgooglemaps:// scheme first
+          try {
+            await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
+          } catch {
+            // Fallback to Apple Maps, then web
+            try {
+              await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
+            } catch {
+              await Linking.openURL(googleMapsUrl);
+            }
+          }
+        }
+        return;
+      }
+      
+      // For Android
+      if (Platform.OS === 'android') {
+        if (gpsApp === 'waze') {
+          try {
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
+          } catch {
+            await Linking.openURL(wazeUrl);
+          }
+        } else {
           try {
             await Linking.openURL(`google.navigation:q=${lat},${lng}&mode=d`);
           } catch {
-            // Fallback to geo intent
             try {
               await Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(placeName)})`);
             } catch {
               await Linking.openURL(googleMapsUrl);
             }
           }
-        } else {
-          // Web
-          await Linking.openURL(googleMapsUrl);
         }
+        return;
+      }
+      
+      // Fallback for any other platform
+      if (gpsApp === 'waze') {
+        await Linking.openURL(wazeUrl);
+      } else {
+        await Linking.openURL(googleMapsUrl);
       }
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
-      Alert.alert(
-        'Abrir GPS',
-        '¿Qué aplicación quieres usar?',
-        [
-          { text: 'Waze', onPress: () => Linking.openURL(wazeUrl) },
-          { text: 'Google Maps', onPress: () => Linking.openURL(googleMapsUrl) },
-          { text: 'Apple Maps', onPress: () => Linking.openURL(appleMapsUrl) },
-          { text: 'Cancelar', style: 'cancel' }
-        ]
-      );
+      // Final fallback - open the web URL
+      if (gpsApp === 'waze') {
+        await Linking.openURL(wazeUrl);
+      } else {
+        await Linking.openURL(googleMapsUrl);
+      }
     }
   };
 
