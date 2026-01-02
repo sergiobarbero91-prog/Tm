@@ -2279,9 +2279,14 @@ async def get_street_work_data(
         hottest_station_future_arrivals = best_station["future_arrivals"]
         hottest_station_low_arrivals_alert = best_station["future_arrivals"] < 5
         
-        # Get taxi status for hottest station
+        # Get taxi status for hottest station (only from last 24 hours)
+        taxi_time_limit = now - timedelta(hours=24)
         taxi_doc = await taxi_status_collection.find_one(
-            {"location_type": "station", "location_name": best_station_name},
+            {
+                "location_type": "station", 
+                "location_name": best_station_name,
+                "reported_at": {"$gte": taxi_time_limit}
+            },
             sort=[("reported_at", -1)]
         )
         if taxi_doc:
