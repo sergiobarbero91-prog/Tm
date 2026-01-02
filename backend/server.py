@@ -2657,7 +2657,7 @@ async def get_taxi_status(
 async def get_queue_status(
     location_type: Optional[str] = None,
     location_name: Optional[str] = None,
-    minutes: int = 60,  # Time window to filter - only show data from previous window
+    minutes: int = 60,  # Time window to filter
     current_user: dict = Depends(get_current_user_required)
 ):
     """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
