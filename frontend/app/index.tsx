@@ -2926,14 +2926,9 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
           onPress={() => {
-            if (activeTab !== 'trains' && !isTabTransitioning) {
-              setIsTabTransitioning(true);
+            if (activeTab !== 'trains') {
               setLoading(true);
-              // Use requestAnimationFrame to allow current render to complete
-              requestAnimationFrame(() => {
-                setActiveTab('trains');
-                setTimeout(() => setIsTabTransitioning(false), 100);
-              });
+              setActiveTab('trains');
             }
           }}
         >
@@ -2954,13 +2949,9 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
           onPress={() => {
-            if (activeTab !== 'flights' && !isTabTransitioning) {
-              setIsTabTransitioning(true);
+            if (activeTab !== 'flights') {
               setLoading(true);
-              requestAnimationFrame(() => {
-                setActiveTab('flights');
-                setTimeout(() => setIsTabTransitioning(false), 100);
-              });
+              setActiveTab('flights');
             }
           }}
         >
@@ -2981,13 +2972,9 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
           onPress={() => {
-            if (activeTab !== 'street' && !isTabTransitioning) {
-              setIsTabTransitioning(true);
+            if (activeTab !== 'street') {
               setLoading(true);
-              requestAnimationFrame(() => {
-                setActiveTab('street');
-                setTimeout(() => setIsTabTransitioning(false), 100);
-              });
+              setActiveTab('street');
             }
           }}
         >
