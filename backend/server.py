@@ -2330,8 +2330,14 @@ async def get_street_work_data(
         hottest_terminal_future_arrivals = best_terminal["future_arrivals"]
         hottest_terminal_low_arrivals_alert = best_terminal["future_arrivals"] < 7
         
-        # Get taxi status for hottest terminal (check all terminals in the group)
-        terminal_taxi_query = {"location_type": "terminal", "location_name": {"$in": [best_terminal_name, best_terminal_name.replace("-", ""), *best_terminal_name.split("-")]}}
+        # Get taxi status for hottest terminal (only from last 24 hours)
+        # Check all terminals in the group
+        taxi_time_limit = now - timedelta(hours=24)
+        terminal_taxi_query = {
+            "location_type": "terminal", 
+            "location_name": {"$in": [best_terminal_name, best_terminal_name.replace("-", ""), *best_terminal_name.split("-")]},
+            "reported_at": {"$gte": taxi_time_limit}
+        }
         taxi_doc = await taxi_status_collection.find_one(
             terminal_taxi_query,
             sort=[("reported_at", -1)]
