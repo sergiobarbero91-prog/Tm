@@ -2662,16 +2662,18 @@ async def get_queue_status(
     minutes: int = 60,  # Time window to filter
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
+    """Get the latest queue status (people waiting) within the time window (max 24 hours)."""
     now = datetime.now(MADRID_TZ)
     
-    # Start of today (midnight Madrid time)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Time window: from (now - minutes) to now
+    # But limit to maximum 24 hours to avoid showing very old data
+    max_window = timedelta(hours=24)
+    requested_window = timedelta(minutes=minutes)
+    actual_window = min(requested_window, max_window)
     
-    # Time window: from (now - minutes) to now, but not before today
-    window_start = max(now - timedelta(minutes=minutes), today_start)
+    window_start = now - actual_window
     
-    # Build query: only today's data within the time window
+    # Build query: data within the time window (can span midnight)
     query = {"reported_at": {"$gte": window_start, "$lte": now}}
     if location_type:
         query["location_type"] = location_type
