@@ -2660,14 +2660,17 @@ async def get_queue_status(
     minutes: int = 60,  # Time window to filter - only show data from previous window
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
+    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
     now = datetime.now(MADRID_TZ)
-    # Previous window: from (now - 2*minutes) to (now - minutes)
-    previous_window_start = now - timedelta(minutes=minutes * 2)
-    previous_window_end = now - timedelta(minutes=minutes)
     
-    # Build query with time filter
-    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
+    # Start of today (midnight Madrid time)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Time window: from (now - minutes) to now, but not before today
+    window_start = max(now - timedelta(minutes=minutes), today_start)
+    
+    # Build query: only today's data within the time window
+    query = {"reported_at": {"$gte": window_start, "$lte": now}}
     if location_type:
         query["location_type"] = location_type
     if location_name:
