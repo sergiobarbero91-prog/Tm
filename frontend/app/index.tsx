@@ -250,9 +250,6 @@ export default function TransportMeter() {
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
 
-  // Tab transition state - prevent DOM errors during tab changes
-  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
-  
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
