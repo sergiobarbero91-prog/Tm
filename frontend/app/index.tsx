@@ -2460,59 +2460,57 @@ export default function TransportMeter() {
 
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
-    // Open GPS navigation app directly with destination coordinates
+    // Open GPS navigation app with destination coordinates
+    // Note: In Expo Go, custom URL schemes may not work directly.
+    // In standalone builds, they will work with the LSApplicationQueriesSchemes in app.json
+    
+    const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    const appleMapsUrl = `maps://?daddr=${lat},${lng}&dirflg=d`;
     
     try {
       if (gpsApp === 'waze') {
-        // Waze - use waze:// scheme on iOS, intent on Android
-        if (Platform.OS === 'ios') {
-          try {
-            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
-          } catch {
-            // Fallback to universal link if waze:// scheme fails
-            await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
-          }
-        } else if (Platform.OS === 'android') {
-          try {
-            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
-          } catch {
-            await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
-          }
-        } else {
-          // Web
-          await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
-        }
+        // Waze - Universal Link works best across all platforms
+        await Linking.openURL(wazeUrl);
       } else {
         // Google Maps
         if (Platform.OS === 'ios') {
-          // iOS: Try comgooglemaps:// scheme first (opens Google Maps app directly)
+          // On iOS, try Apple Maps first (opens directly without Safari)
+          // Then Google Maps web URL as fallback
           try {
-            await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
+            await Linking.openURL(appleMapsUrl);
           } catch {
-            // If Google Maps not installed, try Apple Maps
-            try {
-              await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
-            } catch {
-              // Final fallback to web
-              await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
-            }
+            await Linking.openURL(googleMapsUrl);
           }
         } else if (Platform.OS === 'android') {
-          // Android: Use google.navigation intent (opens directly in navigation mode)
+          // Android: Try google.navigation intent first
           try {
             await Linking.openURL(`google.navigation:q=${lat},${lng}&mode=d`);
           } catch {
-            await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+            // Fallback to geo intent
+            try {
+              await Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(placeName)})`);
+            } catch {
+              await Linking.openURL(googleMapsUrl);
+            }
           }
         } else {
           // Web
-          await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+          await Linking.openURL(googleMapsUrl);
         }
       }
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
-      // Final fallback
-      await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+      Alert.alert(
+        'Abrir GPS',
+        '¿Qué aplicación quieres usar?',
+        [
+          { text: 'Waze', onPress: () => Linking.openURL(wazeUrl) },
+          { text: 'Google Maps', onPress: () => Linking.openURL(googleMapsUrl) },
+          { text: 'Apple Maps', onPress: () => Linking.openURL(appleMapsUrl) },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
     }
   };
 
