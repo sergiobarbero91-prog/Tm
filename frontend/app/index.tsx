@@ -2466,12 +2466,14 @@ export default function TransportMeter() {
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
     
     try {
-      // For WEB - always use https URLs that open in new tab
+      // For WEB - use window.open to open in new tab directly
       if (Platform.OS === 'web') {
-        if (gpsApp === 'waze') {
-          await Linking.openURL(wazeUrl);
+        const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
+        // Use window.open for immediate opening in new tab
+        if (typeof window !== 'undefined') {
+          window.open(url, '_blank');
         } else {
-          await Linking.openURL(googleMapsUrl);
+          await Linking.openURL(url);
         }
         return;
       }
@@ -2532,10 +2534,11 @@ export default function TransportMeter() {
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
       // Final fallback - open the web URL
-      if (gpsApp === 'waze') {
-        await Linking.openURL(wazeUrl);
+      const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
       } else {
-        await Linking.openURL(googleMapsUrl);
+        await Linking.openURL(url);
       }
     }
   };
