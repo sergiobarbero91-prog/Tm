@@ -2460,28 +2460,52 @@ export default function TransportMeter() {
 
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
-    // Use Universal Links which work better with Expo Go
-    // These URLs will automatically open the native app if installed
+    // Open GPS navigation app directly with destination coordinates
     
     try {
       if (gpsApp === 'waze') {
-        // Waze Universal Link - opens app on iOS/Android if installed
-        await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+        // Waze - use waze:// scheme on iOS, intent on Android
+        if (Platform.OS === 'ios') {
+          try {
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
+          } catch {
+            // Fallback to universal link if waze:// scheme fails
+            await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+          }
+        } else if (Platform.OS === 'android') {
+          try {
+            await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
+          } catch {
+            await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+          }
+        } else {
+          // Web
+          await Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+        }
       } else {
-        // Google Maps Universal Link
-        // On iOS: opens Google Maps app if installed, otherwise opens in Safari
-        // On Android: opens Google Maps app directly
-        if (Platform.OS === 'android') {
-          // Android: Try native intent first, fallback to universal link
+        // Google Maps
+        if (Platform.OS === 'ios') {
+          // iOS: Try comgooglemaps:// scheme first (opens Google Maps app directly)
+          try {
+            await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
+          } catch {
+            // If Google Maps not installed, try Apple Maps
+            try {
+              await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
+            } catch {
+              // Final fallback to web
+              await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
+            }
+          }
+        } else if (Platform.OS === 'android') {
+          // Android: Use google.navigation intent (opens directly in navigation mode)
           try {
             await Linking.openURL(`google.navigation:q=${lat},${lng}&mode=d`);
           } catch {
             await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
           }
         } else {
-          // iOS: Use Google Maps universal link which prompts to open app
-          // The URL format maps://... opens Apple Maps, so we use the web URL
-          // which on iOS will prompt "Open in Google Maps?" if the app is installed
+          // Web
           await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`);
         }
       }
