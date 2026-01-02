@@ -2621,13 +2621,17 @@ export default function TransportMeter() {
             </View>
           )}
           
-          {streetData?.hottest_station && (
+          {streetData?.hottest_station && streetData?.hottest_station_lat && streetData?.hottest_station_lng && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonStation]}
-              onPress={() => openGpsApp()}
+              onPress={() => openGpsNavigation(
+                streetData.hottest_station_lat,
+                streetData.hottest_station_lng,
+                streetData.hottest_station
+              )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Abrir GPS</Text>
+              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
             </TouchableOpacity>
           )}
         </View>
