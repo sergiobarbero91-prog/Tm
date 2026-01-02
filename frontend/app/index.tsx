@@ -2461,38 +2461,34 @@ export default function TransportMeter() {
   // Open GPS app for navigation (Google Maps or Waze) with destination address
   const openGpsNavigation = async (lat: number, lng: number, placeName: string) => {
     // Open GPS navigation app with destination coordinates
-    // URLs for each GPS app
+    // URLs for each GPS app - these are Universal Links that open the native app
     const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
     
     try {
-      // For WEB - use window.open to open in new tab directly
+      // For WEB (including mobile Chrome) - redirect to Universal Link
+      // This will open the native app if installed (Waze/Google Maps)
       if (Platform.OS === 'web') {
         const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
-        // Use window.open for immediate opening in new tab
         if (typeof window !== 'undefined') {
-          window.open(url, '_blank');
-        } else {
-          await Linking.openURL(url);
+          // Use location.href to redirect - this triggers the native app to open
+          window.location.href = url;
         }
         return;
       }
       
-      // For iOS
+      // For iOS native app
       if (Platform.OS === 'ios') {
         if (gpsApp === 'waze') {
-          // Try waze:// scheme first, fallback to universal link
           try {
             await Linking.openURL(`waze://?ll=${lat},${lng}&navigate=yes`);
           } catch {
             await Linking.openURL(wazeUrl);
           }
         } else {
-          // Google Maps - try comgooglemaps:// scheme first
           try {
             await Linking.openURL(`comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`);
           } catch {
-            // Fallback to Apple Maps, then web
             try {
               await Linking.openURL(`maps://?daddr=${lat},${lng}&dirflg=d`);
             } catch {
@@ -2503,7 +2499,7 @@ export default function TransportMeter() {
         return;
       }
       
-      // For Android
+      // For Android native app
       if (Platform.OS === 'android') {
         if (gpsApp === 'waze') {
           try {
@@ -2525,18 +2521,13 @@ export default function TransportMeter() {
         return;
       }
       
-      // Fallback for any other platform
-      if (gpsApp === 'waze') {
-        await Linking.openURL(wazeUrl);
-      } else {
-        await Linking.openURL(googleMapsUrl);
-      }
+      // Fallback
+      await Linking.openURL(gpsApp === 'waze' ? wazeUrl : googleMapsUrl);
     } catch (err) {
       console.error('Error opening GPS navigation:', err);
-      // Final fallback - open the web URL
       const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(url, '_blank');
+        window.location.href = url;
       } else {
         await Linking.openURL(url);
       }
