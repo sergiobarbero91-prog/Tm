@@ -1563,9 +1563,12 @@ export default function TransportMeter() {
         const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
         setFlightData(response.data);
       } else if (activeTab === 'street') {
-        await fetchStreetData();
-        await fetchTaxiStatus();
-        await fetchQueueStatus();
+        // Fetch all street data in parallel for faster loading
+        await Promise.all([
+          fetchStreetData(),
+          fetchTaxiStatus(),
+          fetchQueueStatus()
+        ]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
