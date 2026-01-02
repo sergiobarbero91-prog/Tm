@@ -1642,10 +1642,13 @@ export default function TransportMeter() {
       fetchData();
 
       // Auto-refresh every 30 seconds for real-time data
-      const interval = setInterval(fetchData, 30000);
+      const interval = setInterval(() => {
+        fetchData();
+      }, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, fetchData, currentUser, timeWindow]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentUser, timeWindow]); // fetchData excluded to prevent infinite loops
 
   // Request location permission and track location - ALWAYS (for emergency alerts)
   useEffect(() => {
