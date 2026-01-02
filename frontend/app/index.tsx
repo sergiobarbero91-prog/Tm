@@ -232,7 +232,7 @@ type GpsApp = 'google' | 'waze';
 
 export default function TransportMeter() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('trains');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
   const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
