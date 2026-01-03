@@ -950,13 +950,17 @@ export default function TransportMeter() {
 
   // Close street fare modal and register load activity
   const handleStreetFareComplete = async () => {
-    // Register the load activity
-    await registerActivity('load');
-    
-    // Open GPS if we have a destination
+    // First, open GPS with destination (before anything else)
     if (streetSelectedAddress) {
-      openStreetFareGps();
+      openGpsNavigation(
+        streetSelectedAddress.latitude,
+        streetSelectedAddress.longitude,
+        streetSelectedAddress.address
+      );
     }
+    
+    // Then register the load activity (without opening GPS again)
+    await registerActivityWithoutGps('load');
     
     // Close modal and reset state
     setShowStreetFareModal(false);
@@ -964,6 +968,40 @@ export default function TransportMeter() {
     setStreetAddressSuggestions([]);
     setStreetSelectedAddress(null);
     setStreetFareResult(null);
+  };
+
+  // Register activity without opening GPS (for use after fare calculation)
+  const registerActivityWithoutGps = async (action: 'load' | 'unload') => {
+    setStreetLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const locationData = await getCurrentLocation();
+      
+      if (!locationData) {
+        setStreetLoading(false);
+        return;
+      }
+
+      const response = await axios.post(`${API_BASE}/api/street/activity`, {
+        action,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        street_name: locationData.street
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update active load state
+      setHasActiveLoad(response.data.has_active_load);
+
+      // Don't show alert to avoid interrupting GPS navigation
+      // Refresh street data in background
+      fetchStreetData();
+    } catch (error: any) {
+      console.log('Error registering activity:', error);
+    } finally {
+      setStreetLoading(false);
+    }
   };
 
   // Taxi question state (for entry)
