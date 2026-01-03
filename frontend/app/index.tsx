@@ -3766,6 +3766,79 @@ export default function TransportMeter() {
               ))
             )}
           </View>
+        ) : activeTab === 'admin' ? (
+          <View style={styles.adminContainer}>
+            {/* Admin Header */}
+            <View style={styles.adminHeader}>
+              <View style={styles.adminHeaderTitle}>
+                <Ionicons name="shield-checkmark" size={28} color="#EF4444" />
+                <Text style={styles.adminTitle}>Panel de Administración</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.addUserButton}
+                onPress={() => setShowCreateUserModal(true)}
+              >
+                <Ionicons name="person-add" size={20} color="#FFFFFF" />
+                <Text style={styles.addUserButtonText}>Nuevo Usuario</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Users List */}
+            {adminLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#EF4444" />
+                <Text style={styles.loadingText}>Cargando usuarios...</Text>
+              </View>
+            ) : adminUsers.length === 0 ? (
+              <View style={styles.noEventsContainer}>
+                <Ionicons name="people-outline" size={64} color="#4B5563" />
+                <Text style={styles.noEventsText}>No hay usuarios</Text>
+              </View>
+            ) : (
+              adminUsers.map((user) => (
+                <View key={user.id} style={styles.userCard}>
+                  <View style={styles.userCardHeader}>
+                    <View style={styles.userInfo}>
+                      <Ionicons name="person-circle" size={40} color="#6B7280" />
+                      <View style={styles.userDetails}>
+                        <Text style={styles.userName}>{user.username}</Text>
+                        <View style={[styles.roleBadge, { backgroundColor: getRoleBadgeColor(user.role) }]}>
+                          <Text style={styles.roleBadgeText}>{getRoleDisplayName(user.role)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    
+                    {user.id !== currentUser?.id && (
+                      <View style={styles.userActions}>
+                        <TouchableOpacity
+                          style={styles.editUserButton}
+                          onPress={() => {
+                            setEditingUser(user);
+                            setShowEditUserModal(true);
+                          }}
+                        >
+                          <Ionicons name="create-outline" size={20} color="#3B82F6" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.deleteUserButton}
+                          onPress={() => deleteUser(user.id, user.username)}
+                        >
+                          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                  
+                  {user.phone && (
+                    <View style={styles.userPhone}>
+                      <Ionicons name="call-outline" size={14} color="#9CA3AF" />
+                      <Text style={styles.userPhoneText}>{user.phone}</Text>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
         ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
