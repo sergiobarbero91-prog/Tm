@@ -1361,7 +1361,9 @@ export default function TransportMeter() {
     
     // If already selected from suggestions, use that
     if (selectedAddress) {
-      calculateFareFromAddress(selectedAddress);
+      setCalculatingFare(true);
+      await calculateFareFromAddress(selectedAddress);
+      setCalculatingFare(false);
       return;
     }
     
