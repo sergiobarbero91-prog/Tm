@@ -3923,6 +3923,102 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Add Event Modal */}
+      {showAddEventModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.addEventModal}>
+            <View style={styles.addEventHeader}>
+              <Ionicons name="calendar" size={48} color="#EC4899" />
+              <Text style={styles.addEventTitle}>Nuevo Evento</Text>
+              <Text style={styles.addEventSubtitle}>Comparte información con tus compañeros</Text>
+            </View>
+            
+            <View style={styles.addEventForm}>
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>📍 Ubicación</Text>
+                <TextInput
+                  style={styles.addEventInput}
+                  placeholder="Ej: Gran Vía, Puerta del Sol..."
+                  placeholderTextColor="#6B7280"
+                  value={newEventLocation}
+                  onChangeText={setNewEventLocation}
+                  maxLength={100}
+                />
+              </View>
+              
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>📝 Descripción</Text>
+                <TextInput
+                  style={[styles.addEventInput, styles.addEventTextArea]}
+                  placeholder="¿Qué está pasando? Ej: Mucho tráfico, obras, evento especial..."
+                  placeholderTextColor="#6B7280"
+                  value={newEventDescription}
+                  onChangeText={setNewEventDescription}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                />
+              </View>
+              
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>🕐 Hora (HH:MM)</Text>
+                <View style={styles.addEventTimeInput}>
+                  <TextInput
+                    style={styles.addEventTimeTextInput}
+                    placeholder="Ej: 14:30"
+                    placeholderTextColor="#6B7280"
+                    value={newEventTime}
+                    onChangeText={(text) => {
+                      // Auto format time input
+                      let cleaned = text.replace(/[^\d]/g, '');
+                      if (cleaned.length >= 3) {
+                        cleaned = cleaned.slice(0, 2) + ':' + cleaned.slice(2, 4);
+                      }
+                      setNewEventTime(cleaned);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                  <Ionicons name="time-outline" size={22} color="#6B7280" />
+                </View>
+              </View>
+              
+              <View style={styles.addEventButtons}>
+                <TouchableOpacity
+                  style={styles.addEventCancelButton}
+                  onPress={() => {
+                    setShowAddEventModal(false);
+                    setNewEventLocation('');
+                    setNewEventDescription('');
+                    setNewEventTime('');
+                  }}
+                >
+                  <Text style={styles.addEventCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.addEventSubmitButton,
+                    (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) && styles.addEventSubmitButtonDisabled
+                  ]}
+                  onPress={createEvent}
+                  disabled={eventLoading || !newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()}
+                >
+                  {eventLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                      <Text style={styles.addEventSubmitButtonText}>Publicar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* SOS Modal */}
       {showSosModal && (
         <View style={styles.modalOverlay}>
