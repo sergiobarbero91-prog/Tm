@@ -232,7 +232,7 @@ type GpsApp = 'google' | 'waze';
 
 export default function TransportMeter() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street'>('street');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
   const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
@@ -249,6 +249,14 @@ export default function TransportMeter() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+
+  // Events states
+  const [eventsData, setEventsData] = useState<any[]>([]);
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [newEventLocation, setNewEventLocation] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventTime, setNewEventTime] = useState('');
+  const [eventLoading, setEventLoading] = useState(false);
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
