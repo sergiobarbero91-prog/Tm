@@ -3269,6 +3269,29 @@ export default function TransportMeter() {
             Calle
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'events' && styles.activeTabEvents]}
+          onPress={() => {
+            if (activeTab !== 'events') {
+              setLoading(true);
+              setActiveTab('events');
+            }
+          }}
+        >
+          <Ionicons
+            name="calendar"
+            size={20}
+            color={activeTab === 'events' ? '#FFFFFF' : '#94A3B8'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'events' && styles.activeTabText,
+            ]}
+          >
+            Eventos
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Time Window Selector with SOS Button */}
