@@ -1271,18 +1271,12 @@ export default function TransportMeter() {
     if (pendingCheckOut) {
       await performCheckIn(pendingCheckOut.locationType, pendingCheckOut.locationName, 'exit', null, answer);
       
-      // If terminal exit, show destination modal for fare calculation
-      if (pendingCheckOut.locationType === 'terminal') {
-        setShowDestinationModal(true);
-        setDestinationAddress('');
-        setAddressSuggestions([]);
-        setSelectedAddress(null);
-        setFareResult(null);
-      } else {
-        // For stations, just open GPS
-        setPendingCheckOut(null);
-        openGpsApp();
-      }
+      // Show destination modal for fare calculation (both terminals and stations)
+      setShowDestinationModal(true);
+      setDestinationAddress('');
+      setAddressSuggestions([]);
+      setSelectedAddress(null);
+      setFareResult(null);
     }
   };
 
