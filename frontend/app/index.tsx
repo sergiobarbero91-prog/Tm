@@ -1285,30 +1285,61 @@ export default function TransportMeter() {
   };
 
   // Calculate fare from selected address
-  const calculateFareFromAddress = (address: { latitude: number; longitude: number; address: string; is_inside_m30: boolean }) => {
+  const calculateFareFromAddress = async (address: { latitude: number; longitude: number; address: string; is_inside_m30: boolean }) => {
     // Get current time and day
     const now = new Date();
     const hour = now.getHours();
     const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const isDaytime = hour >= 6 && hour < 21;
+    const isNightOrWeekend = isWeekend || !isDaytime;
     
     let tarifa: string;
     let suplemento: string;
     
     if (address.is_inside_m30) {
-      tarifa = 'Tarifa 4';
-      suplemento = '33';
+      // Inside M30: Fixed fare of 33€
+      tarifa = 'Tarifa Fija';
+      suplemento = '33,00€';
     } else {
-      // Outside M30
-      if (!isWeekend && isDaytime) {
-        // Weekday daytime (6:00-21:00)
-        tarifa = 'Tarifa 3 + Tarifa 1 cambio automático';
-        suplemento = '22 + Tarifa 1';
-      } else {
-        // Weekday night (21:00-6:00) or weekend
-        tarifa = 'Tarifa 3 + Tarifa 2 cambio automático';
-        suplemento = '22 + Tarifa 2';
+      // Outside M30: 22€ for first 9 km + per km rate after that
+      // Need to calculate distance to destination
+      try {
+        // Get distance from airport (T4) to destination
+        const airportLat = 40.4719; // T4 coordinates
+        const airportLng = -3.5357;
+        
+        const token = await AsyncStorage.getItem('token');
+        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
+          origin_lat: airportLat,
+          origin_lng: airportLng,
+          dest_lat: address.latitude,
+          dest_lng: address.longitude
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000
+        });
+        
+        const distance_km = routeResponse.data.distance_km || 0;
+        const per_km_rate = isNightOrWeekend ? 1.60 : 1.40;
+        
+        // First 9 km included in base fare of 22€
+        const extra_km = Math.max(0, distance_km - 9);
+        const extra_fare = extra_km * per_km_rate;
+        const total_fare = 22 + extra_fare;
+        
+        if (extra_km > 0) {
+          tarifa = isNightOrWeekend ? 'Tarifa 3 + Tarifa 2' : 'Tarifa 3 + Tarifa 1';
+          suplemento = `22,00€ + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€ = ${total_fare.toFixed(2)}€`;
+        } else {
+          tarifa = 'Tarifa 3';
+          suplemento = '22,00€';
+        }
+      } catch (error) {
+        // Fallback if distance calculation fails
+        console.log('Error calculating distance for airport fare:', error);
+        tarifa = isNightOrWeekend ? 'Tarifa 3 + Tarifa 2' : 'Tarifa 3 + Tarifa 1';
+        suplemento = isNightOrWeekend ? '22€ + 1,60€/km (después de 9km)' : '22€ + 1,40€/km (después de 9km)';
       }
     }
     
