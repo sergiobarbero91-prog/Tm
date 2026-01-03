@@ -4436,6 +4436,9 @@ const styles = StyleSheet.create({
   activeTabStreet: {
     backgroundColor: '#F59E0B',
   },
+  activeTabEvents: {
+    backgroundColor: '#EC4899',
+  },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
