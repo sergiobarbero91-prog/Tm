@@ -1344,11 +1344,9 @@ export default function TransportMeter() {
     } else {
       // TERMINAL/AIRPORT FARE
       if (address.is_inside_m30) {
-        // Inside M30: Fixed fare of 33€ with range
-        const fare_min = 33 * 1.02;
-        const fare_max = 33 * 1.07;
+        // Inside M30: Fixed fare of 33€ (no range)
         tarifa = 'Tarifa Fija';
-        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+        suplemento = '33,00€';
       } else {
         // Outside M30: 22€ for first 9 km + per km rate after that
         try {
