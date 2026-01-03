@@ -1187,13 +1187,15 @@ export default function TransportMeter() {
   };
 
   // Select address from suggestions
-  const selectAddress = (suggestion: typeof addressSuggestions[0]) => {
+  const selectAddress = async (suggestion: typeof addressSuggestions[0]) => {
     setSelectedAddress(suggestion);
     setDestinationAddress(suggestion.address);
     setAddressSuggestions([]);
     
     // Calculate fare immediately
-    calculateFareFromAddress(suggestion);
+    setCalculatingFare(true);
+    await calculateFareFromAddress(suggestion);
+    setCalculatingFare(false);
   };
 
   // Voice input function with number normalization
