@@ -2956,9 +2956,14 @@ async def get_events(
         ])
         events = await cursor.to_list(100)
         
+        # Get user role for permission checks
+        user_role = current_user.get("role", "user")
+        can_moderate = user_role in ["admin", "moderator"]
+        
         # Format response
         result = []
         for event in events:
+            is_owner = event["user_id"] == current_user["id"]
             result.append({
                 "event_id": event["event_id"],
                 "username": event["username"],
@@ -2969,7 +2974,8 @@ async def get_events(
                 "dislikes": event.get("dislikes", 0),
                 "user_vote": "like" if current_user["id"] in event.get("liked_by", []) else 
                             "dislike" if current_user["id"] in event.get("disliked_by", []) else None,
-                "is_owner": event["user_id"] == current_user["id"],
+                "is_owner": is_owner,
+                "can_delete": is_owner or can_moderate,
                 "created_at": event["created_at"].isoformat() if event.get("created_at") else None
             })
         
