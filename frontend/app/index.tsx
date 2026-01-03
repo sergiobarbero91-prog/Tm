@@ -3433,6 +3433,31 @@ export default function TransportMeter() {
             Eventos
           </Text>
         </TouchableOpacity>
+        {currentUser?.role === 'admin' && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'admin' && styles.activeTabAdmin]}
+            onPress={() => {
+              if (activeTab !== 'admin') {
+                setLoading(true);
+                setActiveTab('admin');
+              }
+            }}
+          >
+            <Ionicons
+              name="shield-checkmark"
+              size={20}
+              color={activeTab === 'admin' ? '#FFFFFF' : '#94A3B8'}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'admin' && styles.activeTabText,
+              ]}
+            >
+              Admin
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Time Window Selector with SOS Button */}
