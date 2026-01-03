@@ -3502,6 +3502,104 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'street' ? (
           renderStreetContent()
+        ) : activeTab === 'events' ? (
+          <View style={styles.eventsContainer}>
+            {/* Add Event Button */}
+            <TouchableOpacity 
+              style={styles.addEventButton}
+              onPress={() => setShowAddEventModal(true)}
+            >
+              <Ionicons name="add-circle" size={24} color="#FFFFFF" />
+              <Text style={styles.addEventButtonText}>Añadir Evento</Text>
+            </TouchableOpacity>
+
+            {/* Events List */}
+            {eventsData.length === 0 ? (
+              <View style={styles.noEventsContainer}>
+                <Ionicons name="calendar-outline" size={64} color="#4B5563" />
+                <Text style={styles.noEventsText}>No hay eventos para hoy</Text>
+                <Text style={styles.noEventsSubtext}>Sé el primero en añadir un evento</Text>
+              </View>
+            ) : (
+              eventsData.map((event) => (
+                <View key={event.event_id} style={styles.eventCard}>
+                  <View style={styles.eventHeader}>
+                    <View style={styles.eventTimeContainer}>
+                      <Ionicons name="time" size={18} color="#6366F1" />
+                      <Text style={styles.eventTime}>{event.event_time}</Text>
+                    </View>
+                    <Text style={styles.eventUsername}>@{event.username}</Text>
+                  </View>
+                  
+                  <View style={styles.eventBody}>
+                    <View style={styles.eventLocationRow}>
+                      <Ionicons name="location" size={18} color="#F59E0B" />
+                      <Text style={styles.eventLocation}>{event.location}</Text>
+                    </View>
+                    <Text style={styles.eventDescription}>{event.description}</Text>
+                  </View>
+
+                  <View style={styles.eventFooter}>
+                    <View style={styles.eventVotes}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.voteButton,
+                          event.user_vote === 'like' && styles.voteButtonActive
+                        ]}
+                        onPress={() => voteEvent(event.event_id, 'like')}
+                      >
+                        <Ionicons 
+                          name="thumbs-up" 
+                          size={20} 
+                          color={event.user_vote === 'like' ? '#10B981' : '#9CA3AF'} 
+                        />
+                        <Text style={[
+                          styles.voteCount,
+                          event.user_vote === 'like' && styles.voteCountActive
+                        ]}>{event.likes}</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={[
+                          styles.voteButton,
+                          event.user_vote === 'dislike' && styles.voteButtonActiveDislike
+                        ]}
+                        onPress={() => voteEvent(event.event_id, 'dislike')}
+                      >
+                        <Ionicons 
+                          name="thumbs-down" 
+                          size={20} 
+                          color={event.user_vote === 'dislike' ? '#EF4444' : '#9CA3AF'} 
+                        />
+                        <Text style={[
+                          styles.voteCount,
+                          event.user_vote === 'dislike' && styles.voteCountActiveDislike
+                        ]}>{event.dislikes}</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {event.is_owner && (
+                      <TouchableOpacity 
+                        style={styles.deleteEventButton}
+                        onPress={() => {
+                          Alert.alert(
+                            'Eliminar evento',
+                            '¿Estás seguro de que quieres eliminar este evento?',
+                            [
+                              { text: 'Cancelar', style: 'cancel' },
+                              { text: 'Eliminar', style: 'destructive', onPress: () => deleteEvent(event.event_id) }
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
         ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
