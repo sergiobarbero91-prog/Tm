@@ -232,7 +232,7 @@ type GpsApp = 'google' | 'waze';
 
 export default function TransportMeter() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events'>('street');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
   const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
@@ -257,6 +257,17 @@ export default function TransportMeter() {
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
   const [eventLoading, setEventLoading] = useState(false);
+
+  // Admin Panel states
+  const [adminUsers, setAdminUsers] = useState<User[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newUserUsername, setNewUserUsername] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'user' | 'moderator' | 'admin'>('user');
+  const [newUserPhone, setNewUserPhone] = useState('');
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
