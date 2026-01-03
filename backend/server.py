@@ -3046,14 +3046,18 @@ async def delete_event(
     event_id: str,
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Delete an event (only owner can delete)."""
+    """Delete an event (owner, moderator or admin can delete)."""
     try:
         event = await events_collection.find_one({"event_id": event_id})
         if not event:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
         
-        if event["user_id"] != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Solo el creador puede eliminar el evento")
+        user_role = current_user.get("role", "user")
+        is_owner = event["user_id"] == current_user["id"]
+        can_delete = is_owner or user_role in ["admin", "moderator"]
+        
+        if not can_delete:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este evento")
         
         await events_collection.delete_one({"event_id": event_id})
         
