@@ -1321,14 +1321,20 @@ export default function TransportMeter() {
         // First 1.4 km included in base fare of 8€
         const extra_km = Math.max(0, distance_km - 1.4);
         const extra_fare = extra_km * per_km_rate;
-        const total_fare = 8 + extra_fare;
+        const base_total = 8 + extra_fare;
+        
+        // Calculate range: +2% to +7%
+        const fare_min = base_total * 1.02;
+        const fare_max = base_total * 1.07;
         
         if (extra_km > 0) {
           tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
-          suplemento = `8,00€ + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€ = ${total_fare.toFixed(2)}€`;
+          suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
         } else {
           tarifa = 'Tarifa Estación';
-          suplemento = '8,00€';
+          const min_base = 8 * 1.02;
+          const max_base = 8 * 1.07;
+          suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
         }
       } catch (error) {
         console.log('Error calculating distance for station fare:', error);
@@ -1338,9 +1344,11 @@ export default function TransportMeter() {
     } else {
       // TERMINAL/AIRPORT FARE
       if (address.is_inside_m30) {
-        // Inside M30: Fixed fare of 33€
+        // Inside M30: Fixed fare of 33€ with range
+        const fare_min = 33 * 1.02;
+        const fare_max = 33 * 1.07;
         tarifa = 'Tarifa Fija';
-        suplemento = '33,00€';
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       } else {
         // Outside M30: 22€ for first 9 km + per km rate after that
         try {
@@ -1364,14 +1372,20 @@ export default function TransportMeter() {
           // First 9 km included in base fare of 22€
           const extra_km = Math.max(0, distance_km - 9);
           const extra_fare = extra_km * per_km_rate;
-          const total_fare = 22 + extra_fare;
+          const base_total = 22 + extra_fare;
+          
+          // Calculate range: +2% to +7%
+          const fare_min = base_total * 1.02;
+          const fare_max = base_total * 1.07;
           
           if (extra_km > 0) {
             tarifa = isNightOrWeekend ? 'Tarifa 3 + Tarifa 2' : 'Tarifa 3 + Tarifa 1';
-            suplemento = `22,00€ + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€ = ${total_fare.toFixed(2)}€`;
+            suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
           } else {
             tarifa = 'Tarifa 3';
-            suplemento = '22,00€';
+            const min_base = 22 * 1.02;
+            const max_base = 22 * 1.07;
+            suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
           }
         } catch (error) {
           console.log('Error calculating distance for airport fare:', error);
