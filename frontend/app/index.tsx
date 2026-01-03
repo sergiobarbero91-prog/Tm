@@ -1932,6 +1932,8 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
+      } else if (activeTab === 'admin') {
+        await fetchAdminUsers();
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -1939,7 +1941,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser, timeWindow, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData]);
+  }, [activeTab, shift, currentUser, timeWindow, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData, fetchAdminUsers]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
