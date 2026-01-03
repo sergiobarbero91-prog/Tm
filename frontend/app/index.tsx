@@ -904,20 +904,17 @@ export default function TransportMeter() {
       const isNightTime = hour >= 21 || hour < 6;
       const isNightOrWeekend = isWeekend || isNightTime;
       
-      let base_fare: number;
       let per_km_rate: number;
       
       if (isNightOrWeekend) {
-        // Night/Weekend fare: 3.20€ + 1.50€/km
-        base_fare = 3.20;
-        per_km_rate = 1.50;
+        // Night (21:00-6:00) or Weekend: 1.60€/km
+        per_km_rate = 1.60;
       } else {
-        // Day fare (Mon-Fri 6:00-21:00): 2.50€ + 1.20€/km
-        base_fare = 2.50;
-        per_km_rate = 1.20;
+        // Weekday (Mon-Fri 6:00-21:00): 1.40€/km
+        per_km_rate = 1.40;
       }
       
-      const fare_min = base_fare + (distance_km * per_km_rate);
+      const fare_min = distance_km * per_km_rate;
       const fare_max = fare_min * 1.05; // +5%
       
       setStreetFareResult({
@@ -925,7 +922,7 @@ export default function TransportMeter() {
         fare_min: fare_min,
         fare_max: fare_max,
         is_night_or_weekend: isNightOrWeekend,
-        base_fare: base_fare,
+        base_fare: 0,
         per_km_rate: per_km_rate
       });
       
