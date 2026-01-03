@@ -4103,7 +4103,7 @@ export default function TransportMeter() {
       {/* Street Fare Modal */}
       {showStreetFareModal && (
         <View style={styles.modalOverlay}>
-          <View style={styles.destinationModalContent}>
+          <View style={styles.destinationModal}>
             <Text style={styles.destinationTitle}>💵 Calcular Tarifa</Text>
             <Text style={styles.destinationSubtitle}>
               Introduce la dirección de destino
