@@ -1649,6 +1649,98 @@ export default function TransportMeter() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindow, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
 
+  // Fetch events data
+  const fetchEventsData = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/events`, {
+        params: { shift },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEventsData(response.data.events || []);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  }, [shift]);
+
+  // Create new event
+  const createEvent = async () => {
+    if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
+      Alert.alert('Error', 'Por favor, rellena todos los campos');
+      return;
+    }
+    
+    // Validate time format
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(newEventTime)) {
+      Alert.alert('Error', 'Formato de hora inválido. Usa HH:MM');
+      return;
+    }
+    
+    setEventLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/events`, {
+        location: newEventLocation.trim(),
+        description: newEventDescription.trim(),
+        event_time: newEventTime.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Reset form and close modal
+      setNewEventLocation('');
+      setNewEventDescription('');
+      setNewEventTime('');
+      setShowAddEventModal(false);
+      
+      // Refresh events
+      fetchEventsData();
+    } catch (error: any) {
+      console.error('Error creating event:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Error al crear el evento');
+    } finally {
+      setEventLoading(false);
+    }
+  };
+
+  // Vote on event
+  const voteEvent = async (eventId: string, voteType: 'like' | 'dislike') => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/events/${eventId}/vote`, {
+        vote_type: voteType
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update local state
+      setEventsData(prev => prev.map(event => 
+        event.event_id === eventId 
+          ? { ...event, likes: response.data.likes, dislikes: response.data.dislikes, user_vote: response.data.user_vote }
+          : event
+      ));
+    } catch (error) {
+      console.error('Error voting:', error);
+    }
+  };
+
+  // Delete event
+  const deleteEvent = async (eventId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/events/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Remove from local state
+      setEventsData(prev => prev.filter(event => event.event_id !== eventId));
+    } catch (error: any) {
+      console.error('Error deleting event:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar el evento');
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
