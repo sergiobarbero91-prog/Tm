@@ -3578,7 +3578,7 @@ export default function TransportMeter() {
                       </TouchableOpacity>
                     </View>
 
-                    {event.is_owner && (
+                    {event.can_delete && (
                       <TouchableOpacity 
                         style={styles.deleteEventButton}
                         onPress={() => {
