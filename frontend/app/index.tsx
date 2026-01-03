@@ -1752,6 +1752,134 @@ export default function TransportMeter() {
     }
   };
 
+  // ========== ADMIN FUNCTIONS ==========
+  
+  // Fetch all users (admin only)
+  const fetchAdminUsers = useCallback(async () => {
+    if (currentUser?.role !== 'admin') return;
+    
+    setAdminLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminUsers(response.data);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      Alert.alert('Error', 'No se pudieron cargar los usuarios');
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [currentUser?.role]);
+
+  // Create new user (admin only)
+  const createUser = async () => {
+    if (!newUserUsername.trim() || !newUserPassword.trim()) {
+      Alert.alert('Error', 'Usuario y contraseña son obligatorios');
+      return;
+    }
+
+    setAdminLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/admin/users`, {
+        username: newUserUsername.trim(),
+        password: newUserPassword,
+        role: newUserRole,
+        phone: newUserPhone.trim() || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert('Éxito', 'Usuario creado correctamente');
+      setShowCreateUserModal(false);
+      setNewUserUsername('');
+      setNewUserPassword('');
+      setNewUserRole('user');
+      setNewUserPhone('');
+      fetchAdminUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Error al crear usuario');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // Update user role (admin only)
+  const updateUserRole = async (userId: string, newRole: string) => {
+    setAdminLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/admin/users/${userId}`, {
+        role: newRole
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert('Éxito', 'Rol actualizado correctamente');
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      fetchAdminUsers();
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Error al actualizar usuario');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // Delete user (admin only)
+  const deleteUser = async (userId: string, username: string) => {
+    Alert.alert(
+      'Eliminar Usuario',
+      `¿Estás seguro de que quieres eliminar a "${username}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setAdminLoading(true);
+            try {
+              const token = await AsyncStorage.getItem('token');
+              await axios.delete(`${API_BASE}/api/admin/users/${userId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+
+              Alert.alert('Éxito', 'Usuario eliminado');
+              fetchAdminUsers();
+            } catch (error: any) {
+              console.error('Error deleting user:', error);
+              Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar usuario');
+            } finally {
+              setAdminLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Get role badge color
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin': return '#EF4444';
+      case 'moderator': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
+
+  // Get role display name
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrador';
+      case 'moderator': return 'Moderador';
+      default: return 'Usuario';
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
