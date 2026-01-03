@@ -4258,6 +4258,183 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Create User Modal (Admin) */}
+      {showCreateUserModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.addEventModal}>
+            <View style={styles.addEventHeader}>
+              <Ionicons name="person-add" size={48} color="#EF4444" />
+              <Text style={styles.addEventTitle}>Crear Usuario</Text>
+              <Text style={styles.addEventSubtitle}>Añade un nuevo usuario al sistema</Text>
+            </View>
+            
+            <View style={styles.addEventForm}>
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>👤 Nombre de usuario</Text>
+                <TextInput
+                  style={styles.addEventInput}
+                  placeholder="Ej: taxista1"
+                  placeholderTextColor="#6B7280"
+                  value={newUserUsername}
+                  onChangeText={setNewUserUsername}
+                  autoCapitalize="none"
+                  maxLength={50}
+                />
+              </View>
+              
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>🔒 Contraseña</Text>
+                <TextInput
+                  style={styles.addEventInput}
+                  placeholder="Contraseña"
+                  placeholderTextColor="#6B7280"
+                  value={newUserPassword}
+                  onChangeText={setNewUserPassword}
+                  secureTextEntry
+                  maxLength={100}
+                />
+              </View>
+
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>📞 Teléfono (opcional)</Text>
+                <TextInput
+                  style={styles.addEventInput}
+                  placeholder="Ej: 600123456"
+                  placeholderTextColor="#6B7280"
+                  value={newUserPhone}
+                  onChangeText={setNewUserPhone}
+                  keyboardType="phone-pad"
+                  maxLength={20}
+                />
+              </View>
+              
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>🏷️ Rol</Text>
+                <View style={styles.roleSelector}>
+                  <TouchableOpacity
+                    style={[styles.roleOption, newUserRole === 'user' && styles.roleOptionActive]}
+                    onPress={() => setNewUserRole('user')}
+                  >
+                    <Text style={[styles.roleOptionText, newUserRole === 'user' && styles.roleOptionTextActive]}>Usuario</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleOption, newUserRole === 'moderator' && styles.roleOptionActiveMod]}
+                    onPress={() => setNewUserRole('moderator')}
+                  >
+                    <Text style={[styles.roleOptionText, newUserRole === 'moderator' && styles.roleOptionTextActive]}>Moderador</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleOption, newUserRole === 'admin' && styles.roleOptionActiveAdmin]}
+                    onPress={() => setNewUserRole('admin')}
+                  >
+                    <Text style={[styles.roleOptionText, newUserRole === 'admin' && styles.roleOptionTextActive]}>Admin</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={styles.addEventButtons}>
+                <TouchableOpacity
+                  style={styles.addEventCancelButton}
+                  onPress={() => {
+                    setShowCreateUserModal(false);
+                    setNewUserUsername('');
+                    setNewUserPassword('');
+                    setNewUserRole('user');
+                    setNewUserPhone('');
+                  }}
+                >
+                  <Text style={styles.addEventCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.adminSubmitButton,
+                    (!newUserUsername.trim() || !newUserPassword.trim()) && styles.addEventSubmitButtonDisabled
+                  ]}
+                  onPress={createUser}
+                  disabled={adminLoading || !newUserUsername.trim() || !newUserPassword.trim()}
+                >
+                  {adminLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                      <Text style={styles.addEventSubmitButtonText}>Crear</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Edit User Role Modal (Admin) */}
+      {showEditUserModal && editingUser && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.addEventModal}>
+            <View style={styles.addEventHeader}>
+              <Ionicons name="create" size={48} color="#3B82F6" />
+              <Text style={styles.addEventTitle}>Cambiar Rol</Text>
+              <Text style={styles.addEventSubtitle}>Usuario: {editingUser.username}</Text>
+            </View>
+            
+            <View style={styles.addEventForm}>
+              <View style={styles.addEventInputGroup}>
+                <Text style={styles.addEventLabel}>🏷️ Nuevo Rol</Text>
+                <View style={styles.roleSelector}>
+                  <TouchableOpacity
+                    style={[styles.roleOption, editingUser.role === 'user' && styles.roleOptionActive]}
+                    onPress={() => setEditingUser({...editingUser, role: 'user'})}
+                  >
+                    <Text style={[styles.roleOptionText, editingUser.role === 'user' && styles.roleOptionTextActive]}>Usuario</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleOption, editingUser.role === 'moderator' && styles.roleOptionActiveMod]}
+                    onPress={() => setEditingUser({...editingUser, role: 'moderator'})}
+                  >
+                    <Text style={[styles.roleOptionText, editingUser.role === 'moderator' && styles.roleOptionTextActive]}>Moderador</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleOption, editingUser.role === 'admin' && styles.roleOptionActiveAdmin]}
+                    onPress={() => setEditingUser({...editingUser, role: 'admin'})}
+                  >
+                    <Text style={[styles.roleOptionText, editingUser.role === 'admin' && styles.roleOptionTextActive]}>Admin</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={styles.addEventButtons}>
+                <TouchableOpacity
+                  style={styles.addEventCancelButton}
+                  onPress={() => {
+                    setShowEditUserModal(false);
+                    setEditingUser(null);
+                  }}
+                >
+                  <Text style={styles.addEventCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.adminSubmitButton}
+                  onPress={() => updateUserRole(editingUser.id, editingUser.role)}
+                  disabled={adminLoading}
+                >
+                  {adminLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                      <Text style={styles.addEventSubmitButtonText}>Guardar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* SOS Modal */}
       {showSosModal && (
         <View style={styles.modalOverlay}>
