@@ -422,7 +422,7 @@ async def get_admin_user(credentials: HTTPAuthorizationCredentials = Depends(sec
     return user
 
 async def create_default_admin():
-    """Create default admin user if it doesn't exist."""
+    """Create default admin user if it doesn't exist, or update existing if role is missing."""
     existing_admin = await users_collection.find_one({"username": "admin"})
     if not existing_admin:
         admin_user = {
@@ -436,6 +436,20 @@ async def create_default_admin():
         }
         await users_collection.insert_one(admin_user)
         logger.info("Default admin user created: admin/admin")
+    else:
+        # Ensure admin user has admin role
+        if existing_admin.get("role") != "admin":
+            await users_collection.update_one(
+                {"username": "admin"},
+                {"$set": {"role": "admin", "updated_at": datetime.utcnow()}}
+            )
+            logger.info("Updated admin user to have admin role")
+    
+    # Ensure all users have a role field
+    await users_collection.update_many(
+        {"role": {"$exists": False}},
+        {"$set": {"role": "user"}}
+    )
 
 # Headers for requests
 HEADERS = {
