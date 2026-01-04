@@ -297,6 +297,28 @@ export default function TransportMeter() {
   const [profilePreferredShift, setProfilePreferredShift] = useState<'all' | 'day' | 'night'>('all');
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Chat states
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatChannels, setChatChannels] = useState<Array<{
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    can_write: boolean;
+  }>>([]);
+  const [activeChannel, setActiveChannel] = useState<string>('global');
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string;
+    user_id: string;
+    username: string;
+    full_name: string | null;
+    message: string;
+    created_at: string;
+  }>>([]);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [canWriteChat, setCanWriteChat] = useState(true);
+
   // Emergency SOS states
   const [showSosModal, setShowSosModal] = useState(false);
   const [myActiveAlert, setMyActiveAlert] = useState<{
