@@ -347,9 +347,25 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     role: str = "user"
 
+class UserRegister(BaseModel):
+    """Model for public user registration"""
+    username: str
+    password: str
+    full_name: str
+    license_number: str  # Numeric only
+    phone: Optional[str] = None
+    preferred_shift: Optional[str] = "all"  # 'all', 'day', 'night'
+
 class UserUpdate(BaseModel):
     phone: Optional[str] = None
     role: Optional[str] = None
+
+class UserProfileUpdate(BaseModel):
+    """Model for user self-profile update"""
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    preferred_shift: Optional[str] = None
 
 class PasswordChange(BaseModel):
     current_password: Optional[str] = None  # Optional for admin changing others
@@ -362,8 +378,11 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: str
     username: str
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
     phone: Optional[str] = None
     role: str
+    preferred_shift: Optional[str] = "all"
     created_at: datetime
 
 class TokenResponse(BaseModel):
