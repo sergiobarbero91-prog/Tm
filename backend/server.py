@@ -63,6 +63,7 @@ active_checkins_collection = db['active_checkins']  # Persistent active check-in
 emergency_alerts_collection = db['emergency_alerts']  # Emergency SOS alerts
 hottest_street_cache_collection = db['hottest_street_cache']  # Persistent hottest street cache
 events_collection = db['events']  # User-created events
+chat_messages_collection = db['chat_messages']  # Chat messages for all channels
 
 # Create the main app without a prefix
 app = FastAPI()
