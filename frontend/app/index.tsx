@@ -2407,6 +2407,19 @@ export default function TransportMeter() {
     }
   }, [currentUser, fetchCheckInStatus]);
 
+  // Fetch license alerts unread count periodically
+  useEffect(() => {
+    if (currentUser) {
+      fetchAlertsUnreadCount();
+      
+      // Refresh unread count every 30 seconds
+      const interval = setInterval(() => {
+        fetchAlertsUnreadCount();
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser, fetchAlertsUnreadCount]);
+
   // Fetch data when logged in or when time window changes
   useEffect(() => {
     if (currentUser) {
