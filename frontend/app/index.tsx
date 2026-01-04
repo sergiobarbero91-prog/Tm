@@ -4131,6 +4131,31 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
             
+            {/* Profile Section */}
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Mi Perfil</Text>
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => {
+                  setShowSettings(false);
+                  openProfileModal();
+                }}
+              >
+                <View style={styles.profileButtonContent}>
+                  <Ionicons name="person-circle" size={40} color="#6366F1" />
+                  <View style={styles.profileButtonInfo}>
+                    <Text style={styles.profileButtonName}>
+                      {currentUser?.full_name || currentUser?.username}
+                    </Text>
+                    <Text style={styles.profileButtonLicense}>
+                      {currentUser?.license_number ? `Licencia: ${currentUser.license_number}` : 'Completar perfil'}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>GPS Externo</Text>
               <Text style={styles.settingsDescription}>
@@ -4193,6 +4218,126 @@ export default function TransportMeter() {
               <Text style={styles.settingsCloseButtonText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {/* Profile Edit Modal */}
+      {showProfileModal && (
+        <View style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={styles.profileModalScrollContainer}>
+            <View style={styles.profileModal}>
+              <View style={styles.profileModalHeader}>
+                <Ionicons name="person-circle" size={60} color="#6366F1" />
+                <Text style={styles.profileModalTitle}>Mi Perfil</Text>
+                <Text style={styles.profileModalSubtitle}>@{currentUser?.username}</Text>
+              </View>
+              
+              <View style={styles.profileForm}>
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>Nombre completo *</Text>
+                  <TextInput
+                    style={styles.profileInput}
+                    value={profileFullName}
+                    onChangeText={setProfileFullName}
+                    placeholder="Tu nombre completo"
+                    placeholderTextColor="#6B7280"
+                  />
+                </View>
+                
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>Número de licencia *</Text>
+                  <TextInput
+                    style={styles.profileInput}
+                    value={profileLicenseNumber}
+                    onChangeText={setProfileLicenseNumber}
+                    placeholder="Solo números"
+                    placeholderTextColor="#6B7280"
+                    keyboardType="numeric"
+                  />
+                </View>
+                
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>Teléfono</Text>
+                  <TextInput
+                    style={styles.profileInput}
+                    value={profilePhone}
+                    onChangeText={setProfilePhone}
+                    placeholder="Tu número de teléfono"
+                    placeholderTextColor="#6B7280"
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>Turno de preferencia</Text>
+                  <View style={styles.profileShiftSelector}>
+                    <TouchableOpacity
+                      style={[
+                        styles.profileShiftOption,
+                        profilePreferredShift === 'day' && styles.profileShiftOptionActiveDay
+                      ]}
+                      onPress={() => setProfilePreferredShift('day')}
+                    >
+                      <Ionicons name="sunny" size={20} color={profilePreferredShift === 'day' ? '#FFFFFF' : '#F59E0B'} />
+                      <Text style={[
+                        styles.profileShiftOptionText,
+                        profilePreferredShift === 'day' && styles.profileShiftOptionTextActive
+                      ]}>Día</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.profileShiftOption,
+                        profilePreferredShift === 'all' && styles.profileShiftOptionActiveAll
+                      ]}
+                      onPress={() => setProfilePreferredShift('all')}
+                    >
+                      <Ionicons name="time" size={20} color={profilePreferredShift === 'all' ? '#FFFFFF' : '#6366F1'} />
+                      <Text style={[
+                        styles.profileShiftOptionText,
+                        profilePreferredShift === 'all' && styles.profileShiftOptionTextActive
+                      ]}>Todo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.profileShiftOption,
+                        profilePreferredShift === 'night' && styles.profileShiftOptionActiveNight
+                      ]}
+                      onPress={() => setProfilePreferredShift('night')}
+                    >
+                      <Ionicons name="moon" size={20} color={profilePreferredShift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
+                      <Text style={[
+                        styles.profileShiftOptionText,
+                        profilePreferredShift === 'night' && styles.profileShiftOptionTextActive
+                      ]}>Noche</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.profileButtons}>
+                <TouchableOpacity
+                  style={styles.profileCancelButton}
+                  onPress={() => setShowProfileModal(false)}
+                >
+                  <Text style={styles.profileCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.profileSaveButton}
+                  onPress={handleUpdateProfile}
+                  disabled={profileLoading}
+                >
+                  {profileLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                      <Text style={styles.profileSaveButtonText}>Guardar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
         </View>
       )}
 
