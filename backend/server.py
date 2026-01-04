@@ -22,6 +22,7 @@ from passlib.context import CryptContext
 
 # Import routers
 from routers import auth as auth_router
+from routers import chat as chat_router
 
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
