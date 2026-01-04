@@ -3,182 +3,184 @@
 <original_problem_statement>
 The user's application is a logistics and transport monitoring tool for Madrid, designed for taxi drivers.
 
-During this session, the user's requests evolved significantly:
-1.  **Persist Hottest Street Data:** The initial task was to fix an architectural flaw where the Hottest Street calculation was performed in-memory on every request and lost on server restart. The goal was to make this data persistent.
-2.  **Improve Distance Calculation:** The user reported that fare estimates were inaccurate because the distance was calculated as the crow flies (Haversine formula). The request was to use a service that calculates real driving routes.
-3.  **Fix Critical Frontend Crashes:** The user reported two different critical crashes on the Street tab: one was a removeChild error, and the subsequent fix introduced a Maximum call stack size exceeded error.
-4.  **Improve Address Search:** The address search for fare calculation was slow and did not handle street numbers well.
-5.  **Fix GPS Navigation Flow:** A major bug was identified where opening GPS navigation from the fare calculator would first open the GPS app without a destination, and then open a browser tab with the correct destination. The user wanted a direct, one-step navigation launch, identical to how it worked from terminal/station exits.
-6.  **Optimize Calle Tab Performance:** The Calle tab was slow to load. The user requested it be made the default tab and that its performance be improved.
-7.  **Correct Data Freshness:** Taxi and queue status reports on the Street tab cards were showing data from days ago. The request was to ensure this data was recent.
-8.  **Overhaul All Fare Calculations:** The user provided multiple, detailed new rules for all fare types:
-    *   **Street Fares:** New base rates, per-km rates, and a fare range (+2% to +7%).
-    *   **Airport Fares:** A fixed rate of €33 for destinations inside the M30 ring road. For destinations outside, a base rate of €22 for the first 9km, plus a variable per-km rate.
-    *   **Station Fares:** A new modal and calculation logic for train station pickups, with a base rate of €8 for the first 1.4km, plus a variable per-km rate.
-9.  **New Major Feature: Events Tab:** The user requested an entirely new section in the app for user-submitted events. This includes:
-    *   A new Events tab.
-    *   A scrollable list of events for the current day/shift.
-    *   A modal to create new events (location, description, time).
-    *   Event cards showing details with Like and Dislike buttons and counters.
-    *   Events should be sorted by time and number of likes.
+**Latest User Requests:**
+1.  **Feature: User Roles (Admin/Moderator/User):** The user requested three roles. Administrators should be the only ones who can manage roles via a new admin panel. The existing  user should be an administrator.
+2.  **Feature: Extended User Profile & Registration:** The user wants a full registration flow accessible from the login screen. User profiles must be expanded to include , , , and .  and  are mandatory. Existing users should be able to edit their profiles from the settings page.
+3.  **Feature: Multi-Channel Chat System:** The user requested a chat system with three channels accessible via a new dropdown button:
+    *   **Global Chat:** All users can read and write.
+    *   **Notices Chat:** All users can read, but only Moderators and Admins can write.
+    *   **Admin Chat:** Only Admins can see, read, and write.
+    *   Moderators and Admins must be able to delete any message in any channel they can access.
+4.  **Feature: License-Based Alert System:** The user wants a system to send alerts to other drivers using their license number.
+    *   A new button in the header should open an alerts modal. The button should be highlighted if there are unread alerts.
+    *   The creation form must search for existing license numbers and provide suggestions, preventing alerts from being sent to non-existent licenses.
+    *   Alerts should show who sent them (name and license number).
+5.  **Feature: Advanced Time Window Selector:** The user wants to replace the simple 30m/60m time window toggle on the Street tab. The new system should:
+    *   Have smaller 30 and 60 minute buttons.
+    *   Include a dropdown to select specific 1-hour time slots from a range of 12 hours in the past to 12 hours in the future.
+    *   The application should store/cache the data for these past/future windows.
+
 </original_problem_statement>
 
 **User's preferred language**: español
 
 **what currently exists?**
-A full-stack application with a monolithic React Native (Expo) frontend () and a monolithic Python (FastAPI) backend ().
-- **Backend:** The backend now persists the Hottest Street calculation in a dedicated MongoDB collection (), updated by a background task. It also features a new proxy endpoint () that queries the public OSRM API to get accurate road distances. A full set of CRUD endpoints for a new Events feature () has been created. The queries for taxi/queue status have been updated to filter by time correctly.
-- **Frontend:** The  monolith has grown significantly. It now contains the complete, complex, and multi-tiered fare calculation logic for Street, Airport, and Station pickups, including calls to the new backend distance endpoint. A series of critical crashes related to tab-switching have been resolved by simplifying the state transition logic. The GPS navigation flow has been fixed. The Events tab has been partially implemented, including the tab button, states, API functions, and the basic UI structure for the list and creation modal.
+A full-stack application with a monolithic React Native (Expo) frontend () and a monolithic Python (FastAPI) backend (). The application now includes:
+- **User Authentication & Roles:** A complete system for registration, login, and role-based access control (user, moderator, admin).
+- **Admin Panel:** A dedicated Admin tab in the frontend where administrators can view, create, edit roles of, and delete users.
+- **Extended User Profiles:** User documents in MongoDB now store , , , and .
+- **Events Feature:** A tab for users to post and vote on real-time events like traffic jams or police controls.
+- **Multi-Channel Chat:** A real-time chat modal with three separate channels (Global, Notices, Admin) with role-based write and delete permissions.
+- **Alert System:** A system for sending direct alerts (e.g., lost item) to other drivers by searching for their license number with an autocomplete feature.
+- **Time Window Selector (Partial):** The UI on the Street tab has been updated to include a new dropdown button for selecting time ranges, but the functionality is incomplete.
 
 **Last working item**:
-    - Last item agent was working: Implementing the new Events feature. The agent had just finished adding the backend endpoints and was in the process of building out the frontend UI in . The last actions were adding the Events tab to the UI, creating the conditional rendering block for the tab's content, and scaffolding the modal for adding new events.
+    - Last item agent was working: Implementing the advanced time window selector for the Street tab. The agent successfully added the necessary frontend states (, ), created the logic to generate the past/future time slots (), and updated the UI to replace the old buttons with a new layout including a dropdown button.
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Finish and Verify Events Tab Feature (P0)
+  - Issue 1: Complete and Connect Time Window Selector (P0)
   - Issue 2: Refactor Monolithic Files (P1)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent has created the backend endpoints (create, list, vote, delete) and the corresponding MongoDB collection. On the frontend, the tab has been added to the UI, and the necessary states, API client functions, and basic JSX structure for the list and Add Event modal have been added to .
+     - Attempted fixes: The frontend UI button and state management are in place. The agent added  state and a function  to create the list of time slots. The UI was updated to show a new button.
      - Next debug checklist: 
-        1.  Complete the  function for the Events  to correctly display event data on cards.
-        2.  Wire up the state management and API calls for the Add Event modal form.
-        3.  Implement the  logic for the Like/Dislike buttons to call the  API function and update the UI.
-        4.  Implement the logic for the delete event button (for the event creator).
-        5.  Thoroughly test the entire CRUD and voting flow for events.
-     - Why fix this issue and what will be achieved with the fix? This will complete a major new feature request, adding a community-driven events section to the application.
+        1.  **Frontend:** Implement the actual dropdown/modal UI that appears when the  button is pressed in . This modal should list the options from  and update  on selection.
+        2.  **Backend:** Modify the data-fetching endpoint for the Street tab () in  to accept  and  query parameters.
+        3.  **Backend:** Update the data aggregation logic in that endpoint to filter  and other relevant data based on the provided time range instead of just the last X minutes.
+        4.  **Frontend:** Modify the  function in  to pass the  to the backend when fetching street data.
+     - Why fix this issue and what will be achieved with the fix? This will complete a key feature request, allowing users to time travel and see predictions or historical data for station/street activity, a significant enhancement to the app's core functionality.
      - Status:  IN PROGRESS
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
   - Issue 2: 
-     - Attempted fixes: None. This is a technical debt issue that has been deferred. However, its negative impact was felt during this session, as the agent struggled to debug crashes caused by complex state interactions within the single  file.
+     - Attempted fixes: None. This is a long-standing technical debt issue.
      - Next debug checklist: 
-        1.  Create a plan to break  into smaller, reusable components (e.g., , , ).
-        2.  Extract complex logic into custom hooks (e.g., , ).
-        3.  Break  into multiple routers for different domains (auth, street, events, etc.).
-     - Why fix this issue and what will be achieved with the fix? It will dramatically improve maintainability, reduce the risk of introducing new bugs, and make future development much faster and safer. The current monolithic structure is a significant liability.
+        1.  Plan and execute the refactoring of  into smaller, manageable components (, , , , etc.) and custom hooks.
+        2.  Plan and execute the refactoring of  into separate FastAPI routers (, , , , etc.).
+     - Why fix this issue and what will be achieved with the fix? The application is becoming critically unstable and difficult to maintain due to the giga-monolithic files. Refactoring is essential for future development, stability, and bug prevention.
      - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: Complete Events Tab Feature (P0)
+  - Task 1: Complete Time Window Selector (P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: In . The skeleton for the Events feature is in place. The next step is to flesh out the rendering of event cards, the logic for the Add Event modal, and the functionality of the like/dislike buttons.
-     - What will be achieved with this? A fully functional Events tab as requested by the user.
+     - Where to resume: In . The agent was about to add the modal for the time range dropdown. The next step is to create this modal UI component, then connect it to the backend.
+     - What will be achieved with this? A fully functional time selector on the Street tab.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None.
+     - Blocked on something: The backend logic for filtering by time is not yet implemented.
 
 **Upcoming and Future Tasks**
     Future Tasks:
-    - (P2) Implement Push Notifications (as a more efficient alternative to polling for SOS alerts).
+    - (P2) Implement Push Notifications (as a more efficient alternative to polling for SOS/License alerts).
     - (P3) Assist with deployment.
 
 **Completed work in this session**
-- **CRITICAL Architectural Fix:** Hottest Street data is now persistent. The calculation was moved to a background task in  that saves the result to a  collection in MongoDB.
-- **Feature: Accurate Road Distance Calculation:** Replaced the straight-line Haversine distance calculation with a new backend endpoint () that uses the OSRM routing engine. This is now used for all fare calculations.
-- **Feature: New Events Backend:** Created a full set of CRUD and voting endpoints in  and a new  collection in MongoDB.
-- **Feature Overhaul: Comprehensive Fare Calculation:** The entire fare calculation logic was rewritten in  to accommodate complex new rules for Street, Airport (M30 vs. outside), and Train Station pickups, including different base rates, per-km rates, and fare ranges (+2% to +7%).
-- **Bug Fix: Critical Frontend Crashes:** Resolved a removeChild error and a subsequent Maximum call stack size exceeded error on the Street tab by removing a faulty -based transition logic.
-- **Bug Fix: GPS Navigation Double-Open:** Fixed a major bug where navigating from the fare calculator would open the GPS app twice. The root cause was an erroneous call to  inside the  function, which was corrected.
-- **Bug Fix: Data Freshness on Street Cards:** Modified queries in  and related endpoints to ensure taxi/queue status reports are filtered to the last 24 hours.
-- **Enhancement: Improved Address Search:** Switched the backend address search from Nominatim to the faster Photon API and reduced the frontend debounce time, resulting in much faster and more accurate address suggestions.
-- **Enhancement: Calle Tab Default and Performance:** Set the Calle tab as the default and optimized its load time by parallelizing its data fetch requests using .
+- **Feature: User Roles & Admin Panel:** Implemented , , and  roles. Created a new Admin tab visible only to admins, allowing user management (view, create, edit roles, delete).
+- **Feature: Registration & Profile:** Added a full user registration screen with fields for name, license, phone, and shift. Integrated a My Profile edit modal in the settings.
+- **Feature: Multi-Channel Chat:** Created a full-featured chat system with a modal, three permission-based channels (Global, Notices, Admin), and message deletion for moderators/admins.
+- **Feature: License Alert System:** Built a system for sending alerts to specific users by searching for their license number with an autocomplete UI. A new header button shows unread alert counts and provides access.
+- **UI: Header Redesign:** Removed the static TransportMeter title from the header and replaced it with a dynamic layout including the app logo, the new Alerts button, and the Settings button.
 
 **Earlier issues found/mentioned but not fixed**
    - A  warning  still appears in backend logs but has been ignored as non-critical.
 
 **Known issue recurrence from previous fork**
-  - **Hottest Street Persistence:** This recurring issue was **RESOLVED** in this session.
-  - **Frontend Crash on Street Tab:** This was a recurring issue that manifested in different ways (removeChild, Maximum call stack). It was addressed and appears to be resolved, but the underlying complexity of the monolithic component remains a risk.
+  - **Frontend/Backend Monoliths:** This is a recurring and worsening issue. The complexity of  and  is extremely high, increasing the risk of bugs and slowing down development.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Python, MongoDB (), Pydantic, , Shapely.
-- **Frontend:** React Native, Expo, TypeScript, , React Hooks, .
-- **Routing Service:** **OSRM (Open Source Routing Machine)** is now used via a backend proxy for accurate driving distance calculations.
-- **Geocoding:** Switched from Nominatim to **Photon** for faster address search.
-- **Persistence:** Hottest Street cache is now persistent in MongoDB.
-- **State Management:** Local React state () and  for all UI and data states.
+- **Backend:** FastAPI, Python, MongoDB (), Pydantic.
+- **Frontend:** React Native, Expo, TypeScript, , React Hooks.
+- **State Management:** Local React state (, ) exclusively.
+- **Architecture:** Monolithic frontend and backend.
+- **Key Features:** Role-Based Access Control (RBAC), Real-time data visualization, community features (Events, Chat), direct messaging (Alerts).
 
 **key DB schema**
-  - **users**: 
+  - **users**:  (Heavily updated)
+  - **events**: 
+  - **chat_messages**:  (New)
+  - **license_alerts**:  (New)
+  - **hottest_street_cache**: 
   - **activities**: 
   - **active_checkins**: 
   - **emergency_alerts**: 
-  - **hottest_street_cache**:  (New)
-  - **events**:  (New)
 
 **All files of reference**
-- : Heavily modified. Added Hottest Street persistence logic, new OSRM proxy endpoint, and a complete set of new endpoints for the Events feature. Corrected time-based queries.
-- : Massively modified. Implemented fixes for critical crashes, overhauled the GPS navigation flow, completely rewrote all fare calculation logic, optimized data loading, and added the partial implementation of the new Events feature (state, API calls, tab UI, and modal).
+- : Heavily modified. Added dozens of new endpoints and models for user registration, profiles, admin management, chat, and alerts.
+- : Massively modified. Hundreds of lines added for new states, functions, and JSX to implement the registration page, admin panel, chat modal, alerts modal, and profile editor. The file is now critically oversized.
 
 **Areas that need refactoring**:
-- **CRITICAL:  Monolith:** This file has become unmanageably large and complex. It urgently needs to be broken down into smaller components (e.g., , , ), custom hooks (e.g., , ), and potentially a state management library like Zustand. The risk of regressions and bugs is extremely high.
-- **CRITICAL:  Monolith:** This file should be broken into separate FastAPI routers for each domain (e.g., , , ) to improve organization and maintainability.
+- **CRITICAL:  Monolith:** This file is now beyond unmanageable. It MUST be broken down into components and custom hooks. The risk of regressions is absolute.
+- **CRITICAL:  Monolith:** This file should be broken into FastAPI routers to improve maintainability.
 
 **key api endpoints**
--  (POST): New. Proxies a request to OSRM to get real driving distance.
--  (POST): New. Create a new event.
--  (GET): New. Get a list of events, sorted by time and likes.
--  (POST): New. Add a like or dislike to an event.
--  (DELETE): New. Delete an event.
--  (GET): Modified to read from the new persistent cache and to filter taxi data correctly.
--  (GET): Modified to filter reports by time correctly.
--  (GET): Modified to filter reports by time correctly.
--  (POST): Modified to use the Photon API instead of Nominatim.
+-  (POST): New.
+-  (PUT): New.
+-  (GET, POST),  (PUT, DELETE): New.
+-  (GET): New.
+-  (GET, POST): New.
+-  (DELETE): New.
+-  (POST): New.
+-  (GET): New.
+-  (GET): New.
+-  (POST): New.
+-  (GET): New.
 
 **Critical Info for New Agent**
-- **Monoliths are the Main Risk:** The  and  files are extremely large. Be very careful when making changes. Use search functionality extensively and be aware of the high potential for side effects. Refactoring is now a high-priority task.
-- **Events Feature is Incomplete:** You will be resuming work on the Events tab. The backend is mostly done, but the frontend needs the UI components (cards, modal form) to be fully implemented and connected to the API functions.
-- **Fare Logic is Complex:** The fare calculation logic in  ( and ) is now very complex, with different rules for streets, airports (inside/outside M30), and stations. Be cautious if you need to modify it.
-- **GPS Navigation is Sensitive:** The logic for opening GPS apps, especially on web vs. mobile, is delicate. The key fix was removing an erroneous  call from the  function. Do not reintroduce this.
+- **TIME WINDOW FEATURE IS HALF-DONE:** You are resuming work on the time window selector. The frontend UI button and state generation are done, but you must: **1)** Build the dropdown modal UI in the frontend. **2)** **Crucially, modify the backend endpoint () to accept and filter by a time range.** The backend part of this task has not been started.
+- **MONOLITHS ARE THE #1 RISK:** Be extremely careful when editing  and . Use search extensively. A small change can have unintended side effects. Refactoring is no longer optional; it's a critical stability task.
+- **APP IS FEATURE-RICH BUT FRAGILE:** The agent has added many complex, interconnected features in a single file. Test thoroughly after any change.
+
+**documents created in this job**
+  - None.
 
 **Last 10 User Messages and any pending HUMAN messages** 
-- 10. User requests a new Events tab with specific features. (Status: **IN PROGRESS**)
-- 9. User specifies the airport fare is a fixed €33 inside the M30. (Status: **RESOLVED**)
-- 8. User requests a +2% to +7% fare range for station and terminal fares. (Status: **RESOLVED**)
-- 7. User specifies fare rules for train station pickups. (Status: **RESOLVED**)
-- 6. User provides new, more complex fare rules for street and airport pickups. (Status: **RESOLVED**)
-- 5. User provides a screen recording showing the complex GPS bug (opens twice). (Status: **RESOLVED**)
-- 4. User reports GPS still does not open the native app directly from the browser. (Status: **RESOLVED**)
-- 3. User reports fare calculation doesn't respect one-way streets. (Status: **RESOLVED**)
-- 2. User reports address search is slow/bad and GPS opens in browser. (Status: **RESOLVED**)
-- 1. User reports the Street tab crashes with Maximum call stack size exceeded. (Status: **RESOLVED**)
+ - 10. User confirms the design for the advanced time window selector (12 hours past/future, dropdown). (Status: **IN PROGRESS**)
+ - 9. User requests an advanced time window selector for the Street tab. (Status: **IN PROGRESS**)
+ - 8. User confirms the design for the license autocomplete feature for alerts. (Status: **RESOLVED**)
+ - 7. User requests that an alert can only be sent if the license number exists in the DB, and asks for autocomplete suggestions. (Status: **RESOLVED**)
+ - 6. User confirms the UI placement for the new Alerts button. (Status: **RESOLVED**)
+ - 5. User requests a new system for sending alerts to other drivers by license number. (Status: **RESOLVED**)
+ - 4. User requests that moderators and admins be able to delete chat messages. (Status: **RESOLVED**)
+ - 3. User confirms the design for the 3-channel chat system. (Status: **RESOLVED**)
+ - 2. User requests a global chat system with different channels and permissions. (Status: **RESOLVED**)
+ - 1. User confirms the design for the user registration/profile feature. (Status: **RESOLVED**)
 
 **Project Health Check:**
-- **Broken:** The Events feature is incomplete and therefore not functional.
+- **Broken:** The new time window selection feature is incomplete and non-functional. The UI is present but not connected to anything.
 - **Mocked:** None.
 
 **3rd Party Integrations**
-- **OSRM (Open Source Routing Machine):** Used for calculating real driving distances. Accessed via a public demo server.
-- **Photon:** Used for geocoding and address search. Replaced Nominatim. No API key required.
-- **OpenStreetMap:** Used via a / on the frontend for map display.
-- **ADIF & AENA APIs:** Unofficial endpoints for train and flight data.
-- **Google Maps / Waze:** External navigation via URL schemes.
+- **OSRM (Open Source Routing Machine):** For driving distances.
+- **Photon:** For geocoding/address search.
+- **OpenStreetMap:** For map display.
+- **ADIF & AENA APIs:** For train and flight data.
+- **Google Maps / Waze:** For external navigation.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: None, but the complexity of  makes regressions a high risk.
+  - Known regressions: None explicitly identified, but the logout issue when clicking the Admin tab during automated testing suggests potential state management or async race condition bugs.
 
 **Credentials to test flow:**
-- **Username:**  / 
-- **Password:**  / 
+- **Username:** 
+- **Password:** 
 
 **What agent forgot to execute**
-- The agent has closely followed the user's requests in this session. The main deferred item is the critical need to refactor the monolithic  and  files, which is now listed as a high-priority pending issue.
+- The backend implementation for the time window selector is completely missing. The agent's plan only covered the frontend UI. The next agent must implement the logic in  to filter data based on the  and  that will need to be passed from the frontend.
 
 </analysis>
