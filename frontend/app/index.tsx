@@ -2542,6 +2542,14 @@ export default function TransportMeter() {
     };
   }, []);
 
+  // Refetch street data when time range changes
+  useEffect(() => {
+    if (currentUser && activeTab === 'street' && selectedTimeRange) {
+      console.log(`[TimeRange] Selected time range changed to: ${selectedTimeRange}`);
+      fetchStreetData();
+    }
+  }, [selectedTimeRange, currentUser, activeTab, fetchStreetData]);
+
   // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
