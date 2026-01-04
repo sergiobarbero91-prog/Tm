@@ -4194,19 +4194,81 @@ export default function TransportMeter() {
           </TouchableOpacity>
         </View>
 
-        {/* Time Range Dropdown */}
-        <TouchableOpacity
-          style={styles.timeRangeDropdownButton}
-          onPress={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
-        >
-          <Ionicons name="time-outline" size={16} color="#F59E0B" />
-          <Text style={styles.timeRangeDropdownText}>{getSelectedTimeRangeLabel()}</Text>
-          <Ionicons 
-            name={showTimeRangeDropdown ? "chevron-up" : "chevron-down"} 
-            size={16} 
-            color="#94A3B8" 
-          />
-        </TouchableOpacity>
+        {/* Time Range Dropdown Button */}
+        <View style={styles.timeRangeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.timeRangeDropdownButton,
+              selectedTimeRange !== 'now' && styles.timeRangeDropdownButtonActive
+            ]}
+            onPress={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
+          >
+            <Ionicons name="time-outline" size={16} color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} />
+            <Text style={[
+              styles.timeRangeDropdownText,
+              selectedTimeRange !== 'now' && styles.timeRangeDropdownTextActive
+            ]}>{getSelectedTimeRangeLabel()}</Text>
+            <Ionicons 
+              name={showTimeRangeDropdown ? "chevron-up" : "chevron-down"} 
+              size={16} 
+              color={selectedTimeRange !== 'now' ? "#10B981" : "#94A3B8"} 
+            />
+          </TouchableOpacity>
+
+          {/* Time Range Dropdown Menu */}
+          {showTimeRangeDropdown && (
+            <View style={styles.timeRangeDropdownMenu}>
+              <ScrollView 
+                style={styles.timeRangeDropdownScroll}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {timeRangeOptions.map((option, index) => {
+                  const isSelected = selectedTimeRange === option.id;
+                  const isPast = option.id.startsWith('past-');
+                  const isFuture = option.id.startsWith('future-');
+                  const isNow = option.id === 'now';
+                  
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.timeRangeOption,
+                        isSelected && styles.timeRangeOptionSelected,
+                        isNow && styles.timeRangeOptionNow,
+                        index === timeRangeOptions.length - 1 && { borderBottomWidth: 0 }
+                      ]}
+                      onPress={() => {
+                        setSelectedTimeRange(option.id);
+                        setShowTimeRangeDropdown(false);
+                      }}
+                    >
+                      <View style={styles.timeRangeOptionContent}>
+                        <Ionicons 
+                          name={isPast ? "arrow-back-circle-outline" : isFuture ? "arrow-forward-circle-outline" : "radio-button-on"} 
+                          size={16} 
+                          color={isSelected ? "#10B981" : isPast ? "#6B7280" : isFuture ? "#3B82F6" : "#F59E0B"} 
+                        />
+                        <Text style={[
+                          styles.timeRangeOptionText,
+                          isSelected && styles.timeRangeOptionTextSelected,
+                          isPast && !isSelected && styles.timeRangeOptionTextPast,
+                          isFuture && !isSelected && styles.timeRangeOptionTextFuture,
+                          isNow && !isSelected && styles.timeRangeOptionTextNow
+                        ]}>
+                          {option.label}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+        </View>
         
         {/* SOS Button - always visible */}
         <TouchableOpacity
