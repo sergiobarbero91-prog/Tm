@@ -1816,6 +1816,7 @@ export default function TransportMeter() {
       }
       
       // If a specific time range is selected (not "now"), calculate start_time and end_time
+      console.log(`[Street] Current selectedTimeRange: ${selectedTimeRange}`);
       if (selectedTimeRange !== 'now') {
         // Regenerate options to get current hour context
         const now = new Date();
