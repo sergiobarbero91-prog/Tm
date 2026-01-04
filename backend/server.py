@@ -3464,6 +3464,40 @@ class CreateLicenseAlertRequest(BaseModel):
 
 VALID_ALERT_TYPES = ["lost_item", "general"]
 
+@api_router.get("/alerts/license/search")
+async def search_licenses(
+    q: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Search for users by license number for autocomplete."""
+    if not q or len(q) < 1:
+        return {"results": []}
+    
+    try:
+        # Search for licenses that start with the query
+        # Exclude current user
+        cursor = users_collection.find({
+            "license_number": {"$regex": f"^{q}", "$options": "i"},
+            "id": {"$ne": current_user["id"]}
+        }).limit(10)
+        
+        users = await cursor.to_list(10)
+        
+        results = [
+            {
+                "license_number": user["license_number"],
+                "full_name": user.get("full_name") or user["username"],
+                "username": user["username"]
+            }
+            for user in users
+            if user.get("license_number")
+        ]
+        
+        return {"results": results}
+    except Exception as e:
+        logger.error(f"Error searching licenses: {e}")
+        return {"results": []}
+
 @api_router.post("/alerts/license")
 async def create_license_alert(
     request: CreateLicenseAlertRequest,
