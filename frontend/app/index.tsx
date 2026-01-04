@@ -4254,60 +4254,26 @@ export default function TransportMeter() {
         </View>
 
         {/* Time Range Dropdown Button */}
-        <View style={styles.timeRangeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.timeRangeDropdownButton,
-              selectedTimeRange !== 'now' && styles.timeRangeDropdownButtonActive
-            ]}
-            onPress={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
-          >
-            <Ionicons name="time-outline" size={16} color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} />
-            <Text style={[
-              styles.timeRangeDropdownText,
-              selectedTimeRange !== 'now' && styles.timeRangeDropdownTextActive
-            ]}>{getSelectedTimeRangeLabel()}</Text>
-            <Ionicons 
-              name={showTimeRangeDropdown ? "chevron-up" : "chevron-down"} 
-              size={16} 
-              color={selectedTimeRange !== 'now' ? "#10B981" : "#94A3B8"} 
-            />
-          </TouchableOpacity>
-
-          {/* Time Range Dropdown Menu */}
-          {showTimeRangeDropdown && (
-            <View style={styles.timeRangeDropdownMenu}>
-              <ScrollView 
-                style={styles.timeRangeDropdownScroll}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                {timeRangeOptions.map((option, index) => {
-                  const isSelected = selectedTimeRange === option.id;
-                  const isPast = option.id.startsWith('past-');
-                  const isFuture = option.id.startsWith('future-');
-                  const isNow = option.id === 'now';
-                  
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      style={[
-                        styles.timeRangeOption,
-                        isSelected && styles.timeRangeOptionSelected,
-                        isNow && styles.timeRangeOptionNow,
-                        index === timeRangeOptions.length - 1 && { borderBottomWidth: 0 }
-                      ]}
-                      onPress={() => {
-                        setSelectedTimeRange(option.id);
-                        setShowTimeRangeDropdown(false);
-                      }}
-                    >
-                      <View style={styles.timeRangeOptionContent}>
-                        <Ionicons 
-                          name={isPast ? "arrow-back-circle-outline" : isFuture ? "arrow-forward-circle-outline" : "radio-button-on"} 
-                          size={16} 
-                          color={isSelected ? "#10B981" : isPast ? "#6B7280" : isFuture ? "#3B82F6" : "#F59E0B"} 
-                        />
+        <TouchableOpacity
+          style={[
+            styles.timeRangeDropdownButton,
+            selectedTimeRange !== 'now' && styles.timeRangeDropdownButtonActive
+          ]}
+          onPress={() => setShowTimeRangeDropdown(true)}
+        >
+          <Ionicons name="time-outline" size={16} color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} />
+          <Text style={[
+            styles.timeRangeDropdownText,
+            selectedTimeRange !== 'now' && styles.timeRangeDropdownTextActive
+          ]}>{getSelectedTimeRangeLabel()}</Text>
+          <Ionicons 
+            name="chevron-down" 
+            size={16} 
+            color={selectedTimeRange !== 'now' ? "#10B981" : "#94A3B8"} 
+          />
+        </TouchableOpacity>
+        
+        {/* SOS Button - always visible */}
                         <Text style={[
                           styles.timeRangeOptionText,
                           isSelected && styles.timeRangeOptionTextSelected,
