@@ -1998,14 +1998,43 @@ async def get_street_work_data(
     user_lat: Optional[float] = None,
     user_lng: Optional[float] = None,
     max_distance_km: float = 2.0,  # ~5 min by car
+    start_time: Optional[str] = None,  # ISO format: "2025-06-13T14:00:00"
+    end_time: Optional[str] = None,    # ISO format: "2025-06-13T15:00:00"
     current_user: dict = Depends(get_current_user_required)
 ):
     """Get street work data including hot streets for the time window.
     
     If user location is provided, filters and sorts by distance (max 5 min travel).
+    
+    Time range selection:
+    - If start_time and end_time are provided, uses that specific time range.
+    - Otherwise, uses the last `minutes` from now.
     """
     now = datetime.now(MADRID_TZ)
-    time_threshold = now - timedelta(minutes=minutes)
+    
+    # Determine time range
+    if start_time and end_time:
+        try:
+            # Parse ISO format strings
+            time_start = date_parser.parse(start_time)
+            time_end = date_parser.parse(end_time)
+            
+            # Ensure timezone awareness
+            if time_start.tzinfo is None:
+                time_start = MADRID_TZ.localize(time_start)
+            if time_end.tzinfo is None:
+                time_end = MADRID_TZ.localize(time_end)
+            
+            time_threshold = time_start
+            time_limit = time_end
+            logger.info(f"Using custom time range: {time_start} to {time_end}")
+        except Exception as e:
+            logger.error(f"Error parsing time range: {e}")
+            time_threshold = now - timedelta(minutes=minutes)
+            time_limit = now
+    else:
+        time_threshold = now - timedelta(minutes=minutes)
+        time_limit = now
     
     # Get activities in the time window (exclude MongoDB _id field)
     cursor = street_activities_collection.find(
