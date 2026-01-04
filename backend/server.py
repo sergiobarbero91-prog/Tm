@@ -3424,6 +3424,7 @@ async def delete_user(user_id: str, admin: dict = Depends(get_admin_user)):
 # Include modular routers BEFORE adding to app
 api_router.include_router(auth_router.router)
 api_router.include_router(chat_router.router)
+api_router.include_router(alerts_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
