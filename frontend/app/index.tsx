@@ -4551,12 +4551,22 @@ export default function TransportMeter() {
                       <Text style={styles.chatMessageUsername}>
                         {msg.full_name || msg.username}
                       </Text>
-                      <Text style={styles.chatMessageTime}>
-                        {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </Text>
+                      <View style={styles.chatMessageHeaderRight}>
+                        <Text style={styles.chatMessageTime}>
+                          {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </Text>
+                        {canDeleteMessages() && (
+                          <TouchableOpacity
+                            style={styles.chatDeleteButton}
+                            onPress={() => deleteChatMessage(msg.id)}
+                          >
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     <Text style={styles.chatMessageText}>{msg.message}</Text>
                   </View>
