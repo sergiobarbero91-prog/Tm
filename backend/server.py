@@ -2228,12 +2228,17 @@ async def get_street_work_data(
     
     # ============== NEW HOTSPOT SCORING ALGORITHM (4 variables @ 25% each) ==============
     # Score = 25% previous_exits + 25% previous_arrivals + 25% previous_avg_load_time + 25% future_arrivals
-    # Previous window: from (now - 2*minutes) to (now - minutes)
-    # Future window: from now to (now + minutes)
+    # Previous window: from (selected_start - duration) to selected_start
+    # Future window: from selected_end to (selected_end + duration)
+    
+    # Calculate duration of selected window for previous/future windows
+    selected_duration_minutes = int((time_limit - time_threshold).total_seconds() / 60)
+    if selected_duration_minutes <= 0:
+        selected_duration_minutes = minutes  # Fallback to default
     
     # Get activities from PREVIOUS time window for scoring
-    previous_window_start = now - timedelta(minutes=minutes * 2)
-    previous_window_end = now - timedelta(minutes=minutes)
+    previous_window_start = time_threshold - timedelta(minutes=selected_duration_minutes)
+    previous_window_end = time_threshold
     
     cursor_previous = street_activities_collection.find(
         {"created_at": {"$gte": previous_window_start, "$lt": previous_window_end}},
