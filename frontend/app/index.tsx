@@ -336,6 +336,16 @@ export default function TransportMeter() {
   const [alertType, setAlertType] = useState<'lost_item' | 'general'>('lost_item');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertLoading, setAlertLoading] = useState(false);
+  const [licenseSuggestions, setLicenseSuggestions] = useState<Array<{
+    license_number: string;
+    full_name: string;
+    username: string;
+  }>>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<{
+    license_number: string;
+    full_name: string;
+  } | null>(null);
+  const [searchingLicense, setSearchingLicense] = useState(false);
 
   // Emergency SOS states
   const [showSosModal, setShowSosModal] = useState(false);
