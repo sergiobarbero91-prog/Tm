@@ -319,6 +319,24 @@ export default function TransportMeter() {
   const [chatLoading, setChatLoading] = useState(false);
   const [canWriteChat, setCanWriteChat] = useState(true);
 
+  // License Alerts states
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
+  const [licenseAlerts, setLicenseAlerts] = useState<Array<{
+    id: string;
+    sender_full_name: string;
+    sender_license: string;
+    alert_type: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
+  }>>([]);
+  const [alertsUnreadCount, setAlertsUnreadCount] = useState(0);
+  const [alertTargetLicense, setAlertTargetLicense] = useState('');
+  const [alertType, setAlertType] = useState<'lost_item' | 'general'>('lost_item');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertLoading, setAlertLoading] = useState(false);
+
   // Emergency SOS states
   const [showSosModal, setShowSosModal] = useState(false);
   const [myActiveAlert, setMyActiveAlert] = useState<{
