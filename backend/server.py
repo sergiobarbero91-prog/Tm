@@ -2010,6 +2010,7 @@ async def get_street_work_data(
     - If start_time and end_time are provided, uses that specific time range.
     - Otherwise, uses the last `minutes` from now.
     """
+    logger.info(f"[Street Data] Request params: minutes={minutes}, start_time={start_time}, end_time={end_time}")
     now = datetime.now(MADRID_TZ)
     
     # Determine time range
