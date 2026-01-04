@@ -1817,40 +1817,52 @@ export default function TransportMeter() {
       
       // If a specific time range is selected (not "now"), calculate start_time and end_time
       if (selectedTimeRange !== 'now') {
-        const option = timeRangeOptions.find(o => o.id === selectedTimeRange);
-        if (option) {
-          const now = new Date();
+        // Regenerate options to get current hour context
+        const now = new Date();
+        const currentHour = now.getHours();
+        
+        let targetStartHour: number | null = null;
+        let targetEndHour: number | null = null;
+        let hoursOffset = 0;
+        
+        if (selectedTimeRange.startsWith('past-')) {
+          const pastIndex = parseInt(selectedTimeRange.replace('past-', ''));
+          hoursOffset = -pastIndex;
+          targetStartHour = (currentHour + hoursOffset + 24) % 24;
+          targetEndHour = (targetStartHour + 1) % 24;
+        } else if (selectedTimeRange.startsWith('future-')) {
+          const futureIndex = parseInt(selectedTimeRange.replace('future-', ''));
+          hoursOffset = futureIndex;
+          targetStartHour = (currentHour + hoursOffset) % 24;
+          targetEndHour = (targetStartHour + 1) % 24;
+        }
+        
+        if (targetStartHour !== null && targetEndHour !== null) {
           const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           
           // Calculate the start time for the selected hour slot
           let startDate = new Date(today);
-          startDate.setHours(option.startHour, 0, 0, 0);
+          startDate.setHours(targetStartHour, 0, 0, 0);
           
           let endDate = new Date(today);
-          endDate.setHours(option.endHour, 0, 0, 0);
+          endDate.setHours(targetEndHour, 0, 0, 0);
           
-          // Handle day boundary (when end hour is smaller than start hour, it's next day)
-          if (option.endHour <= option.startHour && option.endHour !== 0) {
-            endDate.setDate(endDate.getDate() + 1);
-          }
-          // Special case: if end is 0 (midnight), it's next day
-          if (option.endHour === 0 && option.startHour !== 0) {
+          // Handle day boundary
+          if (targetEndHour === 0) {
             endDate.setDate(endDate.getDate() + 1);
           }
           
-          // If the selected time is in the past (past-X), we need to check if it's yesterday
-          if (selectedTimeRange.startsWith('past-')) {
-            // If start time is in the future relative to now, it means it's actually yesterday
+          // Adjust for past/future days
+          if (hoursOffset < 0) {
+            // Past: if startDate is in the future, subtract a day
             if (startDate > now) {
               startDate.setDate(startDate.getDate() - 1);
               endDate.setDate(endDate.getDate() - 1);
             }
-          }
-          
-          // If the selected time is in the future (future-X), we need to check if it's tomorrow
-          if (selectedTimeRange.startsWith('future-')) {
-            // If start time is in the past relative to now, it means it's actually tomorrow
-            if (startDate < now && (now.getTime() - startDate.getTime()) > 12 * 60 * 60 * 1000) {
+          } else if (hoursOffset > 0) {
+            // Future: if startDate is in the past (more than 12h ago), add a day
+            const hoursDiff = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+            if (hoursDiff > 12) {
               startDate.setDate(startDate.getDate() + 1);
               endDate.setDate(endDate.getDate() + 1);
             }
