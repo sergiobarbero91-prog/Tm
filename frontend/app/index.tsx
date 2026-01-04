@@ -278,6 +278,24 @@ export default function TransportMeter() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  
+  // Registration states
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerUsername, setRegisterUsername] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerFullName, setRegisterFullName] = useState('');
+  const [registerLicenseNumber, setRegisterLicenseNumber] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerPreferredShift, setRegisterPreferredShift] = useState<'all' | 'day' | 'night'>('all');
+  const [registerLoading, setRegisterLoading] = useState(false);
+  
+  // Profile editing states
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileFullName, setProfileFullName] = useState('');
+  const [profileLicenseNumber, setProfileLicenseNumber] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profilePreferredShift, setProfilePreferredShift] = useState<'all' | 'day' | 'night'>('all');
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Emergency SOS states
   const [showSosModal, setShowSosModal] = useState(false);
