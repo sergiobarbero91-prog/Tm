@@ -3621,11 +3621,11 @@ async def delete_user(user_id: str, admin: dict = Depends(get_admin_user)):
     await users_collection.delete_one({"id": user_id})
     return {"message": "Usuario eliminado correctamente"}
 
+# Include modular routers BEFORE adding to app
+api_router.include_router(auth_router.router)
+
 # Include the router in the main app
 app.include_router(api_router)
-
-# Include modular routers
-api_router.include_router(auth_router.router)
 
 app.add_middleware(
     CORSMiddleware,
