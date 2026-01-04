@@ -2149,6 +2149,141 @@ export default function TransportMeter() {
     }
   };
 
+  // ========== LICENSE ALERTS FUNCTIONS ==========
+
+  // Fetch unread alerts count
+  const fetchAlertsUnreadCount = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/alerts/license/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAlertsUnreadCount(response.data.unread_count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch received alerts
+  const fetchLicenseAlerts = useCallback(async () => {
+    setAlertLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/alerts/license/received`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setLicenseAlerts(response.data.alerts);
+      setAlertsUnreadCount(response.data.unread_count);
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+    } finally {
+      setAlertLoading(false);
+    }
+  }, []);
+
+  // Send alert to another taxi driver
+  const sendLicenseAlert = async () => {
+    if (!alertTargetLicense.trim() || !alertMessage.trim()) {
+      Alert.alert('Error', 'Debes indicar el número de licencia y el mensaje');
+      return;
+    }
+
+    if (!/^\d+$/.test(alertTargetLicense)) {
+      Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+      return;
+    }
+
+    setAlertLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/alerts/license`, {
+        target_license: alertTargetLicense.trim(),
+        alert_type: alertType,
+        message: alertMessage.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert('✓ Alerta enviada', 'Tu alerta ha sido enviada al taxista');
+      setShowCreateAlertModal(false);
+      setAlertTargetLicense('');
+      setAlertMessage('');
+      setAlertType('lost_item');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo enviar la alerta');
+    } finally {
+      setAlertLoading(false);
+    }
+  };
+
+  // Mark alert as read
+  const markAlertRead = async (alertId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/alerts/license/${alertId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update local state
+      setLicenseAlerts(prev => prev.map(a => 
+        a.id === alertId ? { ...a, is_read: true } : a
+      ));
+      setAlertsUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking alert read:', error);
+    }
+  };
+
+  // Mark all alerts as read
+  const markAllAlertsRead = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/alerts/license/read-all`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update local state
+      setLicenseAlerts(prev => prev.map(a => ({ ...a, is_read: true })));
+      setAlertsUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all read:', error);
+    }
+  };
+
+  // Delete alert
+  const deleteLicenseAlert = async (alertId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/alerts/license/${alertId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update local state
+      const alert = licenseAlerts.find(a => a.id === alertId);
+      setLicenseAlerts(prev => prev.filter(a => a.id !== alertId));
+      if (alert && !alert.is_read) {
+        setAlertsUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+    }
+  };
+
+  // Open alerts modal
+  const openAlertsModal = () => {
+    fetchLicenseAlerts();
+    setShowAlertsModal(true);
+  };
+
+  // Get alert type display
+  const getAlertTypeDisplay = (type: string) => {
+    switch (type) {
+      case 'lost_item': return { icon: 'cube-outline', label: 'Objeto perdido', color: '#F59E0B' };
+      case 'general': return { icon: 'information-circle-outline', label: 'Aviso', color: '#6366F1' };
+      default: return { icon: 'alert-circle-outline', label: 'Alerta', color: '#EF4444' };
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
