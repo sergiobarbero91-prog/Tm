@@ -5743,6 +5743,147 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Time Range Selector Modal */}
+      {showTimeRangeDropdown && (
+        <Modal
+          visible={showTimeRangeDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTimeRangeDropdown(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTimeRangeDropdown(false)}
+          >
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={styles.timeRangeModal}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.timeRangeModalHeader}>
+                <Ionicons name="time" size={24} color="#F59E0B" />
+                <Text style={styles.timeRangeModalTitle}>Seleccionar Franja Horaria</Text>
+              </View>
+              <Text style={styles.timeRangeModalSubtitle}>
+                Elige un rango de tiempo para ver datos históricos o predicciones
+              </Text>
+              
+              <ScrollView 
+                style={styles.timeRangeModalScroll}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* Section: Now */}
+                <View style={styles.timeRangeSectionHeader}>
+                  <Ionicons name="radio-button-on" size={14} color="#F59E0B" />
+                  <Text style={styles.timeRangeSectionTitle}>Tiempo Real</Text>
+                </View>
+                
+                {timeRangeOptions.filter(o => o.id === 'now').map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.timeRangeModalOption,
+                      selectedTimeRange === option.id && styles.timeRangeModalOptionSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedTimeRange(option.id);
+                      setShowTimeRangeDropdown(false);
+                    }}
+                  >
+                    <View style={styles.timeRangeModalOptionContent}>
+                      <Ionicons name="radio-button-on" size={18} color="#F59E0B" />
+                      <Text style={[
+                        styles.timeRangeModalOptionText,
+                        selectedTimeRange === option.id && styles.timeRangeModalOptionTextSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                    {selectedTimeRange === option.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Section: Past */}
+                <View style={styles.timeRangeSectionHeader}>
+                  <Ionicons name="arrow-back-circle-outline" size={14} color="#6B7280" />
+                  <Text style={styles.timeRangeSectionTitle}>Pasado (Historial)</Text>
+                </View>
+                
+                {timeRangeOptions.filter(o => o.id.startsWith('past-')).map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.timeRangeModalOption,
+                      selectedTimeRange === option.id && styles.timeRangeModalOptionSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedTimeRange(option.id);
+                      setShowTimeRangeDropdown(false);
+                    }}
+                  >
+                    <View style={styles.timeRangeModalOptionContent}>
+                      <Ionicons name="arrow-back-circle-outline" size={18} color="#6B7280" />
+                      <Text style={[
+                        styles.timeRangeModalOptionText,
+                        selectedTimeRange === option.id && styles.timeRangeModalOptionTextSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                    {selectedTimeRange === option.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Section: Future */}
+                <View style={styles.timeRangeSectionHeader}>
+                  <Ionicons name="arrow-forward-circle-outline" size={14} color="#3B82F6" />
+                  <Text style={styles.timeRangeSectionTitle}>Futuro (Predicciones)</Text>
+                </View>
+                
+                {timeRangeOptions.filter(o => o.id.startsWith('future-')).map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.timeRangeModalOption,
+                      selectedTimeRange === option.id && styles.timeRangeModalOptionSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedTimeRange(option.id);
+                      setShowTimeRangeDropdown(false);
+                    }}
+                  >
+                    <View style={styles.timeRangeModalOptionContent}>
+                      <Ionicons name="arrow-forward-circle-outline" size={18} color="#3B82F6" />
+                      <Text style={[
+                        styles.timeRangeModalOptionText,
+                        selectedTimeRange === option.id && styles.timeRangeModalOptionTextSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                    {selectedTimeRange === option.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              
+              <TouchableOpacity
+                style={styles.timeRangeModalCloseButton}
+                onPress={() => setShowTimeRangeDropdown(false)}
+              >
+                <Text style={styles.timeRangeModalCloseButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
       {/* SOS Modal */}
       {showSosModal && (
         <View style={styles.modalOverlay}>
