@@ -4158,41 +4158,55 @@ export default function TransportMeter() {
           <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         
-        <Text style={styles.timeWindowLabel}>Ventana:</Text>
+        {/* Compact time buttons */}
         <View style={styles.timeWindowButtons}>
           <TouchableOpacity
             style={[
-              styles.timeWindowButton,
+              styles.timeWindowButtonCompact,
               timeWindow === 30 && styles.activeTimeWindow,
             ]}
             onPress={() => setTimeWindow(30)}
           >
             <Text
               style={[
-                styles.timeWindowText,
+                styles.timeWindowTextCompact,
                 timeWindow === 30 && styles.activeTimeWindowText,
               ]}
             >
-              30m
+              30
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
-              styles.timeWindowButton,
+              styles.timeWindowButtonCompact,
               timeWindow === 60 && styles.activeTimeWindow,
             ]}
             onPress={() => setTimeWindow(60)}
           >
             <Text
               style={[
-                styles.timeWindowText,
+                styles.timeWindowTextCompact,
                 timeWindow === 60 && styles.activeTimeWindowText,
               ]}
             >
-              60m
+              60
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Time Range Dropdown */}
+        <TouchableOpacity
+          style={styles.timeRangeDropdownButton}
+          onPress={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
+        >
+          <Ionicons name="time-outline" size={16} color="#F59E0B" />
+          <Text style={styles.timeRangeDropdownText}>{getSelectedTimeRangeLabel()}</Text>
+          <Ionicons 
+            name={showTimeRangeDropdown ? "chevron-up" : "chevron-down"} 
+            size={16} 
+            color="#94A3B8" 
+          />
+        </TouchableOpacity>
         
         {/* SOS Button - always visible */}
         <TouchableOpacity
