@@ -2343,6 +2343,63 @@ export default function TransportMeter() {
     }
   };
 
+  // Generate time range options (12 hours back and 12 hours forward)
+  const generateTimeRangeOptions = () => {
+    const options: Array<{ id: string; label: string; startHour: number; endHour: number }> = [];
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Add "Ahora" option
+    options.push({
+      id: 'now',
+      label: 'Ahora',
+      startHour: currentHour,
+      endHour: currentHour + 1
+    });
+    
+    // Add past 12 hours (from oldest to newest)
+    for (let i = 12; i >= 1; i--) {
+      let hour = currentHour - i;
+      if (hour < 0) hour += 24;
+      const nextHour = (hour + 1) % 24;
+      options.push({
+        id: `past-${i}`,
+        label: `${hour.toString().padStart(2, '0')}:00 - ${nextHour.toString().padStart(2, '0')}:00`,
+        startHour: hour,
+        endHour: nextHour
+      });
+    }
+    
+    // Sort: put "Ahora" first, then past hours from newest to oldest
+    const nowOption = options.find(o => o.id === 'now')!;
+    const pastOptions = options.filter(o => o.id.startsWith('past-')).reverse();
+    
+    // Add future 12 hours
+    const futureOptions: typeof options = [];
+    for (let i = 1; i <= 12; i++) {
+      const hour = (currentHour + i) % 24;
+      const nextHour = (hour + 1) % 24;
+      futureOptions.push({
+        id: `future-${i}`,
+        label: `${hour.toString().padStart(2, '0')}:00 - ${nextHour.toString().padStart(2, '0')}:00`,
+        startHour: hour,
+        endHour: nextHour
+      });
+    }
+    
+    // Final order: Past (oldest first), Now, Future
+    return [...pastOptions.reverse(), nowOption, ...futureOptions];
+  };
+
+  const timeRangeOptions = generateTimeRangeOptions();
+
+  // Get display label for selected time range
+  const getSelectedTimeRangeLabel = () => {
+    if (selectedTimeRange === 'now') return 'Ahora';
+    const option = timeRangeOptions.find(o => o.id === selectedTimeRange);
+    return option ? option.label : 'Ahora';
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
