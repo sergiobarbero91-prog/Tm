@@ -3371,6 +3371,49 @@ async def send_chat_message(
         logger.error(f"Error sending chat message: {e}")
         raise HTTPException(status_code=500, detail="Error al enviar mensaje")
 
+@api_router.delete("/chat/{channel}/messages/{message_id}")
+async def delete_chat_message(
+    channel: str,
+    message_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Delete a chat message (moderators and admins can delete any message)."""
+    if channel not in VALID_CHANNELS:
+        raise HTTPException(status_code=400, detail="Canal inválido")
+    
+    user_role = current_user.get("role", "user")
+    
+    # Check if user can access this channel
+    if not can_read_channel(channel, user_role):
+        raise HTTPException(status_code=403, detail="No tienes acceso a este canal")
+    
+    try:
+        # Find the message
+        message = await chat_messages_collection.find_one({
+            "id": message_id,
+            "channel": channel
+        })
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+        
+        # Check permissions: owner can delete their own, mods/admins can delete any
+        is_owner = message["user_id"] == current_user["id"]
+        is_mod_or_admin = user_role in ["admin", "moderator"]
+        
+        if not is_owner and not is_mod_or_admin:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este mensaje")
+        
+        # Delete the message
+        await chat_messages_collection.delete_one({"id": message_id})
+        
+        return {"success": True, "message": "Mensaje eliminado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting chat message: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar mensaje")
+
 @api_router.get("/chat/channels")
 async def get_available_channels(
     current_user: dict = Depends(get_current_user_required)
