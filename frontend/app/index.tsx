@@ -217,8 +217,11 @@ interface HotStreet {
 interface User {
   id: string;
   username: string;
+  full_name: string | null;
+  license_number: string | null;
   phone: string | null;
   role: string;
+  preferred_shift: string;
 }
 
 interface CheckInStatus {
