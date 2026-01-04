@@ -3455,6 +3455,178 @@ async def get_available_channels(
     return {"channels": channels}
 
 
+# ============== LICENSE ALERTS ENDPOINTS ==============
+
+class CreateLicenseAlertRequest(BaseModel):
+    target_license: str  # License number of recipient
+    alert_type: str  # "lost_item" or "general"
+    message: str
+
+VALID_ALERT_TYPES = ["lost_item", "general"]
+
+@api_router.post("/alerts/license")
+async def create_license_alert(
+    request: CreateLicenseAlertRequest,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Create an alert for another taxi driver by license number."""
+    # Validate alert type
+    if request.alert_type not in VALID_ALERT_TYPES:
+        raise HTTPException(status_code=400, detail="Tipo de alerta inválido")
+    
+    # Validate message
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+    
+    # Check sender has a license number
+    sender_license = current_user.get("license_number")
+    if not sender_license:
+        raise HTTPException(status_code=400, detail="Debes tener un número de licencia registrado para enviar alertas")
+    
+    # Find recipient by license number
+    recipient = await users_collection.find_one({"license_number": request.target_license})
+    if not recipient:
+        raise HTTPException(status_code=404, detail="No se encontró ningún taxista con ese número de licencia")
+    
+    # Can't send alert to yourself
+    if recipient["id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="No puedes enviarte alertas a ti mismo")
+    
+    try:
+        alert_doc = {
+            "id": str(uuid.uuid4()),
+            "sender_id": current_user["id"],
+            "sender_username": current_user["username"],
+            "sender_full_name": current_user.get("full_name"),
+            "sender_license": sender_license,
+            "recipient_id": recipient["id"],
+            "recipient_license": request.target_license,
+            "alert_type": request.alert_type,
+            "message": request.message.strip()[:500],
+            "is_read": False,
+            "created_at": datetime.utcnow()
+        }
+        
+        await license_alerts_collection.insert_one(alert_doc)
+        
+        return {
+            "success": True,
+            "alert_id": alert_doc["id"],
+            "message": "Alerta enviada correctamente"
+        }
+    except Exception as e:
+        logger.error(f"Error creating license alert: {e}")
+        raise HTTPException(status_code=500, detail="Error al enviar alerta")
+
+@api_router.get("/alerts/license/received")
+async def get_received_alerts(
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get alerts received by current user."""
+    try:
+        cursor = license_alerts_collection.find({
+            "recipient_id": current_user["id"]
+        }).sort("created_at", -1).limit(50)
+        
+        alerts = await cursor.to_list(50)
+        
+        # Count unread
+        unread_count = sum(1 for a in alerts if not a.get("is_read", False))
+        
+        return {
+            "alerts": [
+                {
+                    "id": alert["id"],
+                    "sender_full_name": alert.get("sender_full_name") or alert["sender_username"],
+                    "sender_license": alert["sender_license"],
+                    "alert_type": alert["alert_type"],
+                    "message": alert["message"],
+                    "is_read": alert.get("is_read", False),
+                    "created_at": alert["created_at"].isoformat()
+                }
+                for alert in alerts
+            ],
+            "unread_count": unread_count
+        }
+    except Exception as e:
+        logger.error(f"Error getting received alerts: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener alertas")
+
+@api_router.get("/alerts/license/unread-count")
+async def get_unread_alerts_count(
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get count of unread alerts for current user."""
+    try:
+        count = await license_alerts_collection.count_documents({
+            "recipient_id": current_user["id"],
+            "is_read": False
+        })
+        return {"unread_count": count}
+    except Exception as e:
+        logger.error(f"Error getting unread count: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener conteo")
+
+@api_router.put("/alerts/license/{alert_id}/read")
+async def mark_alert_read(
+    alert_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Mark an alert as read."""
+    try:
+        result = await license_alerts_collection.update_one(
+            {"id": alert_id, "recipient_id": current_user["id"]},
+            {"$set": {"is_read": True}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
+        
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking alert read: {e}")
+        raise HTTPException(status_code=500, detail="Error al actualizar alerta")
+
+@api_router.put("/alerts/license/read-all")
+async def mark_all_alerts_read(
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Mark all alerts as read for current user."""
+    try:
+        await license_alerts_collection.update_many(
+            {"recipient_id": current_user["id"], "is_read": False},
+            {"$set": {"is_read": True}}
+        )
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error marking all alerts read: {e}")
+        raise HTTPException(status_code=500, detail="Error al actualizar alertas")
+
+@api_router.delete("/alerts/license/{alert_id}")
+async def delete_license_alert(
+    alert_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Delete an alert (recipient can delete their received alerts)."""
+    try:
+        result = await license_alerts_collection.delete_one({
+            "id": alert_id,
+            "recipient_id": current_user["id"]
+        })
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
+        
+        return {"success": True, "message": "Alerta eliminada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting alert: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar alerta")
+
+
 # ============== ADMIN ENDPOINTS ==============
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
