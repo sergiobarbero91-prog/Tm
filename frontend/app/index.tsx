@@ -2191,15 +2191,58 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Send alert to another taxi driver
-  const sendLicenseAlert = async () => {
-    if (!alertTargetLicense.trim() || !alertMessage.trim()) {
-      Alert.alert('Error', 'Debes indicar el número de licencia y el mensaje');
+  // Search for licenses (autocomplete)
+  const searchLicenses = async (query: string) => {
+    if (!query || query.length < 1) {
+      setLicenseSuggestions([]);
       return;
     }
 
-    if (!/^\d+$/.test(alertTargetLicense)) {
-      Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+    setSearchingLicense(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/alerts/license/search?q=${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setLicenseSuggestions(response.data.results);
+    } catch (error) {
+      console.error('Error searching licenses:', error);
+      setLicenseSuggestions([]);
+    } finally {
+      setSearchingLicense(false);
+    }
+  };
+
+  // Handle license input change with debounce
+  const handleLicenseInputChange = (text: string) => {
+    setAlertTargetLicense(text);
+    setSelectedRecipient(null); // Clear selection when typing
+    
+    // Debounce search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLicenses(text);
+    }, 300);
+  };
+
+  // Select a recipient from suggestions
+  const selectRecipient = (recipient: { license_number: string; full_name: string }) => {
+    setSelectedRecipient(recipient);
+    setAlertTargetLicense(recipient.license_number);
+    setLicenseSuggestions([]);
+  };
+
+  // Send alert to another taxi driver
+  const sendLicenseAlert = async () => {
+    if (!selectedRecipient) {
+      Alert.alert('Error', 'Debes seleccionar un destinatario de la lista de sugerencias');
+      return;
+    }
+
+    if (!alertMessage.trim()) {
+      Alert.alert('Error', 'Debes escribir un mensaje');
       return;
     }
 
@@ -2207,18 +2250,20 @@ export default function TransportMeter() {
     try {
       const token = await AsyncStorage.getItem('token');
       await axios.post(`${API_BASE}/api/alerts/license`, {
-        target_license: alertTargetLicense.trim(),
+        target_license: selectedRecipient.license_number,
         alert_type: alertType,
         message: alertMessage.trim()
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      Alert.alert('✓ Alerta enviada', 'Tu alerta ha sido enviada al taxista');
+      Alert.alert('✓ Alerta enviada', `Tu alerta ha sido enviada a ${selectedRecipient.full_name}`);
       setShowCreateAlertModal(false);
       setAlertTargetLicense('');
       setAlertMessage('');
       setAlertType('lost_item');
+      setSelectedRecipient(null);
+      setLicenseSuggestions([]);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'No se pudo enviar la alerta');
     } finally {
