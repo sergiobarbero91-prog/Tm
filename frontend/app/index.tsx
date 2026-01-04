@@ -399,6 +399,100 @@ export default function TransportMeter() {
     setCurrentUser(null);
   };
 
+  // Handle registration
+  const handleRegister = async () => {
+    if (!registerUsername || !registerPassword || !registerFullName || !registerLicenseNumber) {
+      Alert.alert('Error', 'Por favor completa los campos obligatorios: usuario, contraseña, nombre y licencia');
+      return;
+    }
+
+    if (!/^\d+$/.test(registerLicenseNumber)) {
+      Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+      return;
+    }
+
+    setRegisterLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE}/api/auth/register`, {
+        username: registerUsername,
+        password: registerPassword,
+        full_name: registerFullName,
+        license_number: registerLicenseNumber,
+        phone: registerPhone || null,
+        preferred_shift: registerPreferredShift
+      });
+
+      const { access_token, user } = response.data;
+      await AsyncStorage.setItem('token', access_token);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      
+      setCurrentUser(user);
+      
+      // Clear registration form
+      setRegisterUsername('');
+      setRegisterPassword('');
+      setRegisterFullName('');
+      setRegisterLicenseNumber('');
+      setRegisterPhone('');
+      setRegisterPreferredShift('all');
+      setShowRegister(false);
+      
+      Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al registrar usuario');
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  // Open profile modal with current user data
+  const openProfileModal = () => {
+    if (currentUser) {
+      setProfileFullName(currentUser.full_name || '');
+      setProfileLicenseNumber(currentUser.license_number || '');
+      setProfilePhone(currentUser.phone || '');
+      setProfilePreferredShift((currentUser.preferred_shift as 'all' | 'day' | 'night') || 'all');
+      setShowProfileModal(true);
+    }
+  };
+
+  // Update profile
+  const handleUpdateProfile = async () => {
+    if (!profileFullName || !profileLicenseNumber) {
+      Alert.alert('Error', 'Nombre y licencia son obligatorios');
+      return;
+    }
+
+    if (!/^\d+$/.test(profileLicenseNumber)) {
+      Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.put(`${API_BASE}/api/auth/profile`, {
+        full_name: profileFullName,
+        license_number: profileLicenseNumber,
+        phone: profilePhone || null,
+        preferred_shift: profilePreferredShift
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const updatedUser = response.data;
+      setCurrentUser(updatedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      setShowProfileModal(false);
+      Alert.alert('✓', 'Perfil actualizado correctamente');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al actualizar perfil');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   // Load GPS preference on mount
   const loadGpsPreference = async () => {
     try {
