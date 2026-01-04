@@ -4658,6 +4658,212 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* License Alerts Modal */}
+      {showAlertsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertsModal}>
+            {/* Alerts Header */}
+            <View style={styles.alertsModalHeader}>
+              <View style={styles.alertsModalTitleRow}>
+                <Ionicons name="notifications" size={24} color="#F59E0B" />
+                <Text style={styles.alertsModalTitle}>Mis Alertas</Text>
+              </View>
+              <View style={styles.alertsModalActions}>
+                {alertsUnreadCount > 0 && (
+                  <TouchableOpacity 
+                    style={styles.markAllReadButton}
+                    onPress={markAllAlertsRead}
+                  >
+                    <Text style={styles.markAllReadText}>Marcar todo leído</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
+                  <Ionicons name="close" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Create Alert Button */}
+            <TouchableOpacity
+              style={styles.createAlertButton}
+              onPress={() => setShowCreateAlertModal(true)}
+            >
+              <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.createAlertButtonText}>Enviar Alerta</Text>
+            </TouchableOpacity>
+
+            {/* Alerts List */}
+            <ScrollView style={styles.alertsListContainer}>
+              {alertLoading ? (
+                <View style={styles.alertsLoadingContainer}>
+                  <ActivityIndicator size="large" color="#F59E0B" />
+                </View>
+              ) : licenseAlerts.length === 0 ? (
+                <View style={styles.alertsEmptyContainer}>
+                  <Ionicons name="checkmark-circle-outline" size={64} color="#4B5563" />
+                  <Text style={styles.alertsEmptyText}>No tienes alertas</Text>
+                  <Text style={styles.alertsEmptySubtext}>Las alertas que te envíen aparecerán aquí</Text>
+                </View>
+              ) : (
+                licenseAlerts.map((alert) => {
+                  const typeInfo = getAlertTypeDisplay(alert.alert_type);
+                  return (
+                    <TouchableOpacity
+                      key={alert.id}
+                      style={[
+                        styles.alertCard,
+                        !alert.is_read && styles.alertCardUnread
+                      ]}
+                      onPress={() => !alert.is_read && markAlertRead(alert.id)}
+                    >
+                      <View style={styles.alertCardHeader}>
+                        <View style={[styles.alertTypeBadge, { backgroundColor: typeInfo.color }]}>
+                          <Ionicons name={typeInfo.icon as any} size={14} color="#FFFFFF" />
+                          <Text style={styles.alertTypeBadgeText}>{typeInfo.label}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.deleteAlertButton}
+                          onPress={() => deleteLicenseAlert(alert.id)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                      
+                      <Text style={styles.alertMessage}>{alert.message}</Text>
+                      
+                      <View style={styles.alertSenderInfo}>
+                        <Text style={styles.alertSenderText}>
+                          De: {alert.sender_full_name} (Licencia: {alert.sender_license})
+                        </Text>
+                        <Text style={styles.alertTimeText}>
+                          {new Date(alert.created_at).toLocaleString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </Text>
+                      </View>
+                      
+                      {!alert.is_read && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>NUEVA</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Create Alert Modal */}
+      {showCreateAlertModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.createAlertModal}>
+            <View style={styles.createAlertHeader}>
+              <Ionicons name="send" size={40} color="#F59E0B" />
+              <Text style={styles.createAlertTitle}>Enviar Alerta</Text>
+              <Text style={styles.createAlertSubtitle}>Envía una alerta a otro taxista</Text>
+            </View>
+
+            <View style={styles.createAlertForm}>
+              <View style={styles.createAlertInputGroup}>
+                <Text style={styles.createAlertLabel}>📝 Número de licencia del destinatario</Text>
+                <TextInput
+                  style={styles.createAlertInput}
+                  placeholder="Ej: 123456"
+                  placeholderTextColor="#6B7280"
+                  value={alertTargetLicense}
+                  onChangeText={setAlertTargetLicense}
+                  keyboardType="numeric"
+                  maxLength={20}
+                />
+              </View>
+
+              <View style={styles.createAlertInputGroup}>
+                <Text style={styles.createAlertLabel}>🏷️ Tipo de alerta</Text>
+                <View style={styles.alertTypeSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.alertTypeOption,
+                      alertType === 'lost_item' && styles.alertTypeOptionActiveLost
+                    ]}
+                    onPress={() => setAlertType('lost_item')}
+                  >
+                    <Ionicons name="cube-outline" size={18} color={alertType === 'lost_item' ? '#FFFFFF' : '#F59E0B'} />
+                    <Text style={[
+                      styles.alertTypeOptionText,
+                      alertType === 'lost_item' && styles.alertTypeOptionTextActive
+                    ]}>Objeto perdido</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.alertTypeOption,
+                      alertType === 'general' && styles.alertTypeOptionActiveGeneral
+                    ]}
+                    onPress={() => setAlertType('general')}
+                  >
+                    <Ionicons name="information-circle-outline" size={18} color={alertType === 'general' ? '#FFFFFF' : '#6366F1'} />
+                    <Text style={[
+                      styles.alertTypeOptionText,
+                      alertType === 'general' && styles.alertTypeOptionTextActive
+                    ]}>Aviso</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.createAlertInputGroup}>
+                <Text style={styles.createAlertLabel}>💬 Mensaje</Text>
+                <TextInput
+                  style={[styles.createAlertInput, styles.createAlertTextArea]}
+                  placeholder="Describe el objeto perdido o el aviso..."
+                  placeholderTextColor="#6B7280"
+                  value={alertMessage}
+                  onChangeText={setAlertMessage}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                />
+              </View>
+            </View>
+
+            <View style={styles.createAlertButtons}>
+              <TouchableOpacity
+                style={styles.createAlertCancelButton}
+                onPress={() => {
+                  setShowCreateAlertModal(false);
+                  setAlertTargetLicense('');
+                  setAlertMessage('');
+                  setAlertType('lost_item');
+                }}
+              >
+                <Text style={styles.createAlertCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.createAlertSendButton,
+                  (!alertTargetLicense.trim() || !alertMessage.trim()) && styles.createAlertSendButtonDisabled
+                ]}
+                onPress={sendLicenseAlert}
+                disabled={alertLoading || !alertTargetLicense.trim() || !alertMessage.trim()}
+              >
+                {alertLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                    <Text style={styles.createAlertSendButtonText}>Enviar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Chat Modal */}
       {showChatModal && (
         <View style={styles.modalOverlay}>
