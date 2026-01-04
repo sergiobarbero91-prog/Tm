@@ -7823,6 +7823,94 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Time Range Dropdown styles
+  timeRangeContainer: {
+    position: 'relative',
+    zIndex: 100,
+  },
+  timeRangeDropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1E293B',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  timeRangeDropdownButtonActive: {
+    borderColor: '#10B981',
+    backgroundColor: '#064E3B',
+  },
+  timeRangeDropdownText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  timeRangeDropdownTextActive: {
+    color: '#10B981',
+  },
+  timeRangeDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 6,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    width: 200,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 1000,
+  },
+  timeRangeDropdownScroll: {
+    maxHeight: 290,
+  },
+  timeRangeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  timeRangeOptionSelected: {
+    backgroundColor: '#064E3B',
+  },
+  timeRangeOptionNow: {
+    backgroundColor: '#1E3A5F',
+  },
+  timeRangeOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  timeRangeOptionText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timeRangeOptionTextSelected: {
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  timeRangeOptionTextPast: {
+    color: '#9CA3AF',
+  },
+  timeRangeOptionTextFuture: {
+    color: '#60A5FA',
+  },
+  timeRangeOptionTextNow: {
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
   // SOS Button styles
   sosButton: {
     width: 36,
