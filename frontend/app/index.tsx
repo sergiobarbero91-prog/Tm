@@ -252,6 +252,10 @@ export default function TransportMeter() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+  
+  // Time range selector states
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('now');
+  const [showTimeRangeDropdown, setShowTimeRangeDropdown] = useState(false);
 
   // Events states
   const [eventsData, setEventsData] = useState<any[]>([]);
