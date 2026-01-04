@@ -7475,4 +7475,212 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
+  // Registration styles
+  switchAuthButton: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  switchAuthText: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
+  switchAuthLink: {
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  registerButton: {
+    backgroundColor: '#10B981',
+  },
+  registerShiftSection: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  registerShiftLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  registerShiftButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  registerShiftButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  registerShiftButtonActiveDay: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: '#F59E0B',
+  },
+  registerShiftButtonActiveAll: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: '#6366F1',
+  },
+  registerShiftButtonActiveNight: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: '#8B5CF6',
+  },
+  registerShiftButtonText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  registerShiftButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  // Profile button in settings
+  profileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+  },
+  profileButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profileButtonInfo: {
+    gap: 2,
+  },
+  profileButtonName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  profileButtonLicense: {
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  // Profile Modal styles
+  profileModalScrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  profileModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  profileModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profileModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  profileModalSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  profileForm: {
+    gap: 16,
+  },
+  profileInputGroup: {
+    gap: 6,
+  },
+  profileInputLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  profileInput: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 14,
+    color: '#FFFFFF',
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  profileShiftSelector: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  profileShiftOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  profileShiftOptionActiveDay: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: '#F59E0B',
+  },
+  profileShiftOptionActiveAll: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: '#6366F1',
+  },
+  profileShiftOptionActiveNight: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: '#8B5CF6',
+  },
+  profileShiftOptionText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  profileShiftOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  profileButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  profileCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+  },
+  profileCancelButtonText: {
+    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  profileSaveButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#6366F1',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  profileSaveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
