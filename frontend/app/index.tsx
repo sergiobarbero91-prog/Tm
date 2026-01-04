@@ -4826,16 +4826,72 @@ export default function TransportMeter() {
 
             <View style={styles.createAlertForm}>
               <View style={styles.createAlertInputGroup}>
-                <Text style={styles.createAlertLabel}>📝 Número de licencia del destinatario</Text>
-                <TextInput
-                  style={styles.createAlertInput}
-                  placeholder="Ej: 123456"
-                  placeholderTextColor="#6B7280"
-                  value={alertTargetLicense}
-                  onChangeText={setAlertTargetLicense}
-                  keyboardType="numeric"
-                  maxLength={20}
-                />
+                <Text style={styles.createAlertLabel}>📝 Buscar por número de licencia</Text>
+                <View style={styles.licenseSearchContainer}>
+                  <TextInput
+                    style={[
+                      styles.createAlertInput,
+                      selectedRecipient && styles.licenseInputSelected
+                    ]}
+                    placeholder="Escribe el número de licencia..."
+                    placeholderTextColor="#6B7280"
+                    value={alertTargetLicense}
+                    onChangeText={handleLicenseInputChange}
+                    keyboardType="numeric"
+                    maxLength={20}
+                  />
+                  {searchingLicense && (
+                    <ActivityIndicator size="small" color="#F59E0B" style={styles.licenseSearchSpinner} />
+                  )}
+                </View>
+                
+                {/* Selected recipient indicator */}
+                {selectedRecipient && (
+                  <View style={styles.selectedRecipientBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                    <Text style={styles.selectedRecipientText}>
+                      {selectedRecipient.full_name} (Licencia: {selectedRecipient.license_number})
+                    </Text>
+                    <TouchableOpacity onPress={() => {
+                      setSelectedRecipient(null);
+                      setAlertTargetLicense('');
+                    }}>
+                      <Ionicons name="close-circle" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                {/* Suggestions list */}
+                {licenseSuggestions.length > 0 && !selectedRecipient && (
+                  <View style={styles.licenseSuggestionsContainer}>
+                    {licenseSuggestions.map((suggestion) => (
+                      <TouchableOpacity
+                        key={suggestion.license_number}
+                        style={styles.licenseSuggestionItem}
+                        onPress={() => selectRecipient(suggestion)}
+                      >
+                        <Ionicons name="person" size={18} color="#F59E0B" />
+                        <View style={styles.suggestionInfo}>
+                          <Text style={styles.suggestionName}>{suggestion.full_name}</Text>
+                          <Text style={styles.suggestionLicense}>Licencia: {suggestion.license_number}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                
+                {/* No results message */}
+                {alertTargetLicense.length > 0 && 
+                 licenseSuggestions.length === 0 && 
+                 !selectedRecipient && 
+                 !searchingLicense && (
+                  <View style={styles.noSuggestionsContainer}>
+                    <Ionicons name="search" size={20} color="#6B7280" />
+                    <Text style={styles.noSuggestionsText}>
+                      No se encontró ningún taxista con esa licencia
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.createAlertInputGroup}>
@@ -4893,6 +4949,8 @@ export default function TransportMeter() {
                   setAlertTargetLicense('');
                   setAlertMessage('');
                   setAlertType('lost_item');
+                  setSelectedRecipient(null);
+                  setLicenseSuggestions([]);
                 }}
               >
                 <Text style={styles.createAlertCancelButtonText}>Cancelar</Text>
@@ -4900,10 +4958,10 @@ export default function TransportMeter() {
               <TouchableOpacity
                 style={[
                   styles.createAlertSendButton,
-                  (!alertTargetLicense.trim() || !alertMessage.trim()) && styles.createAlertSendButtonDisabled
+                  (!selectedRecipient || !alertMessage.trim()) && styles.createAlertSendButtonDisabled
                 ]}
                 onPress={sendLicenseAlert}
-                disabled={alertLoading || !alertTargetLicense.trim() || !alertMessage.trim()}
+                disabled={alertLoading || !selectedRecipient || !alertMessage.trim()}
               >
                 {alertLoading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
