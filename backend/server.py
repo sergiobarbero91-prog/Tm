@@ -2909,6 +2909,7 @@ api_router.include_router(chat_router.router)
 api_router.include_router(alerts_router.router)
 api_router.include_router(admin_router.router)
 api_router.include_router(events_router.router)
+api_router.include_router(emergency_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
