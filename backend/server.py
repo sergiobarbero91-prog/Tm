@@ -2038,7 +2038,7 @@ async def get_street_work_data(
     
     # Get activities in the time window (exclude MongoDB _id field)
     cursor = street_activities_collection.find(
-        {"created_at": {"$gte": time_threshold}},
+        {"created_at": {"$gte": time_threshold, "$lte": time_limit}},
         {"_id": 0}  # Exclude _id field
     ).sort("created_at", -1)
     activities = await cursor.to_list(1000)
