@@ -8057,6 +8057,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     gap: 12,
   },
+  chatMessageHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   chatMessageUsername: {
     color: '#F59E0B',
     fontSize: 12,
@@ -8065,6 +8070,11 @@ const styles = StyleSheet.create({
   chatMessageTime: {
     color: '#6B7280',
     fontSize: 11,
+  },
+  chatDeleteButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   chatMessageText: {
     color: '#E2E8F0',
