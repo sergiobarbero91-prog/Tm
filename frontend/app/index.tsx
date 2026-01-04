@@ -2264,66 +2264,214 @@ export default function TransportMeter() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.loginScreenContainer}
         >
-          <View style={styles.loginScreenContent}>
+          <ScrollView 
+            contentContainerStyle={styles.loginScreenContent}
+            showsVerticalScrollIndicator={false}
+          >
             {/* Logo/Header */}
             <View style={styles.loginHeader}>
               <View style={styles.loginLogoContainer}>
-                <Ionicons name="train" size={40} color="#6366F1" />
-                <Ionicons name="airplane" size={40} color="#10B981" style={{ marginLeft: -10 }} />
+                <Ionicons name="car" size={44} color="#F59E0B" />
               </View>
-              <Text style={styles.loginAppTitle}>TransportMeter</Text>
-              <Text style={styles.loginAppSubtitle}>Frecuencia de llegadas en Madrid</Text>
+              <Text style={styles.loginAppTitle}>TaxiDash Madrid</Text>
+              <Text style={styles.loginAppSubtitle}>
+                {showRegister ? 'Crear cuenta nueva' : 'Herramienta para taxistas'}
+              </Text>
             </View>
 
-            {/* Login Form */}
-            <View style={styles.loginFormContainer}>
-              <Text style={styles.loginFormTitle}>Iniciar Sesión</Text>
-              
-              <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.loginScreenInput}
-                  placeholder="Nombre de usuario"
-                  placeholderTextColor="#64748B"
-                  value={loginUsername}
-                  onChangeText={setLoginUsername}
-                  autoCapitalize="none"
-                />
-              </View>
+            {!showRegister ? (
+              /* Login Form */
+              <View style={styles.loginFormContainer}>
+                <Text style={styles.loginFormTitle}>Iniciar Sesión</Text>
+                
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Nombre de usuario"
+                    placeholderTextColor="#64748B"
+                    value={loginUsername}
+                    onChangeText={setLoginUsername}
+                    autoCapitalize="none"
+                  />
+                </View>
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.loginScreenInput}
-                  placeholder="Contraseña"
-                  placeholderTextColor="#64748B"
-                  value={loginPassword}
-                  onChangeText={setLoginPassword}
-                  secureTextEntry
-                />
-              </View>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Contraseña"
+                    placeholderTextColor="#64748B"
+                    value={loginPassword}
+                    onChangeText={setLoginPassword}
+                    secureTextEntry
+                  />
+                </View>
 
-              <TouchableOpacity 
-                style={styles.loginScreenButton}
-                onPress={handleLogin}
-                disabled={loginLoading}
-              >
-                {loginLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.loginScreenButtonText}>Entrar</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity 
+                  style={styles.loginScreenButton}
+                  onPress={handleLogin}
+                  disabled={loginLoading}
+                >
+                  {loginLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.loginScreenButtonText}>Entrar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.switchAuthButton}
+                  onPress={() => setShowRegister(true)}
+                >
+                  <Text style={styles.switchAuthText}>
+                    ¿No tienes cuenta? <Text style={styles.switchAuthLink}>Regístrate aquí</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Registration Form */
+              <View style={styles.loginFormContainer}>
+                <Text style={styles.loginFormTitle}>Crear Cuenta</Text>
+                
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Nombre de usuario *"
+                    placeholderTextColor="#64748B"
+                    value={registerUsername}
+                    onChangeText={setRegisterUsername}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Contraseña *"
+                    placeholderTextColor="#64748B"
+                    value={registerPassword}
+                    onChangeText={setRegisterPassword}
+                    secureTextEntry
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="id-card-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Nombre completo *"
+                    placeholderTextColor="#64748B"
+                    value={registerFullName}
+                    onChangeText={setRegisterFullName}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Número de licencia *"
+                    placeholderTextColor="#64748B"
+                    value={registerLicenseNumber}
+                    onChangeText={setRegisterLicenseNumber}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Teléfono (opcional)"
+                    placeholderTextColor="#64748B"
+                    value={registerPhone}
+                    onChangeText={setRegisterPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                <View style={styles.registerShiftSection}>
+                  <Text style={styles.registerShiftLabel}>Turno de preferencia</Text>
+                  <View style={styles.registerShiftButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.registerShiftButton,
+                        registerPreferredShift === 'day' && styles.registerShiftButtonActiveDay
+                      ]}
+                      onPress={() => setRegisterPreferredShift('day')}
+                    >
+                      <Ionicons name="sunny" size={18} color={registerPreferredShift === 'day' ? '#FFFFFF' : '#F59E0B'} />
+                      <Text style={[
+                        styles.registerShiftButtonText,
+                        registerPreferredShift === 'day' && styles.registerShiftButtonTextActive
+                      ]}>Día</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.registerShiftButton,
+                        registerPreferredShift === 'all' && styles.registerShiftButtonActiveAll
+                      ]}
+                      onPress={() => setRegisterPreferredShift('all')}
+                    >
+                      <Ionicons name="time" size={18} color={registerPreferredShift === 'all' ? '#FFFFFF' : '#6366F1'} />
+                      <Text style={[
+                        styles.registerShiftButtonText,
+                        registerPreferredShift === 'all' && styles.registerShiftButtonTextActive
+                      ]}>Todo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.registerShiftButton,
+                        registerPreferredShift === 'night' && styles.registerShiftButtonActiveNight
+                      ]}
+                      onPress={() => setRegisterPreferredShift('night')}
+                    >
+                      <Ionicons name="moon" size={18} color={registerPreferredShift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
+                      <Text style={[
+                        styles.registerShiftButtonText,
+                        registerPreferredShift === 'night' && styles.registerShiftButtonTextActive
+                      ]}>Noche</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.loginScreenButton, styles.registerButton]}
+                  onPress={handleRegister}
+                  disabled={registerLoading}
+                >
+                  {registerLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.loginScreenButtonText}>Crear Cuenta</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.switchAuthButton}
+                  onPress={() => setShowRegister(false)}
+                >
+                  <Text style={styles.switchAuthText}>
+                    ¿Ya tienes cuenta? <Text style={styles.switchAuthLink}>Inicia sesión</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Footer */}
             <Text style={styles.loginFooter}>
-              Acceso solo para usuarios registrados
+              {showRegister ? '* Campos obligatorios' : 'Acceso solo para usuarios registrados'}
             </Text>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
