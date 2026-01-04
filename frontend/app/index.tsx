@@ -8008,6 +8008,92 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontWeight: '600',
   },
+  // Time Range Modal styles
+  timeRangeModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  timeRangeModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  timeRangeModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  timeRangeModalSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  timeRangeModalScroll: {
+    maxHeight: 400,
+  },
+  timeRangeSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    marginTop: 8,
+  },
+  timeRangeSectionTitle: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeRangeModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginVertical: 2,
+  },
+  timeRangeModalOptionSelected: {
+    backgroundColor: '#064E3B',
+  },
+  timeRangeModalOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timeRangeModalOptionText: {
+    color: '#E2E8F0',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  timeRangeModalOptionTextSelected: {
+    color: '#10B981',
+    fontWeight: '600',
+  },
+  timeRangeModalCloseButton: {
+    backgroundColor: '#374151',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  timeRangeModalCloseButtonText: {
+    color: '#E2E8F0',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   // SOS Button styles
   sosButton: {
     width: 36,
