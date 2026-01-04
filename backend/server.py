@@ -64,6 +64,7 @@ emergency_alerts_collection = db['emergency_alerts']  # Emergency SOS alerts
 hottest_street_cache_collection = db['hottest_street_cache']  # Persistent hottest street cache
 events_collection = db['events']  # User-created events
 chat_messages_collection = db['chat_messages']  # Chat messages for all channels
+license_alerts_collection = db['license_alerts']  # Alerts between taxi drivers by license number
 
 # Create the main app without a prefix
 app = FastAPI()
