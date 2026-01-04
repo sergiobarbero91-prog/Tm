@@ -1815,6 +1815,53 @@ export default function TransportMeter() {
         params.max_distance_km = 4.0;  // ~5 min by car
       }
       
+      // If a specific time range is selected (not "now"), calculate start_time and end_time
+      if (selectedTimeRange !== 'now') {
+        const option = timeRangeOptions.find(o => o.id === selectedTimeRange);
+        if (option) {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          // Calculate the start time for the selected hour slot
+          let startDate = new Date(today);
+          startDate.setHours(option.startHour, 0, 0, 0);
+          
+          let endDate = new Date(today);
+          endDate.setHours(option.endHour, 0, 0, 0);
+          
+          // Handle day boundary (when end hour is smaller than start hour, it's next day)
+          if (option.endHour <= option.startHour && option.endHour !== 0) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          // Special case: if end is 0 (midnight), it's next day
+          if (option.endHour === 0 && option.startHour !== 0) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          
+          // If the selected time is in the past (past-X), we need to check if it's yesterday
+          if (selectedTimeRange.startsWith('past-')) {
+            // If start time is in the future relative to now, it means it's actually yesterday
+            if (startDate > now) {
+              startDate.setDate(startDate.getDate() - 1);
+              endDate.setDate(endDate.getDate() - 1);
+            }
+          }
+          
+          // If the selected time is in the future (future-X), we need to check if it's tomorrow
+          if (selectedTimeRange.startsWith('future-')) {
+            // If start time is in the past relative to now, it means it's actually tomorrow
+            if (startDate < now && (now.getTime() - startDate.getTime()) > 12 * 60 * 60 * 1000) {
+              startDate.setDate(startDate.getDate() + 1);
+              endDate.setDate(endDate.getDate() + 1);
+            }
+          }
+          
+          params.start_time = startDate.toISOString();
+          params.end_time = endDate.toISOString();
+          console.log(`[Street] Fetching data for time range: ${startDate.toLocaleString()} to ${endDate.toLocaleString()}`);
+        }
+      }
+      
       const response = await axios.get<StreetWorkData>(`${API_BASE}/api/street/data`, {
         params,
         headers: { Authorization: `Bearer ${token}` }
@@ -1827,7 +1874,7 @@ export default function TransportMeter() {
       console.error('Error fetching street data:', error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeWindow, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
+  }, [timeWindow, selectedTimeRange, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
 
   // Fetch events data
   const fetchEventsData = useCallback(async () => {
