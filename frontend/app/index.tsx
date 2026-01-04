@@ -3843,17 +3843,24 @@ export default function TransportMeter() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>TransportMeter</Text>
+          <View style={styles.headerLeft}>
+            <Ionicons name="car" size={24} color="#F59E0B" />
+          </View>
           <View style={styles.headerActions}>
-            {/* Admin Button - only for admins */}
-            {currentUser?.role === 'admin' && (
-              <TouchableOpacity 
-                style={styles.adminButton}
-                onPress={() => router.push('/admin')}
-              >
-                <Ionicons name="shield" size={18} color="#F59E0B" />
-              </TouchableOpacity>
-            )}
+            {/* Alerts Button */}
+            <TouchableOpacity 
+              style={[
+                styles.alertsButton,
+                alertsUnreadCount > 0 && styles.alertsButtonActive
+              ]}
+              onPress={openAlertsModal}
+            >
+              <Ionicons 
+                name={alertsUnreadCount > 0 ? "notifications" : "notifications-outline"} 
+                size={20} 
+                color={alertsUnreadCount > 0 ? "#FFFFFF" : "#94A3B8"} 
+              />
+            </TouchableOpacity>
             {/* Settings Button */}
             <TouchableOpacity 
               style={styles.settingsButton}
