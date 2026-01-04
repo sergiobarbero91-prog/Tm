@@ -2017,6 +2017,85 @@ export default function TransportMeter() {
     }
   };
 
+  // ========== CHAT FUNCTIONS ==========
+  
+  // Fetch available chat channels
+  const fetchChatChannels = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/chat/channels`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setChatChannels(response.data.channels);
+    } catch (error) {
+      console.error('Error fetching chat channels:', error);
+    }
+  }, []);
+
+  // Fetch messages for a channel
+  const fetchChatMessages = useCallback(async (channel: string) => {
+    setChatLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/chat/${channel}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setChatMessages(response.data.messages);
+      setCanWriteChat(response.data.can_write);
+    } catch (error: any) {
+      console.error('Error fetching chat messages:', error);
+      if (error.response?.status === 403) {
+        Alert.alert('Acceso denegado', 'No tienes acceso a este canal');
+      }
+    } finally {
+      setChatLoading(false);
+    }
+  }, []);
+
+  // Send a chat message
+  const sendChatMessage = async () => {
+    if (!chatMessage.trim() || !canWriteChat) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(
+        `${API_BASE}/api/chat/${activeChannel}/messages`,
+        { message: chatMessage.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Add message to local state
+      setChatMessages(prev => [...prev, response.data.message]);
+      setChatMessage('');
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo enviar el mensaje');
+    }
+  };
+
+  // Switch chat channel
+  const switchChannel = (channelId: string) => {
+    setActiveChannel(channelId);
+    fetchChatMessages(channelId);
+  };
+
+  // Open chat modal
+  const openChatModal = () => {
+    fetchChatChannels();
+    fetchChatMessages(activeChannel);
+    setShowChatModal(true);
+  };
+
+  // Get channel icon
+  const getChannelIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'chatbubbles': return 'chatbubbles';
+      case 'megaphone': return 'megaphone';
+      case 'shield': return 'shield';
+      default: return 'chatbubble';
+    }
+  };
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
