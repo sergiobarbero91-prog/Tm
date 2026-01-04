@@ -4274,28 +4274,6 @@ export default function TransportMeter() {
         </TouchableOpacity>
         
         {/* SOS Button - always visible */}
-                        <Text style={[
-                          styles.timeRangeOptionText,
-                          isSelected && styles.timeRangeOptionTextSelected,
-                          isPast && !isSelected && styles.timeRangeOptionTextPast,
-                          isFuture && !isSelected && styles.timeRangeOptionTextFuture,
-                          isNow && !isSelected && styles.timeRangeOptionTextNow
-                        ]}>
-                          {option.label}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-        
-        {/* SOS Button - always visible */}
         <TouchableOpacity
           style={[
             styles.sosButton,
