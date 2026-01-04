@@ -3824,9 +3824,17 @@ export default function TransportMeter() {
         )}
       </View>
 
-      {/* Time Window Selector with SOS Button */}
+      {/* Time Window Selector with Chat and SOS Buttons */}
       <View style={styles.timeWindowContainer}>
-        <Text style={styles.timeWindowLabel}>Ventana de tiempo:</Text>
+        {/* Chat Button */}
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={openChatModal}
+        >
+          <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        
+        <Text style={styles.timeWindowLabel}>Ventana:</Text>
         <View style={styles.timeWindowButtons}>
           <TouchableOpacity
             style={[
@@ -3841,7 +3849,7 @@ export default function TransportMeter() {
                 timeWindow === 30 && styles.activeTimeWindowText,
               ]}
             >
-              30 min
+              30m
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -3857,7 +3865,7 @@ export default function TransportMeter() {
                 timeWindow === 60 && styles.activeTimeWindowText,
               ]}
             >
-              60 min
+              60m
             </Text>
           </TouchableOpacity>
         </View>
