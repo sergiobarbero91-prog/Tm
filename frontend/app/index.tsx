@@ -4450,6 +4450,120 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Chat Modal */}
+      {showChatModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.chatModal}>
+            {/* Chat Header */}
+            <View style={styles.chatHeader}>
+              <Text style={styles.chatTitle}>💬 Chat</Text>
+              <TouchableOpacity onPress={() => setShowChatModal(false)}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Channel Tabs */}
+            <View style={styles.chatChannelTabs}>
+              {chatChannels.map((channel) => (
+                <TouchableOpacity
+                  key={channel.id}
+                  style={[
+                    styles.chatChannelTab,
+                    activeChannel === channel.id && styles.chatChannelTabActive
+                  ]}
+                  onPress={() => switchChannel(channel.id)}
+                >
+                  <Ionicons 
+                    name={getChannelIcon(channel.icon) as any}
+                    size={16} 
+                    color={activeChannel === channel.id ? '#FFFFFF' : '#94A3B8'} 
+                  />
+                  <Text style={[
+                    styles.chatChannelTabText,
+                    activeChannel === channel.id && styles.chatChannelTabTextActive
+                  ]}>
+                    {channel.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Messages Area */}
+            <ScrollView 
+              style={styles.chatMessagesContainer}
+              contentContainerStyle={styles.chatMessagesContent}
+            >
+              {chatLoading ? (
+                <View style={styles.chatLoadingContainer}>
+                  <ActivityIndicator size="large" color="#6366F1" />
+                </View>
+              ) : chatMessages.length === 0 ? (
+                <View style={styles.chatEmptyContainer}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={48} color="#4B5563" />
+                  <Text style={styles.chatEmptyText}>No hay mensajes aún</Text>
+                  <Text style={styles.chatEmptySubtext}>¡Sé el primero en escribir!</Text>
+                </View>
+              ) : (
+                chatMessages.map((msg) => (
+                  <View 
+                    key={msg.id} 
+                    style={[
+                      styles.chatMessage,
+                      msg.user_id === currentUser?.id && styles.chatMessageOwn
+                    ]}
+                  >
+                    <View style={styles.chatMessageHeader}>
+                      <Text style={styles.chatMessageUsername}>
+                        {msg.full_name || msg.username}
+                      </Text>
+                      <Text style={styles.chatMessageTime}>
+                        {new Date(msg.created_at).toLocaleTimeString('es-ES', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </Text>
+                    </View>
+                    <Text style={styles.chatMessageText}>{msg.message}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {/* Input Area */}
+            {canWriteChat ? (
+              <View style={styles.chatInputContainer}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Escribe un mensaje..."
+                  placeholderTextColor="#6B7280"
+                  value={chatMessage}
+                  onChangeText={setChatMessage}
+                  multiline
+                  maxLength={1000}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.chatSendButton,
+                    !chatMessage.trim() && styles.chatSendButtonDisabled
+                  ]}
+                  onPress={sendChatMessage}
+                  disabled={!chatMessage.trim()}
+                >
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.chatReadOnlyBanner}>
+                <Ionicons name="lock-closed" size={16} color="#9CA3AF" />
+                <Text style={styles.chatReadOnlyText}>
+                  Solo moderadores pueden escribir en este canal
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* Taxi Question Modal */}
       {showTaxiQuestion && (
         <View style={styles.modalOverlay}>
