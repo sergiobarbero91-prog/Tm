@@ -20,6 +20,9 @@ import pytz
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+# Import routers
+from routers import auth as auth_router
+
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
 
