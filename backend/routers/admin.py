@@ -111,9 +111,16 @@ async def search_users(
 @router.get("/users", response_model=List[UserSearchResult])
 async def list_users(admin: dict = Depends(get_admin_user)):
     """List all users (admin only)."""
+    now = datetime.utcnow()
+    five_minutes_ago = now - timedelta(minutes=5)
+    
     users = await users_collection.find().to_list(1000)
-    return [
-        UserResponse(
+    results = []
+    for u in users:
+        last_seen = u.get("last_seen")
+        is_online = last_seen and last_seen >= five_minutes_ago if last_seen else False
+        
+        results.append(UserSearchResult(
             id=u["id"],
             username=u["username"],
             full_name=u.get("full_name"),
@@ -121,10 +128,12 @@ async def list_users(admin: dict = Depends(get_admin_user)):
             phone=u.get("phone"),
             role=u.get("role", "user"),
             preferred_shift=u.get("preferred_shift", "all"),
-            created_at=u["created_at"]
-        )
-        for u in users
-    ]
+            created_at=u["created_at"],
+            last_seen=last_seen,
+            is_online=is_online
+        ))
+    
+    return results
 
 
 @router.post("/users", response_model=UserResponse)
