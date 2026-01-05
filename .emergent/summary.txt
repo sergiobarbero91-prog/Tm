@@ -1,166 +1,154 @@
 <analysis>
-
 <original_problem_statement>
 The user's application is a logistics and transport monitoring tool for Madrid, designed for taxi drivers.
 
+**Initial Feature Requests (Largely Completed):**
+*   **User Roles & Admin Panel:** Three roles (Admin/Moderator/User) with an admin panel for role management.
+*   **Extended User Profile & Registration:** Full registration flow and editable user profiles with fields like  and .
+*   **Multi-Channel Chat System:** A three-channel chat (Global, Notices, Admin) with role-based permissions.
+*   **License-Based Alert System:** A system to send alerts to drivers using their license number.
+*   **Advanced Time Window Selector:** A new UI on the Street tab to view historical/future data.
+
 **Latest User Requests:**
-1.  **Feature: User Roles (Admin/Moderator/User):** The user requested three roles. Administrators should be the only ones who can manage roles via a new admin panel. The existing  user should be an administrator.
-2.  **Feature: Extended User Profile & Registration:** The user wants a full registration flow accessible from the login screen. User profiles must be expanded to include , , , and .  and  are mandatory. Existing users should be able to edit their profiles from the settings page.
-3.  **Feature: Multi-Channel Chat System:** The user requested a chat system with three channels accessible via a new dropdown button:
-    *   **Global Chat:** All users can read and write.
-    *   **Notices Chat:** All users can read, but only Moderators and Admins can write.
-    *   **Admin Chat:** Only Admins can see, read, and write.
-    *   Moderators and Admins must be able to delete any message in any channel they can access.
-4.  **Feature: License-Based Alert System:** The user wants a system to send alerts to other drivers using their license number.
-    *   A new button in the header should open an alerts modal. The button should be highlighted if there are unread alerts.
-    *   The creation form must search for existing license numbers and provide suggestions, preventing alerts from being sent to non-existent licenses.
-    *   Alerts should show who sent them (name and license number).
-5.  **Feature: Advanced Time Window Selector:** The user wants to replace the simple 30m/60m time window toggle on the Street tab. The new system should:
-    *   Have smaller 30 and 60 minute buttons.
-    *   Include a dropdown to select specific 1-hour time slots from a range of 12 hours in the past to 12 hours in the future.
-    *   The application should store/cache the data for these past/future windows.
+1.  **Bug Fix (Resolved):** Users were unable to delete their own published events. Admins and moderators should also be able to delete any event.
+2.  **Feature Enhancement (In Progress):** The time window selector, which currently works for the Street tab, should also filter data on the Trains and Flights tabs. The application should store historical data for up to 12 hours to enable this.
 
 </original_problem_statement>
-
 **User's preferred language**: español
 
 **what currently exists?**
-A full-stack application with a monolithic React Native (Expo) frontend () and a monolithic Python (FastAPI) backend (). The application now includes:
-- **User Authentication & Roles:** A complete system for registration, login, and role-based access control (user, moderator, admin).
-- **Admin Panel:** A dedicated Admin tab in the frontend where administrators can view, create, edit roles of, and delete users.
-- **Extended User Profiles:** User documents in MongoDB now store , , , and .
-- **Events Feature:** A tab for users to post and vote on real-time events like traffic jams or police controls.
-- **Multi-Channel Chat:** A real-time chat modal with three separate channels (Global, Notices, Admin) with role-based write and delete permissions.
-- **Alert System:** A system for sending direct alerts (e.g., lost item) to other drivers by searching for their license number with an autocomplete feature.
-- **Time Window Selector (Partial):** The UI on the Street tab has been updated to include a new dropdown button for selecting time ranges, but the functionality is incomplete.
+A full-stack application with a monolithic React Native (Expo) frontend () and a partially refactored Python (FastAPI) backend.
+-   **Frontend:** A single massive  file containing all UI, state, and logic for every feature (Login, Registration, Admin, Chat, Alerts, Events, Street/Train/Flight tabs).
+-   **Backend:** The original  monolith has been significantly refactored. Core functionalities like authentication, chat, alerts, admin, events, and others have been moved into separate FastAPI router files located in . The main  file now primarily orchestrates these routers and still contains the core data-fetching logic for trains, flights, and street data.
+-   **Features:** The application is feature-rich, including user authentication with roles, an admin panel, a multi-channel chat, a direct alert system, an event posting/voting system, and a functional time-window selector for the Street tab.
 
 **Last working item**:
-    - Last item agent was working: Implementing the advanced time window selector for the Street tab. The agent successfully added the necessary frontend states (, ), created the logic to generate the past/future time slots (), and updated the UI to replace the old buttons with a new layout including a dropdown button.
+    - Last item agent was working: The user requested that the advanced time window selector also apply to the Trains and Flights tabs. To support this, the agent started modifying the backend by creating new MongoDB collections (, ) to cache historical data. This was done by adding them to .
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Complete and Connect Time Window Selector (P0)
-  - Issue 2: Refactor Monolithic Files (P1)
+  - Issue 1: Refactor Frontend Monolith (P1)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The frontend UI button and state management are in place. The agent added  state and a function  to create the list of time slots. The UI was updated to show a new button.
+     - Attempted fixes: The agent created a  file to begin separating concerns, but the main  file (over 9000 lines) remains untouched. This is a critical technical debt.
      - Next debug checklist: 
-        1.  **Frontend:** Implement the actual dropdown/modal UI that appears when the  button is pressed in . This modal should list the options from  and update  on selection.
-        2.  **Backend:** Modify the data-fetching endpoint for the Street tab () in  to accept  and  query parameters.
-        3.  **Backend:** Update the data aggregation logic in that endpoint to filter  and other relevant data based on the provided time range instead of just the last X minutes.
-        4.  **Frontend:** Modify the  function in  to pass the  to the backend when fetching street data.
-     - Why fix this issue and what will be achieved with the fix? This will complete a key feature request, allowing users to time travel and see predictions or historical data for station/street activity, a significant enhancement to the app's core functionality.
-     - Status:  IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: None
-  - Issue 2: 
-     - Attempted fixes: None. This is a long-standing technical debt issue.
-     - Next debug checklist: 
-        1.  Plan and execute the refactoring of  into smaller, manageable components (, , , , etc.) and custom hooks.
-        2.  Plan and execute the refactoring of  into separate FastAPI routers (, , , , etc.).
-     - Why fix this issue and what will be achieved with the fix? The application is becoming critically unstable and difficult to maintain due to the giga-monolithic files. Refactoring is essential for future development, stability, and bug prevention.
+        1.  Create a  directory inside .
+        2.  Systematically extract large UI sections from  into their own component files (e.g., , , , ).
+        3.  Extract state management logic into custom hooks (e.g., , ).
+        4.  Refactor  to import and render these new components.
+     - Why fix this issue and what will be achieved with the fix? The frontend is extremely difficult to maintain, debug, and enhance. Refactoring will improve stability, reduce the risk of regressions, and significantly speed up future development.
      - Status:  NOT STARTED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both
+     - Should Test frontend/backend/both after fix? frontend
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: Complete Time Window Selector (P0)
+  - Task 1: Connect Time Window Selector to Trains & Flights Tabs (P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: In . The agent was about to add the modal for the time range dropdown. The next step is to create this modal UI component, then connect it to the backend.
-     - What will be achieved with this? A fully functional time selector on the Street tab.
+     - Where to resume: The agent has created the MongoDB history collections in . The next steps are in the backend:
+        1.  **Modify Data Fetching:** In , find the background tasks that fetch train and flight data. Modify them to save each new batch of data into the new  and  collections along with a timestamp.
+        2.  **Implement Data Retention:** Add a TTL (Time-To-Live) index on the new collections to automatically delete documents older than 12 hours, as requested by the user.
+        3.  **Update API Endpoints:** Modify the  and  endpoints in  to accept  and  query parameters. If these parameters are present, the endpoint should query the history collections. If not, it should fetch real-time data as it does now.
+        4.  **Update Frontend:** In , modify the  and  functions to pass the  and  from the selected time range, similar to how  was implemented.
+     - What will be achieved with this? The time selector will become a global feature, allowing users to view historical train and flight arrival data, providing a consistent and powerful data exploration experience across the app's main tabs.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
-     - Blocked on something: The backend logic for filtering by time is not yet implemented.
+     - Blocked on something: None.
 
 **Upcoming and Future Tasks**
+    Upcoming Tasks:
+    - (P1) Complete Backend Refactoring: The remaining endpoints in  (trains, flights, street data) should be moved to their own router files to complete the modularization.
+    - (P2) Frontend Refactoring: Begin the critical task of breaking down the monolithic  into smaller components and hooks.
+    
     Future Tasks:
-    - (P2) Implement Push Notifications (as a more efficient alternative to polling for SOS/License alerts).
-    - (P3) Assist with deployment.
+    - (P3) Implement Push Notifications for alerts.
+    - (P4) Add unit tests for the newly created backend routers.
+    - (P5) Assist with deployment.
 
 **Completed work in this session**
-- **Feature: User Roles & Admin Panel:** Implemented , , and  roles. Created a new Admin tab visible only to admins, allowing user management (view, create, edit roles, delete).
-- **Feature: Registration & Profile:** Added a full user registration screen with fields for name, license, phone, and shift. Integrated a My Profile edit modal in the settings.
-- **Feature: Multi-Channel Chat:** Created a full-featured chat system with a modal, three permission-based channels (Global, Notices, Admin), and message deletion for moderators/admins.
-- **Feature: License Alert System:** Built a system for sending alerts to specific users by searching for their license number with an autocomplete UI. A new header button shows unread alert counts and provides access.
-- **UI: Header Redesign:** Removed the static TransportMeter title from the header and replaced it with a dynamic layout including the app logo, the new Alerts button, and the Settings button.
+- **Feature: Advanced Time Window Selector (Street Tab):** Fully implemented and tested the time selector for the Street tab. This included creating a new modal UI, connecting it to a backend endpoint that accepts  and , and filtering data accordingly.
+- **Bug Fix: Event Deletion:** Resolved a critical bug where users could not delete events on the web preview. The agent implemented a cross-platform confirmation dialog ( for web,  for native) and verified that users can delete their own events and admins can delete any event.
+- **Refactoring: Backend Monolith to Routers:** A major refactoring of the backend was performed. The monolithic  was broken down by extracting functionality into nine separate, modular FastAPI routers:
+    - : User login, registration, profile updates.
+    - : Endpoints for chat channels and messages.
+    - : Endpoints for license-based alerts.
+    - : User management endpoints for administrators.
+    - : Endpoints for creating, viewing, and deleting events.
+    - : Endpoints for SOS alerts.
+    - : Endpoints for station check-ins.
+    - : Endpoints for taxi and queue status.
+    - : Endpoints for address search and fare calculation.
+This reduced the size of  by over 40% and significantly improved maintainability.
 
 **Earlier issues found/mentioned but not fixed**
-   - A  warning  still appears in backend logs but has been ignored as non-critical.
+   - A  warning  persists in backend logs but has been deemed non-critical and does not affect functionality.
 
 **Known issue recurrence from previous fork**
-  - **Frontend/Backend Monoliths:** This is a recurring and worsening issue. The complexity of  and  is extremely high, increasing the risk of bugs and slowing down development.
+  - **Frontend Monolith:** The  file is a recurring and worsening issue. Its immense size (~9000 lines) makes it a primary source of risk for bugs and slow development. This is the most significant piece of technical debt.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Python, MongoDB (), Pydantic.
-- **Frontend:** React Native, Expo, TypeScript, , React Hooks.
-- **State Management:** Local React state (, ) exclusively.
-- **Architecture:** Monolithic frontend and backend.
-- **Key Features:** Role-Based Access Control (RBAC), Real-time data visualization, community features (Events, Chat), direct messaging (Alerts).
+- **Backend:** FastAPI, Python, MongoDB (), Pydantic. Architecture refactored to use modular FastAPI Routers.
+- **Frontend:** React Native, Expo, TypeScript, .
+- **State Management:** Local React state (, , ) exclusively.
+- **Architecture:** Monolithic frontend, modular (partially refactored) backend.
 
 **key DB schema**
-  - **users**:  (Heavily updated)
+  - **users**: 
   - **events**: 
-  - **chat_messages**:  (New)
-  - **license_alerts**:  (New)
-  - **hottest_street_cache**: 
+  - **chat_messages**: 
+  - **license_alerts**: 
+  - **trains_history**:  (New)
+  - **flights_history**:  (New)
   - **activities**: 
   - **active_checkins**: 
   - **emergency_alerts**: 
 
 **All files of reference**
-- : Heavily modified. Added dozens of new endpoints and models for user registration, profiles, admin management, chat, and alerts.
-- : Massively modified. Hundreds of lines added for new states, functions, and JSX to implement the registration page, admin panel, chat modal, alerts modal, and profile editor. The file is now critically oversized.
+- **Created/Updated:**
+  - : (All files in this directory) Created to modularize the backend.
+  - : Created to hold shared database connections and Pydantic models.
+  - : Heavily modified to remove endpoint logic and include the new routers.
+  - : Heavily modified to implement the time selector modal and fix the event deletion bug.
 
 **Areas that need refactoring**:
-- **CRITICAL:  Monolith:** This file is now beyond unmanageable. It MUST be broken down into components and custom hooks. The risk of regressions is absolute.
-- **CRITICAL:  Monolith:** This file should be broken into FastAPI routers to improve maintainability.
+- **CRITICAL:  Monolith:** This file is unmanageable and must be broken down into smaller, reusable components and custom hooks as the highest priority after the current task.
+- **Backend :** The remaining data-intensive endpoints (trains, flights, street data) should be extracted into their own routers to complete the backend refactoring.
 
 **key api endpoints**
--  (POST): New.
--  (PUT): New.
--  (GET, POST),  (PUT, DELETE): New.
--  (GET): New.
--  (GET, POST): New.
--  (DELETE): New.
--  (POST): New.
--  (GET): New.
--  (GET): New.
--  (POST): New.
--  (GET): New.
+- Most endpoints are now defined in their respective router files (e.g.,  is in ). The frontend-facing paths remain unchanged.
 
 **Critical Info for New Agent**
-- **TIME WINDOW FEATURE IS HALF-DONE:** You are resuming work on the time window selector. The frontend UI button and state generation are done, but you must: **1)** Build the dropdown modal UI in the frontend. **2)** **Crucially, modify the backend endpoint () to accept and filter by a time range.** The backend part of this task has not been started.
-- **MONOLITHS ARE THE #1 RISK:** Be extremely careful when editing  and . Use search extensively. A small change can have unintended side effects. Refactoring is no longer optional; it's a critical stability task.
-- **APP IS FEATURE-RICH BUT FRAGILE:** The agent has added many complex, interconnected features in a single file. Test thoroughly after any change.
+- **PRIORITY TASK:** Your main goal is to make the time-window selector filter the Trains and Flights tabs. The database collections have been defined in , but you must implement the backend logic to (1) save data to these collections, (2) add a 12-hour TTL index, and (3) update the API endpoints to query this historical data. Finally, you must update the frontend to pass the time parameters to these endpoints.
+- **BACKEND IS REFACTORED:** Be aware that most backend logic is no longer in . Look inside the  directory for specific endpoints.  now acts as the orchestrator.
+- **FRONTEND IS A MONOLITH:** The file  is extremely large. Be very careful when making changes. Use search extensively and try to keep your changes localized. The next major task after the current one should be to start refactoring this file.
+- **PLATFORM-SPECIFIC CODE:** Remember the fix for event deletion used . If you add new confirmation dialogs or platform-dependent features, follow this pattern.
 
 **documents created in this job**
   - None.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. User confirms the design for the advanced time window selector (12 hours past/future, dropdown). (Status: **IN PROGRESS**)
- - 9. User requests an advanced time window selector for the Street tab. (Status: **IN PROGRESS**)
- - 8. User confirms the design for the license autocomplete feature for alerts. (Status: **RESOLVED**)
- - 7. User requests that an alert can only be sent if the license number exists in the DB, and asks for autocomplete suggestions. (Status: **RESOLVED**)
- - 6. User confirms the UI placement for the new Alerts button. (Status: **RESOLVED**)
- - 5. User requests a new system for sending alerts to other drivers by license number. (Status: **RESOLVED**)
- - 4. User requests that moderators and admins be able to delete chat messages. (Status: **RESOLVED**)
- - 3. User confirms the design for the 3-channel chat system. (Status: **RESOLVED**)
- - 2. User requests a global chat system with different channels and permissions. (Status: **RESOLVED**)
- - 1. User confirms the design for the user registration/profile feature. (Status: **RESOLVED**)
+ - 10. User confirms the new plan to make the time-window selector filter trains and flights, with a 12-hour data retention policy. (Status: **IN PROGRESS**)
+ - 9. Agent confirms the event deletion functionality is fully working for all roles. (Status: **RESOLVED**)
+ - 8. User reports again that event deletion is not working. (Status: **IN PROGRESS**)
+ - 7. Agent asks for confirmation to continue refactoring. (Status: **RESOLVED**)
+ - 6. User asks the agent to verify that events can be deleted. (Status: **IN PROGRESS**)
+ - 5. Agent summarizes the successful backend refactoring and asks to continue. (Status: **RESOLVED**)
+ - 4. User tells the agent to continue until the backend refactoring is finished. (Status: **RESOLVED**)
+ - 3. Agent summarizes refactoring progress and asks for next steps. (Status: **RESOLVED**)
+ - 2. User tells agent to proceed with automatic incremental refactoring with testing. (Status: **IN PROGRESS**)
+ - 1. Agent asks user to confirm the plan to implement the time selector and then refactor the code. (Status: **RESOLVED**)
 
 **Project Health Check:**
-- **Broken:** The new time window selection feature is incomplete and non-functional. The UI is present but not connected to anything.
+- **Broken:** The filtering of Trains and Flights data by the time-window selector is not implemented. The UI is present on the Street tab but has no effect on the other two.
 - **Mocked:** None.
 
 **3rd Party Integrations**
@@ -174,13 +162,15 @@ A full-stack application with a monolithic React Native (Expo) frontend () and a
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: None explicitly identified, but the logout issue when clicking the Admin tab during automated testing suggests potential state management or async race condition bugs.
+  - Known regressions: None. The backend refactoring and feature additions were tested incrementally to ensure no functionality was broken.
 
 **Credentials to test flow:**
 - **Username:** 
 - **Password:** 
 
 **What agent forgot to execute**
-- The backend implementation for the time window selector is completely missing. The agent's plan only covered the frontend UI. The next agent must implement the logic in  to filter data based on the  and  that will need to be passed from the frontend.
+- The agent has defined the MongoDB collections for train/flight history but has not yet implemented the logic to populate them from the API fetch tasks in .
+- The 12-hour data retention policy, requested by the user, has not been implemented (e.g., via a TTL index on the new MongoDB collections).
+- The  and  endpoints have not been updated to accept or use time range parameters.
 
 </analysis>
