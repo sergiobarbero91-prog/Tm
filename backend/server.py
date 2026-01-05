@@ -1339,12 +1339,72 @@ async def save_train_history(station: str, arrivals: List[Dict]):
         logger.error(f"[Trains] Error saving history for {station}: {e}")
 
 @api_router.get("/flights", response_model=FlightComparisonResponse)
-async def get_flight_comparison():
-    """Get REAL flight arrivals comparison between terminals at Madrid-Barajas."""
+async def get_flight_comparison(
+    start_time: Optional[str] = None,  # ISO format: "2025-06-13T14:00:00"
+    end_time: Optional[str] = None     # ISO format: "2025-06-13T15:00:00"
+):
+    """Get REAL flight arrivals comparison between terminals at Madrid-Barajas.
+    
+    Parameters:
+    - start_time: Optional start of time window (ISO format)
+    - end_time: Optional end of time window (ISO format)
+    
+    If start_time and end_time are provided, returns historical data from that window.
+    Otherwise, fetches real-time data and saves it to history.
+    """
     now = datetime.now(MADRID_TZ)
     
-    # Fetch real flight data from aeropuertomadrid-barajas.com
-    all_arrivals = await fetch_aena_arrivals()
+    logger.info(f"[Flights] Request params: start_time={start_time}, end_time={end_time}")
+    
+    # Check if we need historical data
+    use_historical = start_time is not None and end_time is not None
+    
+    if use_historical:
+        # Parse time range and fetch from history
+        try:
+            time_start = date_parser.parse(start_time)
+            time_end = date_parser.parse(end_time)
+            
+            # Ensure timezone awareness
+            if time_start.tzinfo is None:
+                time_start = MADRID_TZ.localize(time_start)
+            if time_end.tzinfo is None:
+                time_end = MADRID_TZ.localize(time_end)
+            
+            logger.info(f"[Flights] Using historical data from {time_start} to {time_end}")
+            
+            # Query historical data for all terminals
+            all_arrivals = {t: [] for t in TERMINALS}
+            
+            for terminal in TERMINALS:
+                terminal_history = await flights_history_collection.find({
+                    "terminal": terminal,
+                    "fetched_at": {"$gte": time_start, "$lte": time_end}
+                }).sort("fetched_at", -1).to_list(100)
+                
+                # Merge arrivals from all historical records (deduplicate by flight_number + time)
+                seen = set()
+                for record in terminal_history:
+                    for arr in record.get("arrivals", []):
+                        key = f"{arr.get('flight_number', '')}-{arr.get('time', '')}"
+                        if key not in seen:
+                            seen.add(key)
+                            all_arrivals[terminal].append(arr)
+            
+            total_historical = sum(len(v) for v in all_arrivals.values())
+            logger.info(f"[Flights] Historical data: {total_historical} total flights")
+            
+        except Exception as e:
+            logger.error(f"[Flights] Error parsing time range: {e}")
+            use_historical = False
+    
+    if not use_historical:
+        # Fetch real flight data from aeropuertomadrid-barajas.com
+        all_arrivals = await fetch_aena_arrivals()
+        
+        # Save to history for future queries (non-blocking)
+        for terminal in TERMINALS:
+            asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
     
     terminal_data = {}
     max_30 = 0
@@ -1354,11 +1414,20 @@ async def get_flight_comparison():
     
     for terminal in TERMINALS:
         raw_arrivals = all_arrivals.get(terminal, [])
-        # Filter out flights that have already landed
-        arrivals = filter_future_flights(raw_arrivals)
         
-        count_30 = count_arrivals_in_window(arrivals, 30)
-        count_60 = count_arrivals_in_window(arrivals, 60)
+        # For historical data, show all arrivals; for real-time, filter future only
+        if use_historical:
+            arrivals = raw_arrivals
+        else:
+            arrivals = filter_future_flights(raw_arrivals)
+        
+        # Count arrivals
+        if use_historical:
+            count_30 = len(arrivals)
+            count_60 = count_30
+        else:
+            count_30 = count_arrivals_in_window(arrivals, 30)
+            count_60 = count_arrivals_in_window(arrivals, 60)
         
         if count_30 > max_30:
             max_30 = count_30
@@ -1383,8 +1452,24 @@ async def get_flight_comparison():
         terminals=terminal_data,
         winner_30min=winner_30,
         winner_60min=winner_60,
-        last_update=now.isoformat()
+        last_update=now.isoformat(),
+        message="Datos históricos del período seleccionado" if use_historical else None
     )
+
+
+async def save_flight_history(terminal: str, arrivals: List[Dict]):
+    """Save flight arrivals to history collection for time-window queries."""
+    try:
+        now = datetime.now(MADRID_TZ)
+        history_record = {
+            "terminal": terminal,
+            "arrivals": arrivals,
+            "fetched_at": now
+        }
+        await flights_history_collection.insert_one(history_record)
+        logger.info(f"[Flights] Saved {len(arrivals)} arrivals to history for {terminal}")
+    except Exception as e:
+        logger.error(f"[Flights] Error saving history for {terminal}: {e}")
 
 @api_router.post("/notifications/subscribe")
 async def subscribe_notifications(subscription: NotificationSubscription):
