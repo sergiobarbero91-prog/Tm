@@ -1360,8 +1360,13 @@ async def get_train_comparison(
     )
     
     message = None
-    if use_historical:
-        message = f"Datos históricos del período seleccionado"
+    if custom_time_window:
+        if is_future_window:
+            message = f"Trenes previstos para la franja horaria seleccionada"
+        elif is_past_window:
+            message = f"Datos históricos del período seleccionado"
+        else:
+            message = f"Trenes para la franja horaria seleccionada"
     elif is_night_time and atocha_30 == 0 and chamartin_30 == 0:
         message = "Horario nocturno - Sin trenes en los próximos minutos. Próximas llegadas listadas abajo."
     
