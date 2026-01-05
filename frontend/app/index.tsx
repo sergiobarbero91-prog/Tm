@@ -2528,6 +2528,14 @@ export default function TransportMeter() {
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
+      // Get time range parameters for historical queries
+      const timeParams = getTimeRangeParams();
+      const isHistorical = Object.keys(timeParams).length > 0;
+      
+      if (isHistorical) {
+        console.log(`[Data] Using time range params:`, timeParams);
+      }
+      
       if (activeTab === 'trains') {
         // Fetch trains with retry for Chamartín
         let retryCount = 0;
@@ -2536,16 +2544,17 @@ export default function TransportMeter() {
         
         while (retryCount < maxRetries) {
           const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
-            params: { shift }
+            params: { shift, ...timeParams }
           });
           
           trainResponse = response.data;
           
-          // Check if Chamartín has data
+          // Check if Chamartín has data (for real-time queries, retry if no data)
           const chamartinHasData = response.data.chamartin?.arrivals?.length > 0;
           
-          if (chamartinHasData) {
-            console.log(`[Trains] Chamartín data received (${response.data.chamartin.arrivals.length} trains)`);
+          // For historical queries, don't retry if no data (data may simply not exist)
+          if (chamartinHasData || isHistorical) {
+            console.log(`[Trains] Chamartín data received (${response.data.chamartin?.arrivals?.length || 0} trains)`);
             break;
           }
           
@@ -2561,12 +2570,14 @@ export default function TransportMeter() {
         if (trainResponse) {
           setTrainData(trainResponse);
           
-          if (trainResponse.chamartin?.arrivals?.length === 0) {
+          if (trainResponse.chamartin?.arrivals?.length === 0 && !isHistorical) {
             console.log('[Trains] Chamartín: No se pudieron obtener datos después de varios intentos');
           }
         }
       } else if (activeTab === 'flights') {
-        const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`);
+        const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`, {
+          params: timeParams
+        });
         setFlightData(response.data);
       } else if (activeTab === 'street') {
         // Fetch all street data in parallel for faster loading
