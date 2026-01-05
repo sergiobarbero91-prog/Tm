@@ -299,6 +299,7 @@ export default function TransportMeter() {
   const [showRegister, setShowRegister] = useState(false);
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [registerFullName, setRegisterFullName] = useState('');
   const [registerLicenseNumber, setRegisterLicenseNumber] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
@@ -312,6 +313,13 @@ export default function TransportMeter() {
   const [profilePhone, setProfilePhone] = useState('');
   const [profilePreferredShift, setProfilePreferredShift] = useState<'all' | 'day' | 'night'>('all');
   const [profileLoading, setProfileLoading] = useState(false);
+  
+  // Password change states
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
 
   // Chat states
   const [showChatModal, setShowChatModal] = useState(false);
