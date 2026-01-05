@@ -257,6 +257,10 @@ export default function TransportMeter() {
   // Time range selector states
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('now');
   const [showTimeRangeDropdown, setShowTimeRangeDropdown] = useState(false);
+  
+  // Dropdown selector states
+  const [showPageDropdown, setShowPageDropdown] = useState(false);
+  const [showShiftDropdown, setShowShiftDropdown] = useState(false);
 
   // Events states
   const [eventsData, setEventsData] = useState<any[]>([]);
