@@ -1406,18 +1406,21 @@ async def get_flight_comparison(
     - start_time: Optional start of time window (ISO format)
     - end_time: Optional end of time window (ISO format)
     
-    If start_time and end_time are provided, returns historical data from that window.
-    Otherwise, fetches real-time data and saves it to history.
+    If start_time and end_time are provided, filters flights to that hour window.
+    Otherwise, returns real-time data.
     """
     now = datetime.now(MADRID_TZ)
     
     logger.info(f"[Flights] Request params: start_time={start_time}, end_time={end_time}")
     
-    # Check if we need historical data
-    use_historical = start_time is not None and end_time is not None
+    # Parse time range if provided
+    time_start = None
+    time_end = None
+    is_future_window = False
+    is_past_window = False
+    custom_time_window = start_time is not None and end_time is not None
     
-    if use_historical:
-        # Parse time range and fetch from history
+    if custom_time_window:
         try:
             time_start = date_parser.parse(start_time)
             time_end = date_parser.parse(end_time)
@@ -1428,40 +1431,42 @@ async def get_flight_comparison(
             if time_end.tzinfo is None:
                 time_end = MADRID_TZ.localize(time_end)
             
-            logger.info(f"[Flights] Using historical data from {time_start} to {time_end}")
+            # Determine if this is a past or future window
+            is_future_window = time_start >= now
+            is_past_window = time_end <= now
             
-            # Query historical data for all terminals
-            all_arrivals = {t: [] for t in TERMINALS}
+            logger.info(f"[Flights] Time window: {time_start} to {time_end} (future={is_future_window}, past={is_past_window})")
             
-            for terminal in TERMINALS:
-                terminal_history = await flights_history_collection.find({
-                    "terminal": terminal,
-                    "fetched_at": {"$gte": time_start, "$lte": time_end}
-                }).sort("fetched_at", -1).to_list(100)
-                
-                # Merge arrivals from all historical records (deduplicate by flight_number + time)
+        except Exception as e:
+            logger.error(f"[Flights] Error parsing time range: {e}")
+            custom_time_window = False
+    
+    # Always fetch fresh data
+    all_arrivals = await fetch_aena_arrivals()
+    
+    # Save to history for future queries (non-blocking)
+    for terminal in TERMINALS:
+        asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
+    
+    # If past window, also fetch historical data and merge
+    if is_past_window and time_start and time_end:
+        logger.info(f"[Flights] Fetching historical data for past window")
+        for terminal in TERMINALS:
+            terminal_history = await flights_history_collection.find({
+                "terminal": terminal,
+                "fetched_at": {"$gte": time_start, "$lte": time_end}
+            }).sort("fetched_at", -1).to_list(100)
+            
+            # Use historical data if available
+            if terminal_history:
                 seen = set()
+                all_arrivals[terminal] = []
                 for record in terminal_history:
                     for arr in record.get("arrivals", []):
                         key = f"{arr.get('flight_number', '')}-{arr.get('time', '')}"
                         if key not in seen:
                             seen.add(key)
                             all_arrivals[terminal].append(arr)
-            
-            total_historical = sum(len(v) for v in all_arrivals.values())
-            logger.info(f"[Flights] Historical data: {total_historical} total flights")
-            
-        except Exception as e:
-            logger.error(f"[Flights] Error parsing time range: {e}")
-            use_historical = False
-    
-    if not use_historical:
-        # Fetch real flight data from aeropuertomadrid-barajas.com
-        all_arrivals = await fetch_aena_arrivals()
-        
-        # Save to history for future queries (non-blocking)
-        for terminal in TERMINALS:
-            asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
     
     terminal_data = {}
     max_30 = 0
@@ -1472,14 +1477,16 @@ async def get_flight_comparison(
     for terminal in TERMINALS:
         raw_arrivals = all_arrivals.get(terminal, [])
         
-        # For historical data, show all arrivals; for real-time, filter future only
-        if use_historical:
-            arrivals = raw_arrivals
+        # Filter arrivals based on time window
+        if custom_time_window and time_start and time_end:
+            # Filter arrivals to only those within the specified hour window
+            arrivals = filter_arrivals_by_hour_window(raw_arrivals, time_start, time_end)
         else:
+            # No time window - filter out arrived flights
             arrivals = filter_future_flights(raw_arrivals)
         
         # Count arrivals
-        if use_historical:
+        if custom_time_window:
             count_30 = len(arrivals)
             count_60 = count_30
         else:
@@ -1505,12 +1512,22 @@ async def get_flight_comparison(
         terminal_data[terminal].is_winner_30min = (terminal == winner_30)
         terminal_data[terminal].is_winner_60min = (terminal == winner_60)
     
+    # Determine message
+    message = None
+    if custom_time_window:
+        if is_future_window:
+            message = "Vuelos previstos para la franja horaria seleccionada"
+        elif is_past_window:
+            message = "Datos históricos del período seleccionado"
+        else:
+            message = "Vuelos para la franja horaria seleccionada"
+    
     return FlightComparisonResponse(
         terminals=terminal_data,
         winner_30min=winner_30,
         winner_60min=winner_60,
         last_update=now.isoformat(),
-        message="Datos históricos del período seleccionado" if use_historical else None
+        message=message
     )
 
 
