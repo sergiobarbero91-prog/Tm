@@ -9578,6 +9578,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  // Change Password Modal styles
+  changePasswordModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+  },
+  changePasswordHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  changePasswordTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  changePasswordSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  changePasswordForm: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  changePasswordButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  changePasswordCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+  },
+  changePasswordCancelText: {
+    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  changePasswordSaveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#10B981',
+  },
+  changePasswordSaveButtonDisabled: {
+    backgroundColor: '#374151',
+    opacity: 0.6,
+  },
+  changePasswordSaveText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  changePasswordButton: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#F59E0B40',
+  },
+  passwordMismatchText: {
+    color: '#EF4444',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+  },
   profileForm: {
     gap: 16,
   },
