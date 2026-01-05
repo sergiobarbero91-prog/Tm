@@ -1560,74 +1560,7 @@ async def calculate_route_distance(
             "note": "Estimación basada en factor urbano típico (1.3x)"
         }
 
-
-@api_router.get("/geocode/reverse")
-async def reverse_geocode(
-    lat: float,
-    lng: float,
-    current_user: dict = Depends(get_current_user_required)
-):
-    """Get street name from coordinates using Nominatim."""
-    try:
-        from geopy.geocoders import Nominatim
-        from geopy.distance import geodesic
-        
-        geolocator = Nominatim(user_agent="transport_meter_app_v2")
-        
-        # Try to get the location
-        location = geolocator.reverse(f"{lat}, {lng}", language="es", exactly_one=True)
-        
-        if location and location.raw:
-            address = location.raw.get("address", {})
-            
-            # Try multiple fields to get the best street name
-            street = (
-                address.get("road") or 
-                address.get("pedestrian") or 
-                address.get("footway") or
-                address.get("path") or
-                address.get("cycleway") or
-                address.get("neighbourhood") or
-                address.get("suburb") or
-                "Calle desconocida"
-            )
-            
-            # Get house number if available
-            house_number = address.get("house_number", "")
-            
-            # Calculate points 75m ahead and behind on the street
-            # We use a simple approximation: 75m ≈ 0.000675 degrees latitude
-            lat_offset = 0.000675  # ~75 meters
-            
-            return {
-                "street": street,
-                "house_number": house_number,
-                "full_address": location.address,
-                "lat": lat,
-                "lng": lng,
-                "range_start_lat": lat - lat_offset,
-                "range_end_lat": lat + lat_offset,
-                "range_meters": 150  # 75m ahead + 75m behind
-            }
-        
-        return {
-            "street": "Calle desconocida",
-            "house_number": "",
-            "full_address": "",
-            "lat": lat,
-            "lng": lng,
-            "range_start_lat": lat - 0.000675,
-            "range_end_lat": lat + 0.000675,
-            "range_meters": 150
-        }
-    except Exception as e:
-        logger.error(f"Reverse geocoding error: {e}")
-        return {
-            "street": "Calle desconocida",
-            "error": str(e),
-            "lat": lat,
-            "lng": lng
-        }
+# NOTE: /geocode/reverse endpoint has been moved to routers/geocoding.py
 
 @api_router.get("/street/data", response_model=StreetWorkResponse)
 async def get_street_work_data(
