@@ -2600,6 +2600,28 @@ async def startup_db_client():
     """Create default admin user and preload cache on startup."""
     await create_default_admin()
     
+    # Create TTL indexes for history collections (12 hours = 43200 seconds)
+    logger.info("Setting up TTL indexes for history collections...")
+    try:
+        # Create TTL index for trains_history (12 hours retention)
+        await trains_history_collection.create_index(
+            "fetched_at",
+            expireAfterSeconds=43200,  # 12 hours
+            background=True
+        )
+        logger.info("Created TTL index for trains_history (12 hour retention)")
+        
+        # Create TTL index for flights_history (12 hours retention)
+        await flights_history_collection.create_index(
+            "fetched_at",
+            expireAfterSeconds=43200,  # 12 hours
+            background=True
+        )
+        logger.info("Created TTL index for flights_history (12 hour retention)")
+    except Exception as e:
+        # Index may already exist, which is fine
+        logger.info(f"TTL indexes setup: {e}")
+    
     # Preload cache on startup
     logger.info("Preloading arrival cache on startup...")
     try:
@@ -2614,6 +2636,10 @@ async def startup_db_client():
         arrival_cache["trains"]["last_successful"] = datetime.now()
         logger.info(f"Preloaded train cache - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
         
+        # Save initial data to history
+        await save_train_history("atocha", atocha_arrivals)
+        await save_train_history("chamartin", chamartin_arrivals)
+        
         # Fetch flight data
         flight_data = await fetch_aena_arrivals()
         arrival_cache["flights"]["data"] = flight_data
@@ -2621,6 +2647,11 @@ async def startup_db_client():
         arrival_cache["flights"]["last_successful"] = datetime.now()
         total_flights = sum(len(v) for v in flight_data.values())
         logger.info(f"Preloaded flight cache - {total_flights} flights")
+        
+        # Save initial flight data to history
+        for terminal in TERMINALS:
+            await save_flight_history(terminal, flight_data.get(terminal, []))
+            
     except Exception as e:
         logger.error(f"Error preloading cache: {e}")
     
