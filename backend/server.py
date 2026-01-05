@@ -1087,6 +1087,48 @@ def filter_arrivals_by_shift(arrivals: List[Dict], shift: str) -> List[Dict]:
             pass
     return filtered
 
+def filter_arrivals_by_hour_window(arrivals: List[Dict], start_time: datetime, end_time: datetime) -> List[Dict]:
+    """Filter arrivals to only include those with arrival times within the specified hour window.
+    
+    This filters based on the arrival TIME (hour:minute), not the fetch timestamp.
+    Used for both past and future time windows.
+    """
+    filtered = []
+    start_hour = start_time.hour
+    start_minute = start_time.minute
+    end_hour = end_time.hour
+    end_minute = end_time.minute
+    
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            if not time_str or ":" not in time_str:
+                continue
+            
+            parts = time_str.split(":")
+            arr_hour = int(parts[0])
+            arr_minute = int(parts[1]) if len(parts) > 1 else 0
+            
+            # Convert to minutes for easier comparison
+            arr_minutes = arr_hour * 60 + arr_minute
+            start_minutes = start_hour * 60 + start_minute
+            end_minutes = end_hour * 60 + end_minute
+            
+            # Handle day boundary (e.g., 23:00 to 01:00)
+            if end_minutes < start_minutes:
+                # Window crosses midnight
+                if arr_minutes >= start_minutes or arr_minutes < end_minutes:
+                    filtered.append(arrival)
+            else:
+                # Normal window
+                if start_minutes <= arr_minutes < end_minutes:
+                    filtered.append(arrival)
+        except Exception as e:
+            logger.debug(f"Error filtering arrival by hour: {e}")
+            pass
+    
+    return filtered
+
 def calculate_peak_hour(arrivals: List[Dict], shift: str = "all") -> Optional[Dict]:
     """Calculate the peak hour (hour with most arrivals) for a station within a shift."""
     if not arrivals:
