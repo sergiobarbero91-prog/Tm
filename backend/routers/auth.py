@@ -222,3 +222,14 @@ async def change_own_password(
     )
     
     return {"message": "Contraseña actualizada correctamente"}
+
+
+@router.post("/heartbeat")
+async def heartbeat(current_user: dict = Depends(get_current_user_required)):
+    """Update user's last_seen timestamp (call periodically to show as online)."""
+    now = datetime.utcnow()
+    await users_collection.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"last_seen": now}}
+    )
+    return {"status": "ok", "timestamp": now.isoformat()}
