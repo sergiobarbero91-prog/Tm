@@ -5278,6 +5278,94 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.changePasswordModal}>
+            <View style={styles.changePasswordHeader}>
+              <Ionicons name="key" size={48} color="#F59E0B" />
+              <Text style={styles.changePasswordTitle}>Cambiar Contraseña</Text>
+              <Text style={styles.changePasswordSubtitle}>
+                Ingresa tu contraseña actual y la nueva contraseña
+              </Text>
+            </View>
+
+            <View style={styles.changePasswordForm}>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.loginScreenInput}
+                  placeholder="Contraseña actual"
+                  placeholderTextColor="#64748B"
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="key-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.loginScreenInput}
+                  placeholder="Nueva contraseña"
+                  placeholderTextColor="#64748B"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="key" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.loginScreenInput}
+                  placeholder="Confirmar nueva contraseña"
+                  placeholderTextColor="#64748B"
+                  value={newPasswordConfirm}
+                  onChangeText={setNewPasswordConfirm}
+                  secureTextEntry
+                />
+              </View>
+              
+              {newPassword && newPasswordConfirm && newPassword !== newPasswordConfirm && (
+                <Text style={styles.passwordMismatchText}>Las contraseñas no coinciden</Text>
+              )}
+            </View>
+
+            <View style={styles.changePasswordButtons}>
+              <TouchableOpacity
+                style={styles.changePasswordCancelButton}
+                onPress={() => {
+                  setShowChangePasswordModal(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setNewPasswordConfirm('');
+                }}
+              >
+                <Text style={styles.changePasswordCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.changePasswordSaveButton,
+                  (!currentPassword || !newPassword || !newPasswordConfirm || newPassword !== newPasswordConfirm) && styles.changePasswordSaveButtonDisabled
+                ]}
+                onPress={handleChangePassword}
+                disabled={passwordChangeLoading || !currentPassword || !newPassword || !newPasswordConfirm || newPassword !== newPasswordConfirm}
+              >
+                {passwordChangeLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                    <Text style={styles.changePasswordSaveText}>Guardar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* License Alerts Modal */}
       {showAlertsModal && (
         <View style={styles.modalOverlay}>
