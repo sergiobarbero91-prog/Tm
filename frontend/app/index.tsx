@@ -2460,6 +2460,71 @@ export default function TransportMeter() {
     return option ? option.label : 'Ahora';
   };
 
+  // Calculate time range parameters for API calls
+  const getTimeRangeParams = useCallback(() => {
+    if (selectedTimeRange === 'now') {
+      return {};
+    }
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    let targetStartHour: number | null = null;
+    let targetEndHour: number | null = null;
+    let hoursOffset = 0;
+    
+    if (selectedTimeRange.startsWith('past-')) {
+      const pastIndex = parseInt(selectedTimeRange.replace('past-', ''));
+      hoursOffset = -pastIndex;
+      targetStartHour = (currentHour + hoursOffset + 24) % 24;
+      targetEndHour = (targetStartHour + 1) % 24;
+    } else if (selectedTimeRange.startsWith('future-')) {
+      const futureIndex = parseInt(selectedTimeRange.replace('future-', ''));
+      hoursOffset = futureIndex;
+      targetStartHour = (currentHour + hoursOffset) % 24;
+      targetEndHour = (targetStartHour + 1) % 24;
+    }
+    
+    if (targetStartHour === null || targetEndHour === null) {
+      return {};
+    }
+    
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Calculate the start time for the selected hour slot
+    let startDate = new Date(today);
+    startDate.setHours(targetStartHour, 0, 0, 0);
+    
+    let endDate = new Date(today);
+    endDate.setHours(targetEndHour, 0, 0, 0);
+    
+    // Handle day boundary
+    if (targetEndHour === 0) {
+      endDate.setDate(endDate.getDate() + 1);
+    }
+    
+    // Adjust for past/future days
+    if (hoursOffset < 0) {
+      // Past: if startDate is in the future, subtract a day
+      if (startDate > now) {
+        startDate.setDate(startDate.getDate() - 1);
+        endDate.setDate(endDate.getDate() - 1);
+      }
+    } else if (hoursOffset > 0) {
+      // Future: if startDate is in the past (more than 12h ago), add a day
+      const hoursDiff = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+      if (hoursDiff > 12) {
+        startDate.setDate(startDate.getDate() + 1);
+        endDate.setDate(endDate.getDate() + 1);
+      }
+    }
+    
+    return {
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString()
+    };
+  }, [selectedTimeRange]);
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return; // Don't fetch if not logged in
     try {
