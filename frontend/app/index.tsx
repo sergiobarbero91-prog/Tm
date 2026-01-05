@@ -4182,199 +4182,79 @@ export default function TransportMeter() {
       </View>
 
       {/* Tab Selector */}
-      <View style={styles.tabContainer}>
+      {/* NEW: Dropdowns Row - Page and Shift selectors */}
+      <View style={styles.dropdownsRow}>
+        {/* Page Dropdown */}
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
+          style={styles.dropdownSelector}
           onPress={() => {
-            if (activeTab !== 'trains') {
-              setLoading(true);
-              setActiveTab('trains');
-            }
+            setShowPageDropdown(true);
+            setShowShiftDropdown(false);
+            setShowTimeRangeDropdown(false);
           }}
         >
           <Ionicons
-            name="train"
-            size={20}
-            color={activeTab === 'trains' ? '#FFFFFF' : '#94A3B8'}
+            name={
+              activeTab === 'trains' ? 'train' :
+              activeTab === 'flights' ? 'airplane' :
+              activeTab === 'street' ? 'car' :
+              activeTab === 'events' ? 'calendar' :
+              'shield-checkmark'
+            }
+            size={18}
+            color="#6366F1"
           />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'trains' && styles.activeTabText,
-            ]}
-          >
-            Trenes
+          <Text style={styles.dropdownSelectorText}>
+            {activeTab === 'trains' ? 'Trenes' :
+             activeTab === 'flights' ? 'Aviones' :
+             activeTab === 'street' ? 'Calle' :
+             activeTab === 'events' ? 'Eventos' :
+             'Admin'}
           </Text>
+          <Ionicons name="chevron-down" size={16} color="#94A3B8" />
         </TouchableOpacity>
+        
+        {/* Shift Dropdown - visible for trains only, but space reserved */}
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
+          style={[
+            styles.dropdownSelector,
+            activeTab !== 'trains' && styles.dropdownSelectorHidden
+          ]}
           onPress={() => {
-            if (activeTab !== 'flights') {
-              setLoading(true);
-              setActiveTab('flights');
+            if (activeTab === 'trains') {
+              setShowShiftDropdown(true);
+              setShowPageDropdown(false);
+              setShowTimeRangeDropdown(false);
             }
           }}
+          disabled={activeTab !== 'trains'}
         >
           <Ionicons
-            name="airplane"
-            size={20}
-            color={activeTab === 'flights' ? '#FFFFFF' : '#94A3B8'}
+            name={shift === 'day' ? 'sunny' : shift === 'night' ? 'moon' : 'time'}
+            size={18}
+            color={shift === 'day' ? '#F59E0B' : shift === 'night' ? '#8B5CF6' : '#6366F1'}
           />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'flights' && styles.activeTabText,
-            ]}
-          >
-            Aviones
+          <Text style={styles.dropdownSelectorText}>
+            {shift === 'day' ? 'Diurno' : shift === 'night' ? 'Nocturno' : 'Todos'}
           </Text>
+          <Ionicons name="chevron-down" size={16} color="#94A3B8" />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
-          onPress={() => {
-            if (activeTab !== 'street') {
-              setLoading(true);
-              setActiveTab('street');
-            }
-          }}
-        >
-          <Ionicons
-            name="car"
-            size={20}
-            color={activeTab === 'street' ? '#FFFFFF' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'street' && styles.activeTabText,
-            ]}
-          >
-            Calle
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'events' && styles.activeTabEvents]}
-          onPress={() => {
-            if (activeTab !== 'events') {
-              setLoading(true);
-              setActiveTab('events');
-            }
-          }}
-        >
-          <Ionicons
-            name="calendar"
-            size={20}
-            color={activeTab === 'events' ? '#FFFFFF' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'events' && styles.activeTabText,
-            ]}
-          >
-            Eventos
-          </Text>
-        </TouchableOpacity>
-        {currentUser?.role === 'admin' && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'admin' && styles.activeTabAdmin]}
-            onPress={() => {
-              if (activeTab !== 'admin') {
-                setLoading(true);
-                setActiveTab('admin');
-              }
-            }}
-          >
-            <Ionicons
-              name="shield-checkmark"
-              size={20}
-              color={activeTab === 'admin' ? '#FFFFFF' : '#94A3B8'}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'admin' && styles.activeTabText,
-              ]}
-            >
-              Admin
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Time Window Selector with Chat and SOS Buttons */}
-      <View style={styles.timeWindowContainer}>
+        
         {/* Chat Button */}
         <TouchableOpacity
-          style={styles.chatButton}
+          style={styles.chatButtonCompact}
           onPress={openChatModal}
         >
           <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         
-        {/* Compact time buttons */}
-        <View style={styles.timeWindowButtons}>
-          <TouchableOpacity
-            style={[
-              styles.timeWindowButtonCompact,
-              timeWindow === 30 && styles.activeTimeWindow,
-            ]}
-            onPress={() => setTimeWindow(30)}
-          >
-            <Text
-              style={[
-                styles.timeWindowTextCompact,
-                timeWindow === 30 && styles.activeTimeWindowText,
-              ]}
-            >
-              30
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.timeWindowButtonCompact,
-              timeWindow === 60 && styles.activeTimeWindow,
-            ]}
-            onPress={() => setTimeWindow(60)}
-          >
-            <Text
-              style={[
-                styles.timeWindowTextCompact,
-                timeWindow === 60 && styles.activeTimeWindowText,
-              ]}
-            >
-              60
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Time Range Dropdown Button */}
+        {/* SOS Button */}
         <TouchableOpacity
           style={[
-            styles.timeRangeDropdownButton,
-            selectedTimeRange !== 'now' && styles.timeRangeDropdownButtonActive
-          ]}
-          onPress={() => setShowTimeRangeDropdown(true)}
-        >
-          <Ionicons name="time-outline" size={16} color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} />
-          <Text style={[
-            styles.timeRangeDropdownText,
-            selectedTimeRange !== 'now' && styles.timeRangeDropdownTextActive
-          ]}>{getSelectedTimeRangeLabel()}</Text>
-          <Ionicons 
-            name="chevron-down" 
-            size={16} 
-            color={selectedTimeRange !== 'now' ? "#10B981" : "#94A3B8"} 
-          />
-        </TouchableOpacity>
-        
-        {/* SOS Button - always visible */}
-        <TouchableOpacity
-          style={[
-            styles.sosButton,
+            styles.sosButtonCompact,
             myActiveAlert && styles.sosButtonActive
           ]}
-          onPress={() => myActiveAlert ? setShowSosModal(true) : setShowSosModal(true)}
+          onPress={() => setShowSosModal(true)}
         >
           <Ionicons 
             name={myActiveAlert ? "alert-circle" : "shield-checkmark-outline"} 
@@ -4383,78 +4263,224 @@ export default function TransportMeter() {
           />
         </TouchableOpacity>
       </View>
-
-      {/* Shift Selector - Only for trains */}
-      {activeTab === 'trains' && (
-        <View style={styles.shiftContainer}>
-          <Text style={styles.shiftLabel}>Turno:</Text>
-          <View style={styles.shiftButtons}>
-            <TouchableOpacity
+      
+      {/* Time Range Row with 30/60 buttons inside */}
+      <View style={styles.timeRangeRow}>
+        {/* Time Window Buttons (30/60) */}
+        <View style={styles.timeWindowButtonsInline}>
+          <TouchableOpacity
+            style={[
+              styles.timeWindowButtonSmall,
+              timeWindow === 30 && styles.activeTimeWindowSmall,
+            ]}
+            onPress={() => setTimeWindow(30)}
+          >
+            <Text
               style={[
-                styles.shiftButton,
-                shift === 'day' && styles.activeShiftDay,
+                styles.timeWindowTextSmall,
+                timeWindow === 30 && styles.activeTimeWindowTextSmall,
               ]}
-              onPress={() => setShift('day')}
             >
-              <Ionicons
-                name="sunny"
-                size={16}
-                color={shift === 'day' ? '#FFFFFF' : '#F59E0B'}
-              />
-              <Text
-                style={[
-                  styles.shiftText,
-                  shift === 'day' && styles.activeShiftText,
-                ]}
-              >
-                Diurno
-              </Text>
+              30m
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.timeWindowButtonSmall,
+              timeWindow === 60 && styles.activeTimeWindowSmall,
+            ]}
+            onPress={() => setTimeWindow(60)}
+          >
+            <Text
+              style={[
+                styles.timeWindowTextSmall,
+                timeWindow === 60 && styles.activeTimeWindowTextSmall,
+              ]}
+            >
+              60m
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Time Range Dropdown */}
+        <TouchableOpacity
+          style={[
+            styles.timeRangeDropdownFull,
+            selectedTimeRange !== 'now' && styles.timeRangeDropdownFullActive
+          ]}
+          onPress={() => {
+            setShowTimeRangeDropdown(true);
+            setShowPageDropdown(false);
+            setShowShiftDropdown(false);
+          }}
+        >
+          <Ionicons 
+            name="time-outline" 
+            size={18} 
+            color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} 
+          />
+          <Text style={[
+            styles.timeRangeDropdownTextFull,
+            selectedTimeRange !== 'now' && styles.timeRangeDropdownTextFullActive
+          ]}>
+            {getSelectedTimeRangeLabel()}
+          </Text>
+          <Ionicons 
+            name="chevron-down" 
+            size={16} 
+            color={selectedTimeRange !== 'now' ? "#10B981" : "#94A3B8"} 
+          />
+        </TouchableOpacity>
+      </View>
+      
+      {/* Page Dropdown Modal */}
+      <Modal
+        visible={showPageDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPageDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPageDropdown(false)}
+        >
+          <View style={styles.dropdownMenu}>
+            <Text style={styles.dropdownMenuTitle}>Seleccionar Página</Text>
+            
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, activeTab === 'trains' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'trains') {
+                  setLoading(true);
+                  setActiveTab('trains');
+                }
+                setShowPageDropdown(false);
+              }}
+            >
+              <Ionicons name="train" size={20} color={activeTab === 'trains' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'trains' && styles.dropdownMenuItemTextActive]}>Trenes</Text>
+              {activeTab === 'trains' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
+            
             <TouchableOpacity
-              style={[
-                styles.shiftButton,
-                shift === 'all' && styles.activeShiftAll,
-              ]}
-              onPress={() => setShift('all')}
+              style={[styles.dropdownMenuItem, activeTab === 'flights' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'flights') {
+                  setLoading(true);
+                  setActiveTab('flights');
+                }
+                setShowPageDropdown(false);
+              }}
             >
-              <Ionicons
-                name="time"
-                size={16}
-                color={shift === 'all' ? '#FFFFFF' : '#6366F1'}
-              />
-              <Text
-                style={[
-                  styles.shiftText,
-                  shift === 'all' && styles.activeShiftText,
-                ]}
-              >
-                Todo
-              </Text>
+              <Ionicons name="airplane" size={20} color={activeTab === 'flights' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'flights' && styles.dropdownMenuItemTextActive]}>Aviones</Text>
+              {activeTab === 'flights' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
+            
             <TouchableOpacity
-              style={[
-                styles.shiftButton,
-                shift === 'night' && styles.activeShiftNight,
-              ]}
-              onPress={() => setShift('night')}
+              style={[styles.dropdownMenuItem, activeTab === 'street' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'street') {
+                  setLoading(true);
+                  setActiveTab('street');
+                }
+                setShowPageDropdown(false);
+              }}
             >
-              <Ionicons
-                name="moon"
-                size={16}
-                color={shift === 'night' ? '#FFFFFF' : '#8B5CF6'}
-              />
-              <Text
-                style={[
-                  styles.shiftText,
-                  shift === 'night' && styles.activeShiftText,
-                ]}
+              <Ionicons name="car" size={20} color={activeTab === 'street' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'street' && styles.dropdownMenuItemTextActive]}>Calle</Text>
+              {activeTab === 'street' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, activeTab === 'events' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'events') {
+                  setLoading(true);
+                  setActiveTab('events');
+                }
+                setShowPageDropdown(false);
+              }}
+            >
+              <Ionicons name="calendar" size={20} color={activeTab === 'events' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'events' && styles.dropdownMenuItemTextActive]}>Eventos</Text>
+              {activeTab === 'events' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+            </TouchableOpacity>
+            
+            {currentUser?.role === 'admin' && (
+              <TouchableOpacity
+                style={[styles.dropdownMenuItem, activeTab === 'admin' && styles.dropdownMenuItemActive]}
+                onPress={() => {
+                  if (activeTab !== 'admin') {
+                    setLoading(true);
+                    setActiveTab('admin');
+                  }
+                  setShowPageDropdown(false);
+                }}
               >
-                Nocturno
-              </Text>
+                <Ionicons name="shield-checkmark" size={20} color={activeTab === 'admin' ? '#6366F1' : '#94A3B8'} />
+                <Text style={[styles.dropdownMenuItemText, activeTab === 'admin' && styles.dropdownMenuItemTextActive]}>Admin</Text>
+                {activeTab === 'admin' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      
+      {/* Shift Dropdown Modal */}
+      <Modal
+        visible={showShiftDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShiftDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setShowShiftDropdown(false)}
+        >
+          <View style={styles.dropdownMenu}>
+            <Text style={styles.dropdownMenuTitle}>Seleccionar Turno</Text>
+            
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, shift === 'all' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                setShift('all');
+                setShowShiftDropdown(false);
+              }}
+            >
+              <Ionicons name="time" size={20} color={shift === 'all' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, shift === 'all' && styles.dropdownMenuItemTextActive]}>Todos los turnos</Text>
+              {shift === 'all' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, shift === 'day' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                setShift('day');
+                setShowShiftDropdown(false);
+              }}
+            >
+              <Ionicons name="sunny" size={20} color={shift === 'day' ? '#F59E0B' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, shift === 'day' && styles.dropdownMenuItemTextActive]}>Diurno (05:00 - 17:00)</Text>
+              {shift === 'day' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, shift === 'night' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                setShift('night');
+                setShowShiftDropdown(false);
+              }}
+            >
+              <Ionicons name="moon" size={20} color={shift === 'night' ? '#8B5CF6' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, shift === 'night' && styles.dropdownMenuItemTextActive]}>Nocturno (17:00 - 05:00)</Text>
+              {shift === 'night' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
           </View>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
 
       {/* Content */}
       <ScrollView
