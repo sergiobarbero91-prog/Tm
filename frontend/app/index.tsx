@@ -4532,14 +4532,20 @@ export default function TransportMeter() {
                       <TouchableOpacity 
                         style={styles.deleteEventButton}
                         onPress={() => {
-                          Alert.alert(
-                            'Eliminar evento',
-                            '¿Estás seguro de que quieres eliminar este evento?',
-                            [
-                              { text: 'Cancelar', style: 'cancel' },
-                              { text: 'Eliminar', style: 'destructive', onPress: () => deleteEvent(event.event_id) }
-                            ]
-                          );
+                          if (Platform.OS === 'web') {
+                            if (window.confirm('¿Estás seguro de que quieres eliminar este evento?')) {
+                              deleteEvent(event.event_id);
+                            }
+                          } else {
+                            Alert.alert(
+                              'Eliminar evento',
+                              '¿Estás seguro de que quieres eliminar este evento?',
+                              [
+                                { text: 'Cancelar', style: 'cancel' },
+                                { text: 'Eliminar', style: 'destructive', onPress: () => deleteEvent(event.event_id) }
+                              ]
+                            );
+                          }
                         }}
                       >
                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
