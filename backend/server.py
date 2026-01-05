@@ -1092,12 +1092,22 @@ def filter_arrivals_by_hour_window(arrivals: List[Dict], start_time: datetime, e
     
     This filters based on the arrival TIME (hour:minute), not the fetch timestamp.
     Used for both past and future time windows.
+    
+    IMPORTANT: Train/flight times are in Madrid local time, so we must convert the
+    input times to Madrid timezone before extracting hours.
     """
     filtered = []
-    start_hour = start_time.hour
-    start_minute = start_time.minute
-    end_hour = end_time.hour
-    end_minute = end_time.minute
+    
+    # Convert to Madrid timezone to get the correct local hours
+    start_madrid = start_time.astimezone(MADRID_TZ)
+    end_madrid = end_time.astimezone(MADRID_TZ)
+    
+    start_hour = start_madrid.hour
+    start_minute = start_madrid.minute
+    end_hour = end_madrid.hour
+    end_minute = end_madrid.minute
+    
+    logger.info(f"[Filter] Filtering arrivals for hour window: {start_hour:02d}:{start_minute:02d} - {end_hour:02d}:{end_minute:02d} (Madrid time)")
     
     for arrival in arrivals:
         try:
@@ -1115,8 +1125,8 @@ def filter_arrivals_by_hour_window(arrivals: List[Dict], start_time: datetime, e
             end_minutes = end_hour * 60 + end_minute
             
             # Handle day boundary (e.g., 23:00 to 01:00)
-            if end_minutes < start_minutes:
-                # Window crosses midnight
+            if end_minutes <= start_minutes:
+                # Window crosses midnight (e.g., 23:00 - 00:00)
                 if arr_minutes >= start_minutes or arr_minutes < end_minutes:
                     filtered.append(arrival)
             else:
@@ -1127,6 +1137,7 @@ def filter_arrivals_by_hour_window(arrivals: List[Dict], start_time: datetime, e
             logger.debug(f"Error filtering arrival by hour: {e}")
             pass
     
+    logger.info(f"[Filter] Filtered {len(filtered)} arrivals from {len(arrivals)} total")
     return filtered
 
 def calculate_peak_hour(arrivals: List[Dict], shift: str = "all") -> Optional[Dict]:
