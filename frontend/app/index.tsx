@@ -104,6 +104,7 @@ interface FlightComparison {
   winner_30min: string;
   winner_60min: string;
   last_update: string;
+  message?: string;
 }
 
 interface HotStreet {
