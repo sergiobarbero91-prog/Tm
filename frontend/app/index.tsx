@@ -2619,13 +2619,18 @@ export default function TransportMeter() {
     };
   }, []);
 
-  // Refetch street data when time range changes
+  // Refetch data when time range changes (applies to street, trains, and flights)
   useEffect(() => {
-    if (currentUser && activeTab === 'street' && selectedTimeRange) {
-      console.log(`[TimeRange] Selected time range changed to: ${selectedTimeRange}`);
-      fetchStreetData();
+    if (currentUser && selectedTimeRange) {
+      if (activeTab === 'street') {
+        console.log(`[TimeRange] Selected time range changed to: ${selectedTimeRange} for Street`);
+        fetchStreetData();
+      } else if (activeTab === 'trains' || activeTab === 'flights') {
+        console.log(`[TimeRange] Selected time range changed to: ${selectedTimeRange} for ${activeTab}`);
+        fetchData();
+      }
     }
-  }, [selectedTimeRange, currentUser, activeTab, fetchStreetData]);
+  }, [selectedTimeRange, currentUser, activeTab, fetchStreetData, fetchData]);
 
   // Check for existing session on mount
   useEffect(() => {
