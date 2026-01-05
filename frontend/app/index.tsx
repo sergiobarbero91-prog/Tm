@@ -8454,7 +8454,10 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   deleteEventButton: {
-    padding: 8,
+    padding: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderRadius: 8,
+    marginLeft: 8,
   },
   // Add Event Modal
   addEventModal: {
