@@ -27,6 +27,7 @@ from routers import alerts as alerts_router
 from routers import admin as admin_router
 from routers import events as events_router
 from routers import emergency as emergency_router
+from routers import checkin as checkin_router
 
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
