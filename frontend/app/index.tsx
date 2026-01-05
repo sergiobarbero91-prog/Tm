@@ -5073,6 +5073,24 @@ export default function TransportMeter() {
                 </View>
                 <Ionicons name="chevron-forward" size={22} color="#64748B" />
               </TouchableOpacity>
+              
+              {/* Change Password Button */}
+              <TouchableOpacity
+                style={styles.changePasswordButton}
+                onPress={() => {
+                  setShowSettings(false);
+                  setShowChangePasswordModal(true);
+                }}
+              >
+                <View style={styles.profileButtonContent}>
+                  <Ionicons name="key" size={32} color="#F59E0B" />
+                  <View style={styles.profileButtonInfo}>
+                    <Text style={styles.profileButtonName}>Cambiar Contraseña</Text>
+                    <Text style={styles.profileButtonLicense}>Actualizar credenciales de acceso</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color="#64748B" />
+              </TouchableOpacity>
             </View>
             
             <View style={styles.settingsSection}>
