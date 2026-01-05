@@ -26,6 +26,13 @@ async def login(login_data: UserLogin):
             detail="Usuario o contraseña incorrectos"
         )
     
+    # Update last_login and last_seen
+    now = datetime.utcnow()
+    await users_collection.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_login": now, "last_seen": now}}
+    )
+    
     access_token = create_access_token(data={"sub": user["id"]})
     
     return TokenResponse(
