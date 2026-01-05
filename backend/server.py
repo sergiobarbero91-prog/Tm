@@ -31,6 +31,9 @@ from routers import checkin as checkin_router
 from routers import status as status_router
 from routers import geocoding as geocoding_router
 
+# Import history collections from shared
+from shared import trains_history_collection, flights_history_collection
+
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
 
