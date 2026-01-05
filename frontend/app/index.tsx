@@ -480,6 +480,16 @@ export default function TransportMeter() {
       return;
     }
 
+    if (registerPassword !== registerPasswordConfirm) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    if (registerPassword.length < 4) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
+      return;
+    }
+
     if (!/^\d+$/.test(registerLicenseNumber)) {
       Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
       return;
@@ -505,6 +515,7 @@ export default function TransportMeter() {
       // Clear registration form
       setRegisterUsername('');
       setRegisterPassword('');
+      setRegisterPasswordConfirm('');
       setRegisterFullName('');
       setRegisterLicenseNumber('');
       setRegisterPhone('');
@@ -516,6 +527,45 @@ export default function TransportMeter() {
       Alert.alert('Error', error.response?.data?.detail || 'Error al registrar usuario');
     } finally {
       setRegisterLoading(false);
+    }
+  };
+
+  // Change password function
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !newPasswordConfirm) {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      Alert.alert('Error', 'Las contraseñas nuevas no coinciden');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/auth/password`, {
+        current_password: currentPassword,
+        new_password: newPassword
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert('Éxito', 'Contraseña actualizada correctamente');
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setNewPasswordConfirm('');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al cambiar la contraseña');
+    } finally {
+      setPasswordChangeLoading(false);
     }
   };
 
