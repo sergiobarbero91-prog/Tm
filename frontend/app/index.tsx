@@ -4524,6 +4524,12 @@ export default function TransportMeter() {
                 <Ionicons name="refresh" size={18} color="#3B82F6" />
               </TouchableOpacity>
             </View>
+            {flightData.message && (
+              <View style={styles.nightTimeMessage}>
+                <Ionicons name="information-circle" size={16} color="#F59E0B" />
+                <Text style={styles.nightTimeText}>{flightData.message}</Text>
+              </View>
+            )}
             <Text style={styles.sectionTitle}>Zonas de Carga - Madrid Barajas</Text>
             {/* T1 */}
             {renderTerminalCard(terminalGroups[0])}
