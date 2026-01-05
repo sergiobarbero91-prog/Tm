@@ -1,10 +1,12 @@
 """
 Admin router for user management (admin only).
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
-from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
+from datetime import datetime, timedelta
+from pydantic import BaseModel
 import uuid
+import re
 
 from shared import (
     users_collection,
@@ -15,7 +17,98 @@ from shared import (
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/users", response_model=List[UserResponse])
+class UserStats(BaseModel):
+    total_users: int
+    active_last_month: int
+    online_now: int
+
+
+class UserSearchResult(BaseModel):
+    id: str
+    username: str
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    role: str
+    preferred_shift: str = "all"
+    created_at: datetime
+    last_seen: Optional[datetime] = None
+    is_online: bool = False
+
+
+@router.get("/stats", response_model=UserStats)
+async def get_user_stats(admin: dict = Depends(get_admin_user)):
+    """Get user statistics (admin only)."""
+    now = datetime.utcnow()
+    one_month_ago = now - timedelta(days=30)
+    five_minutes_ago = now - timedelta(minutes=5)
+    
+    # Total users
+    total_users = await users_collection.count_documents({})
+    
+    # Active last month (users who logged in or were seen in the last 30 days)
+    active_last_month = await users_collection.count_documents({
+        "$or": [
+            {"last_seen": {"$gte": one_month_ago}},
+            {"last_login": {"$gte": one_month_ago}}
+        ]
+    })
+    
+    # Online now (seen in the last 5 minutes)
+    online_now = await users_collection.count_documents({
+        "last_seen": {"$gte": five_minutes_ago}
+    })
+    
+    return UserStats(
+        total_users=total_users,
+        active_last_month=active_last_month,
+        online_now=online_now
+    )
+
+
+@router.get("/search", response_model=List[UserSearchResult])
+async def search_users(
+    q: str = Query(..., min_length=1, description="Search query (username, name, or license)"),
+    admin: dict = Depends(get_admin_user)
+):
+    """Search users by username, full name, or license number (admin only)."""
+    now = datetime.utcnow()
+    five_minutes_ago = now - timedelta(minutes=5)
+    
+    # Create case-insensitive regex pattern
+    pattern = re.compile(re.escape(q), re.IGNORECASE)
+    
+    # Search in multiple fields
+    users = await users_collection.find({
+        "$or": [
+            {"username": {"$regex": pattern}},
+            {"full_name": {"$regex": pattern}},
+            {"license_number": {"$regex": pattern}}
+        ]
+    }).limit(50).to_list(50)
+    
+    results = []
+    for u in users:
+        last_seen = u.get("last_seen")
+        is_online = last_seen and last_seen >= five_minutes_ago if last_seen else False
+        
+        results.append(UserSearchResult(
+            id=u["id"],
+            username=u["username"],
+            full_name=u.get("full_name"),
+            license_number=u.get("license_number"),
+            phone=u.get("phone"),
+            role=u.get("role", "user"),
+            preferred_shift=u.get("preferred_shift", "all"),
+            created_at=u["created_at"],
+            last_seen=last_seen,
+            is_online=is_online
+        ))
+    
+    return results
+
+
+@router.get("/users", response_model=List[UserSearchResult])
 async def list_users(admin: dict = Depends(get_admin_user)):
     """List all users (admin only)."""
     users = await users_collection.find().to_list(1000)
