@@ -3076,6 +3076,21 @@ export default function TransportMeter() {
                 </View>
 
                 <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.loginScreenInput}
+                    placeholder="Confirmar contraseña *"
+                    placeholderTextColor="#64748B"
+                    value={registerPasswordConfirm}
+                    onChangeText={setRegisterPasswordConfirm}
+                    secureTextEntry
+                  />
+                </View>
+                {registerPassword && registerPasswordConfirm && registerPassword !== registerPasswordConfirm && (
+                  <Text style={styles.passwordMismatchText}>Las contraseñas no coinciden</Text>
+                )}
+
+                <View style={styles.inputContainer}>
                   <Ionicons name="id-card-outline" size={20} color="#64748B" style={styles.inputIcon} />
                   <TextInput
                     style={styles.loginScreenInput}
