@@ -49,6 +49,8 @@ hottest_street_cache_collection = db['hottest_street_cache']
 events_collection = db['events']
 chat_messages_collection = db['chat_messages']
 license_alerts_collection = db['license_alerts']
+trains_history_collection = db['trains_history']
+flights_history_collection = db['flights_history']
 
 # ============== USER MODELS ==============
 
