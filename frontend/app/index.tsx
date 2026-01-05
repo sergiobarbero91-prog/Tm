@@ -280,6 +280,13 @@ export default function TransportMeter() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'user' | 'moderator' | 'admin'>('user');
   const [newUserPhone, setNewUserPhone] = useState('');
+  
+  // Admin Panel - Search and Stats
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminSearchResults, setAdminSearchResults] = useState<User[]>([]);
+  const [adminSearching, setAdminSearching] = useState(false);
+  const [adminStats, setAdminStats] = useState<{total_users: number; active_last_month: number; online_now: number} | null>(null);
+  const [showUsersList, setShowUsersList] = useState(false);
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
