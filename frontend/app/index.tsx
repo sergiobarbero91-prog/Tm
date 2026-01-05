@@ -9033,8 +9033,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
   },
@@ -9048,6 +9048,116 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
+  // Admin Stats Row
+  adminStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  adminStatCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    gap: 4,
+  },
+  adminStatNumber: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  adminStatLabel: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  // Admin Search
+  adminSearchContainer: {
+    marginBottom: 12,
+  },
+  adminSearchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  adminSearchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+  },
+  // Admin Action Buttons
+  adminActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  adminActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  adminActionButtonSecondary: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#6366F1',
+  },
+  adminActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Admin Search Results
+  adminSearchResults: {
+    marginBottom: 16,
+  },
+  adminSectionTitle: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  adminNoResults: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  // User Avatar with Online Indicator
+  userAvatarContainer: {
+    position: 'relative',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#1E293B',
+  },
+  userLicense: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  // Legacy styles kept for compatibility
   addUserButton: {
     flexDirection: 'row',
     alignItems: 'center',
