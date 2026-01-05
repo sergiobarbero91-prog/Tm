@@ -2014,6 +2014,80 @@ export default function TransportMeter() {
     }
   }, [currentUser?.role]);
 
+  // Fetch admin stats
+  const fetchAdminStats = useCallback(async () => {
+    if (currentUser?.role !== 'admin') return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminStats(response.data);
+    } catch (error: any) {
+      console.error('Error fetching admin stats:', error);
+    }
+  }, [currentUser?.role]);
+
+  // Search users (admin only)
+  const searchUsers = useCallback(async (query: string) => {
+    if (currentUser?.role !== 'admin' || !query.trim()) {
+      setAdminSearchResults([]);
+      return;
+    }
+    
+    setAdminSearching(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/admin/search`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { q: query.trim() }
+      });
+      setAdminSearchResults(response.data);
+    } catch (error: any) {
+      console.error('Error searching users:', error);
+      setAdminSearchResults([]);
+    } finally {
+      setAdminSearching(false);
+    }
+  }, [currentUser?.role]);
+
+  // Debounced search
+  useEffect(() => {
+    if (adminSearchQuery.length >= 1) {
+      const timer = setTimeout(() => {
+        searchUsers(adminSearchQuery);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setAdminSearchResults([]);
+    }
+  }, [adminSearchQuery, searchUsers]);
+
+  // Send heartbeat periodically to update last_seen
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const sendHeartbeat = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          await axios.post(`${API_BASE}/api/auth/heartbeat`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        }
+      } catch (error) {
+        // Silently ignore heartbeat errors
+      }
+    };
+    
+    // Send immediately and then every 2 minutes
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 120000);
+    
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   // Create new user (admin only)
   const createUser = async () => {
     if (!newUserUsername.trim() || !newUserPassword.trim()) {
