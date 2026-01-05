@@ -1161,11 +1161,20 @@ async def root():
     return {"message": "TransportMeter API - Frecuencia de Trenes y Aviones en Madrid"}
 
 @api_router.get("/trains", response_model=TrainComparisonResponse)
-async def get_train_comparison(shift: str = "all"):
+async def get_train_comparison(
+    shift: str = "all",
+    start_time: Optional[str] = None,  # ISO format: "2025-06-13T14:00:00"
+    end_time: Optional[str] = None     # ISO format: "2025-06-13T15:00:00"
+):
     """Get train arrivals comparison between Atocha and Chamartín - ONLY media/larga distancia.
     
     Parameters:
     - shift: 'all' (default), 'day' (05:00-16:59), or 'night' (17:00-04:59)
+    - start_time: Optional start of time window (ISO format)
+    - end_time: Optional end of time window (ISO format)
+    
+    If start_time and end_time are provided, returns historical data from that window.
+    Otherwise, fetches real-time data and saves it to history.
     """
     now = datetime.now(MADRID_TZ)
     is_night_time = now.hour < 6
@@ -1174,29 +1183,102 @@ async def get_train_comparison(shift: str = "all"):
     if shift not in ["all", "day", "night"]:
         shift = "all"
     
-    # Fetch data for both stations using the API
-    atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-    chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+    logger.info(f"[Trains] Request params: shift={shift}, start_time={start_time}, end_time={end_time}")
+    
+    # Check if we need historical data
+    use_historical = start_time is not None and end_time is not None
+    
+    if use_historical:
+        # Parse time range and fetch from history
+        try:
+            time_start = date_parser.parse(start_time)
+            time_end = date_parser.parse(end_time)
+            
+            # Ensure timezone awareness
+            if time_start.tzinfo is None:
+                time_start = MADRID_TZ.localize(time_start)
+            if time_end.tzinfo is None:
+                time_end = MADRID_TZ.localize(time_end)
+            
+            logger.info(f"[Trains] Using historical data from {time_start} to {time_end}")
+            
+            # Query historical data - get all records within the time range
+            atocha_history = await trains_history_collection.find({
+                "station": "atocha",
+                "fetched_at": {"$gte": time_start, "$lte": time_end}
+            }).sort("fetched_at", -1).to_list(100)
+            
+            chamartin_history = await trains_history_collection.find({
+                "station": "chamartin",
+                "fetched_at": {"$gte": time_start, "$lte": time_end}
+            }).sort("fetched_at", -1).to_list(100)
+            
+            # Merge arrivals from all historical records (deduplicate by train_number + time)
+            atocha_arrivals_raw = []
+            seen_atocha = set()
+            for record in atocha_history:
+                for arr in record.get("arrivals", []):
+                    key = f"{arr.get('train_number', '')}-{arr.get('time', '')}"
+                    if key not in seen_atocha:
+                        seen_atocha.add(key)
+                        atocha_arrivals_raw.append(arr)
+            
+            chamartin_arrivals_raw = []
+            seen_chamartin = set()
+            for record in chamartin_history:
+                for arr in record.get("arrivals", []):
+                    key = f"{arr.get('train_number', '')}-{arr.get('time', '')}"
+                    if key not in seen_chamartin:
+                        seen_chamartin.add(key)
+                        chamartin_arrivals_raw.append(arr)
+            
+            logger.info(f"[Trains] Historical data: Atocha={len(atocha_arrivals_raw)}, Chamartín={len(chamartin_arrivals_raw)}")
+            
+        except Exception as e:
+            logger.error(f"[Trains] Error parsing time range: {e}")
+            use_historical = False
+    
+    if not use_historical:
+        # Fetch fresh data for both stations using the API
+        atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+        chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+        
+        # Save to history for future queries (non-blocking)
+        asyncio.create_task(save_train_history("atocha", atocha_arrivals_raw))
+        asyncio.create_task(save_train_history("chamartin", chamartin_arrivals_raw))
     
     # Filter arrivals by shift
     atocha_arrivals_shift = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
     chamartin_arrivals_shift = filter_arrivals_by_shift(chamartin_arrivals_raw, shift)
     
     # Filter out arrived and cancelled trains (only show future arrivals)
-    atocha_arrivals = filter_future_arrivals(atocha_arrivals_shift, "train")
-    chamartin_arrivals = filter_future_arrivals(chamartin_arrivals_shift, "train")
+    # For historical data, we show all arrivals within the time window
+    if use_historical:
+        atocha_arrivals = atocha_arrivals_shift
+        chamartin_arrivals = chamartin_arrivals_shift
+    else:
+        atocha_arrivals = filter_future_arrivals(atocha_arrivals_shift, "train")
+        chamartin_arrivals = filter_future_arrivals(chamartin_arrivals_shift, "train")
     
-    # Count arrivals in real time windows (always based on current time)
-    atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
-    atocha_60 = count_arrivals_in_window(atocha_arrivals, 60)
-    chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
-    chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
+    # Count arrivals in windows
+    if use_historical:
+        # For historical data, count all arrivals in the window
+        atocha_30 = len([a for a in atocha_arrivals if a])
+        atocha_60 = atocha_30
+        chamartin_30 = len([a for a in chamartin_arrivals if a])
+        chamartin_60 = chamartin_30
+    else:
+        # For real-time, count arrivals in real time windows
+        atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
+        atocha_60 = count_arrivals_in_window(atocha_arrivals, 60)
+        chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
+        chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
     
     # Calculate peak hours (within the selected shift)
     atocha_peak = calculate_peak_hour(atocha_arrivals_raw, shift)
     chamartin_peak = calculate_peak_hour(chamartin_arrivals_raw, shift)
     
-    # Determine winner based on real counts
+    # Determine winner based on counts
     winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
     winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
     
@@ -1226,7 +1308,9 @@ async def get_train_comparison(shift: str = "all"):
     )
     
     message = None
-    if is_night_time and atocha_30 == 0 and chamartin_30 == 0:
+    if use_historical:
+        message = f"Datos históricos del período seleccionado"
+    elif is_night_time and atocha_30 == 0 and chamartin_30 == 0:
         message = "Horario nocturno - Sin trenes en los próximos minutos. Próximas llegadas listadas abajo."
     
     return TrainComparisonResponse(
@@ -1238,6 +1322,21 @@ async def get_train_comparison(shift: str = "all"):
         is_night_time=is_night_time,
         message=message
     )
+
+
+async def save_train_history(station: str, arrivals: List[Dict]):
+    """Save train arrivals to history collection for time-window queries."""
+    try:
+        now = datetime.now(MADRID_TZ)
+        history_record = {
+            "station": station,
+            "arrivals": arrivals,
+            "fetched_at": now
+        }
+        await trains_history_collection.insert_one(history_record)
+        logger.info(f"[Trains] Saved {len(arrivals)} arrivals to history for {station}")
+    except Exception as e:
+        logger.error(f"[Trains] Error saving history for {station}: {e}")
 
 @api_router.get("/flights", response_model=FlightComparisonResponse)
 async def get_flight_comparison():
