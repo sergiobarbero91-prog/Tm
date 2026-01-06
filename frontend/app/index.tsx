@@ -4321,10 +4321,68 @@ export default function TransportMeter() {
         </View>
 
         {/* === TERMINAL CALIENTE === */}
-        <View style={[styles.hottestStreetCard, styles.terminalHotCard]}>
+        <View style={[styles.hottestStreetCard, styles.terminalHotCard,
+          // Apply alert styling if terminal has alerts
+          streetData?.hottest_terminal && (() => {
+            // Extract terminal key (e.g., "T4-T4S" -> check T4 and T4S)
+            const terminalName = streetData.hottest_terminal;
+            const terminalKeys = terminalName.includes('-') 
+              ? terminalName.split('-').map((t: string) => t.trim())
+              : [terminalName];
+            const hasAlerts = terminalKeys.some((t: string) => getLocationAlerts('terminal', t).length > 0);
+            return hasAlerts ? styles.hottestCardWithAlert : null;
+          })()
+        ]}>
+          {/* Terminal Alert Badge */}
+          {streetData?.hottest_terminal && (() => {
+            const terminalName = streetData.hottest_terminal;
+            const terminalKeys = terminalName.includes('-') 
+              ? terminalName.split('-').map((t: string) => t.trim())
+              : [terminalName];
+            const alerts = terminalKeys.flatMap((t: string) => getLocationAlerts('terminal', t));
+            if (alerts.length > 0) {
+              return (
+                <View style={styles.hottestAlertBadgesContainer}>
+                  {alerts.map((alert, idx) => (
+                    <View key={idx} style={[
+                      styles.alertBadge,
+                      alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
+                    ]}>
+                      <Ionicons 
+                        name={alert.alert_type === 'sin_taxis' ? 'car-outline' : 'warning'} 
+                        size={12} 
+                        color="#FFFFFF" 
+                      />
+                      <Text style={styles.alertBadgeText}>
+                        {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
+                      </Text>
+                      <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago, alert.created_at)}</Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+            return null;
+          })()}
           <View style={styles.hottestStreetHeader}>
-            <Ionicons name="airplane" size={24} color="#8B5CF6" />
-            <Text style={styles.hottestStreetTitle}>Terminal caliente</Text>
+            <Ionicons name="airplane" size={24} color={
+              streetData?.hottest_terminal && (() => {
+                const terminalName = streetData.hottest_terminal;
+                const terminalKeys = terminalName.includes('-') 
+                  ? terminalName.split('-').map((t: string) => t.trim())
+                  : [terminalName];
+                return terminalKeys.some((t: string) => getLocationAlerts('terminal', t).length > 0) ? '#EF4444' : '#8B5CF6';
+              })()
+            } />
+            <Text style={[styles.hottestStreetTitle,
+              streetData?.hottest_terminal && (() => {
+                const terminalName = streetData.hottest_terminal;
+                const terminalKeys = terminalName.includes('-') 
+                  ? terminalName.split('-').map((t: string) => t.trim())
+                  : [terminalName];
+                return terminalKeys.some((t: string) => getLocationAlerts('terminal', t).length > 0) ? { color: '#EF4444' } : null;
+              })()
+            ]}>Terminal caliente</Text>
             {streetData?.hottest_terminal_score !== null && streetData?.hottest_terminal_score !== undefined && (
               <View style={[styles.scoreBadge, styles.scoreBadgeTerminal]}>
                 <Text style={styles.scoreBadgeText}>{streetData.hottest_terminal_score.toFixed(0)}%</Text>
