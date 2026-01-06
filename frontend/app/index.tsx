@@ -3667,13 +3667,14 @@ export default function TransportMeter() {
                 <Text style={styles.alertBadgeText}>
                   {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
                 </Text>
-                <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago)}</Text>
+                <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago, alert.created_at)}</Text>
               </View>
             ))}
           </View>
         )}
         
-        {isWinner && !hasTerminalAlerts && (
+        {/* Winner badge always shown when isWinner */}
+        {isWinner && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
             <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
@@ -3681,7 +3682,7 @@ export default function TransportMeter() {
         )}
         <View style={styles.stationHeader}>
           <Ionicons name="airplane" size={28} color={hasTerminalAlerts ? '#EF4444' : (isWinner ? '#F59E0B' : '#3B82F6')} />
-          <Text style={[styles.stationName, isWinner && !hasTerminalAlerts && styles.winnerText, hasTerminalAlerts && { color: '#EF4444' }]}>
+          <Text style={[styles.stationName, isWinner && styles.winnerText, hasTerminalAlerts && { color: '#EF4444' }]}>
             {group.zoneName}
           </Text>
         </View>
