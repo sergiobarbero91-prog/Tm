@@ -171,6 +171,11 @@ class StationData(BaseModel):
     is_winner_60min: bool = False
     morning_arrivals: int = 0
     peak_hour: Optional[PeakHourInfo] = None
+    # Weighted score fields
+    score_30min: Optional[float] = None  # Weighted score for 30min window
+    score_60min: Optional[float] = None  # Weighted score for 60min window
+    past_30min: Optional[int] = None     # Arrivals in past 15 min (half of 30)
+    past_60min: Optional[int] = None     # Arrivals in past 30 min (half of 60)
 
 class FlightArrival(BaseModel):
     time: str  # Hora real de llegada
@@ -190,6 +195,11 @@ class TerminalData(BaseModel):
     total_next_60min: int
     is_winner_30min: bool = False
     is_winner_60min: bool = False
+    # Weighted score fields
+    score_30min: Optional[float] = None  # Weighted score for 30min window
+    score_60min: Optional[float] = None  # Weighted score for 60min window
+    past_30min: Optional[int] = None     # Arrivals in past 15 min
+    past_60min: Optional[int] = None     # Arrivals in past 30 min
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
