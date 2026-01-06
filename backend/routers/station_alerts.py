@@ -184,7 +184,7 @@ async def cancel_alert(
     alert_id: str,
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Cancel an alert (only the reporter or admin/moderator can cancel)."""
+    """Cancel an alert. The original reporter cannot cancel within the first minute."""
     alert = await station_alerts_collection.find_one({"id": alert_id})
     
     if not alert:
@@ -193,13 +193,62 @@ async def cancel_alert(
             detail="Alerta no encontrada"
         )
     
-    # Check permissions
-    if alert["reported_by"] != current_user["id"] and current_user.get("role") not in ["admin", "moderator"]:
+    now = datetime.utcnow()
+    seconds_since_created = int((now - alert["created_at"]).total_seconds())
+    
+    # If the user is the one who reported the alert and less than 1 minute has passed, block
+    if alert["reported_by"] == current_user["id"] and seconds_since_created < 60:
+        remaining_seconds = 60 - seconds_since_created
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permiso para cancelar esta alerta"
+            detail=f"Debes esperar {remaining_seconds} segundos para cerrar tu propia alerta"
         )
     
     await station_alerts_collection.delete_one({"id": alert_id})
+    
+    return {"message": "Alerta cancelada correctamente"}
+
+
+class CancelAlertByLocationRequest(BaseModel):
+    location_type: str  # "station" or "terminal"
+    location_name: str  # "atocha", "chamartin", "T1", etc.
+    alert_type: str  # "sin_taxis" or "barandilla"
+
+
+@router.post("/cancel-by-location")
+async def cancel_alert_by_location(
+    data: CancelAlertByLocationRequest,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Cancel an alert by location. The original reporter cannot cancel within the first minute."""
+    now = datetime.utcnow()
+    
+    location_name = data.location_name.lower() if data.location_type == "station" else data.location_name
+    
+    # Find the active alert
+    alert = await station_alerts_collection.find_one({
+        "location_type": data.location_type,
+        "location_name": location_name,
+        "alert_type": data.alert_type,
+        "expires_at": {"$gt": now}
+    })
+    
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alerta no encontrada"
+        )
+    
+    seconds_since_created = int((now - alert["created_at"]).total_seconds())
+    
+    # If the user is the one who reported the alert and less than 1 minute has passed, block
+    if alert["reported_by"] == current_user["id"] and seconds_since_created < 60:
+        remaining_seconds = 60 - seconds_since_created
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Debes esperar {remaining_seconds} segundos para cerrar tu propia alerta"
+        )
+    
+    await station_alerts_collection.delete_one({"_id": alert["_id"]})
     
     return {"message": "Alerta cancelada correctamente"}
