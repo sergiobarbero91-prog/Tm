@@ -1362,6 +1362,12 @@ async def get_train_comparison(
         atocha_arrivals = filter_future_arrivals(atocha_arrivals_shift, "train")
         chamartin_arrivals = filter_future_arrivals(chamartin_arrivals_shift, "train")
     
+    # Calculate weighted scores (50% future + 50% recent past)
+    atocha_score_30 = calculate_weighted_score(atocha_arrivals_shift, 30)
+    atocha_score_60 = calculate_weighted_score(atocha_arrivals_shift, 60)
+    chamartin_score_30 = calculate_weighted_score(chamartin_arrivals_shift, 30)
+    chamartin_score_60 = calculate_weighted_score(chamartin_arrivals_shift, 60)
+    
     # Count arrivals
     if custom_time_window:
         # For custom time window, count all arrivals in the window
@@ -1370,19 +1376,26 @@ async def get_train_comparison(
         chamartin_30 = len(chamartin_arrivals)
         chamartin_60 = chamartin_30
     else:
-        # For real-time, count arrivals in real time windows
-        atocha_30 = count_arrivals_in_window(atocha_arrivals, 30)
-        atocha_60 = count_arrivals_in_window(atocha_arrivals, 60)
-        chamartin_30 = count_arrivals_in_window(chamartin_arrivals, 30)
-        chamartin_60 = count_arrivals_in_window(chamartin_arrivals, 60)
+        # For real-time, use future counts
+        atocha_30 = atocha_score_30["future_count"]
+        atocha_60 = atocha_score_60["future_count"]
+        chamartin_30 = chamartin_score_30["future_count"]
+        chamartin_60 = chamartin_score_60["future_count"]
     
     # Calculate peak hours (within the selected shift)
     atocha_peak = calculate_peak_hour(atocha_arrivals_raw, shift)
     chamartin_peak = calculate_peak_hour(chamartin_arrivals_raw, shift)
     
-    # Determine winner based on counts
-    winner_30 = "atocha" if atocha_30 >= chamartin_30 else "chamartin"
-    winner_60 = "atocha" if atocha_60 >= chamartin_60 else "chamartin"
+    # Determine winner based on WEIGHTED SCORE (not just future count)
+    atocha_weighted_30 = atocha_score_30["weighted_score"]
+    atocha_weighted_60 = atocha_score_60["weighted_score"]
+    chamartin_weighted_30 = chamartin_score_30["weighted_score"]
+    chamartin_weighted_60 = chamartin_score_60["weighted_score"]
+    
+    winner_30 = "atocha" if atocha_weighted_30 >= chamartin_weighted_30 else "chamartin"
+    winner_60 = "atocha" if atocha_weighted_60 >= chamartin_weighted_60 else "chamartin"
+    
+    logger.info(f"[Trains] Weighted scores - Atocha 30m: {atocha_weighted_30} (fut:{atocha_score_30['future_count']}, past:{atocha_score_30['past_count']}), Chamartín 30m: {chamartin_weighted_30} (fut:{chamartin_score_30['future_count']}, past:{chamartin_score_30['past_count']})")
     
     # Build response
     atocha_data = StationData(
@@ -1394,7 +1407,11 @@ async def get_train_comparison(
         is_winner_30min=(winner_30 == "atocha"),
         is_winner_60min=(winner_60 == "atocha"),
         morning_arrivals=0,
-        peak_hour=PeakHourInfo(**atocha_peak) if atocha_peak else None
+        peak_hour=PeakHourInfo(**atocha_peak) if atocha_peak else None,
+        score_30min=atocha_weighted_30,
+        score_60min=atocha_weighted_60,
+        past_30min=atocha_score_30["past_count"],
+        past_60min=atocha_score_60["past_count"]
     )
     
     chamartin_data = StationData(
