@@ -1423,7 +1423,11 @@ async def get_train_comparison(
         is_winner_30min=(winner_30 == "chamartin"),
         is_winner_60min=(winner_60 == "chamartin"),
         morning_arrivals=0,
-        peak_hour=PeakHourInfo(**chamartin_peak) if chamartin_peak else None
+        peak_hour=PeakHourInfo(**chamartin_peak) if chamartin_peak else None,
+        score_30min=chamartin_weighted_30,
+        score_60min=chamartin_weighted_60,
+        past_30min=chamartin_score_30["past_count"],
+        past_60min=chamartin_score_60["past_count"]
     )
     
     message = None
