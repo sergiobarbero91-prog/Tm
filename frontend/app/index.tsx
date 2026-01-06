@@ -3321,23 +3321,23 @@ export default function TransportMeter() {
       }
     });
 
+    // Get alerts for this station
+    const stationAlertsData = getLocationAlerts('station', stationKey);
+    const hasStationAlerts = stationAlertsData.length > 0;
+    
     return (
       <View
         key={stationKey}
         style={[
           styles.stationCard,
-          isWinner && styles.winnerCard,
+          isWinner && !hasStationAlerts && styles.winnerCard,
+          hasStationAlerts && styles.stationAlertCard,
         ]}
       >
         {/* Alert badges at top */}
-        {(() => {
-          const alerts = getLocationAlerts('station', stationKey);
-          const hasAlerts = alerts.length > 0;
-          const mostRecentAlert = alerts.length > 0 ? alerts.reduce((a, b) => a.seconds_ago < b.seconds_ago ? a : b) : null;
-          
-          return hasAlerts && (
-            <View style={styles.alertBadgesContainer}>
-              {alerts.map((alert, idx) => (
+        {hasStationAlerts && (
+          <View style={styles.alertBadgesContainer}>
+            {stationAlertsData.map((alert, idx) => (
                 <View key={idx} style={[
                   styles.alertBadge,
                   alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
