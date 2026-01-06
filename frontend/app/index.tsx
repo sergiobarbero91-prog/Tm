@@ -3647,7 +3647,7 @@ export default function TransportMeter() {
         key={group.name}
         style={[
           styles.stationCard,
-          isWinner && !hasTerminalAlerts && styles.winnerCard,
+          isWinner && styles.winnerCard,
           hasTerminalAlerts && styles.stationAlertCard,
         ]}
       >
