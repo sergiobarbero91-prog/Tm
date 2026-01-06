@@ -66,6 +66,11 @@ interface StationData {
   is_winner_30min: boolean;
   is_winner_60min: boolean;
   peak_hour?: PeakHourInfo;
+  // Weighted score fields
+  score_30min?: number;
+  score_60min?: number;
+  past_30min?: number;  // Arrivals in past 15 min (half of 30)
+  past_60min?: number;  // Arrivals in past 30 min (half of 60)
 }
 
 interface TrainComparison {
@@ -97,6 +102,11 @@ interface TerminalData {
   total_next_60min: number;
   is_winner_30min: boolean;
   is_winner_60min: boolean;
+  // Weighted score fields
+  score_30min?: number;
+  score_60min?: number;
+  past_30min?: number;
+  past_60min?: number;
 }
 
 interface FlightComparison {
