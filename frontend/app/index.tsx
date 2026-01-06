@@ -8268,6 +8268,17 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#8B5CF6',
   },
+  // Alert styles for hottest cards in Street tab
+  hottestCardWithAlert: {
+    borderColor: '#EF4444',
+    borderLeftColor: '#EF4444',
+  },
+  hottestAlertBadgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
   scoreBadge: {
     backgroundColor: '#3B82F6',
     paddingHorizontal: 8,
