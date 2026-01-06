@@ -3415,6 +3415,10 @@ export default function TransportMeter() {
     // Calculate totals for the group
     let total30min = 0;
     let total60min = 0;
+    let past30min = 0;
+    let past60min = 0;
+    let score30min = 0;
+    let score60min = 0;
     let allArrivals: FlightArrival[] = [];
     
     group.terminals.forEach(terminalName => {
@@ -3422,6 +3426,10 @@ export default function TransportMeter() {
       if (terminal) {
         total30min += terminal.total_next_30min;
         total60min += terminal.total_next_60min;
+        past30min += terminal.past_30min || 0;
+        past60min += terminal.past_60min || 0;
+        score30min += terminal.score_30min || 0;
+        score60min += terminal.score_60min || 0;
         allArrivals = [...allArrivals, ...terminal.arrivals];
       }
     });
@@ -3449,26 +3457,28 @@ export default function TransportMeter() {
     // Sort filtered arrivals by time
     filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
-    const arrivals = timeWindow === 30 ? total30min : total60min;
+    const futureArrivals = timeWindow === 30 ? total30min : total60min;
+    const pastArrivals = timeWindow === 30 ? past30min : past60min;
+    const score = timeWindow === 30 ? score30min : score60min;
     
-    // Determine if this group is the winner
+    // Determine if this group is the winner based on weighted score
     const groupTotals = terminalGroups.map(g => {
-      let t30 = 0, t60 = 0;
+      let s30 = 0, s60 = 0;
       g.terminals.forEach(t => {
         const term = flightData.terminals[t];
         if (term) {
-          t30 += term.total_next_30min;
-          t60 += term.total_next_60min;
+          s30 += term.score_30min || 0;
+          s60 += term.score_60min || 0;
         }
       });
-      return { name: g.name, total30: t30, total60: t60 };
+      return { name: g.name, score30: s30, score60: s60 };
     });
     
-    const maxTotal = timeWindow === 30 
-      ? Math.max(...groupTotals.map(g => g.total30))
-      : Math.max(...groupTotals.map(g => g.total60));
+    const maxScore = timeWindow === 30 
+      ? Math.max(...groupTotals.map(g => g.score30))
+      : Math.max(...groupTotals.map(g => g.score60));
     
-    const isWinner = arrivals === maxTotal && arrivals > 0;
+    const isWinner = score === maxScore && score > 0;
     
     // Check-in status for this group
     const isCheckedInHere = checkInStatus?.is_checked_in && 
@@ -3499,13 +3509,25 @@ export default function TransportMeter() {
             {group.zoneName}
           </Text>
         </View>
+        
+        {/* Formato: XA - YP (Anteriores - Posteriores) */}
         <View style={styles.arrivalCount}>
-          <Text style={[styles.arrivalNumber, isWinner && styles.winnerNumber]}>
-            {arrivals}
-          </Text>
+          <View style={styles.arrivalScoreRow}>
+            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
+              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
+            </Text>
+            <Text style={styles.arrivalDivider}> - </Text>
+            <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
+              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+            </Text>
+          </View>
           <Text style={styles.arrivalLabel}>
-            vuelos en {timeWindow} min
+            vuelos ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
           </Text>
+          <View style={styles.scoreContainer}>
+            <Ionicons name="analytics" size={14} color="#6366F1" />
+            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
+          </View>
         </View>
         
         {/* Salidas de taxistas en ventana anterior */}
