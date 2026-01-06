@@ -2023,10 +2023,22 @@ export default function TransportMeter() {
     );
   };
 
-  // Format seconds ago as "Xm Xs"
-  const formatSecondsAgo = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+  // Format seconds ago as "Xm Xs" - calculates real-time based on created_at
+  const formatSecondsAgo = (seconds: number, createdAt?: string) => {
+    let actualSeconds = seconds;
+    
+    // If we have created_at, calculate real-time difference
+    if (createdAt) {
+      const createdTime = new Date(createdAt).getTime();
+      const now = Date.now();
+      actualSeconds = Math.floor((now - createdTime) / 1000);
+    }
+    
+    // Add alertTimerTick to trigger re-render
+    const _ = alertTimerTick;
+    
+    const mins = Math.floor(actualSeconds / 60);
+    const secs = actualSeconds % 60;
     if (mins > 0) {
       return `${mins}m ${secs}s`;
     }
