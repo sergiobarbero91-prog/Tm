@@ -4505,14 +4505,10 @@ export default function TransportMeter() {
             </View>
           )}
           
-          {streetData?.hottest_terminal && streetData?.hottest_terminal_lat && streetData?.hottest_terminal_lng && (
+          {streetData?.hottest_terminal && (
             <TouchableOpacity
               style={[styles.navigateButton, styles.navigateButtonTerminal]}
-              onPress={() => openGpsNavigation(
-                streetData.hottest_terminal_lat,
-                streetData.hottest_terminal_lng,
-                streetData.hottest_terminal
-              )}
+              onPress={() => openGpsAppOnly()}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
               <Text style={styles.navigateButtonText}>Ir con GPS</Text>
