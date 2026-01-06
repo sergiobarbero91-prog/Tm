@@ -2017,6 +2017,62 @@ export default function TransportMeter() {
     }
   };
 
+  // Cancel an alert by location
+  const cancelStationAlert = async (locationType: string, locationName: string, alertType: string) => {
+    if (reportingAlert) return;
+    
+    setReportingAlert(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        Alert.alert('Error', 'Debes iniciar sesión');
+        setReportingAlert(false);
+        return;
+      }
+      
+      await axios.post(`${API_BASE}/api/station-alerts/cancel-by-location`, {
+        location_type: locationType,
+        location_name: locationName,
+        alert_type: alertType
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Refresh alerts
+      await fetchStationAlerts();
+      
+      Alert.alert('Alerta cerrada', 'La alerta ha sido cerrada correctamente.');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al cerrar la alerta');
+    } finally {
+      setReportingAlert(false);
+    }
+  };
+
+  // Check if user can close an alert (not the reporter within first minute)
+  const canUserCloseAlert = (alert: any) => {
+    if (!currentUser) return false;
+    
+    // If user is NOT the reporter, they can always close
+    if (alert.reported_by !== currentUser.id) return true;
+    
+    // If user IS the reporter, check if 1 minute has passed
+    const elapsedSinceFetch = Math.floor((Date.now() - alertsFetchedAt) / 1000);
+    const actualSecondsAgo = alert.seconds_ago + elapsedSinceFetch;
+    
+    return actualSecondsAgo >= 60;
+  };
+
+  // Get remaining seconds before user can close their own alert
+  const getSecondsUntilCanClose = (alert: any) => {
+    if (!currentUser || alert.reported_by !== currentUser.id) return 0;
+    
+    const elapsedSinceFetch = Math.floor((Date.now() - alertsFetchedAt) / 1000);
+    const actualSecondsAgo = alert.seconds_ago + elapsedSinceFetch;
+    
+    return Math.max(0, 60 - actualSecondsAgo);
+  };
+
   // Get alert info for a specific location
   const getLocationAlerts = (locationType: string, locationName: string) => {
     const normalizedName = locationType === 'station' ? locationName.toLowerCase() : locationName;
