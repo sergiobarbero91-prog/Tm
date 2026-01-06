@@ -1002,6 +1002,35 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
     
     return count
 
+
+def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
+    """Calculate weighted arrival score combining future and past arrivals.
+    
+    Formula:
+    - 50% weight: arrivals in the next [window_minutes] (future)
+    - 50% weight: arrivals in the last [window_minutes / 2] (recent past)
+    
+    Returns dict with:
+    - future_count: arrivals in future window
+    - past_count: arrivals in past half-window
+    - weighted_score: combined score (average of both)
+    - total_raw: simple sum for display
+    """
+    future_count = count_arrivals_in_window(arrivals, window_minutes)
+    half_window = window_minutes // 2
+    past_count = count_arrivals_in_past_window(arrivals, half_window, 0)
+    
+    # Weighted score: 50% future + 50% past (normalized)
+    weighted_score = (future_count * 0.5) + (past_count * 0.5)
+    
+    return {
+        "future_count": future_count,
+        "past_count": past_count,
+        "weighted_score": round(weighted_score, 1),
+        "total_raw": future_count + past_count
+    }
+
+
 def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
     Works for both flights and trains.
