@@ -4139,6 +4139,76 @@ export default function TransportMeter() {
     }
   };
 
+  // Open GPS app without any destination - just launch the preferred GPS app
+  const openGpsAppOnly = async () => {
+    // URLs to just open the GPS app without destination
+    const wazeUrl = 'https://waze.com/ul';
+    const googleMapsUrl = 'https://www.google.com/maps';
+    
+    try {
+      if (Platform.OS === 'web') {
+        const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
+        if (typeof window !== 'undefined') {
+          window.open(url, '_blank');
+        }
+        return;
+      }
+      
+      if (Platform.OS === 'ios') {
+        if (gpsApp === 'waze') {
+          try {
+            await Linking.openURL('waze://');
+          } catch {
+            await Linking.openURL(wazeUrl);
+          }
+        } else {
+          try {
+            await Linking.openURL('comgooglemaps://');
+          } catch {
+            try {
+              await Linking.openURL('maps://');
+            } catch {
+              await Linking.openURL(googleMapsUrl);
+            }
+          }
+        }
+        return;
+      }
+      
+      if (Platform.OS === 'android') {
+        if (gpsApp === 'waze') {
+          try {
+            await Linking.openURL('waze://');
+          } catch {
+            await Linking.openURL(wazeUrl);
+          }
+        } else {
+          try {
+            await Linking.openURL('google.navigation:');
+          } catch {
+            try {
+              await Linking.openURL('geo:');
+            } catch {
+              await Linking.openURL(googleMapsUrl);
+            }
+          }
+        }
+        return;
+      }
+      
+      // Fallback
+      await Linking.openURL(gpsApp === 'waze' ? wazeUrl : googleMapsUrl);
+    } catch (err) {
+      console.error('Error opening GPS app:', err);
+      const url = gpsApp === 'waze' ? wazeUrl : googleMapsUrl;
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        await Linking.openURL(url);
+      }
+    }
+  };
+
   const renderStreetContent = () => {
     // Safety check - if no streetData yet, show loading
     if (!streetData) {
