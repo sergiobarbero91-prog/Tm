@@ -2852,6 +2852,20 @@ export default function TransportMeter() {
     }
   }, [selectedTimeRange, currentUser, activeTab, fetchStreetData, fetchData]);
 
+  // Fetch station alerts periodically
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    fetchStationAlerts();
+    
+    // Refresh every 10 seconds to update timers
+    const interval = setInterval(() => {
+      fetchStationAlerts();
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [currentUser, fetchStationAlerts]);
+
   // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
