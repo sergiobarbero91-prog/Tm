@@ -264,6 +264,14 @@ export default function TransportMeter() {
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
   
+  // Station alerts states (sin taxis / barandilla)
+  const [stationAlerts, setStationAlerts] = useState<{
+    alerts: any[];
+    stations_with_alerts: string[];
+    terminals_with_alerts: string[];
+  }>({ alerts: [], stations_with_alerts: [], terminals_with_alerts: [] });
+  const [reportingAlert, setReportingAlert] = useState(false);
+  
   // Time range selector states
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('now');
   const [showTimeRangeDropdown, setShowTimeRangeDropdown] = useState(false);
