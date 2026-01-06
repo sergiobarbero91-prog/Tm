@@ -1,0 +1,205 @@
+"""
+Station alerts router for "sin taxis" and "barandilla" alerts.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from datetime import datetime, timedelta
+from pydantic import BaseModel
+import pytz
+
+from shared import (
+    station_alerts_collection,
+    get_current_user_required
+)
+
+router = APIRouter(prefix="/station-alerts", tags=["Station Alerts"])
+
+MADRID_TZ = pytz.timezone('Europe/Madrid')
+ALERT_DURATION_MINUTES = 5  # Alerts expire after 5 minutes
+
+
+class StationAlertCreate(BaseModel):
+    location_type: str  # "station" or "terminal"
+    location_name: str  # "atocha", "chamartin", "T1", "T2", "T4", "T4S", "T123"
+    alert_type: str  # "sin_taxis" or "barandilla"
+
+
+class StationAlertResponse(BaseModel):
+    id: str
+    location_type: str
+    location_name: str
+    alert_type: str
+    reported_by: str
+    reported_by_name: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+    seconds_ago: int
+    is_active: bool
+
+
+class ActiveAlertsResponse(BaseModel):
+    alerts: List[StationAlertResponse]
+    stations_with_alerts: List[str]
+    terminals_with_alerts: List[str]
+
+
+@router.post("/report", response_model=StationAlertResponse)
+async def report_station_alert(
+    alert_data: StationAlertCreate,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Report a 'sin taxis' or 'barandilla' alert for a station or terminal."""
+    
+    # Validate location_type
+    if alert_data.location_type not in ["station", "terminal"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="location_type debe ser 'station' o 'terminal'"
+        )
+    
+    # Validate alert_type
+    if alert_data.alert_type not in ["sin_taxis", "barandilla"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="alert_type debe ser 'sin_taxis' o 'barandilla'"
+        )
+    
+    # Validate location_name based on type
+    valid_stations = ["atocha", "chamartin"]
+    valid_terminals = ["T1", "T2", "T4", "T4S", "T123"]
+    
+    if alert_data.location_type == "station" and alert_data.location_name.lower() not in valid_stations:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Estación inválida. Debe ser: {', '.join(valid_stations)}"
+        )
+    
+    if alert_data.location_type == "terminal" and alert_data.location_name not in valid_terminals:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Terminal inválida. Debe ser: {', '.join(valid_terminals)}"
+        )
+    
+    now = datetime.utcnow()
+    expires_at = now + timedelta(minutes=ALERT_DURATION_MINUTES)
+    
+    # Check if there's already an active alert of the same type for this location
+    existing = await station_alerts_collection.find_one({
+        "location_type": alert_data.location_type,
+        "location_name": alert_data.location_name.lower() if alert_data.location_type == "station" else alert_data.location_name,
+        "alert_type": alert_data.alert_type,
+        "expires_at": {"$gt": now}
+    })
+    
+    if existing:
+        # Update the existing alert to extend its duration
+        await station_alerts_collection.update_one(
+            {"_id": existing["_id"]},
+            {
+                "$set": {
+                    "created_at": now,
+                    "expires_at": expires_at,
+                    "reported_by": current_user["id"],
+                    "reported_by_name": current_user.get("full_name") or current_user["username"]
+                }
+            }
+        )
+        alert_id = str(existing["_id"])
+    else:
+        # Create new alert
+        import uuid
+        alert_id = str(uuid.uuid4())
+        new_alert = {
+            "id": alert_id,
+            "location_type": alert_data.location_type,
+            "location_name": alert_data.location_name.lower() if alert_data.location_type == "station" else alert_data.location_name,
+            "alert_type": alert_data.alert_type,
+            "reported_by": current_user["id"],
+            "reported_by_name": current_user.get("full_name") or current_user["username"],
+            "created_at": now,
+            "expires_at": expires_at
+        }
+        await station_alerts_collection.insert_one(new_alert)
+    
+    return StationAlertResponse(
+        id=alert_id,
+        location_type=alert_data.location_type,
+        location_name=alert_data.location_name.lower() if alert_data.location_type == "station" else alert_data.location_name,
+        alert_type=alert_data.alert_type,
+        reported_by=current_user["id"],
+        reported_by_name=current_user.get("full_name") or current_user["username"],
+        created_at=now,
+        expires_at=expires_at,
+        seconds_ago=0,
+        is_active=True
+    )
+
+
+@router.get("/active", response_model=ActiveAlertsResponse)
+async def get_active_alerts():
+    """Get all active station/terminal alerts (not expired)."""
+    now = datetime.utcnow()
+    
+    # Get all non-expired alerts
+    alerts_cursor = station_alerts_collection.find({
+        "expires_at": {"$gt": now}
+    }).sort("created_at", -1)
+    
+    alerts = await alerts_cursor.to_list(100)
+    
+    stations_with_alerts = set()
+    terminals_with_alerts = set()
+    
+    response_alerts = []
+    for alert in alerts:
+        seconds_ago = int((now - alert["created_at"]).total_seconds())
+        
+        response_alerts.append(StationAlertResponse(
+            id=alert.get("id", str(alert["_id"])),
+            location_type=alert["location_type"],
+            location_name=alert["location_name"],
+            alert_type=alert["alert_type"],
+            reported_by=alert["reported_by"],
+            reported_by_name=alert.get("reported_by_name"),
+            created_at=alert["created_at"],
+            expires_at=alert["expires_at"],
+            seconds_ago=seconds_ago,
+            is_active=True
+        ))
+        
+        if alert["location_type"] == "station":
+            stations_with_alerts.add(alert["location_name"])
+        else:
+            terminals_with_alerts.add(alert["location_name"])
+    
+    return ActiveAlertsResponse(
+        alerts=response_alerts,
+        stations_with_alerts=list(stations_with_alerts),
+        terminals_with_alerts=list(terminals_with_alerts)
+    )
+
+
+@router.delete("/{alert_id}")
+async def cancel_alert(
+    alert_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Cancel an alert (only the reporter or admin/moderator can cancel)."""
+    alert = await station_alerts_collection.find_one({"id": alert_id})
+    
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alerta no encontrada"
+        )
+    
+    # Check permissions
+    if alert["reported_by"] != current_user["id"] and current_user.get("role") not in ["admin", "moderator"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para cancelar esta alerta"
+        )
+    
+    await station_alerts_collection.delete_one({"id": alert_id})
+    
+    return {"message": "Alerta cancelada correctamente"}
