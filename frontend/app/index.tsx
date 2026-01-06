@@ -2029,9 +2029,17 @@ export default function TransportMeter() {
     
     // If we have created_at, calculate real-time difference
     if (createdAt) {
-      const createdTime = new Date(createdAt).getTime();
+      // Ensure UTC parsing - append 'Z' if not present to force UTC interpretation
+      let utcDateString = createdAt;
+      if (!createdAt.endsWith('Z') && !createdAt.includes('+')) {
+        utcDateString = createdAt + 'Z';
+      }
+      const createdTime = new Date(utcDateString).getTime();
       const now = Date.now();
       actualSeconds = Math.floor((now - createdTime) / 1000);
+      
+      // Prevent negative values (in case of clock sync issues)
+      if (actualSeconds < 0) actualSeconds = 0;
     }
     
     // Add alertTimerTick to trigger re-render
