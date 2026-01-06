@@ -3380,7 +3380,8 @@ export default function TransportMeter() {
             </View>
         )}
         
-        {isWinner && !hasStationAlerts && (
+        {/* Winner badge always shown when isWinner */}
+        {isWinner && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
             <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
@@ -3388,7 +3389,7 @@ export default function TransportMeter() {
         )}
         <View style={styles.stationHeader}>
           <Ionicons name="train" size={28} color={hasStationAlerts ? '#EF4444' : (isWinner ? '#F59E0B' : '#6366F1')} />
-          <Text style={[styles.stationName, isWinner && !hasStationAlerts && styles.winnerText, hasStationAlerts && { color: '#EF4444' }]}>
+          <Text style={[styles.stationName, isWinner && styles.winnerText, hasStationAlerts && { color: '#EF4444' }]}>
             {stationShortName}
           </Text>
         </View>
