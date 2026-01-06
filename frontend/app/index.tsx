@@ -4742,19 +4742,26 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'flights' && flightData ? (
           <>
-            <View style={styles.lastUpdateWithRefresh}>
+            <View style={styles.lastUpdateRow}>
               <View style={styles.lastUpdate}>
                 <Ionicons name="time-outline" size={14} color="#64748B" />
                 <Text style={styles.lastUpdateText}>
                   Actualizado: {formatLastUpdate(flightData.last_update)}
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.refreshButtonSmall}
+              <TouchableOpacity 
+                style={styles.refreshButton} 
                 onPress={onRefresh}
                 disabled={refreshing}
               >
-                <Ionicons name="refresh" size={18} color="#3B82F6" />
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#3B82F6" />
+                )}
+                <Text style={[styles.refreshText, refreshing && styles.refreshTextDisabled]}>
+                  {refreshing ? 'Actualizando...' : 'Actualizar'}
+                </Text>
               </TouchableOpacity>
             </View>
             {flightData.message && (
