@@ -271,6 +271,7 @@ export default function TransportMeter() {
     terminals_with_alerts: string[];
   }>({ alerts: [], stations_with_alerts: [], terminals_with_alerts: [] });
   const [reportingAlert, setReportingAlert] = useState(false);
+  const [alertTimerTick, setAlertTimerTick] = useState(0); // For real-time alert timer updates
   
   // Time range selector states
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('now');
