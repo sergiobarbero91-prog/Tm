@@ -7365,6 +7365,41 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginTop: 4,
   },
+  // New styles for XA - YP format
+  arrivalScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+  },
+  arrivalNumberSmall: {
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  arrivalSuffix: {
+    fontSize: 16,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  arrivalDivider: {
+    fontSize: 24,
+    color: '#64748B',
+    marginHorizontal: 8,
+  },
+  scoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F115',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  scoreText: {
+    color: '#6366F1',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   arrivalsList: {
     gap: 8,
   },
