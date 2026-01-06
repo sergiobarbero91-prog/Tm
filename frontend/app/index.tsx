@@ -3623,7 +3623,7 @@ export default function TransportMeter() {
         style={[
           styles.stationCard,
           isWinner && !hasTerminalAlerts && styles.winnerCard,
-          hasTerminalAlerts && styles.alertCard,
+          hasTerminalAlerts && styles.stationAlertCard,
         ]}
       >
         {/* Alert badges at top */}
@@ -3655,8 +3655,8 @@ export default function TransportMeter() {
           </View>
         )}
         <View style={styles.stationHeader}>
-          <Ionicons name="airplane" size={28} color={isWinner ? '#F59E0B' : '#3B82F6'} />
-          <Text style={[styles.stationName, isWinner && styles.winnerText]}>
+          <Ionicons name="airplane" size={28} color={hasTerminalAlerts ? '#EF4444' : (isWinner ? '#F59E0B' : '#3B82F6')} />
+          <Text style={[styles.stationName, isWinner && !hasTerminalAlerts && styles.winnerText, hasTerminalAlerts && { color: '#EF4444' }]}>
             {group.zoneName}
           </Text>
         </View>
