@@ -4208,10 +4208,47 @@ export default function TransportMeter() {
         </View>
 
         {/* === ESTACIÓN CALIENTE === */}
-        <View style={[styles.hottestStreetCard, styles.stationHotCard]}>
+        <View style={[styles.hottestStreetCard, styles.stationHotCard, 
+          // Apply alert styling if station has alerts
+          streetData?.hottest_station && getLocationAlerts('station', streetData.hottest_station.toLowerCase()).length > 0 && styles.hottestCardWithAlert
+        ]}>
+          {/* Station Alert Badge */}
+          {streetData?.hottest_station && (() => {
+            const stationKey = streetData.hottest_station.toLowerCase();
+            const alerts = getLocationAlerts('station', stationKey);
+            if (alerts.length > 0) {
+              return (
+                <View style={styles.hottestAlertBadgesContainer}>
+                  {alerts.map((alert, idx) => (
+                    <View key={idx} style={[
+                      styles.alertBadge,
+                      alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
+                    ]}>
+                      <Ionicons 
+                        name={alert.alert_type === 'sin_taxis' ? 'car-outline' : 'warning'} 
+                        size={12} 
+                        color="#FFFFFF" 
+                      />
+                      <Text style={styles.alertBadgeText}>
+                        {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
+                      </Text>
+                      <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago, alert.created_at)}</Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+            return null;
+          })()}
           <View style={styles.hottestStreetHeader}>
-            <Ionicons name="train" size={24} color="#3B82F6" />
-            <Text style={styles.hottestStreetTitle}>Estación caliente</Text>
+            <Ionicons name="train" size={24} color={
+              streetData?.hottest_station && getLocationAlerts('station', streetData.hottest_station.toLowerCase()).length > 0 
+                ? '#EF4444' 
+                : '#3B82F6'
+            } />
+            <Text style={[styles.hottestStreetTitle, 
+              streetData?.hottest_station && getLocationAlerts('station', streetData.hottest_station.toLowerCase()).length > 0 && { color: '#EF4444' }
+            ]}>Estación caliente</Text>
             {streetData?.hottest_station_score !== null && streetData?.hottest_station_score !== undefined && (
               <View style={styles.scoreBadge}>
                 <Text style={styles.scoreBadgeText}>{streetData.hottest_station_score.toFixed(0)}%</Text>
