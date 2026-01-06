@@ -3354,11 +3354,11 @@ export default function TransportMeter() {
         key={stationKey}
         style={[
           styles.stationCard,
-          isWinner && !hasStationAlerts && styles.winnerCard,
+          isWinner && styles.winnerCard,
           hasStationAlerts && styles.stationAlertCard,
         ]}
       >
-        {/* Alert badges at top */}
+        {/* Alert badges at top-left */}
         {hasStationAlerts && (
           <View style={styles.alertBadgesContainer}>
             {stationAlertsData.map((alert, idx) => (
@@ -3374,7 +3374,7 @@ export default function TransportMeter() {
                   <Text style={styles.alertBadgeText}>
                     {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
                   </Text>
-                  <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago)}</Text>
+                  <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago, alert.created_at)}</Text>
                 </View>
               ))}
             </View>
