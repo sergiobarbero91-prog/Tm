@@ -1520,13 +1520,17 @@ async def get_flight_comparison(
         asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
     
     terminal_data = {}
-    max_30 = 0
-    max_60 = 0
+    max_score_30 = 0.0
+    max_score_60 = 0.0
     winner_30 = "T4"
     winner_60 = "T4"
     
     for terminal in TERMINALS:
         raw_arrivals = all_arrivals.get(terminal, [])
+        
+        # Calculate weighted scores for this terminal (50% future + 50% past)
+        score_30 = calculate_weighted_score(raw_arrivals, 30)
+        score_60 = calculate_weighted_score(raw_arrivals, 60)
         
         # Filter arrivals based on time window
         if custom_time_window and time_start and time_end:
@@ -1563,22 +1567,32 @@ async def get_flight_comparison(
             count_30 = len(arrivals)
             count_60 = count_30
         else:
-            count_30 = count_arrivals_in_window(arrivals, 30)
-            count_60 = count_arrivals_in_window(arrivals, 60)
+            count_30 = score_30["future_count"]
+            count_60 = score_60["future_count"]
         
-        if count_30 > max_30:
-            max_30 = count_30
+        # Determine winner based on weighted score
+        weighted_30 = score_30["weighted_score"]
+        weighted_60 = score_60["weighted_score"]
+        
+        if weighted_30 > max_score_30:
+            max_score_30 = weighted_30
             winner_30 = terminal
-        if count_60 > max_60:
-            max_60 = count_60
+        if weighted_60 > max_score_60:
+            max_score_60 = weighted_60
             winner_60 = terminal
         
         terminal_data[terminal] = TerminalData(
             terminal=terminal,
             arrivals=[FlightArrival(**a) for a in arrivals[:15]],
             total_next_30min=count_30,
-            total_next_60min=count_60
+            total_next_60min=count_60,
+            score_30min=weighted_30,
+            score_60min=weighted_60,
+            past_30min=score_30["past_count"],
+            past_60min=score_60["past_count"]
         )
+    
+    logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")
     
     # Set winners
     for terminal in TERMINALS:
