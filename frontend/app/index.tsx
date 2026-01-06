@@ -7860,6 +7860,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  // Close alert button styles
+  closeAlertButtonsContainer: {
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 10,
+  },
+  closeAlertButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  closeAlertButtonSinTaxis: {
+    backgroundColor: '#DC2626',
+  },
+  closeAlertButtonBarandilla: {
+    backgroundColor: '#D97706',
+  },
+  closeAlertButtonDisabled: {
+    opacity: 0.5,
+  },
+  closeAlertButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   winnerBadge: {
     position: 'absolute',
     top: -12,
