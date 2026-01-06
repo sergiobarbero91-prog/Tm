@@ -4431,15 +4431,59 @@ export default function TransportMeter() {
             </View>
           )}
           
-          {streetData?.hottest_station && (
-            <TouchableOpacity
-              style={[styles.navigateButton, styles.navigateButtonStation]}
-              onPress={() => openGpsAppOnly()}
-            >
-              <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Ir con GPS</Text>
-            </TouchableOpacity>
-          )}
+          {/* GPS button or Close Alert button */}
+          {streetData?.hottest_station && (() => {
+            const stationKey = streetData.hottest_station.toLowerCase();
+            const alerts = getLocationAlerts('station', stationKey);
+            
+            if (alerts.length > 0) {
+              // Show close alert buttons for each active alert
+              return (
+                <View style={styles.closeAlertButtonsContainer}>
+                  {alerts.map((alert, idx) => {
+                    const canClose = canUserCloseAlert(alert);
+                    const secondsUntilCanClose = getSecondsUntilCanClose(alert);
+                    
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.closeAlertButton,
+                          alert.alert_type === 'sin_taxis' ? styles.closeAlertButtonSinTaxis : styles.closeAlertButtonBarandilla,
+                          !canClose && styles.closeAlertButtonDisabled
+                        ]}
+                        onPress={() => {
+                          if (canClose) {
+                            cancelStationAlert('station', stationKey, alert.alert_type);
+                          } else {
+                            Alert.alert('Espera', `Debes esperar ${secondsUntilCanClose}s para cerrar tu propia alerta`);
+                          }
+                        }}
+                        disabled={reportingAlert}
+                      >
+                        <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+                        <Text style={styles.closeAlertButtonText}>
+                          Cerrar {alert.alert_type === 'sin_taxis' ? 'Sin Taxis' : 'Barandilla'}
+                          {!canClose && ` (${secondsUntilCanClose}s)`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            }
+            
+            // No alerts, show GPS button
+            return (
+              <TouchableOpacity
+                style={[styles.navigateButton, styles.navigateButtonStation]}
+                onPress={() => openGpsAppOnly()}
+              >
+                <Ionicons name="navigate" size={20} color="#FFFFFF" />
+                <Text style={styles.navigateButtonText}>Ir con GPS</Text>
+              </TouchableOpacity>
+            );
+          })()}
         </View>
 
         {/* === TERMINAL CALIENTE === */}
