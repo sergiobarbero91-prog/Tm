@@ -3218,7 +3218,9 @@ export default function TransportMeter() {
 
   const renderStationCard = (station: StationData, stationKey: string) => {
     const isWinner = timeWindow === 30 ? station.is_winner_30min : station.is_winner_60min;
-    const arrivals = timeWindow === 30 ? station.total_next_30min : station.total_next_60min;
+    const futureArrivals = timeWindow === 30 ? station.total_next_30min : station.total_next_60min;
+    const pastArrivals = timeWindow === 30 ? (station.past_30min || 0) : (station.past_60min || 0);
+    const score = timeWindow === 30 ? (station.score_30min || 0) : (station.score_60min || 0);
     const stationShortName = stationKey === 'atocha' ? 'Atocha' : 'Chamartín';
     const taxiExits = streetData?.exits_by_station?.[stationShortName] || 0;
 
@@ -3262,13 +3264,25 @@ export default function TransportMeter() {
             {stationShortName}
           </Text>
         </View>
+        
+        {/* Formato: XA - YP (Anteriores - Posteriores) */}
         <View style={styles.arrivalCount}>
-          <Text style={[styles.arrivalNumber, isWinner && styles.winnerNumber]}>
-            {arrivals}
-          </Text>
+          <View style={styles.arrivalScoreRow}>
+            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
+              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
+            </Text>
+            <Text style={styles.arrivalDivider}> - </Text>
+            <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
+              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+            </Text>
+          </View>
           <Text style={styles.arrivalLabel}>
-            trenes en {timeWindow} min
+            trenes ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
           </Text>
+          <View style={styles.scoreContainer}>
+            <Ionicons name="analytics" size={14} color="#6366F1" />
+            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
+          </View>
         </View>
         
         {/* Salidas de taxistas en ventana anterior */}
