@@ -4716,11 +4716,11 @@ export default function TransportMeter() {
                 onPress={onRefresh}
                 disabled={refreshing}
               >
-                <Ionicons 
-                  name="refresh" 
-                  size={18} 
-                  color={refreshing ? "#64748B" : "#6366F1"} 
-                />
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#6366F1" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#6366F1" />
+                )}
                 <Text style={[styles.refreshText, refreshing && styles.refreshTextDisabled]}>
                   {refreshing ? 'Actualizando...' : 'Actualizar'}
                 </Text>
