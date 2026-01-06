@@ -2025,24 +2025,19 @@ export default function TransportMeter() {
     );
   };
 
-  // Format seconds ago as "Xm Xs" - calculates real-time based on created_at
-  const formatSecondsAgo = (seconds: number, createdAt?: string) => {
-    let actualSeconds = seconds;
+  // Format seconds ago as "Xm Xs" - calculates real-time based on backend seconds_ago + elapsed time
+  const formatSecondsAgo = (backendSecondsAgo: number, _createdAt?: string) => {
+    // Calculate how many seconds have passed since we fetched the alerts
+    const elapsedSinceFetch = Math.floor((Date.now() - alertsFetchedAt) / 1000);
     
-    // If we have created_at, calculate real-time difference
-    if (createdAt) {
-      // Ensure UTC parsing - append 'Z' if not present to force UTC interpretation
-      let utcDateString = createdAt;
-      if (!createdAt.endsWith('Z') && !createdAt.includes('+')) {
-        utcDateString = createdAt + 'Z';
-      }
-      const createdTime = new Date(utcDateString).getTime();
-      const now = Date.now();
-      actualSeconds = Math.floor((now - createdTime) / 1000);
-      
-      // Prevent negative values (in case of clock sync issues)
-      if (actualSeconds < 0) actualSeconds = 0;
-    }
+    // Total seconds = backend's seconds_ago + time elapsed since fetch
+    let actualSeconds = backendSecondsAgo + elapsedSinceFetch;
+    
+    // Prevent negative values
+    if (actualSeconds < 0) actualSeconds = 0;
+    
+    // Cap at 5 minutes (300 seconds) since alerts expire after 5 min
+    if (actualSeconds > 300) actualSeconds = 300;
     
     // Add alertTimerTick to trigger re-render
     const _ = alertTimerTick;
