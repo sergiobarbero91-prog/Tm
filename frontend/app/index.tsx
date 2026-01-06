@@ -7457,6 +7457,75 @@ const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     backgroundColor: '#1E293B',
   },
+  // Station/Terminal Alert Card Styles
+  stationAlertCard: {
+    borderColor: '#EF4444',
+    backgroundColor: '#1E293B',
+  },
+  alertBadgesContainer: {
+    position: 'absolute',
+    top: -12,
+    left: 20,
+    right: 80,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    zIndex: 10,
+  },
+  alertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+  },
+  alertBadgeSinTaxis: {
+    backgroundColor: '#EF4444',
+  },
+  alertBadgeBarandilla: {
+    backgroundColor: '#F59E0B',
+  },
+  alertBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  alertBadgeTime: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    opacity: 0.8,
+  },
+  alertButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  alertButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  alertButtonSinTaxis: {
+    backgroundColor: '#DC262680',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  alertButtonBarandilla: {
+    backgroundColor: '#D9770680',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  alertButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   winnerBadge: {
     position: 'absolute',
     top: -12,
