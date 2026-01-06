@@ -3354,18 +3354,17 @@ export default function TransportMeter() {
                 </View>
               ))}
             </View>
-          );
-        })()}
+        )}
         
-        {isWinner && !getLocationAlerts('station', stationKey).length && (
+        {isWinner && !hasStationAlerts && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
             <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
           </View>
         )}
         <View style={styles.stationHeader}>
-          <Ionicons name="train" size={28} color={isWinner ? '#F59E0B' : '#6366F1'} />
-          <Text style={[styles.stationName, isWinner && styles.winnerText]}>
+          <Ionicons name="train" size={28} color={hasStationAlerts ? '#EF4444' : (isWinner ? '#F59E0B' : '#6366F1')} />
+          <Text style={[styles.stationName, isWinner && !hasStationAlerts && styles.winnerText, hasStationAlerts && { color: '#EF4444' }]}>
             {stationShortName}
           </Text>
         </View>
