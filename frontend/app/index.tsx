@@ -3329,7 +3329,35 @@ export default function TransportMeter() {
           isWinner && styles.winnerCard,
         ]}
       >
-        {isWinner && (
+        {/* Alert badges at top */}
+        {(() => {
+          const alerts = getLocationAlerts('station', stationKey);
+          const hasAlerts = alerts.length > 0;
+          const mostRecentAlert = alerts.length > 0 ? alerts.reduce((a, b) => a.seconds_ago < b.seconds_ago ? a : b) : null;
+          
+          return hasAlerts && (
+            <View style={styles.alertBadgesContainer}>
+              {alerts.map((alert, idx) => (
+                <View key={idx} style={[
+                  styles.alertBadge,
+                  alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
+                ]}>
+                  <Ionicons 
+                    name={alert.alert_type === 'sin_taxis' ? 'car-outline' : 'warning'} 
+                    size={14} 
+                    color="#FFFFFF" 
+                  />
+                  <Text style={styles.alertBadgeText}>
+                    {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
+                  </Text>
+                  <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago)}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+        
+        {isWinner && !getLocationAlerts('station', stationKey).length && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
             <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
@@ -3360,6 +3388,26 @@ export default function TransportMeter() {
             <Ionicons name="analytics" size={14} color="#6366F1" />
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
+        </View>
+        
+        {/* Alert buttons */}
+        <View style={styles.alertButtonsRow}>
+          <TouchableOpacity 
+            style={[styles.alertButton, styles.alertButtonSinTaxis]}
+            onPress={() => reportStationAlert('station', stationKey, 'sin_taxis')}
+            disabled={reportingAlert}
+          >
+            <Ionicons name="car-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.alertButtonText}>Sin taxis</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.alertButton, styles.alertButtonBarandilla]}
+            onPress={() => reportStationAlert('station', stationKey, 'barandilla')}
+            disabled={reportingAlert}
+          >
+            <Ionicons name="warning" size={16} color="#FFFFFF" />
+            <Text style={styles.alertButtonText}>Barandilla</Text>
+          </TouchableOpacity>
         </View>
         
         {/* Salidas de taxistas en ventana anterior */}
