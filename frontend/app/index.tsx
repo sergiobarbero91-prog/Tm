@@ -1977,6 +1977,61 @@ export default function TransportMeter() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindow, selectedTimeRange, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
 
+  // Fetch station alerts (sin taxis / barandilla)
+  const fetchStationAlerts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/api/station-alerts/active`);
+      setStationAlerts(response.data);
+    } catch (error) {
+      console.error('Error fetching station alerts:', error);
+    }
+  }, []);
+
+  // Report station alert
+  const reportStationAlert = async (locationType: string, locationName: string, alertType: 'sin_taxis' | 'barandilla') => {
+    if (reportingAlert) return;
+    
+    setReportingAlert(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/station-alerts/report`, {
+        location_type: locationType,
+        location_name: locationName,
+        alert_type: alertType
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Refresh alerts
+      await fetchStationAlerts();
+      
+      const alertLabel = alertType === 'sin_taxis' ? 'Sin taxis' : 'Barandilla';
+      Alert.alert('Aviso enviado', `${alertLabel} reportado para ${locationName}. Durará 5 minutos.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al enviar el aviso');
+    } finally {
+      setReportingAlert(false);
+    }
+  };
+
+  // Get alert info for a specific location
+  const getLocationAlerts = (locationType: string, locationName: string) => {
+    const normalizedName = locationType === 'station' ? locationName.toLowerCase() : locationName;
+    return stationAlerts.alerts.filter(
+      alert => alert.location_type === locationType && alert.location_name === normalizedName
+    );
+  };
+
+  // Format seconds ago as "Xm Xs"
+  const formatSecondsAgo = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
   // Fetch events data
   const fetchEventsData = useCallback(async () => {
     try {
