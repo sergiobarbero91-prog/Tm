@@ -2867,6 +2867,17 @@ export default function TransportMeter() {
     return () => clearInterval(interval);
   }, [currentUser, fetchStationAlerts]);
 
+  // Real-time timer tick for alert countdowns (every 1 second)
+  useEffect(() => {
+    if (stationAlerts.alerts.length > 0) {
+      const timerInterval = setInterval(() => {
+        setAlertTimerTick(prev => prev + 1);
+      }, 1000);
+      
+      return () => clearInterval(timerInterval);
+    }
+  }, [stationAlerts.alerts.length]);
+
   // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
