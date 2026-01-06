@@ -1984,6 +1984,7 @@ export default function TransportMeter() {
     try {
       const response = await axios.get(`${API_BASE}/api/station-alerts/active`);
       setStationAlerts(response.data);
+      setAlertsFetchedAt(Date.now()); // Record when we fetched the alerts
     } catch (error) {
       console.error('Error fetching station alerts:', error);
     }
