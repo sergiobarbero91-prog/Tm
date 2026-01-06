@@ -3613,16 +3613,43 @@ export default function TransportMeter() {
     // Get taxi exits for this terminal group
     const taxiExits = streetData?.exits_by_terminal?.[group.zoneName] || 0;
     const terminalKey = group.terminals[0];
+    
+    // Get alerts for this terminal group
+    const terminalAlerts = group.terminals.flatMap(t => getLocationAlerts('terminal', t));
+    const hasTerminalAlerts = terminalAlerts.length > 0;
 
     return (
       <View
         key={group.name}
         style={[
           styles.stationCard,
-          isWinner && styles.winnerCard,
+          isWinner && !hasTerminalAlerts && styles.winnerCard,
+          hasTerminalAlerts && styles.alertCard,
         ]}
       >
-        {isWinner && (
+        {/* Alert badges at top */}
+        {hasTerminalAlerts && (
+          <View style={styles.alertBadgesContainer}>
+            {terminalAlerts.map((alert, idx) => (
+              <View key={idx} style={[
+                styles.alertBadge,
+                alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
+              ]}>
+                <Ionicons 
+                  name={alert.alert_type === 'sin_taxis' ? 'car-outline' : 'warning'} 
+                  size={14} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.alertBadgeText}>
+                  {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
+                </Text>
+                <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {isWinner && !hasTerminalAlerts && (
           <View style={styles.winnerBadge}>
             <Ionicons name="trophy" size={16} color="#FFFFFF" />
             <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
@@ -3653,6 +3680,26 @@ export default function TransportMeter() {
             <Ionicons name="analytics" size={14} color="#6366F1" />
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
+        </View>
+        
+        {/* Alert buttons */}
+        <View style={styles.alertButtonsRow}>
+          <TouchableOpacity 
+            style={[styles.alertButton, styles.alertButtonSinTaxis]}
+            onPress={() => reportStationAlert('terminal', terminalKey, 'sin_taxis')}
+            disabled={reportingAlert}
+          >
+            <Ionicons name="car-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.alertButtonText}>Sin taxis</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.alertButton, styles.alertButtonBarandilla]}
+            onPress={() => reportStationAlert('terminal', terminalKey, 'barandilla')}
+            disabled={reportingAlert}
+          >
+            <Ionicons name="warning" size={16} color="#FFFFFF" />
+            <Text style={styles.alertButtonText}>Barandilla</Text>
+          </TouchableOpacity>
         </View>
         
         {/* Salidas de taxistas en ventana anterior */}
