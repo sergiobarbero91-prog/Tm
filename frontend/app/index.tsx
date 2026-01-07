@@ -5500,10 +5500,21 @@ export default function TransportMeter() {
         </Text>
       </View>
 
-      {/* Radio Dropdown */}
-      {showRadioDropdown && (
-        <View style={styles.radioDropdownContainer}>
-          <View style={styles.radioDropdown}>
+      {/* Radio Dropdown - Using Modal to prevent background interaction */}
+      <Modal
+        visible={showRadioDropdown}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRadioDropdown(false)}
+      >
+        <View 
+          style={styles.radioModalOverlay}
+          onStartShouldSetResponder={() => true}
+        >
+          <View 
+            style={[styles.radioDropdown, { userSelect: 'none', WebkitUserSelect: 'none' } as any]}
+            onStartShouldSetResponder={() => true}
+          >
             {/* Header */}
             <View style={styles.radioDropdownHeader}>
               <Ionicons name="radio" size={24} color="#10B981" />
