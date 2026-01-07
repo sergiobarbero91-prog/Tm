@@ -2588,12 +2588,26 @@ export default function TransportMeter() {
       const wsHost = API_BASE.replace(/^https?:\/\//, '');
       const wsUrl = `${wsProtocol}://${wsHost}/api/radio/ws/${channel}?token=${token}`;
 
+      console.log('Radio: Connecting to', wsUrl);
       const ws = new WebSocket(wsUrl);
+      
+      // Ping interval to keep connection alive
+      let pingInterval: NodeJS.Timeout | null = null;
+      let reconnectAttempts = 0;
+      const maxReconnectAttempts = 5;
 
       ws.onopen = () => {
         console.log(`Radio: Connected to channel ${channel}`);
         setRadioConnected(true);
         setRadioChannel(channel);
+        reconnectAttempts = 0;
+        
+        // Start ping interval to keep connection alive (every 15 seconds)
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 15000);
       };
 
       ws.onmessage = (event) => {
@@ -2611,21 +2625,40 @@ export default function TransportMeter() {
           } else if (data.type === 'audio') {
             // Handle incoming audio
             if (!radioMuted) {
-              console.log('Radio: Received audio message from', data.sender_name);
+              console.log('Radio: Received audio message from', data.sender_name, 'size:', data.audio_data?.length);
               playReceivedAudio(data.audio_data, data.mime_type);
             }
+          } else if (data.type === 'pong') {
+            // Connection is alive
+            console.log('Radio: Pong received');
           }
         } catch (e) {
           console.error('Radio: Error parsing message', e);
         }
       };
 
-      ws.onclose = () => {
-        console.log('Radio: Disconnected');
+      ws.onclose = (event) => {
+        console.log('Radio: Disconnected, code:', event.code, 'reason:', event.reason);
+        
+        // Clear ping interval
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
+        
         setRadioConnected(false);
         setRadioUsers([]);
         setRadioChannelBusy(false);
         setRadioTransmittingUser(null);
+        
+        // Auto-reconnect if not intentionally closed
+        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          console.log(`Radio: Attempting reconnect ${reconnectAttempts}/${maxReconnectAttempts}`);
+          setTimeout(() => {
+            connectToRadioChannel(channel);
+          }, 2000 * reconnectAttempts); // Exponential backoff
+        }
       };
 
       ws.onerror = (error) => {
