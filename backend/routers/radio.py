@@ -9,6 +9,9 @@ from pydantic import BaseModel
 import json
 import asyncio
 import base64
+import subprocess
+import tempfile
+import os
 
 from shared import users_collection, get_current_user_required, logger
 
