@@ -320,7 +320,7 @@ async def cancel_alert_by_location(
     data: CancelAlertByLocationRequest,
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Cancel an alert by location. The original reporter cannot cancel within the first minute."""
+    """Cancel an alert by location. Detects fraud if another user cancels within 1 minute."""
     now = datetime.utcnow()
     
     location_name = data.location_name.lower() if data.location_type == "station" else data.location_name
@@ -340,15 +340,44 @@ async def cancel_alert_by_location(
         )
     
     seconds_since_created = int((now - alert["created_at"]).total_seconds())
+    reporter_user_id = alert["reported_by"]
+    reporter_name = alert.get("reported_by_name", "Usuario")
+    is_self_cancel = alert["reported_by"] == current_user["id"]
     
-    # If the user is the one who reported the alert and less than 1 minute has passed, block
-    if alert["reported_by"] == current_user["id"] and seconds_since_created < 60:
-        remaining_seconds = 60 - seconds_since_created
+    # If the user is the one who reported the alert, they cannot cancel within first minute
+    if is_self_cancel and seconds_since_created < FRAUD_THRESHOLD_SECONDS:
+        remaining_seconds = FRAUD_THRESHOLD_SECONDS - seconds_since_created
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Debes esperar {remaining_seconds} segundos para cerrar tu propia alerta"
         )
     
+    # Delete the alert
     await station_alerts_collection.delete_one({"_id": alert["_id"]})
     
-    return {"message": "Alerta cancelada correctamente"}
+    # FRAUD DETECTION: If another user cancels within 1 minute, it's considered fraud
+    fraud_detected = False
+    fraud_message = None
+    
+    if not is_self_cancel and seconds_since_created < FRAUD_THRESHOLD_SECONDS:
+        # This is fraud - another user cancelled the alert within 1 minute
+        fraud_detected = True
+        penalty_info = await apply_fraud_penalty(reporter_user_id)
+        
+        fraud_count = penalty_info["fraud_count"]
+        penalty_hours = penalty_info["penalty_hours"]
+        is_permanent = penalty_info["is_permanent"]
+        
+        # Build fraud message
+        if is_permanent:
+            fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario ha sido bloqueado permanentemente para enviar avisos."
+        else:
+            fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario no podrá enviar avisos durante {penalty_hours} horas."
+    
+    return {
+        "message": "Alerta cancelada correctamente",
+        "fraud_detected": fraud_detected,
+        "fraud_message": fraud_message,
+        "reporter_notified": fraud_detected,
+        "notify_reporter_id": reporter_user_id if fraud_detected else None
+    }
