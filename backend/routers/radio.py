@@ -274,8 +274,10 @@ async def radio_websocket(websocket: WebSocket, channel: int, token: str):
             
             elif msg_type == "audio":
                 audio_data = message.get("audio_data")
+                mime_type = message.get("mime_type", "audio/mp4")
                 if audio_data:
-                    await radio_manager.broadcast_audio(channel, user_id, audio_data)
+                    logger.info(f"Radio: Received audio from user, size: {len(audio_data)}, mime: {mime_type}")
+                    await radio_manager.broadcast_audio(channel, user_id, audio_data, mime_type)
             
             elif msg_type == "ping":
                 await websocket.send_text(json.dumps({"type": "pong"}))
