@@ -130,7 +130,7 @@ class RadioConnectionManager:
             user_info = self.user_info.get(user_id, {})
             logger.info(f"Radio: {user_info.get('username')} stopped transmitting on channel {channel}")
     
-    async def broadcast_audio(self, channel: int, user_id: str, audio_data: str):
+    async def broadcast_audio(self, channel: int, user_id: str, audio_data: str, mime_type: str = None):
         """Broadcast audio data to all users in the channel except sender."""
         if self.transmitting[channel] != user_id:
             return  # User is not the current transmitter
@@ -142,8 +142,11 @@ class RadioConnectionManager:
             "sender_id": user_id,
             "sender_name": user_info.get("full_name") or user_info.get("username", "Unknown"),
             "audio_data": audio_data,
+            "mime_type": mime_type or "audio/mp4",
             "timestamp": datetime.utcnow().isoformat()
         })
+        
+        logger.info(f"Radio: Broadcasting audio from {user_info.get('username')} to channel {channel}, size: {len(audio_data)}")
         
         for uid, ws in list(self.active_connections[channel].items()):
             if uid != user_id:  # Don't send back to sender
