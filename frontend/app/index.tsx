@@ -2583,28 +2583,38 @@ export default function TransportMeter() {
       // IMPORTANT: Unlock audio for Safari/iOS web
       // Safari requires a user interaction to enable audio playback
       if (Platform.OS === 'web') {
-        console.log('Radio: Unlocking audio for Safari...');
+        console.log('Radio: Unlocking audio for iOS/Safari...');
         try {
-          // Create a silent audio context to unlock audio
+          // Create the persistent audio element and "unlock" it
+          if (!webAudioRef.current) {
+            webAudioRef.current = new window.Audio();
+            webAudioRef.current.volume = 1.0;
+          }
+          
+          // Play a silent audio to unlock
+          const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQDgAAAAAAAAAGwknmBmgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+M4wAALkAK4AABEAIAAADSAAABQAAANIAAABEAAATwAAAAEAAADSAAABQAAANIAAAARAAEA/+M4wAAK0AKYAABEAIAAADSAAAAQAAANIAAABEAAATwAAAAEAAADSAAAAQAAANIAAAARAAEA';
+          webAudioRef.current.src = silentMp3;
+          
+          await webAudioRef.current.play();
+          webAudioUnlockedRef.current = true;
+          console.log('Radio: Audio unlocked successfully via persistent Audio element');
+          
+          // Also unlock via AudioContext for older Safari
           const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
           if (AudioContext) {
             const audioContext = new AudioContext();
-            // Create a short silent buffer and play it
+            if (audioContext.state === 'suspended') {
+              await audioContext.resume();
+            }
             const buffer = audioContext.createBuffer(1, 1, 22050);
             const source = audioContext.createBufferSource();
             source.buffer = buffer;
             source.connect(audioContext.destination);
             source.start(0);
-            console.log('Radio: Audio unlocked via AudioContext');
+            console.log('Radio: AudioContext also unlocked');
           }
-          
-          // Also try to create and play a silent HTML5 audio
-          const silentAudio = new window.Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQDgAAAAAAAAAGwknmBmgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+M4wAALkAK4AABEAIAAADSAAABQAAANIAAABEAAATwAAAAEAAADSAAABQAAANIAAAARAAEA/+M4wAAK0AKYAABEAIAAADSAAAAQAAANIAAABEAAATwAAAAEAAADSAAAAQAAANIAAAARAAEA');
-          silentAudio.volume = 0.01;
-          await silentAudio.play().catch(() => {});
-          console.log('Radio: Audio unlocked via HTML5 Audio');
         } catch (e) {
-          console.log('Radio: Audio unlock attempt:', e);
+          console.log('Radio: Audio unlock error:', e);
         }
       }
 
