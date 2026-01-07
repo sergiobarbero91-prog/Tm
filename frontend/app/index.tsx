@@ -6531,6 +6531,15 @@ export default function TransportMeter() {
                             minute: '2-digit' 
                           })}
                         </Text>
+                        {/* Action buttons for mods/admins */}
+                        {canDeleteMessages() && msg.user_id !== currentUser?.id && (
+                          <TouchableOpacity
+                            style={styles.chatBlockButton}
+                            onPress={() => blockUserForMessage(msg.id, msg.username)}
+                          >
+                            <Ionicons name="ban" size={14} color="#F59E0B" />
+                          </TouchableOpacity>
+                        )}
                         {canDeleteMessages() && (
                           <TouchableOpacity
                             style={styles.chatDeleteButton}
