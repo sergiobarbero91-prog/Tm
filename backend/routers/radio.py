@@ -18,18 +18,23 @@ from shared import users_collection, get_current_user_required, logger
 router = APIRouter(prefix="/radio", tags=["Radio"])
 
 # Radio channel configuration
-NUM_CHANNELS = 10
+NUM_CHANNELS = 15
 CHANNEL_NAMES = {
-    1: "Canal 1 - General",
-    2: "Canal 2 - Aeropuerto",
-    3: "Canal 3 - Atocha",
-    4: "Canal 4 - Chamartín",
-    5: "Canal 5 - Centro",
-    6: "Canal 6 - Norte",
-    7: "Canal 7 - Sur",
-    8: "Canal 8 - Este",
-    9: "Canal 9 - Oeste",
-    10: "Canal 10 - Emergencias"
+    1: "Canal 1 - Atocha",
+    2: "Canal 2 - Chamartín",
+    3: "Canal 3 - T1",
+    4: "Canal 4 - T2/T3",
+    5: "Canal 5 - T4/T4S",
+    6: "Canal 6 - General",
+    7: "Canal 7 - Conversaciones",
+    8: "Canal 8 - Conversaciones",
+    9: "Canal 9 - Conversaciones",
+    10: "Canal 10 - Conversaciones",
+    11: "Canal 11 - Conversaciones",
+    12: "Canal 12 - Conversaciones",
+    13: "Canal 13 - Conversaciones",
+    14: "Canal 14 - Conversaciones",
+    15: "Canal 15 - Conversaciones"
 }
 
 # Connection manager for radio channels
