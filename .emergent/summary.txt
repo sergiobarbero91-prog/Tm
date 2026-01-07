@@ -2,115 +2,129 @@
 
 **original_problem_statement**: The user wants to continue developing a logistics and transport monitoring tool for taxi drivers in Madrid.
 
-The initial task was to extend the time window selector (already working for the Street tab) to also filter data on the Trains and Flights tabs, including storing data for 12 hours.
+The initial task for this session was to complete the visual implementation of a Sin Taxis / Barandilla alert system on the frontend.
 
-Throughout the session, the user made several additional requests:
-1.  **UI/UX Refactor:** Replace the main tab buttons and shift selector with dropdown menus for a cleaner interface.
-2.  **Admin Panel Enhancement:** Overhaul the admin panel to include user search (by name/license), and statistics (total users, users active in the last month, and users online in real-time).
-3.  **Security Enhancement:** Implement a password change feature in the user's account settings and add a password confirmation field to both the registration and password change forms.
-4.  **Logic Enhancement (Frequency Score):** Change the station/terminal frequency calculation to a weighted score: 50% based on upcoming arrivals and 50% based on historical arrivals for the same time window.
-5.  **UI/UX Update (Frequency Score):** Display the new weighted score components on the station/terminal cards in the format XA - YP (Anteriores - Posteriores).
-6.  **Bug Fix (Refresh Buttons):** The refresh button on the flights tab was not providing clear visual feedback. The user requested all refresh buttons to be consistent.
-7.  **New Feature (Station/Terminal Alerts):** Implement a system where users can report Sin Taxis (No Taxis) or Barandilla (Railing) for any train station or airport terminal. The alert should be visible to all users for 5 minutes, highlight the affected card, and show how long ago the report was made. If multiple alerts are active, the most recent one should have priority for highlighting.
+Throughout the session, the user made several additional requests, building upon the initial features:
+1.  **Alert Timer Correction**: Make the alert countdown timer update in real-time.
+2.  **UI Enhancement**: Ensure the MÁS FRECUENCIA (Higher Frequency) badge remains visible even when an alert is active.
+3.  **Bug Fix (Timezone)**: Fix a timezone bug where the alert timer would start with an incorrect value (e.g., 60 minutes).
+4.  **Feature Expansion (Alerts on Calle Tab)**: Display the same alerts on the Hottest Station/Terminal cards on the main Calle (Street) page.
+5.  **GPS Button Change**: Modify the Ir con GPS (Go with GPS) buttons on the Hottest cards to open the user's preferred GPS app without a pre-filled destination.
+6.  **Alert Management**: Implement a system to close active alerts. When an alert is active, the report buttons should be replaced by a Close Alert button. The user who reported the alert should be blocked from closing it for the first 60 seconds.
+7.  **Fraudulent Alert Penalties**: Implement a complex backend system to penalize users for fraudulent alerts (an alert cancelled by another user within 60 seconds). This includes a tiered blocking system based on the number of fraudulent reports (6h, 12h, 48h, permanent) and storing the reason for the block.
+8.  **Admin Panel for Blocks**: Add a section to the Admin Panel to view and manage all blocked users (both for fraudulent alerts and other reasons), including their block status, reason, and an interface to unblock them or reset their offense count.
+9.  **Chat Moderation & Blocking**: Extend the blocking system to the global chat. Admins/moderators should see a button on each message to block a user for inappropriate messages (). This follows the same penalty structure and should be reflected in the Admin Panel.
+10. **New Feature (Walkie-Talkie Radio)**: Implement a walkie-talkie feature. This includes a UI with a dropdown for 10 radio channels, a connect/disconnect button, a mute button, and a push-to-talk (PTT) button.
 
 **User's preferred language**: español
 
 **what currently exists?**
 The application is a full-stack Expo/FastAPI app.
--   **Frontend:** A single, massive  file (now over 9000 lines) contains almost all application logic, UI, and state. The UI has been significantly changed to use dropdowns for page and shift selection instead of static buttons. New modals for changing passwords and a completely new Admin panel UI have been added.
--   **Backend:** The backend has been enhanced significantly. The time selector now works for trains and flights, storing data in dedicated history collections with a 12-hour TTL. It correctly handles timezones. A new weighted scoring logic for frequency is implemented. A new router () and database collection have been created to handle the Sin Taxis / Barandilla alerts, including a 5-minute TTL. The admin router has new endpoints for user statistics and searching. The auth router now tracks user activity ().
+-   **Frontend:** A massive monolithic  file (now well over 10,000 lines) contains all application UI, state, and logic. It includes a sophisticated admin panel with user search, live stats, and a new user block management system. The Sin Taxis / Barandilla alert system is fully functional and visible on both the Trains/Flights tabs and the Calle tab. A UI for a new walkie-talkie feature has been built but is not yet functional.
+-   **Backend:** The FastAPI backend is extensive. It manages user authentication, data fetching for transport, and a complete real-time alert system (). It now includes a complex penalty system that tracks fraudulent alerts and inappropriate chat messages, applying timed or permanent blocks to users. The admin router () has been expanded with endpoints to manage these blocks. A new chat router () handles global messaging and moderation actions. A new  router with a WebSocket endpoint has been created as a placeholder for the walkie-talkie feature.
 
 **Last working item**:
-    - Last item agent was working: Implementing the Sin Taxis / Barandilla alert system. The agent created the backend infrastructure (new router , DB collection with TTL) and the API endpoints. On the frontend, it added the necessary state, API functions, and the report buttons to the station and terminal cards.
+    - Last item agent was working: Implementing the UI and basic backend structure for a new Walkie-Talkie Radio feature. The agent successfully created the UI elements on the frontend, including a header button and a dropdown modal with a channel selector, connect/mute buttons, and a Push-to-Talk (PTT) button. On the backend, a new  router was created with a placeholder WebSocket endpoint.
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Complete Station/Terminal Alert Display Logic (P0)
+  - Issue 1: Implement Core Walkie-Talkie Audio Streaming Logic (P0)
   - Issue 2: Refactor Frontend Monolith (P1)
+  - Issue 3: Refine Chat Block Notification UI (P2)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The backend is complete and the report buttons are present on the frontend.
+     - Attempted fixes: The basic UI and backend routes/WebSocket stubs have been created. No audio logic has been attempted.
      - Next debug checklist: 
-        1.  In , inside  and , add the logic to display the active alerts for that station/terminal.
-        2.  The display should include the alert type (Sin Taxis or Barandilla) and a timer showing how long ago it was posted (e.g., hace 1 min). The  or a similar library might be needed if not already present to format the time difference.
-        3.  Modify the  of the main card  to apply a highlight (e.g., a colored border or background) if an alert is active.
-        4.  Implement the priority logic: if multiple stations/terminals have alerts, the one with the most recent alert should be highlighted most prominently. This might require comparing timestamps in the render function.
-     - Why fix this issue and what will be achieved with the fix? This will complete the user's latest feature request, providing drivers with real-time, critical status updates for taxi availability at key locations.
+        1.  **Frontend**:
+            -   Integrate  or a similar library to request microphone permissions.
+            -   On Push to Talk press, start recording audio.
+            -   Stream the captured audio data in chunks through the established WebSocket connection.
+            -   On Push to Talk release, stop recording.
+            -   Implement logic to receive audio data from the WebSocket.
+            -   Use  to play back the received audio stream for other users in the channel.
+        2.  **Backend ()**:
+            -   Flesh out the  in .
+            -   Implement a connection manager to keep track of active WebSocket connections for each radio channel.
+            -   When the endpoint receives audio data from a client, it must broadcast that data to all other clients connected to the same channel.
+     - Why fix this issue and what will be achieved with the fix? This will complete the new walkie-talkie feature, enabling real-time voice communication between drivers on different channels.
      - Status:  IN PROGRESS
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: none
   - Issue 2: 
-     - Attempted fixes: None in this session. The  file has only grown larger, making it harder to maintain.
+     - Attempted fixes: None. The  file has grown significantly larger during this session, increasing technical debt.
      - Next debug checklist: 
         1.  Create a  directory inside .
-        2.  Extract large UI sections from  into their own component files (e.g., , , ).
-        3.  Extract state management logic into custom hooks (e.g., , ).
-        4.  Refactor  to import and render these new components.
-     - Why fix this issue and what will be achieved with the fix? The frontend is extremely fragile and difficult to enhance. Refactoring is critical for long-term stability, performance, and development speed.
+        2.  Extract large UI sections from  into their own component files (e.g., , , , ).
+        3.  Extract state management logic into custom hooks or a state management library like Zustand.
+        4.  Refactor  to be a top-level container that renders the new, smaller components.
+     - Why fix this issue and what will be achieved with the fix? The frontend is extremely difficult to maintain, debug, and enhance. Refactoring is critical for long-term stability and development velocity.
      - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None. Should be prioritized after Issue 1.
+     - Blocked on other issue: None. Should be prioritized after the Walkie-Talkie feature is functional.
+  - Issue 3: 
+     - Attempted fixes: When a user is blocked from chat and tries to send a message, the agent implemented a standard .
+     - Next debug checklist: 
+        1. Review the user's request: implementa la notificación con el estilo de la de los avisos.
+        2. The avisos are likely the Sin Taxis alerts, which use a more integrated, custom UI (badges on cards).
+        3. Implement a less intrusive notification, like a toast or a banner at the top of the screen, to inform the user they are blocked, instead of a blocking modal dialog. Libraries like  could be used.
+     - Why fix this issue and what will be achieved with the fix? This will improve the user experience by providing feedback in a less disruptive way, matching the user's explicit request for a specific notification style.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: none
 
 **In progress Task List**:
-  - Task 1:  Implement Station/Terminal Alerts (P0)
+  - Task 1:  Implement Walkie-Talkie Feature (P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: Frontend, in . The agent needs to implement the visual part of the alerts. The data is being fetched, and the buttons exist, but the cards don't yet show the alert status, timer, or highlighting.
-     - What will be achieved with this? Users will be able to see and report taxi availability issues at stations and terminals.
+     - Where to resume: The core audio streaming logic. The UI and backend routes are placeholders. The next step is to use a library like  on the frontend for audio capture/playback and implement the broadcasting logic in the backend WebSocket handler in .
+     - What will be achieved with this? A fully functional real-time voice communication feature for drivers.
      - Status:  IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: None
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Frontend Refactoring: Begin the critical task of breaking down the monolithic  into smaller components and hooks.
-    - (P2) Complete Backend Refactoring: The remaining data-intensive endpoints in  (street data) should be extracted into their own routers.
-    
+    - (P1) Frontend Refactoring: Begin the critical task of breaking down the monolithic .
+    - (P2) Refine Chat Block Notification UI: Change the  to a custom toast/banner notification.
     Future Tasks:
-    - (P3) Implement Push Notifications for alerts.
-    - (P4) Add unit and integration tests for the backend.
-    - (P5) Assist with deployment.
+    - Backend Refactoring: Extract remaining logic from  into dedicated routers.
+    - Implement Push Notifications for alerts and chat.
+    - Add unit and integration tests for the backend.
 
 **Completed work in this session**
-- **Feature: Time Selector for Trains & Flights:** The time window selector now correctly filters train and flight data. This included:
-    - Creating  and  MongoDB collections.
-    - Implementing a 12-hour data retention policy using TTL indexes.
-    - Correctly handling past windows (querying history) and future windows (filtering real-time data).
-    - **Crucially, fixing a timezone bug** where UTC times from the frontend were being incorrectly compared to local Madrid times in the backend.
-
-- **Feature: Major UI/UX Overhaul:**
-    - Replaced the main tab buttons (Street, Trains, Flights, Events) with a single dropdown menu.
-    - Replaced the shift selector buttons (All, Morning, Night) with a dropdown menu.
-
-- **Feature: Admin Panel Revamp:**
-    - Implemented a new admin panel UI with live statistics: Total Users, Active Last Month, Online Now.
-    - Added a search bar to find users by username or license number.
-    - The backend now tracks user  timestamps via a new  endpoint.
-
-- **Feature: Password Management:**
-    - Added a Change Password flow accessible from the user's profile settings.
-    - Implemented password confirmation on both the registration and change password forms to prevent typos.
-
-- **Feature: Weighted Frequency Score:**
-    - Implemented a new backend logic to calculate a weighted frequency score for stations/terminals (50% future arrivals, 50% historical arrivals).
-    - The frontend was updated to display these components in an XA - YP (Anteriores - Posteriores) format on the cards.
-
-- **Bug Fix: Refresh Buttons:**
-    - Standardized the UI for all refresh buttons (Trains, Flights) to provide clear visual feedback ( and Actualizando... text) during a refresh.
+- **Feature: Station/Terminal Alerts Fully Implemented:**
+  - Visual display of alerts (Sin Taxis, Barandilla) on station/terminal cards.
+  - Real-time countdown timer for alerts, with a crucial timezone bug fix.
+  - Alerts are now also displayed on the Hottest Station/Terminal cards on the Calle tab.
+- **Feature: Alert Management System:**
+  - Users can now close active alerts.
+  - A 60-second cooldown prevents the original reporter from closing their own alert immediately.
+- **Feature: Fraudulent Alert & Chat Penalty System:**
+  - A comprehensive backend system now detects and penalizes users for fraudulent alerts (cancelled within 1 min) and inappropriate chat messages.
+  - A tiered blocking system (6h, 12h, 48h, permanent) is in place, with reasons stored in the user's profile.
+- **Feature: Admin Panel for Block Management:**
+  - A new Gestión de Bloqueos section was added to the admin panel.
+  - Admins can view all blocked users, the reason for their block (alerts or chat), their status (temporary, permanent), and have controls to unblock them or reset their offense counts.
+- **Feature: Chat Moderation:**
+  - Admins and moderators can now see a Block button on chat messages to enforce the penalty system.
+  - The backend prevents blocked users from sending further messages.
+- **UI/UX Change: GPS Buttons:** Modified Ir con GPS buttons to open the GPS app without a destination.
+- **Feature: Walkie-Talkie UI:** Created the complete frontend UI for the new radio feature, including the header button and a detailed dropdown modal.
 
 **Earlier issues found/mentioned but not fixed**
-   - A  warning  persists in backend logs but has been deemed non-critical and does not affect functionality.
-   - The frontend has pre-existing TypeScript errors that do not seem to break compilation in the development environment.
+   - A  warning  persists in backend logs but is non-critical.
+   - Pre-existing TypeScript errors in the frontend that do not break compilation.
 
 **Known issue recurrence from previous fork**
-  - **Frontend Monolith:** The  file is a recurring and worsening issue. Its immense size makes it the primary source of risk for bugs and slow development. This is the most significant piece of technical debt.
+  - **Frontend Monolith:** The  file is a critical and worsening issue. Its size (now >10,000 lines) makes it extremely fragile and slow to work with.
   - Recurrence count: High
   - Status: NOT STARTED
 
@@ -118,60 +132,60 @@ The application is a full-stack Expo/FastAPI app.
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Python, MongoDB (), Pydantic,  for timezone handling.
+- **Backend:** FastAPI, Python, MongoDB (), Pydantic, WebSockets.
 - **Frontend:** React Native, Expo, TypeScript, .
-- **Key Logic:** TTL indexes for data retention, timezone conversion, weighted scoring algorithms, real-time alert handling.
+- **Key Logic:** Real-time alerts with TTL, timezone-resilient timers, complex user penalty/blocking system, WebSocket for real-time communication.
 
 **key DB schema**
   - **users**:  (Updated)
-  - **trains_history**:  (TTL index added)
-  - **flights_history**:  (TTL index added)
-  - **station_status_alerts**:  (New, with TTL index)
+  - **station_status_alerts**:  (Updated)
 
 **All files of reference**
 - **Created:**
-  - : Created to handle the new station/terminal alert functionality.
-- **Updated:**
-  - : Heavily modified to add time selector logic for trains/flights, implement weighted scoring, fix timezone bugs, and include the new  router.
-  - : Modified to add the  collection.
-  - : Modified to add statistics and search endpoints.
-  - : Modified to track  on login and via a new heartbeat endpoint.
-  - : Massively updated with multiple new features: dropdown UI, new admin panel, password change modals, weighted score display, and the new station alert buttons.
+  - : To house the new walkie-talkie WebSocket and API logic.
+- **Updated Heavily:**
+  - : Massively updated with multiple new features: alert closing, admin block management, chat moderation buttons, and the entire UI for the new walkie-talkie.
+  - : Modified to handle alert cancellation, fraud detection, and applying user penalties.
+  - : Modified to add a suite of endpoints for viewing and managing user blocks.
+  - : Modified to add moderation endpoints for blocking users and to prevent blocked users from posting.
+  - : Added token verification logic.
 
 **Areas that need refactoring**:
-- **CRITICAL: :** This file is dangerously large and complex. It must be broken down into smaller components and hooks as the highest priority after the current alert feature is completed.
+- **CRITICAL: :** This file's size and complexity is the single biggest risk to the project. It MUST be broken down into smaller, reusable components and hooks.
 
 **key api endpoints**
-- , : Now accept  and  and return weighted scores.
-- : (GET) Returns user statistics.
-- : (GET) Searches for users by a query string.
-- : (POST) Updates the user's  timestamp.
-- : (POST) Now used by the new frontend modal.
-- : (GET, POST) New endpoints to get and create Sin Taxis/Barandilla alerts.
+- : (POST) New endpoint to cancel an alert and potentially trigger fraud detection.
+- : (GET) New endpoint to list all blocked users with details.
+- : (POST) New endpoint to remove a user's block.
+- : (POST) New endpoint to reset a user's offenses.
+- : (POST) New endpoint for moderators to block a user based on a chat message.
+- : (GET) New endpoint to list available radio channels.
+- : (WebSocket) New endpoint for real-time audio communication.
 
 **Critical Info for New Agent**
-- **PRIORITY TASK:** Your immediate goal is to finish the Station/Terminal Alerts feature. The backend is ready. You need to implement the frontend display logic in . This involves showing the alerts on the cards with a timer and applying a visual highlight.
-- **NEXT MAJOR TASK:** After completing the alerts feature, you MUST begin refactoring the  monolith. This is critical for the project's health.
-- **PREVIEW SERVER IS UNRELIABLE:** The web preview () frequently fails due to infrastructure issues. Do not trust it as the sole source of truth. The agent successfully used  and  scripts to test backend endpoints directly and relied on the Expo bundler logs to confirm frontend compilation. Continue this workaround.
-- **TIMEZONES ARE IMPORTANT:** The application deals with time-sensitive data. The backend now correctly converts UTC times from the frontend to the 'Europe/Madrid' timezone for filtering. Be mindful of this in any future time-related logic.
+- **PRIORITY TASK:** Your immediate goal is to implement the core functionality of the **Walkie-Talkie feature**. This is a non-trivial task involving real-time audio streaming.
+  - You will need to use a library like  on the frontend for microphone access, audio recording, and playback.
+  - You must implement the audio data broadcasting logic in the  in .
+- **TECHNICAL DEBT:** After the radio is functional, the highest priority is to begin refactoring the  monolith. Create a plan to break it into smaller components and present it to the user.
+- **PENALTY SYSTEM:** Be aware of the complex blocking system. Changes to alerts or chat might have unintended consequences on user block status. The logic is primarily in  and .
 
 **documents created in this job**
   - None.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. User requests a system to report Sin Taxis and Barandilla at stations/terminals, visible for 5 mins and highlighting the card. (Status: **IN PROGRESS**)
- - 9. User asks to verify that all refresh buttons work, noting the flights one seemed broken. (Status: **RESOLVED**)
- - 8. User requests the UI cards show the new weighted score as XA - YP (Anteriores/Posteriores). (Status: **RESOLVED**)
- - 7. User requests a new weighted frequency logic: 50% future arrivals + 50% past arrivals. (Status: **RESOLVED**)
- - 6. User reports that historical data for flights is not showing correctly for the selected interval. (Status: **RESOLVED**)
- - 5. User requests a password change feature and password confirmation on all password forms. (Status: **RESOLVED**)
- - 4. User requests a revamp of the admin panel with user search and live statistics. (Status: **RESOLVED**)
- - 3. User requests a UI overhaul to use dropdowns for page and shift selection. (Status: **RESOLVED**)
- - 2. User reports the time filter is not working correctly and provides a screenshot showing a timezone/off-by-one error. (Status: **RESOLVED**)
- - 1. User reports that selecting a future time window does not show future trains. (Status: **RESOLVED**)
+ - 10. User requests a walkie-talkie feature with channels, connect/disconnect, mute, and PTT. (Status: **IN PROGRESS**, UI built).
+ - 9. User requests testing of the chat ban button and implementation of a user notification. (Status: **RESOLVED**, backend tested, notification added via ).
+ - 8. User requests to extend the blocking system to the global chat for moderation. (Status: **RESOLVED**).
+ - 7. User requests an admin panel section to manage blocked users. (Status: **RESOLVED**).
+ - 6. User explains the detailed logic for a fraudulent alert penalty system. (Status: **RESOLVED**).
+ - 5. User requests to change alert buttons to close alert and add a cooldown for the reporter. (Status: **RESOLVED**).
+ - 4. User requests that Ir con GPS buttons should only open the GPS app without a destination. (Status: **RESOLVED**).
+ - 3. User requests that station/terminal alerts also appear on the Calle (Street) tab. (Status: **RESOLVED**).
+ - 2. User reports a timezone bug with the alert timer. (Status: **RESOLVED**).
+ - 1. User requests the alert timer to be real-time and to not hide the MÁS FRECUENCIA badge. (Status: **RESOLVED**).
 
 **Project Health Check:**
-- **Broken:** The visual representation of station/terminal alerts is missing. Users can report alerts via the buttons, but there is no feedback on the UI to show active alerts, timers, or highlighted cards.
+- **Broken:** The core functionality of the Walkie-Talkie feature is non-existent. The UI is present, but it cannot capture, send, or receive any audio.
 - **Mocked:** None.
 
 **3rd Party Integrations**
@@ -180,18 +194,24 @@ The application is a full-stack Expo/FastAPI app.
 - **OpenStreetMap:** For map display.
 - **ADIF & AENA APIs:** For train and flight data.
 - **Google Maps / Waze:** For external navigation.
+- **(Implicitly required) **: Will be needed for audio recording and playback for the Walkie-Talkie feature.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: The web preview infrastructure is unstable, but this is not a code regression. The agent successfully worked around it.
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- **Username:** 
-- **Password:** 
+- **Admin User:**
+  - **Username:** 
+  - **Password:** 
+- **Test User (created during session for blocking tests):**
+  - **Username:** 
+  - **Password:** 
 
 **What agent forgot to execute**
-- The agent has not yet implemented the full frontend logic for displaying the station/terminal alerts as requested. The data is fetched and buttons are present, but the UI does not yet render the alert status, timer, or highlighting on the cards.
+- The agent built the UI for the Walkie-Talkie but did not implement any of the underlying audio capture, streaming (WebSocket), or playback logic, which is the core of the feature.
+- The user requested the notification for a chat block to be in the style of the alerts. The agent used a standard  dialog, which is functionally different from the custom UI badges used for the station/terminal alerts. This may not match the user's UX expectation.
 
 </analysis>
