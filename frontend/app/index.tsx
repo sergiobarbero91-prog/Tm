@@ -2923,8 +2923,9 @@ export default function TransportMeter() {
 
   // Play received audio
   const playReceivedAudio = async (audioData: string, mimeType?: string) => {
-    if (radioMuted) {
-      console.log('Radio: Audio muted, skipping playback');
+    // Use ref for muted state to get the latest value
+    if (radioMutedRef.current) {
+      console.log('Radio: Audio muted (ref), skipping playback');
       return;
     }
     
