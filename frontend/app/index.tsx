@@ -2298,6 +2298,65 @@ export default function TransportMeter() {
     }
   }, [adminSearchQuery, searchUsers]);
 
+  // Fetch blocked users (admin only)
+  const fetchBlockedUsers = useCallback(async () => {
+    if (currentUser?.role !== 'admin') return;
+    
+    setBlockedUsersLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/admin/blocked-users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBlockedUsersData(response.data);
+    } catch (error: any) {
+      console.error('Error fetching blocked users:', error);
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [currentUser?.role]);
+
+  // Unblock a user (admin only)
+  const unblockUser = async (userId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/admin/users/${userId}/unblock`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Alert.alert('Usuario desbloqueado', 'El usuario puede volver a enviar avisos.');
+      fetchBlockedUsers();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al desbloquear usuario');
+    }
+  };
+
+  // Reset fraud count for a user (admin only)
+  const resetFraudCount = async (userId: string) => {
+    Alert.alert(
+      'Resetear contador',
+      '¿Estás seguro de que quieres resetear el contador de fraudes? El usuario podrá volver a enviar avisos sin historial.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Resetear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('token');
+              await axios.post(`${API_BASE}/api/admin/users/${userId}/reset-fraud`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              Alert.alert('Contador reseteado', 'El contador de fraudes ha sido reseteado a 0.');
+              fetchBlockedUsers();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Error al resetear contador');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Send heartbeat periodically to update last_seen
   useEffect(() => {
     if (!currentUser) return;
