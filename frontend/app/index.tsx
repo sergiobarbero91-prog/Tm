@@ -5562,17 +5562,30 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
 
-            {/* Push to Talk Button */}
-            <TouchableOpacity
-              style={[
+            {/* Push to Talk Button - Using Pressable for better gesture handling on mobile */}
+            <Pressable
+              style={({ pressed }) => [
                 styles.radioPTTButton,
                 !radioConnected && styles.radioPTTButtonDisabled,
-                radioTransmitting && styles.radioPTTButtonActive,
+                (radioTransmitting || pressed) && radioConnected && !radioChannelBusy && styles.radioPTTButtonActive,
                 radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy
               ]}
-              onPressIn={radioConnected && !radioChannelBusy ? startRadioTransmission : undefined}
-              onPressOut={radioConnected ? stopRadioTransmission : undefined}
-              disabled={!radioConnected}
+              onPressIn={() => {
+                if (radioConnected && !radioChannelBusy) {
+                  startRadioTransmission();
+                }
+              }}
+              onPressOut={() => {
+                if (radioConnected && radioTransmitting) {
+                  stopRadioTransmission();
+                }
+              }}
+              onLongPress={() => {
+                // This ensures the button stays active during long press
+                console.log('Radio: Long press detected');
+              }}
+              delayLongPress={100}
+              disabled={!radioConnected || radioChannelBusy}
             >
               <Ionicons 
                 name="mic" 
@@ -5586,9 +5599,9 @@ export default function TransportMeter() {
               ]}>
                 {radioTransmitting ? 'TRANSMITIENDO...' : 
                  radioChannelBusy ? 'CANAL OCUPADO' :
-                 radioConnected ? 'MANTENER PARA HABLAR' : 'CONECTAR PRIMERO'}
+                 radioConnected ? 'MANTENER PULSADO' : 'CONECTAR PRIMERO'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Transmitting user info */}
             {radioChannelBusy && radioTransmittingUser && !radioTransmitting && (
