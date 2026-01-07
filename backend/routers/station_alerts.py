@@ -1,5 +1,6 @@
 """
 Station alerts router for "sin taxis" and "barandilla" alerts.
+Includes fraud detection and user blocking system.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
@@ -9,6 +10,7 @@ import pytz
 
 from shared import (
     station_alerts_collection,
+    users_collection,
     get_current_user_required
 )
 
@@ -16,6 +18,15 @@ router = APIRouter(prefix="/station-alerts", tags=["Station Alerts"])
 
 MADRID_TZ = pytz.timezone('Europe/Madrid')
 ALERT_DURATION_MINUTES = 5  # Alerts expire after 5 minutes
+FRAUD_THRESHOLD_SECONDS = 60  # If cancelled within 60 seconds by another user, it's fraud
+
+# Fraud penalty durations
+FRAUD_PENALTIES = {
+    5: 6,      # 1-5 frauds: 6 hours
+    10: 12,    # 6-10 frauds: 12 hours
+    20: 48,    # 11-20 frauds: 48 hours
+    float('inf'): None  # 21+ frauds: permanent ban
+}
 
 
 class StationAlertCreate(BaseModel):
