@@ -2691,6 +2691,11 @@ export default function TransportMeter() {
     try {
       console.log('Radio: Starting audio recording...');
       
+      // Vibrate to indicate recording start
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(50);
+      }
+      
       // Ensure audio mode is set for recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
@@ -2700,35 +2705,25 @@ export default function TransportMeter() {
         playThroughEarpieceAndroid: false,
       });
       
-      // Create recording with optimized settings for voice
-      const { recording } = await Audio.Recording.createAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-          audioEncoder: Audio.AndroidAudioEncoder.AAC,
-          sampleRate: 22050,
-          numberOfChannels: 1,
-          bitRate: 32000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-          audioQuality: Audio.IOSAudioQuality.LOW,
-          sampleRate: 22050,
-          numberOfChannels: 1,
-          bitRate: 32000,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 32000,
-        },
-      });
+      // Use preset for better compatibility
+      const recordingOptions = Platform.OS === 'web' 
+        ? {
+            android: Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
+            ios: Audio.RecordingOptionsPresets.HIGH_QUALITY.ios,
+            web: {
+              mimeType: 'audio/webm;codecs=opus',
+              bitsPerSecond: 128000,
+            },
+          }
+        : Audio.RecordingOptionsPresets.HIGH_QUALITY;
+      
+      const { recording } = await Audio.Recording.createAsync(recordingOptions);
       
       recordingRef.current = recording;
-      console.log('Radio: Recording started');
+      console.log('Radio: Recording started successfully');
     } catch (error) {
       console.error('Radio: Error starting recording:', error);
-      Alert.alert('Error', 'No se pudo iniciar la grabación de audio');
+      setRadioTransmitting(false);
     }
   };
 
@@ -2741,29 +2736,52 @@ export default function TransportMeter() {
     
     try {
       console.log('Radio: Stopping recording...');
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
+      
+      // Vibrate to indicate recording stop
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(30);
+      }
+      
+      const recording = recordingRef.current;
       recordingRef.current = null;
+      
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      console.log('Radio: Recording URI:', uri);
       
       if (uri && radioWs && radioWs.readyState === WebSocket.OPEN) {
         // Read the audio file and convert to base64
         const response = await fetch(uri);
         const blob = await response.blob();
         
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64Audio = reader.result as string;
-          // Remove the data URL prefix to get just the base64 data
-          const audioData = base64Audio.split(',')[1];
-          
-          // Send audio data through WebSocket
-          radioWs.send(JSON.stringify({
-            type: 'audio',
-            audio_data: audioData
-          }));
-          console.log('Radio: Audio sent, size:', audioData.length);
-        };
-        reader.readAsDataURL(blob);
+        console.log('Radio: Blob size:', blob.size, 'type:', blob.type);
+        
+        // Only send if we have actual audio data
+        if (blob.size > 1000) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64Audio = reader.result as string;
+            // Include the full data URL with mime type for proper playback
+            const audioDataWithType = base64Audio;
+            
+            // Send audio data through WebSocket
+            radioWs.send(JSON.stringify({
+              type: 'audio',
+              audio_data: audioDataWithType,
+              mime_type: blob.type || 'audio/mp4'
+            }));
+            console.log('Radio: Audio sent successfully, size:', audioDataWithType.length);
+          };
+          reader.onerror = (err) => {
+            console.error('Radio: FileReader error:', err);
+          };
+          reader.readAsDataURL(blob);
+        } else {
+          console.log('Radio: Audio too short, not sending');
+        }
+      } else {
+        console.log('Radio: Cannot send - URI:', !!uri, 'WS:', radioWs?.readyState);
       }
       
       // Reset audio mode for playback
@@ -2781,25 +2799,67 @@ export default function TransportMeter() {
   };
 
   // Play received audio
-  const playReceivedAudio = async (audioData: string) => {
+  const playReceivedAudio = async (audioData: string, mimeType?: string) => {
     if (radioMuted) {
       console.log('Radio: Audio muted, skipping playback');
       return;
     }
     
-    // Add to queue
-    audioQueueRef.current.push(audioData);
+    console.log('Radio: Playing received audio, data length:', audioData?.length);
     
-    // If already playing, the queue will be processed
-    if (isPlayingRef.current) {
-      return;
-    }
-    
-    // Process queue
-    const processAudioQueue = async () => {
-      isPlayingRef.current = true;
+    try {
+      // Unload previous sound if exists
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
       
-      while (audioQueueRef.current.length > 0) {
+      // Set audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+      
+      // The audioData should be a full data URL, use it directly
+      let audioUri = audioData;
+      if (!audioData.startsWith('data:')) {
+        // If it's just base64, add the data URL prefix
+        const mime = mimeType || 'audio/mp4';
+        audioUri = `data:${mime};base64,${audioData}`;
+      }
+      
+      console.log('Radio: Loading audio from URI, prefix:', audioUri.substring(0, 50));
+      
+      // Load and play the sound
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUri },
+        { shouldPlay: true, volume: 1.0 }
+      );
+      soundRef.current = sound;
+      
+      // Vibrate when receiving audio
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(20);
+      }
+      
+      console.log('Radio: Audio playback started');
+      
+      // Wait for playback to finish then cleanup
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          console.log('Radio: Audio playback finished');
+          sound.unloadAsync().catch(() => {});
+          soundRef.current = null;
+        }
+      });
+      
+    } catch (error) {
+      console.error('Radio: Error playing audio:', error);
+    }
+  };
         const data = audioQueueRef.current.shift();
         if (!data) continue;
         
