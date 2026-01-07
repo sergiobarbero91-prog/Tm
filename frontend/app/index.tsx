@@ -427,6 +427,7 @@ export default function TransportMeter() {
   const isPlayingRef = useRef(false);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const webAudioUnlockedRef = useRef(false);
+  const radioMutedRef = useRef(false);
 
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
