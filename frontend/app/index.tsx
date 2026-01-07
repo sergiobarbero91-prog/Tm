@@ -2770,10 +2770,33 @@ export default function TransportMeter() {
       
       console.log('Radio: Creating recording...');
       
-      // Use simple recording preset
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      // Custom recording options for cross-platform compatibility
+      // Use AAC/MP4 which works on both iOS and Android
+      const recordingOptions = {
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        web: {
+          // Try to use mp4/aac if browser supports it, fallback to webm
+          mimeType: 'audio/mp4',
+          bitsPerSecond: 128000,
+        },
+      };
+      
+      const { recording } = await Audio.Recording.createAsync(recordingOptions);
       
       recordingRef.current = recording;
       console.log('Radio: Recording started successfully');
