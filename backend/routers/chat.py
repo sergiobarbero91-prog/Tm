@@ -1,19 +1,112 @@
 """
 Chat router for multi-channel messaging system.
+Includes chat abuse blocking system.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 from shared import (
     chat_messages_collection,
+    users_collection,
     get_current_user_required,
     logger
 )
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+
+# Blocking configuration - same pattern as alert fraud
+CHAT_ABUSE_THRESHOLD = 60  # Seconds - not used for chat, immediate block
+CHAT_PENALTIES = {
+    5: 6,      # 1-5 abuses: 6 hours
+    10: 12,    # 6-10 abuses: 12 hours
+    20: 48,    # 11-20 abuses: 48 hours
+    float('inf'): None  # 21+ abuses: permanent ban
+}
+
+
+def get_chat_penalty_hours(abuse_count: int) -> Optional[int]:
+    """Get the penalty hours based on chat abuse count."""
+    if abuse_count <= 5:
+        return 6
+    elif abuse_count <= 10:
+        return 12
+    elif abuse_count <= 20:
+        return 48
+    else:
+        return None  # Permanent ban
+
+
+async def check_chat_blocked(user_id: str) -> tuple[bool, Optional[str]]:
+    """Check if user is blocked from sending chat messages."""
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        return False, None
+    
+    abuse_count = user.get("chat_abuse_count", 0)
+    blocked_until = user.get("chat_blocked_until")
+    
+    # Check for permanent ban
+    if abuse_count > 20:
+        return True, "Has sido bloqueado permanentemente del chat debido a múltiples mensajes indebidos."
+    
+    # Check for temporary block
+    if blocked_until:
+        now = datetime.utcnow()
+        if isinstance(blocked_until, str):
+            blocked_until = datetime.fromisoformat(blocked_until.replace('Z', '+00:00'))
+        
+        if now < blocked_until:
+            remaining = blocked_until - now
+            hours_remaining = int(remaining.total_seconds() / 3600)
+            mins_remaining = int((remaining.total_seconds() % 3600) / 60)
+            
+            if hours_remaining > 0:
+                time_str = f"{hours_remaining}h {mins_remaining}min"
+            else:
+                time_str = f"{mins_remaining} minutos"
+            
+            return True, f"No puedes enviar mensajes durante {time_str} debido a mensajes indebidos previos."
+    
+    return False, None
+
+
+async def apply_chat_abuse_penalty(user_id: str, message_content: str, blocked_by: str) -> dict:
+    """Apply chat abuse penalty to a user."""
+    user = await users_collection.find_one({"id": user_id})
+    current_abuse_count = user.get("chat_abuse_count", 0) if user else 0
+    new_abuse_count = current_abuse_count + 1
+    
+    penalty_hours = get_chat_penalty_hours(new_abuse_count)
+    
+    now = datetime.utcnow()
+    update_data = {
+        "chat_abuse_count": new_abuse_count,
+        "last_chat_abuse_at": now,
+        "last_chat_abuse_message": message_content[:200],  # Store snippet of offending message
+        "last_chat_abuse_blocked_by": blocked_by
+    }
+    
+    if penalty_hours is not None:
+        blocked_until = now + timedelta(hours=penalty_hours)
+        update_data["chat_blocked_until"] = blocked_until
+    else:
+        # Permanent ban
+        update_data["chat_blocked_until"] = now + timedelta(days=36500)
+    
+    await users_collection.update_one(
+        {"id": user_id},
+        {"$set": update_data}
+    )
+    
+    return {
+        "abuse_count": new_abuse_count,
+        "penalty_hours": penalty_hours,
+        "is_permanent": penalty_hours is None
+    }
+
 
 # Models
 class SendMessageRequest(BaseModel):
