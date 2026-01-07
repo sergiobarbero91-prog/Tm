@@ -247,57 +247,132 @@ class BlockedUserInfo(BaseModel):
     username: str
     full_name: Optional[str] = None
     license_number: Optional[str] = None
+    # Alert fraud info
     alert_fraud_count: int = 0
     alert_blocked_until: Optional[datetime] = None
     last_fraud_at: Optional[datetime] = None
-    block_status: str  # "temporary", "permanent", "expired"
-    hours_remaining: Optional[int] = None
+    alert_block_status: str = "none"  # "temporary", "permanent", "expired", "none"
+    alert_hours_remaining: Optional[int] = None
+    # Chat abuse info
+    chat_abuse_count: int = 0
+    chat_blocked_until: Optional[datetime] = None
+    last_chat_abuse_at: Optional[datetime] = None
+    last_chat_abuse_message: Optional[str] = None
+    chat_block_status: str = "none"  # "temporary", "permanent", "expired", "none"
+    chat_hours_remaining: Optional[int] = None
+    # Combined status
+    block_reasons: List[str] = []  # ["avisos_fraudulentos", "mensajes_indebidos"]
 
 
 class BlockedUsersStats(BaseModel):
     total_blocked: int
-    temporary_blocks: int
+    alert_blocks: int
+    chat_blocks: int
     permanent_blocks: int
     blocked_users: List[BlockedUserInfo]
 
 
+def get_block_status(count: int, blocked_until: Optional[datetime], now: datetime) -> tuple[str, Optional[int]]:
+    """Get block status and hours remaining."""
+    if count > 20:
+        return "permanent", None
+    elif blocked_until:
+        if blocked_until > now:
+            hours_remaining = int((blocked_until - now).total_seconds() / 3600)
+            return "temporary", hours_remaining
+        else:
+            return "expired", 0
+    else:
+        return "none", None
+
+
 @router.get("/blocked-users", response_model=BlockedUsersStats)
 async def get_blocked_users(admin: dict = Depends(get_admin_user)):
-    """Get all users blocked from creating alerts (admin only)."""
+    """Get all users with any type of block (alerts or chat)."""
     now = datetime.utcnow()
     
-    # Find users with fraud counts or active blocks
+    # Find users with any type of block or abuse count
     users_with_blocks = await users_collection.find({
         "$or": [
             {"alert_fraud_count": {"$gt": 0}},
-            {"alert_blocked_until": {"$exists": True}}
+            {"alert_blocked_until": {"$exists": True}},
+            {"chat_abuse_count": {"$gt": 0}},
+            {"chat_blocked_until": {"$exists": True}}
         ]
     }).to_list(1000)
     
     blocked_users = []
-    temporary_count = 0
+    alert_block_count = 0
+    chat_block_count = 0
     permanent_count = 0
+    active_blocks = set()
     
     for u in users_with_blocks:
-        fraud_count = u.get("alert_fraud_count", 0)
-        blocked_until = u.get("alert_blocked_until")
+        # Alert fraud info
+        alert_fraud_count = u.get("alert_fraud_count", 0)
+        alert_blocked_until = u.get("alert_blocked_until")
+        alert_status, alert_hours = get_block_status(alert_fraud_count, alert_blocked_until, now)
         
-        # Determine block status
-        if fraud_count > 20:
-            block_status = "permanent"
+        # Chat abuse info
+        chat_abuse_count = u.get("chat_abuse_count", 0)
+        chat_blocked_until = u.get("chat_blocked_until")
+        chat_status, chat_hours = get_block_status(chat_abuse_count, chat_blocked_until, now)
+        
+        # Determine block reasons
+        block_reasons = []
+        if alert_status in ["temporary", "permanent"]:
+            block_reasons.append("avisos_fraudulentos")
+            if u["id"] not in active_blocks:
+                alert_block_count += 1
+                active_blocks.add(u["id"])
+        if chat_status in ["temporary", "permanent"]:
+            block_reasons.append("mensajes_indebidos")
+            if u["id"] not in active_blocks:
+                chat_block_count += 1
+                active_blocks.add(u["id"])
+        
+        # Count permanent blocks
+        if alert_status == "permanent" or chat_status == "permanent":
             permanent_count += 1
-            hours_remaining = None
-        elif blocked_until:
-            if blocked_until > now:
-                block_status = "temporary"
-                temporary_count += 1
-                hours_remaining = int((blocked_until - now).total_seconds() / 3600)
-            else:
-                block_status = "expired"
-                hours_remaining = 0
-        else:
-            block_status = "expired"
-            hours_remaining = 0
+        
+        blocked_users.append(BlockedUserInfo(
+            id=u["id"],
+            username=u["username"],
+            full_name=u.get("full_name"),
+            license_number=u.get("license_number"),
+            # Alert info
+            alert_fraud_count=alert_fraud_count,
+            alert_blocked_until=alert_blocked_until,
+            last_fraud_at=u.get("last_fraud_at"),
+            alert_block_status=alert_status,
+            alert_hours_remaining=alert_hours,
+            # Chat info
+            chat_abuse_count=chat_abuse_count,
+            chat_blocked_until=chat_blocked_until,
+            last_chat_abuse_at=u.get("last_chat_abuse_at"),
+            last_chat_abuse_message=u.get("last_chat_abuse_message"),
+            chat_block_status=chat_status,
+            chat_hours_remaining=chat_hours,
+            # Combined
+            block_reasons=block_reasons
+        ))
+    
+    # Sort: active blocks first (permanent, then temporary), then expired
+    def sort_key(x):
+        has_active = len(x.block_reasons) > 0
+        is_permanent = x.alert_block_status == "permanent" or x.chat_block_status == "permanent"
+        max_hours = max(x.alert_hours_remaining or 0, x.chat_hours_remaining or 0)
+        return (0 if has_active else 1, 0 if is_permanent else 1, -max_hours)
+    
+    blocked_users.sort(key=sort_key)
+    
+    return BlockedUsersStats(
+        total_blocked=len(active_blocks),
+        alert_blocks=alert_block_count,
+        chat_blocks=chat_block_count,
+        permanent_blocks=permanent_count,
+        blocked_users=blocked_users
+    )
         
         blocked_users.append(BlockedUserInfo(
             id=u["id"],
