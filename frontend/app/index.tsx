@@ -2643,20 +2643,203 @@ export default function TransportMeter() {
     stopRecordingAudio();
   }, [radioWs, radioConnected]);
 
-  // Placeholder functions for audio (will implement with expo-av)
+  // Request audio permissions on mount
+  useEffect(() => {
+    const requestAudioPermission = async () => {
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        setAudioPermission(status === 'granted');
+        if (status !== 'granted') {
+          console.log('Radio: Audio permission denied');
+        }
+        
+        // Configure audio mode for recording and playback
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (error) {
+        console.error('Radio: Error requesting audio permission:', error);
+      }
+    };
+    
+    requestAudioPermission();
+    
+    // Cleanup on unmount
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      }
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  // Start recording audio
   const startRecordingAudio = async () => {
-    // TODO: Implement audio recording with expo-av
-    console.log('Radio: Start recording audio');
+    if (!audioPermission) {
+      Alert.alert('Permiso denegado', 'Necesitas conceder permiso de micrófono para usar el radio.');
+      return;
+    }
+    
+    try {
+      console.log('Radio: Starting audio recording...');
+      
+      // Ensure audio mode is set for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      
+      // Create recording with optimized settings for voice
+      const { recording } = await Audio.Recording.createAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 22050,
+          numberOfChannels: 1,
+          bitRate: 32000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.LOW,
+          sampleRate: 22050,
+          numberOfChannels: 1,
+          bitRate: 32000,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 32000,
+        },
+      });
+      
+      recordingRef.current = recording;
+      console.log('Radio: Recording started');
+    } catch (error) {
+      console.error('Radio: Error starting recording:', error);
+      Alert.alert('Error', 'No se pudo iniciar la grabación de audio');
+    }
   };
 
+  // Stop recording and send audio
   const stopRecordingAudio = async () => {
-    // TODO: Implement stop recording and send audio
-    console.log('Radio: Stop recording audio');
+    if (!recordingRef.current) {
+      console.log('Radio: No recording to stop');
+      return;
+    }
+    
+    try {
+      console.log('Radio: Stopping recording...');
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+      
+      if (uri && radioWs && radioWs.readyState === WebSocket.OPEN) {
+        // Read the audio file and convert to base64
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          // Remove the data URL prefix to get just the base64 data
+          const audioData = base64Audio.split(',')[1];
+          
+          // Send audio data through WebSocket
+          radioWs.send(JSON.stringify({
+            type: 'audio',
+            audio_data: audioData
+          }));
+          console.log('Radio: Audio sent, size:', audioData.length);
+        };
+        reader.readAsDataURL(blob);
+      }
+      
+      // Reset audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      
+    } catch (error) {
+      console.error('Radio: Error stopping recording:', error);
+    }
   };
 
+  // Play received audio
   const playReceivedAudio = async (audioData: string) => {
-    // TODO: Implement audio playback with expo-av
-    console.log('Radio: Received audio data');
+    if (radioMuted) {
+      console.log('Radio: Audio muted, skipping playback');
+      return;
+    }
+    
+    // Add to queue
+    audioQueueRef.current.push(audioData);
+    
+    // If already playing, the queue will be processed
+    if (isPlayingRef.current) {
+      return;
+    }
+    
+    // Process queue
+    const processAudioQueue = async () => {
+      isPlayingRef.current = true;
+      
+      while (audioQueueRef.current.length > 0) {
+        const data = audioQueueRef.current.shift();
+        if (!data) continue;
+        
+        try {
+          // Create a data URI from the base64 audio
+          const audioUri = `data:audio/m4a;base64,${data}`;
+          
+          // Unload previous sound if exists
+          if (soundRef.current) {
+            await soundRef.current.unloadAsync().catch(() => {});
+            soundRef.current = null;
+          }
+          
+          // Load and play the sound
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: audioUri },
+            { shouldPlay: true, volume: 1.0 }
+          );
+          soundRef.current = sound;
+          
+          // Wait for playback to finish
+          await new Promise<void>((resolve) => {
+            sound.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                resolve();
+              }
+            });
+          });
+          
+          // Cleanup
+          await sound.unloadAsync().catch(() => {});
+          soundRef.current = null;
+          
+        } catch (error) {
+          console.error('Radio: Error playing audio:', error);
+        }
+      }
+      
+      isPlayingRef.current = false;
+    };
+    
+    processAudioQueue();
   };
 
   // Toggle radio connection
