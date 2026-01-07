@@ -373,31 +373,6 @@ async def get_blocked_users(admin: dict = Depends(get_admin_user)):
         permanent_blocks=permanent_count,
         blocked_users=blocked_users
     )
-        
-        blocked_users.append(BlockedUserInfo(
-            id=u["id"],
-            username=u["username"],
-            full_name=u.get("full_name"),
-            license_number=u.get("license_number"),
-            alert_fraud_count=fraud_count,
-            alert_blocked_until=blocked_until,
-            last_fraud_at=u.get("last_fraud_at"),
-            block_status=block_status,
-            hours_remaining=hours_remaining
-        ))
-    
-    # Sort: permanent first, then temporary by hours remaining, then expired
-    blocked_users.sort(key=lambda x: (
-        0 if x.block_status == "permanent" else (1 if x.block_status == "temporary" else 2),
-        -(x.hours_remaining or 0)
-    ))
-    
-    return BlockedUsersStats(
-        total_blocked=temporary_count + permanent_count,
-        temporary_blocks=temporary_count,
-        permanent_blocks=permanent_count,
-        blocked_users=blocked_users
-    )
 
 
 @router.post("/users/{user_id}/unblock")
