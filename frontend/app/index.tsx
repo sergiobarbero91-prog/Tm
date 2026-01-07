@@ -2650,20 +2650,24 @@ export default function TransportMeter() {
   useEffect(() => {
     const requestAudioPermission = async () => {
       try {
+        console.log('Radio: Requesting audio permissions...');
         const { status } = await Audio.requestPermissionsAsync();
+        console.log('Radio: Permission status:', status);
         setAudioPermission(status === 'granted');
-        if (status !== 'granted') {
+        
+        if (status === 'granted') {
+          // Configure audio mode for recording and playback
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+          });
+          console.log('Radio: Audio mode configured');
+        } else {
           console.log('Radio: Audio permission denied');
         }
-        
-        // Configure audio mode for recording and playback
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
       } catch (error) {
         console.error('Radio: Error requesting audio permission:', error);
       }
@@ -2684,18 +2688,32 @@ export default function TransportMeter() {
 
   // Start recording audio
   const startRecordingAudio = async () => {
-    if (!audioPermission) {
-      Alert.alert('Permiso denegado', 'Necesitas conceder permiso de micrófono para usar el radio.');
-      return;
-    }
-    
     try {
-      console.log('Radio: Starting audio recording...');
+      console.log('Radio: startRecordingAudio called, permission:', audioPermission);
       
-      // Vibrate to indicate recording start
-      if (Platform.OS !== 'web') {
-        Vibration.vibrate(50);
+      // Request permission if not granted
+      if (!audioPermission) {
+        console.log('Radio: Requesting permission before recording...');
+        const { status } = await Audio.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permiso necesario', 'Necesitas conceder permiso de micrófono para usar el radio. Ve a Ajustes de la app para habilitarlo.');
+          setRadioTransmitting(false);
+          return;
+        }
+        setAudioPermission(true);
       }
+      
+      // Stop any existing recording
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          console.log('Radio: Error stopping previous recording:', e);
+        }
+        recordingRef.current = null;
+      }
+      
+      console.log('Radio: Setting audio mode for recording...');
       
       // Ensure audio mode is set for recording
       await Audio.setAudioModeAsync({
@@ -2706,38 +2724,37 @@ export default function TransportMeter() {
         playThroughEarpieceAndroid: false,
       });
       
-      // Use preset for better compatibility
-      const recordingOptions = Platform.OS === 'web' 
-        ? {
-            android: Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
-            ios: Audio.RecordingOptionsPresets.HIGH_QUALITY.ios,
-            web: {
-              mimeType: 'audio/webm;codecs=opus',
-              bitsPerSecond: 128000,
-            },
-          }
-        : Audio.RecordingOptionsPresets.HIGH_QUALITY;
+      // Vibrate to indicate recording start
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(50);
+      }
       
-      const { recording } = await Audio.Recording.createAsync(recordingOptions);
+      console.log('Radio: Creating recording...');
+      
+      // Use simple recording preset
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
       
       recordingRef.current = recording;
       console.log('Radio: Recording started successfully');
     } catch (error) {
       console.error('Radio: Error starting recording:', error);
       setRadioTransmitting(false);
+      Alert.alert('Error', 'No se pudo iniciar la grabación. Verifica los permisos de micrófono.');
     }
   };
 
   // Stop recording and send audio
   const stopRecordingAudio = async () => {
+    console.log('Radio: stopRecordingAudio called');
+    
     if (!recordingRef.current) {
       console.log('Radio: No recording to stop');
       return;
     }
     
     try {
-      console.log('Radio: Stopping recording...');
-      
       // Vibrate to indicate recording stop
       if (Platform.OS !== 'web') {
         Vibration.vibrate(30);
@@ -2746,6 +2763,7 @@ export default function TransportMeter() {
       const recording = recordingRef.current;
       recordingRef.current = null;
       
+      console.log('Radio: Stopping recording...');
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       
@@ -2759,30 +2777,28 @@ export default function TransportMeter() {
         console.log('Radio: Blob size:', blob.size, 'type:', blob.type);
         
         // Only send if we have actual audio data
-        if (blob.size > 1000) {
+        if (blob.size > 500) {
           const reader = new FileReader();
           reader.onloadend = () => {
             const base64Audio = reader.result as string;
-            // Include the full data URL with mime type for proper playback
-            const audioDataWithType = base64Audio;
             
             // Send audio data through WebSocket
             radioWs.send(JSON.stringify({
               type: 'audio',
-              audio_data: audioDataWithType,
+              audio_data: base64Audio,
               mime_type: blob.type || 'audio/mp4'
             }));
-            console.log('Radio: Audio sent successfully, size:', audioDataWithType.length);
+            console.log('Radio: Audio sent successfully, size:', base64Audio.length);
           };
           reader.onerror = (err) => {
             console.error('Radio: FileReader error:', err);
           };
           reader.readAsDataURL(blob);
         } else {
-          console.log('Radio: Audio too short, not sending');
+          console.log('Radio: Audio too short, not sending. Size:', blob.size);
         }
       } else {
-        console.log('Radio: Cannot send - URI:', !!uri, 'WS:', radioWs?.readyState);
+        console.log('Radio: Cannot send - URI:', !!uri, 'WS ready:', radioWs?.readyState);
       }
       
       // Reset audio mode for playback
@@ -2806,7 +2822,7 @@ export default function TransportMeter() {
       return;
     }
     
-    console.log('Radio: Playing received audio, data length:', audioData?.length);
+    console.log('Radio: Playing received audio, length:', audioData?.length);
     
     try {
       // Unload previous sound if exists
@@ -2832,7 +2848,12 @@ export default function TransportMeter() {
         audioUri = `data:${mime};base64,${audioData}`;
       }
       
-      console.log('Radio: Loading audio from URI, prefix:', audioUri.substring(0, 50));
+      console.log('Radio: Loading audio, type:', audioUri.substring(0, 30));
+      
+      // Vibrate when receiving audio
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(20);
+      }
       
       // Load and play the sound
       const { sound } = await Audio.Sound.createAsync(
@@ -2840,11 +2861,6 @@ export default function TransportMeter() {
         { shouldPlay: true, volume: 1.0 }
       );
       soundRef.current = sound;
-      
-      // Vibrate when receiving audio
-      if (Platform.OS !== 'web') {
-        Vibration.vibrate(20);
-      }
       
       console.log('Radio: Audio playback started');
       
