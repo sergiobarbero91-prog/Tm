@@ -2650,15 +2650,10 @@ export default function TransportMeter() {
         setRadioUsers([]);
         setRadioChannelBusy(false);
         setRadioTransmittingUser(null);
+        setRadioWs(null);
         
-        // Auto-reconnect if not intentionally closed
-        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          console.log(`Radio: Attempting reconnect ${reconnectAttempts}/${maxReconnectAttempts}`);
-          setTimeout(() => {
-            connectToRadioChannel(channel);
-          }, 2000 * reconnectAttempts); // Exponential backoff
-        }
+        // Don't auto-reconnect - let user manually reconnect if needed
+        // This prevents reconnection loops when changing channels
       };
 
       ws.onerror = (error) => {
@@ -2675,7 +2670,7 @@ export default function TransportMeter() {
   // Disconnect from radio
   const disconnectFromRadio = useCallback(() => {
     if (radioWs) {
-      radioWs.close();
+      radioWs.close(1000, 'User disconnected'); // Use code 1000 for intentional close
       setRadioWs(null);
     }
     setRadioConnected(false);
