@@ -2860,49 +2860,6 @@ export default function TransportMeter() {
       console.error('Radio: Error playing audio:', error);
     }
   };
-        const data = audioQueueRef.current.shift();
-        if (!data) continue;
-        
-        try {
-          // Create a data URI from the base64 audio
-          const audioUri = `data:audio/m4a;base64,${data}`;
-          
-          // Unload previous sound if exists
-          if (soundRef.current) {
-            await soundRef.current.unloadAsync().catch(() => {});
-            soundRef.current = null;
-          }
-          
-          // Load and play the sound
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: audioUri },
-            { shouldPlay: true, volume: 1.0 }
-          );
-          soundRef.current = sound;
-          
-          // Wait for playback to finish
-          await new Promise<void>((resolve) => {
-            sound.setOnPlaybackStatusUpdate((status) => {
-              if (status.isLoaded && status.didJustFinish) {
-                resolve();
-              }
-            });
-          });
-          
-          // Cleanup
-          await sound.unloadAsync().catch(() => {});
-          soundRef.current = null;
-          
-        } catch (error) {
-          console.error('Radio: Error playing audio:', error);
-        }
-      }
-      
-      isPlayingRef.current = false;
-    };
-    
-    processAudioQueue();
-  };
 
   // Toggle radio connection
   const toggleRadioConnection = useCallback(() => {
