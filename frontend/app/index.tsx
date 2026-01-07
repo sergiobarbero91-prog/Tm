@@ -5624,12 +5624,12 @@ export default function TransportMeter() {
                         <Text style={styles.blockedUserStatLabel}>Bloqueados</Text>
                       </View>
                       <View style={[styles.blockedUserStatCard, { backgroundColor: '#F59E0B20' }]}>
-                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.temporary_blocks}</Text>
-                        <Text style={styles.blockedUserStatLabel}>Temporales</Text>
+                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.alert_blocks}</Text>
+                        <Text style={styles.blockedUserStatLabel}>Por Avisos</Text>
                       </View>
-                      <View style={[styles.blockedUserStatCard, { backgroundColor: '#7F1D1D20' }]}>
-                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.permanent_blocks}</Text>
-                        <Text style={styles.blockedUserStatLabel}>Permanentes</Text>
+                      <View style={[styles.blockedUserStatCard, { backgroundColor: '#8B5CF620' }]}>
+                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.chat_blocks}</Text>
+                        <Text style={styles.blockedUserStatLabel}>Por Chat</Text>
                       </View>
                     </View>
 
@@ -5646,58 +5646,105 @@ export default function TransportMeter() {
                     {blockedUsersData.blocked_users.length === 0 ? (
                       <View style={styles.noBlockedUsers}>
                         <Ionicons name="checkmark-circle" size={48} color="#10B981" />
-                        <Text style={styles.noBlockedUsersText}>No hay usuarios con avisos fraudulentos</Text>
+                        <Text style={styles.noBlockedUsersText}>No hay usuarios bloqueados</Text>
                       </View>
                     ) : (
-                      blockedUsersData.blocked_users.map((user) => (
-                        <View key={user.id} style={[
-                          styles.blockedUserCard,
-                          user.block_status === 'permanent' && styles.blockedUserCardPermanent,
-                          user.block_status === 'temporary' && styles.blockedUserCardTemporary,
-                          user.block_status === 'expired' && styles.blockedUserCardExpired
-                        ]}>
-                          <View style={styles.blockedUserHeader}>
-                            <View style={styles.blockedUserInfo}>
-                              <Text style={styles.blockedUserName}>{user.full_name || user.username}</Text>
-                              <Text style={styles.blockedUserUsername}>@{user.username}</Text>
-                              {user.license_number && (
-                                <Text style={styles.blockedUserLicense}>Licencia: {user.license_number}</Text>
-                              )}
+                      blockedUsersData.blocked_users.map((user) => {
+                        const hasActiveAlertBlock = user.alert_block_status === 'temporary' || user.alert_block_status === 'permanent';
+                        const hasActiveChatBlock = user.chat_block_status === 'temporary' || user.chat_block_status === 'permanent';
+                        const isPermanent = user.alert_block_status === 'permanent' || user.chat_block_status === 'permanent';
+                        
+                        return (
+                          <View key={user.id} style={[
+                            styles.blockedUserCard,
+                            isPermanent && styles.blockedUserCardPermanent,
+                            !isPermanent && (hasActiveAlertBlock || hasActiveChatBlock) && styles.blockedUserCardTemporary,
+                            !hasActiveAlertBlock && !hasActiveChatBlock && styles.blockedUserCardExpired
+                          ]}>
+                            <View style={styles.blockedUserHeader}>
+                              <View style={styles.blockedUserInfo}>
+                                <Text style={styles.blockedUserName}>{user.full_name || user.username}</Text>
+                                <Text style={styles.blockedUserUsername}>@{user.username}</Text>
+                                {user.license_number && (
+                                  <Text style={styles.blockedUserLicense}>Licencia: {user.license_number}</Text>
+                                )}
+                              </View>
+                              {/* Block reason badges */}
+                              <View style={styles.blockReasonBadges}>
+                                {user.block_reasons?.includes('avisos_fraudulentos') && (
+                                  <View style={[styles.blockReasonBadge, { backgroundColor: '#F59E0B' }]}>
+                                    <Ionicons name="warning" size={10} color="#FFFFFF" />
+                                    <Text style={styles.blockReasonBadgeText}>Avisos</Text>
+                                  </View>
+                                )}
+                                {user.block_reasons?.includes('mensajes_indebidos') && (
+                                  <View style={[styles.blockReasonBadge, { backgroundColor: '#8B5CF6' }]}>
+                                    <Ionicons name="chatbubble" size={10} color="#FFFFFF" />
+                                    <Text style={styles.blockReasonBadgeText}>Chat</Text>
+                                  </View>
+                                )}
+                                {isPermanent && (
+                                  <View style={[styles.blockReasonBadge, { backgroundColor: '#7F1D1D' }]}>
+                                    <Text style={styles.blockReasonBadgeText}>🚫 PERMANENTE</Text>
+                                  </View>
+                                )}
+                              </View>
                             </View>
-                            <View style={[
-                              styles.blockedUserStatusBadge,
-                              user.block_status === 'permanent' && styles.blockedStatusPermanent,
-                              user.block_status === 'temporary' && styles.blockedStatusTemporary,
-                              user.block_status === 'expired' && styles.blockedStatusExpired
-                            ]}>
-                              <Text style={styles.blockedUserStatusText}>
-                                {user.block_status === 'permanent' ? '🚫 PERMANENTE' : 
-                                 user.block_status === 'temporary' ? `⏱️ ${user.hours_remaining}h restantes` : 
-                                 '✅ Expirado'}
-                              </Text>
-                            </View>
-                          </View>
-                          
-                          <View style={styles.blockedUserStats}>
-                            <View style={styles.blockedUserStatItem}>
-                              <Ionicons name="warning" size={16} color="#EF4444" />
-                              <Text style={styles.blockedUserStatText}>
-                                {user.alert_fraud_count} avisos fraudulentos
-                              </Text>
-                            </View>
-                            {user.last_fraud_at && (
-                              <View style={styles.blockedUserStatItem}>
-                                <Ionicons name="time" size={16} color="#9CA3AF" />
-                                <Text style={styles.blockedUserStatText}>
-                                  Último: {new Date(user.last_fraud_at).toLocaleDateString('es-ES')}
-                                </Text>
+                            
+                            {/* Alert fraud stats */}
+                            {user.alert_fraud_count > 0 && (
+                              <View style={styles.blockedUserStatsSection}>
+                                <Text style={styles.blockedUserStatsSectionTitle}>📍 Avisos fraudulentos</Text>
+                                <View style={styles.blockedUserStats}>
+                                  <View style={styles.blockedUserStatItem}>
+                                    <Ionicons name="warning" size={14} color="#F59E0B" />
+                                    <Text style={styles.blockedUserStatText}>
+                                      {user.alert_fraud_count} avisos
+                                    </Text>
+                                  </View>
+                                  {hasActiveAlertBlock && user.alert_hours_remaining && (
+                                    <View style={styles.blockedUserStatItem}>
+                                      <Ionicons name="time" size={14} color="#EF4444" />
+                                      <Text style={styles.blockedUserStatText}>
+                                        {user.alert_hours_remaining}h restantes
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
                               </View>
                             )}
-                          </View>
-                          
-                          <View style={styles.blockedUserActions}>
-                            {user.block_status !== 'expired' && (
-                              <TouchableOpacity 
+                            
+                            {/* Chat abuse stats */}
+                            {user.chat_abuse_count > 0 && (
+                              <View style={styles.blockedUserStatsSection}>
+                                <Text style={styles.blockedUserStatsSectionTitle}>💬 Mensajes indebidos</Text>
+                                <View style={styles.blockedUserStats}>
+                                  <View style={styles.blockedUserStatItem}>
+                                    <Ionicons name="chatbubble" size={14} color="#8B5CF6" />
+                                    <Text style={styles.blockedUserStatText}>
+                                      {user.chat_abuse_count} mensajes
+                                    </Text>
+                                  </View>
+                                  {hasActiveChatBlock && user.chat_hours_remaining && (
+                                    <View style={styles.blockedUserStatItem}>
+                                      <Ionicons name="time" size={14} color="#EF4444" />
+                                      <Text style={styles.blockedUserStatText}>
+                                        {user.chat_hours_remaining}h restantes
+                                      </Text>
+                                    </View>
+                                  )}
+                                  {user.last_chat_abuse_message && (
+                                    <Text style={styles.blockedUserAbuseMessage} numberOfLines={1}>
+                                      "{user.last_chat_abuse_message}"
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                            )}
+                            
+                            <View style={styles.blockedUserActions}>
+                              {(hasActiveAlertBlock || hasActiveChatBlock) && (
+                                <TouchableOpacity 
                                 style={styles.unblockButton}
                                 onPress={() => unblockUser(user.id)}
                               >
