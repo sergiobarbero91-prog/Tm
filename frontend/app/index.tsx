@@ -5234,6 +5234,166 @@ export default function TransportMeter() {
         </Text>
       </View>
 
+      {/* Radio Dropdown */}
+      {showRadioDropdown && (
+        <View style={styles.radioDropdownContainer}>
+          <View style={styles.radioDropdown}>
+            {/* Header */}
+            <View style={styles.radioDropdownHeader}>
+              <Ionicons name="radio" size={24} color="#10B981" />
+              <Text style={styles.radioDropdownTitle}>Radio Walkie-Talkie</Text>
+              <TouchableOpacity onPress={() => setShowRadioDropdown(false)}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Channel Selector */}
+            <View style={styles.radioChannelSelector}>
+              <Text style={styles.radioSectionLabel}>Canal</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.radioChannelScroll}>
+                {radioChannels.map((ch) => (
+                  <TouchableOpacity
+                    key={ch.channel}
+                    style={[
+                      styles.radioChannelButton,
+                      radioChannel === ch.channel && styles.radioChannelButtonActive,
+                      ch.is_busy && styles.radioChannelButtonBusy
+                    ]}
+                    onPress={() => changeRadioChannel(ch.channel)}
+                  >
+                    <Text style={[
+                      styles.radioChannelButtonText,
+                      radioChannel === ch.channel && styles.radioChannelButtonTextActive
+                    ]}>
+                      {ch.channel}
+                    </Text>
+                    {ch.user_count > 0 && (
+                      <View style={styles.radioChannelUserCount}>
+                        <Text style={styles.radioChannelUserCountText}>{ch.user_count}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={styles.radioChannelName}>
+                {radioChannels.find(c => c.channel === radioChannel)?.channel_name || `Canal ${radioChannel}`}
+              </Text>
+            </View>
+
+            {/* Users in channel */}
+            {radioConnected && radioUsers.length > 0 && (
+              <View style={styles.radioUsersSection}>
+                <Text style={styles.radioSectionLabel}>En este canal ({radioUsers.length})</Text>
+                <View style={styles.radioUsersList}>
+                  {radioUsers.map((user) => (
+                    <View key={user.user_id} style={[
+                      styles.radioUserBadge,
+                      user.is_transmitting && styles.radioUserBadgeTransmitting
+                    ]}>
+                      <Ionicons 
+                        name={user.is_transmitting ? "mic" : "person"} 
+                        size={12} 
+                        color={user.is_transmitting ? "#FFFFFF" : "#9CA3AF"} 
+                      />
+                      <Text style={[
+                        styles.radioUserName,
+                        user.is_transmitting && styles.radioUserNameTransmitting
+                      ]}>
+                        {user.full_name || user.username}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Control Buttons */}
+            <View style={styles.radioControlsRow}>
+              {/* Connect/Disconnect */}
+              <TouchableOpacity
+                style={[
+                  styles.radioControlButton,
+                  radioConnected ? styles.radioControlButtonDisconnect : styles.radioControlButtonConnect
+                ]}
+                onPress={toggleRadioConnection}
+              >
+                <Ionicons 
+                  name={radioConnected ? "power" : "power-outline"} 
+                  size={24} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.radioControlButtonText}>
+                  {radioConnected ? 'Desconectar' : 'Conectar'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Mute */}
+              <TouchableOpacity
+                style={[
+                  styles.radioControlButton,
+                  styles.radioControlButtonMute,
+                  radioMuted && styles.radioControlButtonMuteActive
+                ]}
+                onPress={() => setRadioMuted(!radioMuted)}
+                disabled={!radioConnected}
+              >
+                <Ionicons 
+                  name={radioMuted ? "volume-mute" : "volume-high"} 
+                  size={24} 
+                  color={radioConnected ? "#FFFFFF" : "#6B7280"} 
+                />
+                <Text style={[
+                  styles.radioControlButtonText,
+                  !radioConnected && { color: '#6B7280' }
+                ]}>
+                  {radioMuted ? 'Silenciado' : 'Sonido'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Push to Talk Button */}
+            <TouchableOpacity
+              style={[
+                styles.radioPTTButton,
+                !radioConnected && styles.radioPTTButtonDisabled,
+                radioTransmitting && styles.radioPTTButtonActive,
+                radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy
+              ]}
+              onPressIn={radioConnected && !radioChannelBusy ? startRadioTransmission : undefined}
+              onPressOut={radioConnected ? stopRadioTransmission : undefined}
+              disabled={!radioConnected}
+            >
+              <Ionicons 
+                name="mic" 
+                size={48} 
+                color={radioTransmitting ? "#FFFFFF" : (radioConnected ? "#10B981" : "#6B7280")} 
+              />
+              <Text style={[
+                styles.radioPTTText,
+                !radioConnected && { color: '#6B7280' },
+                radioTransmitting && { color: '#FFFFFF' }
+              ]}>
+                {radioTransmitting ? 'TRANSMITIENDO...' : 
+                 radioChannelBusy ? 'CANAL OCUPADO' :
+                 radioConnected ? 'MANTENER PARA HABLAR' : 'CONECTAR PRIMERO'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Transmitting user info */}
+            {radioChannelBusy && radioTransmittingUser && !radioTransmitting && (
+              <View style={styles.radioTransmittingInfo}>
+                <Ionicons name="mic" size={16} color="#F59E0B" />
+                <Text style={styles.radioTransmittingText}>
+                  {radioUsers.find(u => u.user_id === radioTransmittingUser)?.full_name || 
+                   radioUsers.find(u => u.user_id === radioTransmittingUser)?.username || 
+                   'Alguien'} está hablando...
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* Tab Selector */}
       {/* NEW: Dropdowns Row - Page and Shift selectors */}
       <View style={styles.dropdownsRow}>
