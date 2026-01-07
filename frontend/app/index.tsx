@@ -2661,11 +2661,9 @@ export default function TransportMeter() {
               Alert.alert('Radio', 'El canal está ocupado. Espera a que termine la transmisión.');
             }
           } else if (data.type === 'audio') {
-            // Handle incoming audio
-            if (!radioMuted) {
-              console.log('Radio: Received audio message from', data.sender_name, 'size:', data.audio_data?.length);
-              playReceivedAudio(data.audio_data, data.mime_type);
-            }
+            // Handle incoming audio - mute check is done in playReceivedAudio using ref
+            console.log('Radio: Received audio message from', data.sender_name, 'size:', data.audio_data?.length);
+            playReceivedAudio(data.audio_data, data.mime_type);
           } else if (data.type === 'pong') {
             // Connection is alive
             console.log('Radio: Pong received');
