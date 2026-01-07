@@ -11913,6 +11913,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  radioModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
   radioDropdownContainer: {
     position: 'absolute',
     top: 100,
@@ -11931,6 +11938,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
+    width: '100%',
+    maxWidth: 400,
   },
   radioDropdownHeader: {
     flexDirection: 'row',
