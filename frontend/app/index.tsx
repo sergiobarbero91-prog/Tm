@@ -10493,6 +10493,44 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
   },
+  // New blocked user styles
+  blockReasonBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    alignItems: 'flex-end',
+  },
+  blockReasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  blockReasonBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  blockedUserStatsSection: {
+    marginBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  blockedUserStatsSectionTitle: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  blockedUserAbuseMessage: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
   blockedUserActions: {
     flexDirection: 'row',
     gap: 10,
