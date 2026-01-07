@@ -205,6 +205,11 @@ async def send_chat_message(
     if not can_write_channel(channel, user_role):
         raise HTTPException(status_code=403, detail="No tienes permiso para escribir en este canal")
     
+    # Check if user is blocked from chat
+    is_blocked, block_message = await check_chat_blocked(current_user["id"])
+    if is_blocked:
+        raise HTTPException(status_code=403, detail=block_message)
+    
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
     
