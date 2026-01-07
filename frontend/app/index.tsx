@@ -2626,25 +2626,38 @@ export default function TransportMeter() {
 
   // Start transmitting (push to talk - press)
   const startRadioTransmission = useCallback(() => {
-    if (!radioWs || !radioConnected || radioChannelBusy) return;
+    console.log('Radio: startRadioTransmission called');
+    if (!radioWs || !radioConnected || radioChannelBusy || radioTransmitting) {
+      console.log('Radio: Cannot start transmission - ws:', !!radioWs, 'connected:', radioConnected, 'busy:', radioChannelBusy, 'transmitting:', radioTransmitting);
+      return;
+    }
     
     radioWs.send(JSON.stringify({ type: 'start_transmission' }));
     setRadioTransmitting(true);
     
-    // Start recording audio here (will implement with expo-av)
+    // Start recording audio
     startRecordingAudio();
-  }, [radioWs, radioConnected, radioChannelBusy]);
+  }, [radioWs, radioConnected, radioChannelBusy, radioTransmitting]);
 
   // Stop transmitting (push to talk - release)
   const stopRadioTransmission = useCallback(() => {
-    if (!radioWs || !radioConnected) return;
+    console.log('Radio: stopRadioTransmission called, transmitting:', radioTransmitting);
     
-    radioWs.send(JSON.stringify({ type: 'stop_transmission' }));
+    // Always reset transmitting state
     setRadioTransmitting(false);
     
-    // Stop recording and send audio
+    // Stop recording first
     stopRecordingAudio();
-  }, [radioWs, radioConnected]);
+    
+    // Send stop message if connected
+    if (radioWs && radioWs.readyState === WebSocket.OPEN) {
+      try {
+        radioWs.send(JSON.stringify({ type: 'stop_transmission' }));
+      } catch (e) {
+        console.log('Radio: Error sending stop_transmission:', e);
+      }
+    }
+  }, [radioWs, radioTransmitting]);
 
   // Request audio permissions on mount
   useEffect(() => {
