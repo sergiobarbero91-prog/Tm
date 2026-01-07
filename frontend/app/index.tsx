@@ -312,18 +312,29 @@ export default function TransportMeter() {
   const [showBlockedUsers, setShowBlockedUsers] = useState(false);
   const [blockedUsersData, setBlockedUsersData] = useState<{
     total_blocked: number;
-    temporary_blocks: number;
+    alert_blocks: number;
+    chat_blocks: number;
     permanent_blocks: number;
     blocked_users: Array<{
       id: string;
       username: string;
       full_name?: string;
       license_number?: string;
+      // Alert fraud
       alert_fraud_count: number;
       alert_blocked_until?: string;
       last_fraud_at?: string;
-      block_status: string;
-      hours_remaining?: number;
+      alert_block_status: string;
+      alert_hours_remaining?: number;
+      // Chat abuse
+      chat_abuse_count: number;
+      chat_blocked_until?: string;
+      last_chat_abuse_at?: string;
+      last_chat_abuse_message?: string;
+      chat_block_status: string;
+      chat_hours_remaining?: number;
+      // Combined
+      block_reasons: string[];
     }>;
   } | null>(null);
   const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
