@@ -5546,6 +5546,146 @@ export default function TransportMeter() {
                 </Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Blocked Users Button */}
+            <TouchableOpacity 
+              style={[styles.adminBlockedUsersButton, showBlockedUsers && styles.adminBlockedUsersButtonActive]}
+              onPress={() => {
+                setShowBlockedUsers(!showBlockedUsers);
+                if (!showBlockedUsers && !blockedUsersData) {
+                  fetchBlockedUsers();
+                }
+              }}
+            >
+              <View style={styles.adminBlockedUsersButtonContent}>
+                <Ionicons name="ban" size={22} color={showBlockedUsers ? '#FFFFFF' : '#EF4444'} />
+                <Text style={[styles.adminBlockedUsersButtonText, showBlockedUsers && { color: '#FFFFFF' }]}>
+                  Gestión de Bloqueos
+                </Text>
+              </View>
+              <Ionicons name={showBlockedUsers ? "chevron-up" : "chevron-down"} size={20} color={showBlockedUsers ? '#FFFFFF' : '#EF4444'} />
+            </TouchableOpacity>
+
+            {/* Blocked Users Section */}
+            {showBlockedUsers && (
+              <View style={styles.blockedUsersSection}>
+                {blockedUsersLoading ? (
+                  <View style={styles.blockedUsersLoading}>
+                    <ActivityIndicator color="#EF4444" />
+                    <Text style={styles.blockedUsersLoadingText}>Cargando usuarios bloqueados...</Text>
+                  </View>
+                ) : blockedUsersData ? (
+                  <>
+                    {/* Blocked Users Stats */}
+                    <View style={styles.blockedUsersStatsRow}>
+                      <View style={[styles.blockedUserStatCard, { backgroundColor: '#EF444420' }]}>
+                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.total_blocked}</Text>
+                        <Text style={styles.blockedUserStatLabel}>Bloqueados</Text>
+                      </View>
+                      <View style={[styles.blockedUserStatCard, { backgroundColor: '#F59E0B20' }]}>
+                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.temporary_blocks}</Text>
+                        <Text style={styles.blockedUserStatLabel}>Temporales</Text>
+                      </View>
+                      <View style={[styles.blockedUserStatCard, { backgroundColor: '#7F1D1D20' }]}>
+                        <Text style={styles.blockedUserStatNumber}>{blockedUsersData.permanent_blocks}</Text>
+                        <Text style={styles.blockedUserStatLabel}>Permanentes</Text>
+                      </View>
+                    </View>
+
+                    {/* Refresh Button */}
+                    <TouchableOpacity 
+                      style={styles.blockedUsersRefreshButton}
+                      onPress={fetchBlockedUsers}
+                    >
+                      <Ionicons name="refresh" size={18} color="#9CA3AF" />
+                      <Text style={styles.blockedUsersRefreshText}>Actualizar lista</Text>
+                    </TouchableOpacity>
+
+                    {/* Blocked Users List */}
+                    {blockedUsersData.blocked_users.length === 0 ? (
+                      <View style={styles.noBlockedUsers}>
+                        <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                        <Text style={styles.noBlockedUsersText}>No hay usuarios con avisos fraudulentos</Text>
+                      </View>
+                    ) : (
+                      blockedUsersData.blocked_users.map((user) => (
+                        <View key={user.id} style={[
+                          styles.blockedUserCard,
+                          user.block_status === 'permanent' && styles.blockedUserCardPermanent,
+                          user.block_status === 'temporary' && styles.blockedUserCardTemporary,
+                          user.block_status === 'expired' && styles.blockedUserCardExpired
+                        ]}>
+                          <View style={styles.blockedUserHeader}>
+                            <View style={styles.blockedUserInfo}>
+                              <Text style={styles.blockedUserName}>{user.full_name || user.username}</Text>
+                              <Text style={styles.blockedUserUsername}>@{user.username}</Text>
+                              {user.license_number && (
+                                <Text style={styles.blockedUserLicense}>Licencia: {user.license_number}</Text>
+                              )}
+                            </View>
+                            <View style={[
+                              styles.blockedUserStatusBadge,
+                              user.block_status === 'permanent' && styles.blockedStatusPermanent,
+                              user.block_status === 'temporary' && styles.blockedStatusTemporary,
+                              user.block_status === 'expired' && styles.blockedStatusExpired
+                            ]}>
+                              <Text style={styles.blockedUserStatusText}>
+                                {user.block_status === 'permanent' ? '🚫 PERMANENTE' : 
+                                 user.block_status === 'temporary' ? `⏱️ ${user.hours_remaining}h restantes` : 
+                                 '✅ Expirado'}
+                              </Text>
+                            </View>
+                          </View>
+                          
+                          <View style={styles.blockedUserStats}>
+                            <View style={styles.blockedUserStatItem}>
+                              <Ionicons name="warning" size={16} color="#EF4444" />
+                              <Text style={styles.blockedUserStatText}>
+                                {user.alert_fraud_count} avisos fraudulentos
+                              </Text>
+                            </View>
+                            {user.last_fraud_at && (
+                              <View style={styles.blockedUserStatItem}>
+                                <Ionicons name="time" size={16} color="#9CA3AF" />
+                                <Text style={styles.blockedUserStatText}>
+                                  Último: {new Date(user.last_fraud_at).toLocaleDateString('es-ES')}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          
+                          <View style={styles.blockedUserActions}>
+                            {user.block_status !== 'expired' && (
+                              <TouchableOpacity 
+                                style={styles.unblockButton}
+                                onPress={() => unblockUser(user.id)}
+                              >
+                                <Ionicons name="lock-open" size={16} color="#10B981" />
+                                <Text style={styles.unblockButtonText}>Desbloquear</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity 
+                              style={styles.resetFraudButton}
+                              onPress={() => resetFraudCount(user.id)}
+                            >
+                              <Ionicons name="refresh" size={16} color="#F59E0B" />
+                              <Text style={styles.resetFraudButtonText}>Resetear</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.blockedUsersLoadButton}
+                    onPress={fetchBlockedUsers}
+                  >
+                    <Text style={styles.blockedUsersLoadButtonText}>Cargar usuarios bloqueados</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             {/* Search Results */}
             {adminSearchQuery.length > 0 && (
