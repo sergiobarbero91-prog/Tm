@@ -132,8 +132,13 @@ class RadioConnectionManager:
     
     async def broadcast_audio(self, channel: int, user_id: str, audio_data: str, mime_type: str = None):
         """Broadcast audio data to all users in the channel except sender."""
-        if self.transmitting[channel] != user_id:
-            return  # User is not the current transmitter
+        # Note: We removed the transmitting check because audio arrives asynchronously
+        # after stop_transmission is called. The audio is valid as long as the user
+        # is still connected to the channel.
+        
+        if user_id not in self.active_connections[channel]:
+            logger.warning(f"Radio: User {user_id} not in channel {channel}, cannot broadcast")
+            return
         
         user_info = self.user_info.get(user_id, {})
         audio_message = json.dumps({
@@ -146,14 +151,17 @@ class RadioConnectionManager:
             "timestamp": datetime.utcnow().isoformat()
         })
         
-        logger.info(f"Radio: Broadcasting audio from {user_info.get('username')} to channel {channel}, size: {len(audio_data)}")
+        # Count recipients
+        recipients = [uid for uid in self.active_connections[channel] if uid != user_id]
+        logger.info(f"Radio: Broadcasting audio from {user_info.get('username')} to {len(recipients)} users in channel {channel}, size: {len(audio_data)}")
         
         for uid, ws in list(self.active_connections[channel].items()):
             if uid != user_id:  # Don't send back to sender
                 try:
                     await ws.send_text(audio_message)
-                except:
-                    pass
+                    logger.info(f"Radio: Sent audio to user {uid}")
+                except Exception as e:
+                    logger.error(f"Radio: Error sending audio to {uid}: {e}")
     
     def get_channel_info(self, channel: int) -> dict:
         """Get information about a channel."""
