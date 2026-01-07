@@ -5562,29 +5562,29 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
 
-            {/* Push to Talk Button - Using Pressable for better gesture handling on mobile */}
-            <Pressable
-              style={({ pressed }) => [
+            {/* Push to Talk Button - Simple TouchableOpacity */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
                 styles.radioPTTButton,
                 !radioConnected && styles.radioPTTButtonDisabled,
-                (radioTransmitting || pressed) && radioConnected && !radioChannelBusy && styles.radioPTTButtonActive,
+                radioTransmitting && styles.radioPTTButtonActive,
                 radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy
               ]}
               onPressIn={() => {
-                if (radioConnected && !radioChannelBusy) {
+                console.log('Radio PTT: onPressIn');
+                if (radioConnected && !radioChannelBusy && !radioTransmitting) {
                   startRadioTransmission();
                 }
               }}
               onPressOut={() => {
-                if (radioConnected && radioTransmitting) {
+                console.log('Radio PTT: onPressOut, transmitting:', radioTransmitting);
+                if (radioConnected) {
                   stopRadioTransmission();
                 }
               }}
-              onLongPress={() => {
-                // This ensures the button stays active during long press
-                console.log('Radio: Long press detected');
-              }}
-              delayLongPress={100}
+              delayPressIn={0}
+              delayPressOut={0}
               disabled={!radioConnected || radioChannelBusy}
             >
               <Ionicons 
@@ -5601,7 +5601,7 @@ export default function TransportMeter() {
                  radioChannelBusy ? 'CANAL OCUPADO' :
                  radioConnected ? 'MANTENER PULSADO' : 'CONECTAR PRIMERO'}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
 
             {/* Transmitting user info */}
             {radioChannelBusy && radioTransmittingUser && !radioTransmitting && (
