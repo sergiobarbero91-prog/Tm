@@ -2030,7 +2030,7 @@ export default function TransportMeter() {
         return;
       }
       
-      await axios.post(`${API_BASE}/api/station-alerts/cancel-by-location`, {
+      const response = await axios.post(`${API_BASE}/api/station-alerts/cancel-by-location`, {
         location_type: locationType,
         location_name: locationName,
         alert_type: alertType
@@ -2041,7 +2041,16 @@ export default function TransportMeter() {
       // Refresh alerts
       await fetchStationAlerts();
       
-      Alert.alert('Alerta cerrada', 'La alerta ha sido cerrada correctamente.');
+      // Check if fraud was detected and show appropriate message
+      if (response.data.fraud_detected) {
+        Alert.alert(
+          '⚠️ Aviso Incorrecto Detectado',
+          'El aviso ha sido cerrado. El usuario que lo reportó ha sido notificado.\n\nRecuerda: Los avisos deben reflejar la situación real para ayudar a todos los compañeros.',
+          [{ text: 'Entendido' }]
+        );
+      } else {
+        Alert.alert('Alerta cerrada', 'La alerta ha sido cerrada correctamente.');
+      }
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Error al cerrar la alerta');
     } finally {
