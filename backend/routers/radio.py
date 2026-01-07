@@ -134,29 +134,86 @@ class RadioConnectionManager:
             logger.info(f"Radio: {user_info.get('username')} stopped transmitting on channel {channel}")
     
     async def broadcast_audio(self, channel: int, user_id: str, audio_data: str, mime_type: str = None):
-        """Broadcast audio data to all users in the channel except sender."""
-        # Note: We removed the transmitting check because audio arrives asynchronously
-        # after stop_transmission is called. The audio is valid as long as the user
-        # is still connected to the channel.
-        
+        """Broadcast audio data to all users in the channel except sender.
+        Converts webm to mp4 for Safari/iOS compatibility if needed.
+        """
         if user_id not in self.active_connections[channel]:
             logger.warning(f"Radio: User {user_id} not in channel {channel}, cannot broadcast")
             return
         
         user_info = self.user_info.get(user_id, {})
+        
+        # Check if we need to convert webm to mp4 for Safari compatibility
+        final_audio_data = audio_data
+        final_mime_type = mime_type or "audio/mp4"
+        
+        if mime_type and 'webm' in mime_type.lower():
+            logger.info(f"Radio: Converting webm audio to mp4 for compatibility")
+            try:
+                # Extract base64 data (remove data URL prefix if present)
+                if audio_data.startswith('data:'):
+                    # Format: data:audio/webm;base64,XXXXX
+                    base64_data = audio_data.split(',', 1)[1] if ',' in audio_data else audio_data
+                else:
+                    base64_data = audio_data
+                
+                # Decode base64 to binary
+                audio_binary = base64.b64decode(base64_data)
+                
+                # Create temp files for conversion
+                with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as input_file:
+                    input_file.write(audio_binary)
+                    input_path = input_file.name
+                
+                output_path = input_path.replace('.webm', '.mp4')
+                
+                # Convert using ffmpeg (fast conversion for real-time)
+                cmd = [
+                    'ffmpeg', '-y', '-i', input_path,
+                    '-c:a', 'aac', '-b:a', '64k',
+                    '-f', 'mp4', '-movflags', 'faststart',
+                    output_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, timeout=10)
+                
+                if result.returncode == 0 and os.path.exists(output_path):
+                    # Read converted file
+                    with open(output_path, 'rb') as f:
+                        converted_data = f.read()
+                    
+                    # Encode back to base64 with data URL prefix
+                    final_audio_data = f"data:audio/mp4;base64,{base64.b64encode(converted_data).decode()}"
+                    final_mime_type = "audio/mp4"
+                    logger.info(f"Radio: Audio converted successfully, new size: {len(final_audio_data)}")
+                else:
+                    logger.warning(f"Radio: ffmpeg conversion failed: {result.stderr.decode()}")
+                
+                # Cleanup temp files
+                try:
+                    os.unlink(input_path)
+                    if os.path.exists(output_path):
+                        os.unlink(output_path)
+                except:
+                    pass
+                    
+            except Exception as e:
+                logger.error(f"Radio: Error converting audio: {e}")
+                # Fall back to original audio
+        
         audio_message = json.dumps({
             "type": "audio",
             "channel": channel,
             "sender_id": user_id,
             "sender_name": user_info.get("full_name") or user_info.get("username", "Unknown"),
-            "audio_data": audio_data,
-            "mime_type": mime_type or "audio/mp4",
+            "audio_data": final_audio_data,
+            "mime_type": final_mime_type,
             "timestamp": datetime.utcnow().isoformat()
         })
         
         # Count recipients
         recipients = [uid for uid in self.active_connections[channel] if uid != user_id]
-        logger.info(f"Radio: Broadcasting audio from {user_info.get('username')} to {len(recipients)} users in channel {channel}, size: {len(audio_data)}")
+        logger.info(f"Radio: Broadcasting audio from {user_info.get('username')} to {len(recipients)} users in channel {channel}, size: {len(final_audio_data)}")
         
         for uid, ws in list(self.active_connections[channel].items()):
             if uid != user_id:  # Don't send back to sender
