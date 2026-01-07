@@ -2585,7 +2585,8 @@ export default function TransportMeter() {
           } else if (data.type === 'audio') {
             // Handle incoming audio
             if (!radioMuted) {
-              playReceivedAudio(data.audio_data);
+              console.log('Radio: Received audio message from', data.sender_name);
+              playReceivedAudio(data.audio_data, data.mime_type);
             }
           }
         } catch (e) {
