@@ -324,3 +324,77 @@ async def get_available_channels(
         })
     
     return {"channels": channels}
+
+
+# ============ CHAT MODERATION ENDPOINTS ============
+
+class BlockUserRequest(BaseModel):
+    message_id: str
+    reason: Optional[str] = None
+
+
+@router.post("/{channel}/messages/{message_id}/block-user")
+async def block_user_for_message(
+    channel: str,
+    message_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Block a user for an inappropriate message (moderators and admins only)."""
+    user_role = current_user.get("role", "user")
+    
+    # Only moderators and admins can block users
+    if user_role not in ["admin", "moderator"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="Solo moderadores y administradores pueden bloquear usuarios"
+        )
+    
+    # Find the message
+    message = await chat_messages_collection.find_one({
+        "id": message_id,
+        "channel": channel
+    })
+    
+    if not message:
+        raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+    
+    # Can't block yourself
+    if message["user_id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="No puedes bloquearte a ti mismo")
+    
+    # Get the user being blocked
+    blocked_user = await users_collection.find_one({"id": message["user_id"]})
+    if not blocked_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Can't block admins or moderators
+    if blocked_user.get("role") in ["admin", "moderator"]:
+        raise HTTPException(status_code=403, detail="No puedes bloquear a administradores o moderadores")
+    
+    # Apply penalty
+    penalty_info = await apply_chat_abuse_penalty(
+        user_id=message["user_id"],
+        message_content=message["message"],
+        blocked_by=current_user["username"]
+    )
+    
+    # Delete the offending message
+    await chat_messages_collection.delete_one({"id": message_id})
+    
+    # Build response message
+    if penalty_info["is_permanent"]:
+        penalty_msg = "El usuario ha sido bloqueado PERMANENTEMENTE del chat."
+    else:
+        penalty_msg = f"El usuario ha sido bloqueado del chat por {penalty_info['penalty_hours']} horas."
+    
+    return {
+        "success": True,
+        "message": f"Usuario @{blocked_user['username']} bloqueado por mensaje indebido.",
+        "penalty_info": {
+            "username": blocked_user["username"],
+            "abuse_count": penalty_info["abuse_count"],
+            "penalty_hours": penalty_info["penalty_hours"],
+            "is_permanent": penalty_info["is_permanent"],
+            "penalty_message": penalty_msg
+        }
+    }
