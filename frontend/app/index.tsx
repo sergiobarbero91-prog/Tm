@@ -2958,11 +2958,17 @@ export default function TransportMeter() {
   // Change radio channel
   const changeRadioChannel = useCallback((channel: number) => {
     setRadioChannel(channel);
-    if (radioConnected) {
-      // Reconnect to new channel
-      connectToRadioChannel(channel);
+    if (radioConnected && radioWs) {
+      // First disconnect from current channel, then connect to new one
+      radioWs.close(1000, 'Changing channel');
+      setRadioWs(null);
+      setRadioConnected(false);
+      // Wait a bit before connecting to new channel
+      setTimeout(() => {
+        connectToRadioChannel(channel);
+      }, 500);
     }
-  }, [radioConnected, connectToRadioChannel]);
+  }, [radioConnected, radioWs, connectToRadioChannel]);
 
   // ========== CHAT FUNCTIONS ==========
   
