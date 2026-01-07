@@ -2899,14 +2899,17 @@ export default function TransportMeter() {
         soundRef.current = null;
       }
       
-      // Set audio mode for playback
+      // Set audio mode for playback - CRITICAL for iOS
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
         shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
-      });
+        // This is important for iOS web
+        interruptionModeIOS: 1, // Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX
+        interruptionModeAndroid: 1,
+      } as any);
       
       // The audioData should be a full data URL, use it directly
       let audioUri = audioData;
@@ -2916,14 +2919,43 @@ export default function TransportMeter() {
         audioUri = `data:${mime};base64,${audioData}`;
       }
       
-      console.log('Radio: Loading audio, type:', audioUri.substring(0, 30));
+      console.log('Radio: Loading audio, type:', audioUri.substring(0, 50));
       
       // Vibrate when receiving audio
       if (Platform.OS !== 'web') {
         Vibration.vibrate(20);
       }
       
-      // Load and play the sound
+      // For web/Safari, we need to use HTML5 Audio API directly
+      if (Platform.OS === 'web') {
+        console.log('Radio: Using HTML5 Audio for web playback');
+        const audio = new window.Audio(audioUri);
+        audio.volume = 1.0;
+        audio.onloadeddata = () => {
+          console.log('Radio: HTML5 Audio loaded');
+        };
+        audio.onplay = () => {
+          console.log('Radio: HTML5 Audio playing');
+        };
+        audio.onerror = (e) => {
+          console.error('Radio: HTML5 Audio error:', e);
+        };
+        audio.onended = () => {
+          console.log('Radio: HTML5 Audio ended');
+        };
+        
+        try {
+          await audio.play();
+          console.log('Radio: HTML5 Audio play() called successfully');
+        } catch (playError) {
+          console.error('Radio: HTML5 Audio play() error:', playError);
+          // Safari may block autoplay - show a message
+          Alert.alert('Audio bloqueado', 'Safari ha bloqueado la reproducción automática. Toca "Conectar" de nuevo para habilitar el audio.');
+        }
+        return;
+      }
+      
+      // For native apps, use expo-av
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUri },
         { shouldPlay: true, volume: 1.0 }
