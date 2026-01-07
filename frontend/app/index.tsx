@@ -2552,6 +2552,32 @@ export default function TransportMeter() {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
+      // Request audio permission BEFORE connecting
+      console.log('Radio: Requesting audio permission before connecting...');
+      const { status } = await Audio.requestPermissionsAsync();
+      console.log('Radio: Permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permiso de micrófono necesario',
+          'Para usar el radio walkie-talkie, necesitas conceder permiso de micrófono. ¿Quieres abrir los ajustes?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Continuar sin micrófono', onPress: () => {} }
+          ]
+        );
+      } else {
+        setAudioPermission(true);
+        // Configure audio mode
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+      }
+
       // Close existing connection
       if (radioWs) {
         radioWs.close();
