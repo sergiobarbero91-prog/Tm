@@ -11067,6 +11067,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
+  chatBlockButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    marginRight: 4,
+  },
   chatMessageText: {
     color: '#E2E8F0',
     fontSize: 14,
