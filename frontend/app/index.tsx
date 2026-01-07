@@ -10229,6 +10229,222 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Blocked Users Management Button
+  adminBlockedUsersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  adminBlockedUsersButtonActive: {
+    backgroundColor: '#EF4444',
+  },
+  adminBlockedUsersButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  adminBlockedUsersButtonText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Blocked Users Section
+  blockedUsersSection: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  blockedUsersLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  blockedUsersLoadingText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  blockedUsersStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  blockedUserStatCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  blockedUserStatNumber: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  blockedUserStatLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  blockedUsersRefreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  blockedUsersRefreshText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  noBlockedUsers: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  noBlockedUsersText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 10,
+  },
+  blockedUserCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  blockedUserCardPermanent: {
+    borderColor: '#7F1D1D',
+    backgroundColor: '#7F1D1D20',
+  },
+  blockedUserCardTemporary: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#F59E0B10',
+  },
+  blockedUserCardExpired: {
+    borderColor: '#374151',
+    opacity: 0.7,
+  },
+  blockedUserHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  blockedUserInfo: {
+    flex: 1,
+  },
+  blockedUserName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  blockedUserUsername: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  blockedUserLicense: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  blockedUserStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#374151',
+  },
+  blockedStatusPermanent: {
+    backgroundColor: '#7F1D1D',
+  },
+  blockedStatusTemporary: {
+    backgroundColor: '#78350F',
+  },
+  blockedStatusExpired: {
+    backgroundColor: '#1F2937',
+  },
+  blockedUserStatusText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  blockedUserStats: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  blockedUserStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  blockedUserStatText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  blockedUserActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+  },
+  unblockButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#10B98120',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  unblockButtonText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resetFraudButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F59E0B20',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  resetFraudButtonText: {
+    color: '#F59E0B',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  blockedUsersLoadButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  blockedUsersLoadButtonText: {
+    color: '#6366F1',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   // Admin Search Results
   adminSearchResults: {
     marginBottom: 16,
