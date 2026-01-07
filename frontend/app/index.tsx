@@ -394,6 +394,28 @@ export default function TransportMeter() {
   const [chatLoading, setChatLoading] = useState(false);
   const [canWriteChat, setCanWriteChat] = useState(true);
 
+  // Radio states
+  const [showRadioDropdown, setShowRadioDropdown] = useState(false);
+  const [radioChannels, setRadioChannels] = useState<Array<{
+    channel: number;
+    channel_name: string;
+    user_count: number;
+    is_busy: boolean;
+  }>>([]);
+  const [radioChannel, setRadioChannel] = useState<number>(1);
+  const [radioConnected, setRadioConnected] = useState(false);
+  const [radioMuted, setRadioMuted] = useState(false);
+  const [radioTransmitting, setRadioTransmitting] = useState(false);
+  const [radioUsers, setRadioUsers] = useState<Array<{
+    user_id: string;
+    username: string;
+    full_name?: string;
+    is_transmitting: boolean;
+  }>>([]);
+  const [radioWs, setRadioWs] = useState<WebSocket | null>(null);
+  const [radioChannelBusy, setRadioChannelBusy] = useState(false);
+  const [radioTransmittingUser, setRadioTransmittingUser] = useState<string | null>(null);
+
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
