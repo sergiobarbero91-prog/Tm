@@ -307,6 +307,26 @@ export default function TransportMeter() {
   const [adminSearching, setAdminSearching] = useState(false);
   const [adminStats, setAdminStats] = useState<{total_users: number; active_last_month: number; online_now: number} | null>(null);
   const [showUsersList, setShowUsersList] = useState(false);
+  
+  // Admin Panel - Blocked Users Management
+  const [showBlockedUsers, setShowBlockedUsers] = useState(false);
+  const [blockedUsersData, setBlockedUsersData] = useState<{
+    total_blocked: number;
+    temporary_blocks: number;
+    permanent_blocks: number;
+    blocked_users: Array<{
+      id: string;
+      username: string;
+      full_name?: string;
+      license_number?: string;
+      alert_fraud_count: number;
+      alert_blocked_until?: string;
+      last_fraud_at?: string;
+      block_status: string;
+      hours_remaining?: number;
+    }>;
+  } | null>(null);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
 
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
