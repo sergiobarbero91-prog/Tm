@@ -12142,7 +12142,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
     borderWidth: 3,
     borderColor: '#10B981',
-  },
+    // Prevent text selection and touch gestures on Android Chrome
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    WebkitTouchCallout: 'none',
+    touchAction: 'none',
+    cursor: 'pointer',
+  } as any,
   radioPTTButtonDisabled: {
     borderColor: '#334155',
     backgroundColor: '#0F172A',
