@@ -142,6 +142,14 @@ async def report_station_alert(
 ):
     """Report a 'sin taxis' or 'barandilla' alert for a station or terminal."""
     
+    # Check if user is blocked from creating alerts
+    is_blocked, block_message = await check_user_blocked(current_user["id"])
+    if is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=block_message
+        )
+    
     # Validate location_type
     if alert_data.location_type not in ["station", "terminal"]:
         raise HTTPException(
