@@ -2917,27 +2917,9 @@ export default function TransportMeter() {
       return;
     }
     
-    console.log('Radio: Playing received audio, length:', audioData?.length);
+    console.log('Radio: Playing received audio, length:', audioData?.length, 'mimeType:', mimeType);
     
     try {
-      // Unload previous sound if exists
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
-      }
-      
-      // Set audio mode for playback - CRITICAL for iOS
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        // This is important for iOS web
-        interruptionModeIOS: 1, // Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX
-        interruptionModeAndroid: 1,
-      } as any);
-      
       // The audioData should be a full data URL, use it directly
       let audioUri = audioData;
       if (!audioData.startsWith('data:')) {
@@ -2946,43 +2928,84 @@ export default function TransportMeter() {
         audioUri = `data:${mime};base64,${audioData}`;
       }
       
-      console.log('Radio: Loading audio, type:', audioUri.substring(0, 50));
+      console.log('Radio: Audio URI prefix:', audioUri.substring(0, 60));
       
       // Vibrate when receiving audio
       if (Platform.OS !== 'web') {
         Vibration.vibrate(20);
       }
       
-      // For web/Safari, we need to use HTML5 Audio API directly
+      // For web (iOS Safari/Chrome), use HTML5 Audio with a persistent element
       if (Platform.OS === 'web') {
-        console.log('Radio: Using HTML5 Audio for web playback');
-        const audio = new window.Audio(audioUri);
-        audio.volume = 1.0;
+        console.log('Radio: Using HTML5 Audio for web/iOS playback');
+        
+        // Use the persistent audio element if it exists, otherwise create one
+        if (!webAudioRef.current) {
+          webAudioRef.current = new window.Audio();
+          webAudioRef.current.volume = 1.0;
+          console.log('Radio: Created new Audio element');
+        }
+        
+        const audio = webAudioRef.current;
+        
+        // Set up event listeners
         audio.onloadeddata = () => {
-          console.log('Radio: HTML5 Audio loaded');
+          console.log('Radio: HTML5 Audio loaded, duration:', audio.duration);
         };
         audio.onplay = () => {
           console.log('Radio: HTML5 Audio playing');
         };
-        audio.onerror = (e) => {
-          console.error('Radio: HTML5 Audio error:', e);
+        audio.onerror = (e: any) => {
+          console.error('Radio: HTML5 Audio error:', e, audio.error?.message);
         };
         audio.onended = () => {
           console.log('Radio: HTML5 Audio ended');
         };
+        audio.oncanplaythrough = () => {
+          console.log('Radio: HTML5 Audio can play through');
+        };
+        
+        // Set the source and try to play
+        audio.src = audioUri;
+        audio.load();
         
         try {
-          await audio.play();
-          console.log('Radio: HTML5 Audio play() called successfully');
-        } catch (playError) {
-          console.error('Radio: HTML5 Audio play() error:', playError);
-          // Safari may block autoplay - show a message
-          Alert.alert('Audio bloqueado', 'Safari ha bloqueado la reproducción automática. Toca "Conectar" de nuevo para habilitar el audio.');
+          // Wait a bit for the audio to load
+          await new Promise(resolve => setTimeout(resolve, 100));
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+            console.log('Radio: HTML5 Audio play() succeeded');
+          }
+        } catch (playError: any) {
+          console.error('Radio: HTML5 Audio play() error:', playError?.message || playError);
+          
+          // If autoplay is blocked, try to play on next user interaction
+          if (playError?.name === 'NotAllowedError') {
+            console.log('Radio: Autoplay blocked, audio will play on next interaction');
+            // Store for later playback
+            audioQueueRef.current.push(audioUri);
+          }
         }
         return;
       }
       
       // For native apps, use expo-av
+      // Unload previous sound if exists
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+      
+      // Set audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+      
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUri },
         { shouldPlay: true, volume: 1.0 }
