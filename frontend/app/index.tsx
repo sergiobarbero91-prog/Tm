@@ -2551,7 +2551,20 @@ export default function TransportMeter() {
       setChatMessage('');
     } catch (error: any) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'No se pudo enviar el mensaje');
+      const detail = error.response?.data?.detail || '';
+      
+      // Check if blocked from chat
+      if (error.response?.status === 403 && detail.includes('mensajes indebidos')) {
+        Alert.alert(
+          '⚠️ Chat Bloqueado',
+          `${detail}\n\n` +
+          'Recuerda que los mensajes del chat deben ser respetuosos y útiles para la comunidad. ' +
+          'Los mensajes indebidos perjudican a todos los compañeros.',
+          [{ text: 'Entendido', style: 'default' }]
+        );
+      } else {
+        Alert.alert('Error', detail || 'No se pudo enviar el mensaje');
+      }
     }
   };
 
