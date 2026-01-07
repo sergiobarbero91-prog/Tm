@@ -2626,7 +2626,6 @@ export default function TransportMeter() {
         console.log(`Radio: Connected to channel ${channel}`);
         setRadioConnected(true);
         setRadioChannel(channel);
-        reconnectAttempts = 0;
         
         // Start ping interval to keep connection alive (every 15 seconds)
         pingInterval = setInterval(() => {
