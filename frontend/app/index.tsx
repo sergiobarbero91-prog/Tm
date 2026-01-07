@@ -2521,6 +2521,154 @@ export default function TransportMeter() {
     }
   };
 
+  // ========== RADIO FUNCTIONS ==========
+  
+  // Fetch radio channels
+  const fetchRadioChannels = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/radio/channels`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRadioChannels(response.data.channels);
+    } catch (error) {
+      console.error('Error fetching radio channels:', error);
+    }
+  }, []);
+
+  // Connect to radio channel via WebSocket
+  const connectToRadioChannel = useCallback(async (channel: number) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+
+      // Close existing connection
+      if (radioWs) {
+        radioWs.close();
+      }
+
+      // Create WebSocket URL
+      const wsProtocol = API_BASE.startsWith('https') ? 'wss' : 'ws';
+      const wsHost = API_BASE.replace(/^https?:\/\//, '');
+      const wsUrl = `${wsProtocol}://${wsHost}/api/radio/ws/${channel}?token=${token}`;
+
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log(`Radio: Connected to channel ${channel}`);
+        setRadioConnected(true);
+        setRadioChannel(channel);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'channel_status') {
+            setRadioUsers(data.users || []);
+            setRadioChannelBusy(data.transmitting_user !== null);
+            setRadioTransmittingUser(data.transmitting_user);
+          } else if (data.type === 'transmission_status') {
+            if (!data.success && data.message === 'Canal ocupado') {
+              Alert.alert('Radio', 'El canal está ocupado. Espera a que termine la transmisión.');
+            }
+          } else if (data.type === 'audio') {
+            // Handle incoming audio
+            if (!radioMuted) {
+              playReceivedAudio(data.audio_data);
+            }
+          }
+        } catch (e) {
+          console.error('Radio: Error parsing message', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('Radio: Disconnected');
+        setRadioConnected(false);
+        setRadioUsers([]);
+        setRadioChannelBusy(false);
+        setRadioTransmittingUser(null);
+      };
+
+      ws.onerror = (error) => {
+        console.error('Radio: WebSocket error', error);
+      };
+
+      setRadioWs(ws);
+    } catch (error) {
+      console.error('Error connecting to radio:', error);
+      Alert.alert('Error', 'No se pudo conectar al canal de radio');
+    }
+  }, [radioWs, radioMuted]);
+
+  // Disconnect from radio
+  const disconnectFromRadio = useCallback(() => {
+    if (radioWs) {
+      radioWs.close();
+      setRadioWs(null);
+    }
+    setRadioConnected(false);
+    setRadioUsers([]);
+    setRadioTransmitting(false);
+  }, [radioWs]);
+
+  // Start transmitting (push to talk - press)
+  const startRadioTransmission = useCallback(() => {
+    if (!radioWs || !radioConnected || radioChannelBusy) return;
+    
+    radioWs.send(JSON.stringify({ type: 'start_transmission' }));
+    setRadioTransmitting(true);
+    
+    // Start recording audio here (will implement with expo-av)
+    startRecordingAudio();
+  }, [radioWs, radioConnected, radioChannelBusy]);
+
+  // Stop transmitting (push to talk - release)
+  const stopRadioTransmission = useCallback(() => {
+    if (!radioWs || !radioConnected) return;
+    
+    radioWs.send(JSON.stringify({ type: 'stop_transmission' }));
+    setRadioTransmitting(false);
+    
+    // Stop recording and send audio
+    stopRecordingAudio();
+  }, [radioWs, radioConnected]);
+
+  // Placeholder functions for audio (will implement with expo-av)
+  const startRecordingAudio = async () => {
+    // TODO: Implement audio recording with expo-av
+    console.log('Radio: Start recording audio');
+  };
+
+  const stopRecordingAudio = async () => {
+    // TODO: Implement stop recording and send audio
+    console.log('Radio: Stop recording audio');
+  };
+
+  const playReceivedAudio = async (audioData: string) => {
+    // TODO: Implement audio playback with expo-av
+    console.log('Radio: Received audio data');
+  };
+
+  // Toggle radio connection
+  const toggleRadioConnection = useCallback(() => {
+    if (radioConnected) {
+      disconnectFromRadio();
+    } else {
+      connectToRadioChannel(radioChannel);
+    }
+  }, [radioConnected, radioChannel, connectToRadioChannel, disconnectFromRadio]);
+
+  // Change radio channel
+  const changeRadioChannel = useCallback((channel: number) => {
+    setRadioChannel(channel);
+    if (radioConnected) {
+      // Reconnect to new channel
+      connectToRadioChannel(channel);
+    }
+  }, [radioConnected, connectToRadioChannel]);
+
   // ========== CHAT FUNCTIONS ==========
   
   // Fetch available chat channels
