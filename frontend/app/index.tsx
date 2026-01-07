@@ -5739,7 +5739,12 @@ export default function TransportMeter() {
                   styles.radioControlButtonMute,
                   radioMuted && styles.radioControlButtonMuteActive
                 ]}
-                onPress={() => setRadioMuted(!radioMuted)}
+                onPress={() => {
+                  const newMutedState = !radioMuted;
+                  setRadioMuted(newMutedState);
+                  radioMutedRef.current = newMutedState;
+                  console.log('Radio: Mute toggled to', newMutedState);
+                }}
                 disabled={!radioConnected}
               >
                 <Ionicons 
