@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import * as Linking from 'expo-linking';
+import { Audio } from 'expo-av';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
