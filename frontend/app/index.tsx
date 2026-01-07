@@ -5745,23 +5745,24 @@ export default function TransportMeter() {
                             <View style={styles.blockedUserActions}>
                               {(hasActiveAlertBlock || hasActiveChatBlock) && (
                                 <TouchableOpacity 
-                                style={styles.unblockButton}
-                                onPress={() => unblockUser(user.id)}
+                                  style={styles.unblockButton}
+                                  onPress={() => unblockUser(user.id)}
+                                >
+                                  <Ionicons name="lock-open" size={16} color="#10B981" />
+                                  <Text style={styles.unblockButtonText}>Desbloquear</Text>
+                                </TouchableOpacity>
+                              )}
+                              <TouchableOpacity 
+                                style={styles.resetFraudButton}
+                                onPress={() => resetFraudCount(user.id)}
                               >
-                                <Ionicons name="lock-open" size={16} color="#10B981" />
-                                <Text style={styles.unblockButtonText}>Desbloquear</Text>
+                                <Ionicons name="refresh" size={16} color="#F59E0B" />
+                                <Text style={styles.resetFraudButtonText}>Resetear</Text>
                               </TouchableOpacity>
-                            )}
-                            <TouchableOpacity 
-                              style={styles.resetFraudButton}
-                              onPress={() => resetFraudCount(user.id)}
-                            >
-                              <Ionicons name="refresh" size={16} color="#F59E0B" />
-                              <Text style={styles.resetFraudButtonText}>Resetear</Text>
-                            </TouchableOpacity>
+                            </View>
                           </View>
-                        </View>
-                      ))
+                        );
+                      })
                     )}
                   </>
                 ) : (
