@@ -376,8 +376,8 @@ async def get_blocked_users(admin: dict = Depends(get_admin_user)):
 
 
 @router.post("/users/{user_id}/unblock")
-async def unblock_user(user_id: str, admin: dict = Depends(get_admin_user)):
-    """Remove alert block from a user (admin only). Does not reset fraud count."""
+async def unblock_user(user_id: str, block_type: str = "all", admin: dict = Depends(get_admin_user)):
+    """Remove block from a user. block_type can be 'alert', 'chat', or 'all'."""
     user = await users_collection.find_one({"id": user_id})
     if not user:
         raise HTTPException(
@@ -385,18 +385,24 @@ async def unblock_user(user_id: str, admin: dict = Depends(get_admin_user)):
             detail="Usuario no encontrado"
         )
     
-    # Remove the block but keep the fraud count for history
-    await users_collection.update_one(
-        {"id": user_id},
-        {"$unset": {"alert_blocked_until": ""}}
-    )
+    unset_fields = {}
+    if block_type in ["alert", "all"]:
+        unset_fields["alert_blocked_until"] = ""
+    if block_type in ["chat", "all"]:
+        unset_fields["chat_blocked_until"] = ""
+    
+    if unset_fields:
+        await users_collection.update_one(
+            {"id": user_id},
+            {"$unset": unset_fields}
+        )
     
     return {"message": f"Usuario {user['username']} desbloqueado correctamente"}
 
 
 @router.post("/users/{user_id}/reset-fraud")
-async def reset_fraud_count(user_id: str, admin: dict = Depends(get_admin_user)):
-    """Reset a user's fraud count and remove block (admin only)."""
+async def reset_fraud_count(user_id: str, block_type: str = "all", admin: dict = Depends(get_admin_user)):
+    """Reset a user's abuse count and remove block. block_type can be 'alert', 'chat', or 'all'."""
     user = await users_collection.find_one({"id": user_id})
     if not user:
         raise HTTPException(
@@ -404,13 +410,28 @@ async def reset_fraud_count(user_id: str, admin: dict = Depends(get_admin_user))
             detail="Usuario no encontrado"
         )
     
-    # Reset fraud count and remove block
-    await users_collection.update_one(
-        {"id": user_id},
-        {
-            "$set": {"alert_fraud_count": 0},
-            "$unset": {"alert_blocked_until": "", "last_fraud_at": ""}
-        }
-    )
+    set_fields = {}
+    unset_fields = {}
     
-    return {"message": f"Contador de fraudes de {user['username']} reseteado correctamente"}
+    if block_type in ["alert", "all"]:
+        set_fields["alert_fraud_count"] = 0
+        unset_fields["alert_blocked_until"] = ""
+        unset_fields["last_fraud_at"] = ""
+    
+    if block_type in ["chat", "all"]:
+        set_fields["chat_abuse_count"] = 0
+        unset_fields["chat_blocked_until"] = ""
+        unset_fields["last_chat_abuse_at"] = ""
+        unset_fields["last_chat_abuse_message"] = ""
+        unset_fields["last_chat_abuse_blocked_by"] = ""
+    
+    update_ops = {}
+    if set_fields:
+        update_ops["$set"] = set_fields
+    if unset_fields:
+        update_ops["$unset"] = unset_fields
+    
+    if update_ops:
+        await users_collection.update_one({"id": user_id}, update_ops)
+    
+    return {"message": f"Contador de {user['username']} reseteado correctamente"}
