@@ -5637,6 +5637,7 @@ export default function TransportMeter() {
                 radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy,
                 { userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as any
               ]}
+              // Use both Responder system and touch events for maximum compatibility
               onStartShouldSetResponder={() => true}
               onMoveShouldSetResponder={() => true}
               onResponderGrant={() => {
@@ -5658,7 +5659,55 @@ export default function TransportMeter() {
                 }
               }}
               onResponderTerminationRequest={() => false}
-              pointerEvents={(!radioConnected || radioChannelBusy) ? 'none' : 'auto'}
+              // Touch events for Android Chrome compatibility
+              onTouchStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Radio PTT: onTouchStart');
+                if (radioConnected && !radioChannelBusy && !radioTransmitting) {
+                  startRadioTransmission();
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Radio PTT: onTouchEnd');
+                if (radioConnected) {
+                  stopRadioTransmission();
+                }
+              }}
+              onTouchCancel={(e) => {
+                e.preventDefault();
+                console.log('Radio PTT: onTouchCancel');
+                if (radioConnected) {
+                  stopRadioTransmission();
+                }
+              }}
+              // Mouse events for desktop
+              onMouseDown={(e) => {
+                e.preventDefault();
+                console.log('Radio PTT: onMouseDown');
+                if (radioConnected && !radioChannelBusy && !radioTransmitting) {
+                  startRadioTransmission();
+                }
+              }}
+              onMouseUp={(e) => {
+                e.preventDefault();
+                console.log('Radio PTT: onMouseUp');
+                if (radioConnected) {
+                  stopRadioTransmission();
+                }
+              }}
+              onMouseLeave={() => {
+                if (radioTransmitting) {
+                  console.log('Radio PTT: onMouseLeave while transmitting');
+                  stopRadioTransmission();
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                return false;
+              }}
             >
               <Ionicons 
                 name="mic" 
