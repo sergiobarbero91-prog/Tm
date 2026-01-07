@@ -5159,6 +5159,27 @@ export default function TransportMeter() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
+            {/* Radio Button */}
+            <TouchableOpacity 
+              style={[
+                styles.radioButton,
+                radioConnected && styles.radioButtonConnected,
+                radioTransmitting && styles.radioButtonTransmitting
+              ]}
+              onPress={() => {
+                fetchRadioChannels();
+                setShowRadioDropdown(!showRadioDropdown);
+              }}
+            >
+              <Ionicons 
+                name="radio" 
+                size={20} 
+                color={radioTransmitting ? '#FFFFFF' : (radioConnected ? '#10B981' : '#94A3B8')} 
+              />
+              {radioConnected && (
+                <Text style={styles.radioChannelBadge}>{radioChannel}</Text>
+              )}
+            </TouchableOpacity>
             <Ionicons name="car" size={24} color="#F59E0B" />
           </View>
           <View style={styles.headerActions}>
