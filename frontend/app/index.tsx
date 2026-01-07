@@ -5617,46 +5617,58 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
 
-            {/* Push to Talk Button - Simple TouchableOpacity */}
-            <TouchableOpacity
-              activeOpacity={0.7}
+            {/* Push to Talk Button - Using View with touch handlers to prevent text selection on Android */}
+            <View
               style={[
                 styles.radioPTTButton,
                 !radioConnected && styles.radioPTTButtonDisabled,
                 radioTransmitting && styles.radioPTTButtonActive,
-                radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy
+                radioChannelBusy && !radioTransmitting && styles.radioPTTButtonBusy,
+                { userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as any
               ]}
-              onPressIn={() => {
-                console.log('Radio PTT: onPressIn');
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={() => {
+                console.log('Radio PTT: onResponderGrant');
                 if (radioConnected && !radioChannelBusy && !radioTransmitting) {
                   startRadioTransmission();
                 }
               }}
-              onPressOut={() => {
-                console.log('Radio PTT: onPressOut, transmitting:', radioTransmitting);
+              onResponderRelease={() => {
+                console.log('Radio PTT: onResponderRelease');
                 if (radioConnected) {
                   stopRadioTransmission();
                 }
               }}
-              delayPressIn={0}
-              delayPressOut={0}
-              disabled={!radioConnected || radioChannelBusy}
+              onResponderTerminate={() => {
+                console.log('Radio PTT: onResponderTerminate');
+                if (radioConnected) {
+                  stopRadioTransmission();
+                }
+              }}
+              onResponderTerminationRequest={() => false}
+              pointerEvents={(!radioConnected || radioChannelBusy) ? 'none' : 'auto'}
             >
               <Ionicons 
                 name="mic" 
                 size={48} 
                 color={radioTransmitting ? "#FFFFFF" : (radioConnected ? "#10B981" : "#6B7280")} 
+                style={{ pointerEvents: 'none' } as any}
               />
-              <Text style={[
-                styles.radioPTTText,
-                !radioConnected && { color: '#6B7280' },
-                radioTransmitting && { color: '#FFFFFF' }
-              ]}>
+              <Text 
+                style={[
+                  styles.radioPTTText,
+                  !radioConnected && { color: '#6B7280' },
+                  radioTransmitting && { color: '#FFFFFF' },
+                  { userSelect: 'none', WebkitUserSelect: 'none' } as any
+                ]}
+                selectable={false}
+              >
                 {radioTransmitting ? 'TRANSMITIENDO...' : 
                  radioChannelBusy ? 'CANAL OCUPADO' :
                  radioConnected ? 'MANTENER PULSADO' : 'CONECTAR PRIMERO'}
               </Text>
-            </TouchableOpacity>
+            </View>
 
             {/* Transmitting user info */}
             {radioChannelBusy && radioTransmittingUser && !radioTransmitting && (
