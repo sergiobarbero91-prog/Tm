@@ -416,6 +416,13 @@ export default function TransportMeter() {
   const [radioWs, setRadioWs] = useState<WebSocket | null>(null);
   const [radioChannelBusy, setRadioChannelBusy] = useState(false);
   const [radioTransmittingUser, setRadioTransmittingUser] = useState<string | null>(null);
+  
+  // Audio recording states for radio
+  const [audioPermission, setAudioPermission] = useState(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingRef = useRef(false);
 
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
