@@ -238,3 +238,129 @@ async def delete_user(user_id: str, admin: dict = Depends(get_admin_user)):
     
     await users_collection.delete_one({"id": user_id})
     return {"message": "Usuario eliminado correctamente"}
+
+
+# ============ BLOCKED USERS MANAGEMENT ============
+
+class BlockedUserInfo(BaseModel):
+    id: str
+    username: str
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    alert_fraud_count: int = 0
+    alert_blocked_until: Optional[datetime] = None
+    last_fraud_at: Optional[datetime] = None
+    block_status: str  # "temporary", "permanent", "expired"
+    hours_remaining: Optional[int] = None
+
+
+class BlockedUsersStats(BaseModel):
+    total_blocked: int
+    temporary_blocks: int
+    permanent_blocks: int
+    blocked_users: List[BlockedUserInfo]
+
+
+@router.get("/blocked-users", response_model=BlockedUsersStats)
+async def get_blocked_users(admin: dict = Depends(get_admin_user)):
+    """Get all users blocked from creating alerts (admin only)."""
+    now = datetime.utcnow()
+    
+    # Find users with fraud counts or active blocks
+    users_with_blocks = await users_collection.find({
+        "$or": [
+            {"alert_fraud_count": {"$gt": 0}},
+            {"alert_blocked_until": {"$exists": True}}
+        ]
+    }).to_list(1000)
+    
+    blocked_users = []
+    temporary_count = 0
+    permanent_count = 0
+    
+    for u in users_with_blocks:
+        fraud_count = u.get("alert_fraud_count", 0)
+        blocked_until = u.get("alert_blocked_until")
+        
+        # Determine block status
+        if fraud_count > 20:
+            block_status = "permanent"
+            permanent_count += 1
+            hours_remaining = None
+        elif blocked_until:
+            if blocked_until > now:
+                block_status = "temporary"
+                temporary_count += 1
+                hours_remaining = int((blocked_until - now).total_seconds() / 3600)
+            else:
+                block_status = "expired"
+                hours_remaining = 0
+        else:
+            block_status = "expired"
+            hours_remaining = 0
+        
+        blocked_users.append(BlockedUserInfo(
+            id=u["id"],
+            username=u["username"],
+            full_name=u.get("full_name"),
+            license_number=u.get("license_number"),
+            alert_fraud_count=fraud_count,
+            alert_blocked_until=blocked_until,
+            last_fraud_at=u.get("last_fraud_at"),
+            block_status=block_status,
+            hours_remaining=hours_remaining
+        ))
+    
+    # Sort: permanent first, then temporary by hours remaining, then expired
+    blocked_users.sort(key=lambda x: (
+        0 if x.block_status == "permanent" else (1 if x.block_status == "temporary" else 2),
+        -(x.hours_remaining or 0)
+    ))
+    
+    return BlockedUsersStats(
+        total_blocked=temporary_count + permanent_count,
+        temporary_blocks=temporary_count,
+        permanent_blocks=permanent_count,
+        blocked_users=blocked_users
+    )
+
+
+@router.post("/users/{user_id}/unblock")
+async def unblock_user(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Remove alert block from a user (admin only). Does not reset fraud count."""
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Remove the block but keep the fraud count for history
+    await users_collection.update_one(
+        {"id": user_id},
+        {"$unset": {"alert_blocked_until": ""}}
+    )
+    
+    return {"message": f"Usuario {user['username']} desbloqueado correctamente"}
+
+
+@router.post("/users/{user_id}/reset-fraud")
+async def reset_fraud_count(user_id: str, admin: dict = Depends(get_admin_user)):
+    """Reset a user's fraud count and remove block (admin only)."""
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Reset fraud count and remove block
+    await users_collection.update_one(
+        {"id": user_id},
+        {
+            "$set": {"alert_fraud_count": 0},
+            "$unset": {"alert_blocked_until": "", "last_fraud_at": ""}
+        }
+    )
+    
+    return {"message": f"Contador de fraudes de {user['username']} reseteado correctamente"}
