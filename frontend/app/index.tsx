@@ -5694,7 +5694,7 @@ export default function TransportMeter() {
             )}
           </View>
         </View>
-      )}
+      </Modal>
 
       {/* Tab Selector */}
       {/* NEW: Dropdowns Row - Page and Shift selectors */}
