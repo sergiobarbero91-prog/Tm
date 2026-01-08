@@ -233,3 +233,35 @@ async def heartbeat(current_user: dict = Depends(get_current_user_required)):
         {"$set": {"last_seen": now}}
     )
     return {"status": "ok", "timestamp": now.isoformat()}
+
+
+@router.post("/refresh-token", response_model=TokenResponse)
+async def refresh_token(current_user: dict = Depends(get_current_user_required)):
+    """Refresh the access token if the user is still authenticated.
+    Call this periodically to prevent session expiration during active use.
+    """
+    # Update last_seen
+    now = datetime.utcnow()
+    await users_collection.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"last_seen": now}}
+    )
+    
+    # Generate a new token with fresh expiration
+    access_token = create_access_token(data={"sub": current_user["id"]})
+    
+    logger.info(f"Token refreshed for user {current_user['username']}")
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=current_user["id"],
+            username=current_user["username"],
+            full_name=current_user.get("full_name"),
+            license_number=current_user.get("license_number"),
+            phone=current_user.get("phone"),
+            role=current_user.get("role", "user"),
+            preferred_shift=current_user.get("preferred_shift", "all"),
+            created_at=current_user["created_at"]
+        )
+    )
