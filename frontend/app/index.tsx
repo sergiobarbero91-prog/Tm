@@ -3693,6 +3693,61 @@ export default function TransportMeter() {
     return () => clearInterval(heartbeatInterval);
   }, []);
 
+  // Auto-refresh token every 20 minutes to prevent session expiration
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const refreshAuthToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
+        
+        console.log('[Auth] Refreshing token...');
+        const response = await axios.post(
+          `${API_BASE}/api/auth/refresh-token`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (response.data?.access_token) {
+          await AsyncStorage.setItem('token', response.data.access_token);
+          console.log('[Auth] Token refreshed successfully');
+        }
+      } catch (error: any) {
+        console.log('[Auth] Token refresh failed:', error?.response?.status);
+        // If refresh fails with 401, session has expired - logout
+        if (error?.response?.status === 401) {
+          console.log('[Auth] Session expired, logging out...');
+          await AsyncStorage.removeItem('token');
+          setCurrentUser(null);
+          Alert.alert('Sesión expirada', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        }
+      }
+    };
+    
+    // Refresh token every 20 minutes (1200000ms)
+    const tokenRefreshInterval = setInterval(refreshAuthToken, 20 * 60 * 1000);
+    
+    // Also refresh token on app focus/visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Auth] App became visible, checking token...');
+        refreshAuthToken();
+      }
+    };
+    
+    if (Platform.OS === 'web') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    
+    return () => {
+      clearInterval(tokenRefreshInterval);
+      if (Platform.OS === 'web') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [currentUser]);
+
   // Register for notifications
   useEffect(() => {
     if (currentUser) {
