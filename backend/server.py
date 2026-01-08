@@ -2765,6 +2765,40 @@ async def startup_db_client():
     """Create default admin user and preload cache on startup."""
     await create_default_admin()
     
+    # Create indexes for faster queries
+    logger.info("Setting up database indexes...")
+    try:
+        # Index for street_activities by created_at (speeds up time-based queries)
+        await street_activities_collection.create_index(
+            "created_at",
+            background=True
+        )
+        logger.info("Created index on street_activities.created_at")
+        
+        # Compound index for street activities queries
+        await street_activities_collection.create_index(
+            [("created_at", -1), ("action", 1)],
+            background=True
+        )
+        logger.info("Created compound index on street_activities")
+        
+        # Index for taxi_status by created_at
+        await taxi_status_collection.create_index(
+            "created_at",
+            background=True
+        )
+        logger.info("Created index on taxi_status.created_at")
+        
+        # Index for queue_status by created_at
+        await queue_status_collection.create_index(
+            "created_at",
+            background=True
+        )
+        logger.info("Created index on queue_status.created_at")
+        
+    except Exception as e:
+        logger.info(f"Index setup: {e}")
+    
     # Create TTL indexes for history collections (12 hours = 43200 seconds)
     logger.info("Setting up TTL indexes for history collections...")
     try:
