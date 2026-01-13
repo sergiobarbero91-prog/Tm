@@ -1707,7 +1707,7 @@ async def health_check_detailed():
     # Check MongoDB connection
     mongo_status = "healthy"
     try:
-        await database.command('ping')
+        await db.command('ping')
     except Exception as e:
         mongo_status = f"error: {str(e)}"
     
