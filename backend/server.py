@@ -1694,6 +1694,57 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
+@api_router.get("/health/detailed")
+async def health_check_detailed():
+    """Detailed health check with system metrics."""
+    import psutil
+    
+    # Get system metrics
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    # Check MongoDB connection
+    mongo_status = "healthy"
+    try:
+        await database.command('ping')
+    except Exception as e:
+        mongo_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy" if mongo_status == "healthy" else "degraded",
+        "timestamp": datetime.utcnow().isoformat(),
+        "system": {
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory.percent,
+            "memory_used_gb": round(memory.used / (1024**3), 2),
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "disk_percent": disk.percent,
+            "disk_used_gb": round(disk.used / (1024**3), 2),
+            "disk_total_gb": round(disk.total / (1024**3), 2),
+        },
+        "services": {
+            "mongodb": mongo_status,
+            "sentry": "enabled" if SENTRY_DSN else "disabled",
+        }
+    }
+
+@api_router.get("/debug/sentry-test")
+async def sentry_test():
+    """
+    Test endpoint to trigger a Sentry error.
+    Only works if SENTRY_DSN is configured.
+    """
+    if not SENTRY_DSN:
+        return {"message": "Sentry not configured. Add SENTRY_DSN to .env file."}
+    
+    try:
+        # This will trigger an error that Sentry will capture
+        division_by_zero = 1 / 0
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return {"message": "Test error sent to Sentry!", "error": str(e)}
+
 # ============== AUTHENTICATION ENDPOINTS ==============
 # NOTE: Auth endpoints have been moved to routers/auth.py
 
