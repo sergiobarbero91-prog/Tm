@@ -3759,6 +3759,72 @@ export default function TransportMeter() {
     }
   }, [currentUser]);
 
+  // Network connection monitoring
+  useEffect(() => {
+    let consecutiveFailures = 0;
+    const maxFailures = 3;
+    
+    const checkConnection = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        await fetch(`${API_BASE}/api/health`, { 
+          signal: controller.signal,
+          method: 'GET'
+        });
+        clearTimeout(timeoutId);
+        
+        consecutiveFailures = 0;
+        if (!isOnline) {
+          setIsOnline(true);
+          setShowOfflineBanner(false);
+          console.log('[Network] Connection restored');
+        }
+      } catch (error) {
+        consecutiveFailures++;
+        console.log(`[Network] Connection check failed (${consecutiveFailures}/${maxFailures})`);
+        
+        if (consecutiveFailures >= maxFailures && isOnline) {
+          setIsOnline(false);
+          setShowOfflineBanner(true);
+          console.log('[Network] Connection lost');
+        }
+      }
+    };
+    
+    // Check connection every 10 seconds
+    const connectionInterval = setInterval(checkConnection, 10000);
+    
+    // Also check on visibility change (when app comes to foreground)
+    const handleVisibility = () => {
+      if (Platform.OS === 'web' && document.visibilityState === 'visible') {
+        checkConnection();
+      }
+    };
+    
+    if (Platform.OS === 'web') {
+      window.addEventListener('online', () => {
+        setIsOnline(true);
+        setShowOfflineBanner(false);
+        console.log('[Network] Browser reports online');
+      });
+      window.addEventListener('offline', () => {
+        setIsOnline(false);
+        setShowOfflineBanner(true);
+        console.log('[Network] Browser reports offline');
+      });
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+    
+    return () => {
+      clearInterval(connectionInterval);
+      if (Platform.OS === 'web') {
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+    };
+  }, [isOnline]);
+
   // Fetch check-in status when user logs in
   useEffect(() => {
     if (currentUser) {
