@@ -46,6 +46,7 @@ pathspec==0.12.1
 platformdirs==4.5.1
 pluggy==1.6.0
 propcache==0.4.1
+psutil==7.2.1
 pyasn1==0.6.1
 pycodestyle==2.14.0
 pycparser==2.23
@@ -68,6 +69,7 @@ rich==14.2.0
 rsa==4.9.1
 s3transfer==0.16.0
 s5cmd==0.2.0
+sentry-sdk==2.49.0
 shellingham==1.5.4
 six==1.17.0
 soupsieve==2.8.1
