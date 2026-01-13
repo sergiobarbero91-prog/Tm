@@ -1,191 +1,157 @@
 <analysis>
+**original_problem_statement**: The user wants to finalize a logistics and transport monitoring tool for taxi drivers in Madrid for an imminent launch.
 
-**original_problem_statement**: The user wants to continue developing a logistics and transport monitoring tool for taxi drivers in Madrid.
+The main feature being worked on was a Walkie-Talkie Radio. After implementing it, the user reported several issues which were subsequently fixed, including PTT button behavior on Android, and cross-platform audio playback between Android (WebM) and iPhone (MP4).
 
-The initial task for this session was to complete the visual implementation of a Sin Taxis / Barandilla alert system on the frontend.
-
-Throughout the session, the user made several additional requests, building upon the initial features:
-1.  **Alert Timer Correction**: Make the alert countdown timer update in real-time.
-2.  **UI Enhancement**: Ensure the MÁS FRECUENCIA (Higher Frequency) badge remains visible even when an alert is active.
-3.  **Bug Fix (Timezone)**: Fix a timezone bug where the alert timer would start with an incorrect value (e.g., 60 minutes).
-4.  **Feature Expansion (Alerts on Calle Tab)**: Display the same alerts on the Hottest Station/Terminal cards on the main Calle (Street) page.
-5.  **GPS Button Change**: Modify the Ir con GPS (Go with GPS) buttons on the Hottest cards to open the user's preferred GPS app without a pre-filled destination.
-6.  **Alert Management**: Implement a system to close active alerts. When an alert is active, the report buttons should be replaced by a Close Alert button. The user who reported the alert should be blocked from closing it for the first 60 seconds.
-7.  **Fraudulent Alert Penalties**: Implement a complex backend system to penalize users for fraudulent alerts (an alert cancelled by another user within 60 seconds). This includes a tiered blocking system based on the number of fraudulent reports (6h, 12h, 48h, permanent) and storing the reason for the block.
-8.  **Admin Panel for Blocks**: Add a section to the Admin Panel to view and manage all blocked users (both for fraudulent alerts and other reasons), including their block status, reason, and an interface to unblock them or reset their offense count.
-9.  **Chat Moderation & Blocking**: Extend the blocking system to the global chat. Admins/moderators should see a button on each message to block a user for inappropriate messages (). This follows the same penalty structure and should be reflected in the Admin Panel.
-10. **New Feature (Walkie-Talkie Radio)**: Implement a walkie-talkie feature. This includes a UI with a dropdown for 10 radio channels, a connect/disconnect button, a mute button, and a push-to-talk (PTT) button.
+The focus then shifted to pre-launch preparations and fixing core logic issues. The user requested:
+1.  **Performance Optimization**: The Calle (Street) tab was loading slowly.
+2.  **Session Management**: Implement automatic session renewal to prevent users from being logged out.
+3.  **Alert System Tweak**: Remove the 60-second cooldown for cancelling a Sin Taxis alert, allowing anyone (including the reporter) to cancel at any time, while keeping the fraudulent alert penalty system.
+4.  **UI/UX Improvements**:
+    *   Display the time spent inside a station/terminal in the Recent Activity feed.
+    *   When a user checks into a station/terminal, prompt them to join the corresponding radio channel.
+    *   Implement an offline indicator to show when the app loses internet connection.
+5.  **Fare Calculation Overhaul (CRITICAL)**: The user reported that the fare calculation was completely wrong and provided a detailed, definitive set of rules for 5 different fare types (Tarifa 1, 2, 3, 4, 7) that must be implemented.
 
 **User's preferred language**: español
 
 **what currently exists?**
 The application is a full-stack Expo/FastAPI app.
--   **Frontend:** A massive monolithic  file (now well over 10,000 lines) contains all application UI, state, and logic. It includes a sophisticated admin panel with user search, live stats, and a new user block management system. The Sin Taxis / Barandilla alert system is fully functional and visible on both the Trains/Flights tabs and the Calle tab. A UI for a new walkie-talkie feature has been built but is not yet functional.
--   **Backend:** The FastAPI backend is extensive. It manages user authentication, data fetching for transport, and a complete real-time alert system (). It now includes a complex penalty system that tracks fraudulent alerts and inappropriate chat messages, applying timed or permanent blocks to users. The admin router () has been expanded with endpoints to manage these blocks. A new chat router () handles global messaging and moderation actions. A new  router with a WebSocket endpoint has been created as a placeholder for the walkie-talkie feature.
+-   **Frontend:** A massive, monolithic  file (now over 12,000 lines) contains all application UI, state, and logic. Key features include an admin panel, a real-time alert system, a fully functional 15-channel walkie-talkie with cross-platform audio, a global chat, and a complex (but currently incorrect) fare calculation UI. An offline connection status banner has also been implemented.
+-   **Backend:** A FastAPI backend with multiple routers. It supports user authentication with token refresh, real-time alerts, a WebSocket-based radio system with on-the-fly audio transcoding (WebM to MP4 using ), and various API endpoints. It uses MongoDB as its database, and new indexes have been added to improve query performance for the Calle tab. A  file has been created with pre-launch instructions.
 
 **Last working item**:
-    - Last item agent was working: Implementing the UI and basic backend structure for a new Walkie-Talkie Radio feature. The agent successfully created the UI elements on the frontend, including a header button and a dropdown modal with a channel selector, connect/mute buttons, and a Push-to-Talk (PTT) button. On the backend, a new  router was created with a placeholder WebSocket endpoint.
-    - Status: IN PROGRESS
+    - Last item agent was working: The user provided a complete and detailed breakdown of the official fare rules (Tarifa 1, 2, 3, 4, 7) because the existing implementation was incorrect. The agent was about to start rewriting the entire fare calculation logic based on these new, precise rules.
+    - Status: NOT STARTED
     - Agent Testing Done: N
-    - Which testing method agent to use? both
+    - Which testing method agent to use? manual testing by curl
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Implement Core Walkie-Talkie Audio Streaming Logic (P0)
-  - Issue 2: Refactor Frontend Monolith (P1)
-  - Issue 3: Refine Chat Block Notification UI (P2)
+  - Issue 1: Fare Calculation Logic is Incorrect (P0)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The basic UI and backend routes/WebSocket stubs have been created. No audio logic has been attempted.
+     - Attempted fixes: The agent previously tried fixing incorrect terminal coordinates and adding logging, but these were incremental fixes to a fundamentally flawed logic. The user has now provided the definitive rules, making previous attempts obsolete.
      - Next debug checklist: 
-        1.  **Frontend**:
-            -   Integrate  or a similar library to request microphone permissions.
-            -   On Push to Talk press, start recording audio.
-            -   Stream the captured audio data in chunks through the established WebSocket connection.
-            -   On Push to Talk release, stop recording.
-            -   Implement logic to receive audio data from the WebSocket.
-            -   Use  to play back the received audio stream for other users in the channel.
-        2.  **Backend ()**:
-            -   Flesh out the  in .
-            -   Implement a connection manager to keep track of active WebSocket connections for each radio channel.
-            -   When the endpoint receives audio data from a client, it must broadcast that data to all other clients connected to the same channel.
-     - Why fix this issue and what will be achieved with the fix? This will complete the new walkie-talkie feature, enabling real-time voice communication between drivers on different channels.
-     - Status:  IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: none
-  - Issue 2: 
-     - Attempted fixes: None. The  file has grown significantly larger during this session, increasing technical debt.
-     - Next debug checklist: 
-        1.  Create a  directory inside .
-        2.  Extract large UI sections from  into their own component files (e.g., , , , ).
-        3.  Extract state management logic into custom hooks or a state management library like Zustand.
-        4.  Refactor  to be a top-level container that renders the new, smaller components.
-     - Why fix this issue and what will be achieved with the fix? The frontend is extremely difficult to maintain, debug, and enhance. Refactoring is critical for long-term stability and development velocity.
+        1.  Locate the  function in .
+        2.  Delete or comment out the existing fare calculation logic within that function.
+        3.  Re-implement the logic from scratch based *exactly* on the user's rules provided in the last message (Chat Message 649). This involves creating conditional blocks for each Fare Type ().
+        4.  **Tarifa 4 (Airport ↔ M30)**: Check if origin is airport and destination is inside M30, or vice versa. If so, the fare is a fixed 33€.
+        5.  **Tarifa 3 (Airport → Outside M30)**: Check if origin is airport and destination is outside M30. The fare is 22€ (covering the first 9 km), plus the remaining distance charged at the corresponding rate (Tarifa 1 or 2) *without* the initial flag-down fee.
+        6.  **Tarifa 7 (Stations → Anywhere but Airport)**: Check if origin is a station and destination is not the airport. The fare is 8€ (covering the first 1.4 km), plus the remaining distance charged at the corresponding rate (Tarifa 1 or 2) *without* the initial flag-down fee.
+        7.  **Tarifa 1 & 2 (Street pickup)**: Check if origin is de calle. Apply Tarifa 1 (2.55€ + 1.40€/km) for weekdays 06:00-21:00, or Tarifa 2 (3.20€ + 1.60€/km) for nights/holidays.
+        8.  The logic must correctly identify if a destination is inside/outside the M30 polygon.
+     - Why fix this issue and what will be achieved with the fix? This is a critical feature for users. Fixing it will provide accurate and trustworthy fare estimates, which is essential for the app's utility before launch.
      - Status:  NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None. Should be prioritized after the Walkie-Talkie feature is functional.
-  - Issue 3: 
-     - Attempted fixes: When a user is blocked from chat and tries to send a message, the agent implemented a standard .
-     - Next debug checklist: 
-        1. Review the user's request: implementa la notificación con el estilo de la de los avisos.
-        2. The avisos are likely the Sin Taxis alerts, which use a more integrated, custom UI (badges on cards).
-        3. Implement a less intrusive notification, like a toast or a banner at the top of the screen, to inform the user they are blocked, instead of a blocking modal dialog. Libraries like  could be used.
-     - Why fix this issue and what will be achieved with the fix? This will improve the user experience by providing feedback in a less disruptive way, matching the user's explicit request for a specific notification style.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: none
+     - Blocked on other issue: None.
 
 **In progress Task List**:
-  - Task 1:  Implement Walkie-Talkie Feature (P0)
+  - Task 1:  Rewrite Fare Calculation Logic (P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: The core audio streaming logic. The UI and backend routes are placeholders. The next step is to use a library like  on the frontend for audio capture/playback and implement the broadcasting logic in the backend WebSocket handler in .
-     - What will be achieved with this? A fully functional real-time voice communication feature for drivers.
-     - Status:  IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
+     - Where to resume: , inside the  function.
+     - What will be achieved with this? A fully compliant and accurate fare calculator based on the user's explicit rules.
+     - Status:  NOT STARTED
+     - Should Test frontend/backend/both after fix? frontend
      - Blocked on something: None
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Frontend Refactoring: Begin the critical task of breaking down the monolithic .
-    - (P2) Refine Chat Block Notification UI: Change the  to a custom toast/banner notification.
+    - (P1) **Verify No Connection indicator**: The UI and logic for the offline banner have been added. This needs to be tested by the user to confirm it works as expected when connectivity is lost.
     Future Tasks:
-    - Backend Refactoring: Extract remaining logic from  into dedicated routers.
-    - Implement Push Notifications for alerts and chat.
-    - Add unit and integration tests for the backend.
+    - (P2) **Refactor **: This is a critical technical debt issue. The file is over 12,000 lines and must be broken down into smaller components for maintainability post-launch.
+    - (P3) **Create MongoDB backup system**: As discussed for the launch, a reliable backup mechanism needs to be created.
+    - (P4) **Guide user through custom domain setup**: Provide instructions for pointing a custom domain to the application.
+    - (P5) **Guide user on production monitoring**: Provide steps or suggestions for integrating a tool like Sentry.
 
 **Completed work in this session**
-- **Feature: Station/Terminal Alerts Fully Implemented:**
-  - Visual display of alerts (Sin Taxis, Barandilla) on station/terminal cards.
-  - Real-time countdown timer for alerts, with a crucial timezone bug fix.
-  - Alerts are now also displayed on the Hottest Station/Terminal cards on the Calle tab.
-- **Feature: Alert Management System:**
-  - Users can now close active alerts.
-  - A 60-second cooldown prevents the original reporter from closing their own alert immediately.
-- **Feature: Fraudulent Alert & Chat Penalty System:**
-  - A comprehensive backend system now detects and penalizes users for fraudulent alerts (cancelled within 1 min) and inappropriate chat messages.
-  - A tiered blocking system (6h, 12h, 48h, permanent) is in place, with reasons stored in the user's profile.
-- **Feature: Admin Panel for Block Management:**
-  - A new Gestión de Bloqueos section was added to the admin panel.
-  - Admins can view all blocked users, the reason for their block (alerts or chat), their status (temporary, permanent), and have controls to unblock them or reset their offense counts.
-- **Feature: Chat Moderation:**
-  - Admins and moderators can now see a Block button on chat messages to enforce the penalty system.
-  - The backend prevents blocked users from sending further messages.
-- **UI/UX Change: GPS Buttons:** Modified Ir con GPS buttons to open the GPS app without a destination.
-- **Feature: Walkie-Talkie UI:** Created the complete frontend UI for the new radio feature, including the header button and a detailed dropdown modal.
+- **Feature: Walkie-Talkie Fully Functional:**
+  - Implemented real-time audio streaming between users.
+  - Fixed PTT button issues on Android by using  events.
+  - Solved cross-platform audio incompatibility (Android  vs. iOS ) by implementing server-side transcoding with .
+  - Fixed iOS audio playback issues related to autoplay policies.
+  - Fixed the Mute button functionality.
+  - Expanded radio channels to 15 with user-defined names.
+- **Feature: Session & Connectivity Management:**
+  - Implemented automatic session token refresh to prevent logouts.
+  - Added an offline indicator banner to the UI to inform users when the internet connection is lost.
+- **Performance & UX Optimizations:**
+  - Improved Calle tab loading performance by adding a MongoDB index.
+  - Modified alert cancellation logic to remove the 60-second cooldown for the reporter.
+  - Added a display for time spent in a location to the activity feed.
+  - Implemented a prompt to join a relevant radio channel when checking into a station/terminal.
+- **Bug Fix: Fare Calculation Coordinates:**
+  - Corrected the GPS coordinates for all airport terminals (T1, T2, T4, T4S) and train stations (Atocha, Chamartín) to improve distance calculation accuracy.
+- **Documentation:**
+  - Created a  file with pre-launch recommendations on security, scaling, and backups.
 
 **Earlier issues found/mentioned but not fixed**
-   - A  warning  persists in backend logs but is non-critical.
-   - Pre-existing TypeScript errors in the frontend that do not break compilation.
+   - A non-critical  warning persists in backend logs.
+   - Pre-existing TypeScript errors in the frontend that do not break Metro bundler compilation.
 
 **Known issue recurrence from previous fork**
-  - **Frontend Monolith:** The  file is a critical and worsening issue. Its size (now >10,000 lines) makes it extremely fragile and slow to work with.
+  - **Frontend Monolith:** The  file is a critical and worsening issue. Its size makes it extremely difficult to maintain.
   - Recurrence count: High
   - Status: NOT STARTED
 
 **Code Architecture**
-
+websockets
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Python, MongoDB (), Pydantic, WebSockets.
-- **Frontend:** React Native, Expo, TypeScript, .
-- **Key Logic:** Real-time alerts with TTL, timezone-resilient timers, complex user penalty/blocking system, WebSocket for real-time communication.
+- **Backend:** FastAPI, Python, MongoDB (), WebSockets, **** for audio transcoding.
+- **Frontend:** React Native, Expo, TypeScript, , , , / for reliable touch events.
+- **Key Logic:** Real-time audio streaming (WebM -> MP4), complex rule-based fare calculation, automatic session refresh, offline detection, WebSocket connection management.
 
 **key DB schema**
-  - **users**:  (Updated)
-  - **station_status_alerts**:  (Updated)
+  - **street_activities**: Now includes  upon completion of an activity (e.g., unload).
+  - **active_checkins**: On checkout, the corresponding  entry is created with .
 
 **All files of reference**
 - **Created:**
-  - : To house the new walkie-talkie WebSocket and API logic.
+  - : Contains instructions and suggestions for the application launch.
 - **Updated Heavily:**
-  - : Massively updated with multiple new features: alert closing, admin block management, chat moderation buttons, and the entire UI for the new walkie-talkie.
-  - : Modified to handle alert cancellation, fraud detection, and applying user penalties.
-  - : Modified to add a suite of endpoints for viewing and managing user blocks.
-  - : Modified to add moderation endpoints for blocking users and to prevent blocked users from posting.
-  - : Added token verification logic.
+  - : Received massive updates for the walkie-talkie audio logic, PTT button, fare calculation logic (which now needs a rewrite), session refresh, offline indicator UI, and various other UX improvements.
+  - : Updated to handle audio transcoding from  to  using  before broadcasting, a critical fix for iOS compatibility.
+  - : Added the  endpoint.
+  - : Added a MongoDB index on  to improve performance.
+  - : Removed the 60-second cancellation cooldown.
 
 **Areas that need refactoring**:
-- **CRITICAL: :** This file's size and complexity is the single biggest risk to the project. It MUST be broken down into smaller, reusable components and hooks.
+- **CRITICAL: :** This file's size and complexity present the single biggest risk to the project's long-term health. It must be broken down into smaller components and hooks after the launch.
 
 **key api endpoints**
-- : (POST) New endpoint to cancel an alert and potentially trigger fraud detection.
-- : (GET) New endpoint to list all blocked users with details.
-- : (POST) New endpoint to remove a user's block.
-- : (POST) New endpoint to reset a user's offenses.
-- : (POST) New endpoint for moderators to block a user based on a chat message.
-- : (GET) New endpoint to list available radio channels.
-- : (WebSocket) New endpoint for real-time audio communication.
+- **POST** : New endpoint to renew the user's session token.
+- **WebSocket** : Now handles broadcasting transcoded  audio.
+- **POST** : Logic updated to allow immediate cancellation.
+- **GET** : Performance improved via a new backend database index.
 
 **Critical Info for New Agent**
-- **PRIORITY TASK:** Your immediate goal is to implement the core functionality of the **Walkie-Talkie feature**. This is a non-trivial task involving real-time audio streaming.
-  - You will need to use a library like  on the frontend for microphone access, audio recording, and playback.
-  - You must implement the audio data broadcasting logic in the  in .
-- **TECHNICAL DEBT:** After the radio is functional, the highest priority is to begin refactoring the  monolith. Create a plan to break it into smaller components and present it to the user.
-- **PENALTY SYSTEM:** Be aware of the complex blocking system. Changes to alerts or chat might have unintended consequences on user block status. The logic is primarily in  and .
+- **TOP PRIORITY**: Your immediate and only task is to **rewrite the fare calculation logic** in . The user has provided a very specific and detailed set of rules in their last message (Chat Message 649). The current implementation is wrong and must be replaced entirely.
+- **REFERENCE THE RULES**: Carefully read and implement each rule for Tarifa 1, 2, 3, 4, and 7. Pay close attention to the conditions (origin, destination, time, day) and the math (base price, kilometer allowance, per-km charges).
+- **TECHNICAL DEBT**: Be aware that  is over 12,000 lines long. While you are only focused on the fare logic now, understand that refactoring this file is the next critical step for the project's health after this task is complete.
+- **LAUNCH IMMINENT**: The user is planning to launch the app soon. Ensure your implementation is robust and well-tested. After fixing the fares, be prepared to assist with final launch preparations as outlined in .
 
 **documents created in this job**
-  - None.
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. User requests a walkie-talkie feature with channels, connect/disconnect, mute, and PTT. (Status: **IN PROGRESS**, UI built).
- - 9. User requests testing of the chat ban button and implementation of a user notification. (Status: **RESOLVED**, backend tested, notification added via ).
- - 8. User requests to extend the blocking system to the global chat for moderation. (Status: **RESOLVED**).
- - 7. User requests an admin panel section to manage blocked users. (Status: **RESOLVED**).
- - 6. User explains the detailed logic for a fraudulent alert penalty system. (Status: **RESOLVED**).
- - 5. User requests to change alert buttons to close alert and add a cooldown for the reporter. (Status: **RESOLVED**).
- - 4. User requests that Ir con GPS buttons should only open the GPS app without a destination. (Status: **RESOLVED**).
- - 3. User requests that station/terminal alerts also appear on the Calle (Street) tab. (Status: **RESOLVED**).
- - 2. User reports a timezone bug with the alert timer. (Status: **RESOLVED**).
- - 1. User requests the alert timer to be real-time and to not hide the MÁS FRECUENCIA badge. (Status: **RESOLVED**).
+ -  10. **(PENDING)** User provides the definitive, correct rules for all 5 fare types (Tarifa 1, 2, 3, 4, 7) and asks the agent to implement them.
+ -  9. User reports that the fare calculation for a trip from the airport is still incorrect, providing screenshots.
+ -  8. User asks for a test/example of the fare calculation from stations.
+ -  7. User confirms that airport-to-M30 fare is fixed at 33€ but states that station fares are not fixed and follow different rules.
+ -  6. User asks to add the fixed 33€ fare rule (Tarifa 4) for trips from stations to destinations inside the M30.
+ -  5. User asks to display the time spent (charging time) in the recent activity feed for both street pickups and station/terminal exits.
+ -  4. User requests a feature to prompt users to join the corresponding radio channel upon checking into a station/terminal.
+ -  3. User confirms the agent should proceed with implementing automatic session renewal.
+ -  2. User requests that the 60-second block on cancelling an alert be removed.
+ -  1. User outlines points for pre-launch, including fixing slow Calle tab, handling expired sessions, and asking for guidance on backups and custom domains.
 
 **Project Health Check:**
-- **Broken:** The core functionality of the Walkie-Talkie feature is non-existent. The UI is present, but it cannot capture, send, or receive any audio.
+- **Broken:** The core fare calculation logic is fundamentally incorrect and does not align with the user's explicit business rules.
 - **Mocked:** None.
 
 **3rd Party Integrations**
@@ -193,25 +159,23 @@ The application is a full-stack Expo/FastAPI app.
 - **Photon:** For geocoding/address search.
 - **OpenStreetMap:** For map display.
 - **ADIF & AENA APIs:** For train and flight data.
-- **Google Maps / Waze:** For external navigation.
-- **(Implicitly required) **: Will be needed for audio recording and playback for the Walkie-Talkie feature.
+- **:** Installed on the backend for on-the-fly audio transcoding.
+- ****: Used on the frontend for audio recording/playback.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: None.
+  - Known regressions: The fare logic for stations was incorrectly modified to be a fixed 33€ before the user provided the final, correct rules. This has been reverted, but highlights the confusion around this feature.
 
 **Credentials to test flow:**
 - **Admin User:**
   - **Username:** 
   - **Password:** 
-- **Test User (created during session for blocking tests):**
+- **Test User:**
   - **Username:** 
   - **Password:** 
 
 **What agent forgot to execute**
-- The agent built the UI for the Walkie-Talkie but did not implement any of the underlying audio capture, streaming (WebSocket), or playback logic, which is the core of the feature.
-- The user requested the notification for a chat block to be in the style of the alerts. The agent used a standard  dialog, which is functionally different from the custom UI badges used for the station/terminal alerts. This may not match the user's UX expectation.
-
+- The agent has not yet implemented the complete and final fare calculation logic as dictated by the user in their last message. This is the primary task for the next agent.
 </analysis>
