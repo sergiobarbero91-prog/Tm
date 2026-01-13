@@ -296,13 +296,8 @@ async def cancel_alert(
     now = datetime.utcnow()
     seconds_since_created = int((now - alert["created_at"]).total_seconds())
     
-    # If the user is the one who reported the alert and less than 1 minute has passed, block
-    if alert["reported_by"] == current_user["id"] and seconds_since_created < 60:
-        remaining_seconds = 60 - seconds_since_created
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Debes esperar {remaining_seconds} segundos para cerrar tu propia alerta"
-        )
+    # No blocking - anyone can cancel at any time
+    # The fraud detection system will handle penalties if needed
     
     await station_alerts_collection.delete_one({"id": alert_id})
     
