@@ -1702,6 +1702,9 @@ export default function TransportMeter() {
           // Use the specific terminal coordinates based on which terminal the user checked in
           const terminalName = pendingCheckOut?.locationName || 'T4';
           
+          console.log('[Fare] Terminal name from checkout:', terminalName);
+          console.log('[Fare] pendingCheckOut:', JSON.stringify(pendingCheckOut));
+          
           // Accurate terminal coordinates (verified with Google Maps)
           const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
             'T1': { lat: 40.4676, lng: -3.5701 },
@@ -1713,6 +1716,7 @@ export default function TransportMeter() {
           
           // Default to T4 if terminal not found
           const coords = terminalCoords[terminalName] || terminalCoords['T4'];
+          console.log('[Fare] Using coordinates:', coords);
           
           const token = await AsyncStorage.getItem('token');
           const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
@@ -1726,6 +1730,7 @@ export default function TransportMeter() {
           });
           
           const distance_km = routeResponse.data.distance_km || 0;
+          console.log('[Fare] Distance from OSRM:', distance_km, 'km');
           
           // First 9 km included in base fare of 22€
           const extra_km = Math.max(0, distance_km - 9);
