@@ -20,6 +20,38 @@ import pytz
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+# =============================================================================
+# SENTRY ERROR MONITORING
+# =============================================================================
+# To enable Sentry, add SENTRY_DSN to your .env file
+# Get your DSN from: https://sentry.io
+# =============================================================================
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            StarletteIntegration(transaction_style="url"),
+            FastApiIntegration(transaction_style="url"),
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100% of transactions for performance monitoring.
+        # Adjust this value in production (recommend 0.1 to 0.2)
+        traces_sample_rate=0.1,
+        # Set profiles_sample_rate to 1.0 to profile 100% of sampled transactions.
+        profiles_sample_rate=0.1,
+        # Environment tag
+        environment=os.environ.get("ENVIRONMENT", "production"),
+        # Release version (optional)
+        release=os.environ.get("APP_VERSION", "1.0.0"),
+        # Attach user info to events
+        send_default_pii=False,
+    )
+    logging.info("Sentry error monitoring initialized")
+
 # Import routers
 from routers import auth as auth_router
 from routers import chat as chat_router
