@@ -349,6 +349,10 @@ export default function TransportMeter() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   
+  // Connection status
+  const [isOnline, setIsOnline] = useState(true);
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
+  
   // Registration states
   const [showRegister, setShowRegister] = useState(false);
   const [registerUsername, setRegisterUsername] = useState('');
