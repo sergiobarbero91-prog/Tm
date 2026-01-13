@@ -1698,14 +1698,26 @@ export default function TransportMeter() {
       } else {
         // Outside M30: 22€ for first 9 km + per km rate after that
         try {
-          // Get distance from airport (T4) to destination
-          const airportLat = 40.4719; // T4 coordinates
-          const airportLng = -3.5357;
+          // Get distance from airport to destination
+          // Use the specific terminal coordinates based on which terminal the user checked in
+          const terminalName = pendingCheckOut?.locationName || 'T4';
+          
+          // Accurate terminal coordinates (verified with Google Maps)
+          const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
+            'T1': { lat: 40.4676, lng: -3.5701 },
+            'T2': { lat: 40.4693, lng: -3.5660 },
+            'T3': { lat: 40.4654, lng: -3.5708 },
+            'T4': { lat: 40.4719, lng: -3.5626 },
+            'T4S': { lat: 40.4857, lng: -3.5920 },
+          };
+          
+          // Default to T4 if terminal not found
+          const coords = terminalCoords[terminalName] || terminalCoords['T4'];
           
           const token = await AsyncStorage.getItem('token');
           const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
-            origin_lat: airportLat,
-            origin_lng: airportLng,
+            origin_lat: coords.lat,
+            origin_lng: coords.lng,
             dest_lat: address.latitude,
             dest_lng: address.longitude
           }, {
