@@ -1630,7 +1630,17 @@ export default function TransportMeter() {
 
   // Calculate fare from selected address (for terminal or station exit)
   const calculateFareFromAddress = async (address: { latitude: number; longitude: number; address: string; is_inside_m30: boolean }) => {
-    // Get current time and day
+    // =============================================================
+    // TARIFAS OFICIALES DE TAXI MADRID (Junio 2025)
+    // =============================================================
+    // Tarifa 1: Días laborables 06:00-21:00 → 2,55€ bajada + 1,40€/km
+    // Tarifa 2: Noches/Festivos → 3,20€ bajada + 1,60€/km
+    // Tarifa 3: Aeropuerto → Fuera M30 → 22€ (cubre 9km) + resto T1/T2 SIN bajada
+    // Tarifa 4: Aeropuerto ↔ M30 → 33€ FIJO
+    // Tarifa 7: Estaciones → Cualquier lugar (excepto aeropuerto) → 8€ (cubre 1,4km) + resto T1/T2 SIN bajada
+    // =============================================================
+    
+    // Get current time and day to determine T1 or T2
     const now = new Date();
     const hour = now.getHours();
     const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
@@ -1638,148 +1648,188 @@ export default function TransportMeter() {
     const isDaytime = hour >= 6 && hour < 21;
     const isNightOrWeekend = isWeekend || !isDaytime;
     
+    // Rates for T1 and T2 (WITHOUT flag-down fee for supplements)
     const per_km_rate = isNightOrWeekend ? 1.60 : 1.40;
+    const tarifaBase = isNightOrWeekend ? 'T2' : 'T1';
+    
     const locationType = pendingCheckOut?.locationType || 'terminal';
+    const isAirport = locationType === 'terminal';
+    const isStation = locationType === 'station';
     
     let tarifa: string;
     let suplemento: string;
     
-    if (locationType === 'station') {
-      // STATION FARE
-      // Inside M30: Fixed fare of 33€ (Tarifa 4)
-      // Outside M30: 8€ for first 1.4 km + per km rate after that
+    console.log('[Fare] ===== CALCULATING FARE =====');
+    console.log('[Fare] Location type:', locationType);
+    console.log('[Fare] Is inside M30:', address.is_inside_m30);
+    console.log('[Fare] Time:', `${hour}:00`, isNightOrWeekend ? '(Night/Weekend)' : '(Daytime)');
+    
+    // =====================================================
+    // TARIFA 7: ESTACIONES (Atocha, Chamartín) → Cualquier destino
+    // Base: 8€ (cubre primeros 1,4 km)
+    // Resto: T1 o T2 SIN bajada de bandera
+    // NOTA: Si destino es aeropuerto, NO aplica T7 (usaría T1/T2 normal)
+    // =====================================================
+    if (isStation) {
+      console.log('[Fare] Applying TARIFA 7 (Station fare)');
       
-      if (address.is_inside_m30) {
-        // Inside M30: Fixed fare of 33€ (no range)
-        tarifa = 'Tarifa 4 (Fija)';
-        suplemento = '33,00€';
-      } else {
-        // Outside M30: Calculate based on distance
-        try {
-          // Get coordinates of the station
-          const stationName = pendingCheckOut?.locationName || 'Atocha';
-          const stationCoords = stationName === 'Chamartín' || stationName === 'Chamartin'
-            ? { lat: 40.4720, lng: -3.6822 }  // Chamartín - zona taxis
-            : { lat: 40.4055, lng: -3.6883 }; // Atocha - zona taxis (salida Méndez Álvaro)
-          
-          console.log('[Fare] Station name:', stationName);
-          console.log('[Fare] Station coords:', stationCoords);
-          console.log('[Fare] Destination outside M30');
-          
-          const token = await AsyncStorage.getItem('token');
-          const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
-            origin_lat: stationCoords.lat,
-            origin_lng: stationCoords.lng,
-            dest_lat: address.latitude,
-            dest_lng: address.longitude
-          }, {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 15000
-          });
-          
-          const distance_km = routeResponse.data.distance_km || 0;
-          console.log('[Fare] Station distance from OSRM:', distance_km, 'km');
-          
-          // First 1.4 km included in base fare of 8€
-          const extra_km = Math.max(0, distance_km - 1.4);
-          const extra_fare = extra_km * per_km_rate;
-          const base_total = 8 + extra_fare;
-          
-          console.log('[Fare] Station calculation:', {
-            distance_km,
-            extra_km,
-            per_km_rate,
-            extra_fare,
-            base_total
-          });
-          
-          // Calculate range: +2% to +7%
-          const fare_min = base_total * 1.02;
-          const fare_max = base_total * 1.07;
-          
-          if (extra_km > 0) {
-            tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
-            suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
-          } else {
-            tarifa = 'Tarifa Estación';
-            const min_base = 8 * 1.02;
-            const max_base = 8 * 1.07;
-            suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
-          }
-        } catch (error) {
-          console.log('Error calculating distance for station fare:', error);
-          tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
-          suplemento = isNightOrWeekend ? '8€ + 1,60€/km (después de 1,4km)' : '8€ + 1,40€/km (después de 1,4km)';
+      // Get coordinates of the station
+      const stationName = pendingCheckOut?.locationName || 'Atocha';
+      const stationCoords = (stationName === 'Chamartín' || stationName === 'Chamartin')
+        ? { lat: 40.4720, lng: -3.6822 }  // Chamartín - zona taxis
+        : { lat: 40.4055, lng: -3.6883 }; // Atocha - zona taxis
+      
+      console.log('[Fare] Station:', stationName, 'Coords:', stationCoords);
+      
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
+          origin_lat: stationCoords.lat,
+          origin_lng: stationCoords.lng,
+          dest_lat: address.latitude,
+          dest_lng: address.longitude
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000
+        });
+        
+        const distance_km = routeResponse.data.distance_km || 0;
+        console.log('[Fare] Distance from OSRM:', distance_km, 'km');
+        
+        // T7: 8€ covers first 1.4 km
+        const TARIFA_7_BASE = 8.00;
+        const TARIFA_7_KM_INCLUDED = 1.4;
+        
+        const extra_km = Math.max(0, distance_km - TARIFA_7_KM_INCLUDED);
+        // Extra km charged at T1/T2 rate WITHOUT flag-down fee
+        const extra_fare = extra_km * per_km_rate;
+        const base_total = TARIFA_7_BASE + extra_fare;
+        
+        console.log('[Fare] T7 calculation:', {
+          base: TARIFA_7_BASE,
+          km_included: TARIFA_7_KM_INCLUDED,
+          total_distance: distance_km,
+          extra_km,
+          per_km_rate,
+          extra_fare,
+          total: base_total
+        });
+        
+        // Calculate range: +2% to +7% for variation
+        const fare_min = base_total * 1.02;
+        const fare_max = base_total * 1.07;
+        
+        if (extra_km > 0) {
+          tarifa = `Tarifa 7 + ${tarifaBase}`;
+          suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+        } else {
+          tarifa = 'Tarifa 7';
+          suplemento = `${(TARIFA_7_BASE * 1.02).toFixed(2)}€ - ${(TARIFA_7_BASE * 1.07).toFixed(2)}€`;
         }
-      }
-    } else {
-      // TERMINAL/AIRPORT FARE
-      if (address.is_inside_m30) {
-        // Inside M30: Fixed fare of 33€ (no range)
-        tarifa = 'Tarifa 4 (Fija)';
-        suplemento = '33,00€';
-      } else {
-        // Outside M30: 22€ for first 9 km + per km rate after that
-        try {
-          // Get distance from airport to destination
-          // Use the specific terminal coordinates based on which terminal the user checked in
-          const terminalName = pendingCheckOut?.locationName || 'T4';
-          
-          console.log('[Fare] Terminal name from checkout:', terminalName);
-          console.log('[Fare] pendingCheckOut:', JSON.stringify(pendingCheckOut));
-          
-          // Accurate terminal coordinates (verified with Google Maps)
-          const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
-            'T1': { lat: 40.4676, lng: -3.5701 },
-            'T2': { lat: 40.4693, lng: -3.5660 },
-            'T3': { lat: 40.4654, lng: -3.5708 },
-            'T4': { lat: 40.4719, lng: -3.5626 },
-            'T4S': { lat: 40.4857, lng: -3.5920 },
-          };
-          
-          // Default to T4 if terminal not found
-          const coords = terminalCoords[terminalName] || terminalCoords['T4'];
-          console.log('[Fare] Using coordinates:', coords);
-          
-          const token = await AsyncStorage.getItem('token');
-          const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
-            origin_lat: coords.lat,
-            origin_lng: coords.lng,
-            dest_lat: address.latitude,
-            dest_lng: address.longitude
-          }, {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 15000
-          });
-          
-          const distance_km = routeResponse.data.distance_km || 0;
-          console.log('[Fare] Distance from OSRM:', distance_km, 'km');
-          
-          // First 9 km included in base fare of 22€
-          const extra_km = Math.max(0, distance_km - 9);
-          const extra_fare = extra_km * per_km_rate;
-          const base_total = 22 + extra_fare;
-          
-          // Calculate range: +2% to +7%
-          const fare_min = base_total * 1.02;
-          const fare_max = base_total * 1.07;
-          
-          if (extra_km > 0) {
-            tarifa = isNightOrWeekend ? 'Tarifa 3 + Tarifa 2' : 'Tarifa 3 + Tarifa 1';
-            suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
-          } else {
-            tarifa = 'Tarifa 3';
-            const min_base = 22 * 1.02;
-            const max_base = 22 * 1.07;
-            suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
-          }
-        } catch (error) {
-          console.log('Error calculating distance for airport fare:', error);
-          tarifa = isNightOrWeekend ? 'Tarifa 3 + Tarifa 2' : 'Tarifa 3 + Tarifa 1';
-          suplemento = isNightOrWeekend ? '22€ + 1,60€/km (después de 9km)' : '22€ + 1,40€/km (después de 9km)';
-        }
+      } catch (error) {
+        console.log('[Fare] Error calculating station fare:', error);
+        tarifa = `Tarifa 7 + ${tarifaBase}`;
+        suplemento = `8€ + ${per_km_rate.toFixed(2)}€/km (después de 1,4km)`;
       }
     }
+    // =====================================================
+    // TARIFA 4: AEROPUERTO ↔ M30
+    // Precio FIJO: 33€
+    // Aplica cuando: Origen aeropuerto → Destino dentro M30
+    //                O Origen dentro M30 → Destino aeropuerto
+    // =====================================================
+    else if (isAirport && address.is_inside_m30) {
+      console.log('[Fare] Applying TARIFA 4 (Airport ↔ M30 fixed fare)');
+      
+      tarifa = 'Tarifa 4 (Fija)';
+      suplemento = '33,00€';
+      
+      console.log('[Fare] T4: Fixed 33€');
+    }
+    // =====================================================
+    // TARIFA 3: AEROPUERTO → FUERA M30
+    // Base: 22€ (cubre primeros 9 km)
+    // Resto: T1 o T2 SIN bajada de bandera
+    // =====================================================
+    else if (isAirport && !address.is_inside_m30) {
+      console.log('[Fare] Applying TARIFA 3 (Airport → Outside M30)');
+      
+      const terminalName = pendingCheckOut?.locationName || 'T4';
+      console.log('[Fare] Terminal:', terminalName);
+      
+      // Terminal coordinates
+      const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
+        'T1': { lat: 40.4676, lng: -3.5701 },
+        'T2': { lat: 40.4693, lng: -3.5660 },
+        'T3': { lat: 40.4654, lng: -3.5708 },
+        'T4': { lat: 40.4719, lng: -3.5626 },
+        'T4S': { lat: 40.4857, lng: -3.5920 },
+      };
+      
+      const coords = terminalCoords[terminalName] || terminalCoords['T4'];
+      console.log('[Fare] Terminal coords:', coords);
+      
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
+          origin_lat: coords.lat,
+          origin_lng: coords.lng,
+          dest_lat: address.latitude,
+          dest_lng: address.longitude
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000
+        });
+        
+        const distance_km = routeResponse.data.distance_km || 0;
+        console.log('[Fare] Distance from OSRM:', distance_km, 'km');
+        
+        // T3: 22€ covers first 9 km
+        const TARIFA_3_BASE = 22.00;
+        const TARIFA_3_KM_INCLUDED = 9.0;
+        
+        const extra_km = Math.max(0, distance_km - TARIFA_3_KM_INCLUDED);
+        // Extra km charged at T1/T2 rate WITHOUT flag-down fee
+        const extra_fare = extra_km * per_km_rate;
+        const base_total = TARIFA_3_BASE + extra_fare;
+        
+        console.log('[Fare] T3 calculation:', {
+          base: TARIFA_3_BASE,
+          km_included: TARIFA_3_KM_INCLUDED,
+          total_distance: distance_km,
+          extra_km,
+          per_km_rate,
+          extra_fare,
+          total: base_total
+        });
+        
+        // Calculate range: +2% to +7% for variation
+        const fare_min = base_total * 1.02;
+        const fare_max = base_total * 1.07;
+        
+        if (extra_km > 0) {
+          tarifa = `Tarifa 3 + ${tarifaBase}`;
+          suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+        } else {
+          tarifa = 'Tarifa 3';
+          suplemento = `${(TARIFA_3_BASE * 1.02).toFixed(2)}€ - ${(TARIFA_3_BASE * 1.07).toFixed(2)}€`;
+        }
+      } catch (error) {
+        console.log('[Fare] Error calculating airport fare:', error);
+        tarifa = `Tarifa 3 + ${tarifaBase}`;
+        suplemento = `22€ + ${per_km_rate.toFixed(2)}€/km (después de 9km)`;
+      }
+    }
+    // Fallback (should not happen)
+    else {
+      console.log('[Fare] FALLBACK - Unexpected scenario');
+      tarifa = isNightOrWeekend ? 'Tarifa 2' : 'Tarifa 1';
+      suplemento = 'Calculando...';
+    }
+    
+    console.log('[Fare] ===== RESULT =====');
+    console.log('[Fare] Tarifa:', tarifa);
+    console.log('[Fare] Suplemento:', suplemento);
     
     setFareResult({ 
       tarifa, 
