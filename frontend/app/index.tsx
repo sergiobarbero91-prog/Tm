@@ -1665,12 +1665,40 @@ export default function TransportMeter() {
     console.log('[Fare] Time:', `${hour}:00`, isNightOrWeekend ? '(Night/Weekend)' : '(Daytime)');
     
     // =====================================================
-    // TARIFA 7: ESTACIONES (Atocha, Chamartín) → Cualquier destino
+    // Helper: Check if destination is near the airport
+    // =====================================================
+    const isDestinationAirport = (() => {
+      // Airport area bounding box (covers all terminals)
+      const AIRPORT_LAT_MIN = 40.46;
+      const AIRPORT_LAT_MAX = 40.50;
+      const AIRPORT_LNG_MIN = -3.60;
+      const AIRPORT_LNG_MAX = -3.55;
+      
+      return address.latitude >= AIRPORT_LAT_MIN && 
+             address.latitude <= AIRPORT_LAT_MAX &&
+             address.longitude >= AIRPORT_LNG_MIN && 
+             address.longitude <= AIRPORT_LNG_MAX;
+    })();
+    
+    // =====================================================
+    // TARIFA 4: ESTACIONES → AEROPUERTO
+    // Precio FIJO: 33€
+    // Aplica cuando origen es estación y destino es aeropuerto
+    // =====================================================
+    if (isStation && isDestinationAirport) {
+      console.log('[Fare] Applying TARIFA 4 (Station → Airport = FIXED 33€)');
+      
+      tarifa = 'Tarifa 4 (Fija)';
+      suplemento = '33,00€';
+      
+      console.log('[Fare] T4: Fixed 33€ (Station to Airport)');
+    }
+    // =====================================================
+    // TARIFA 7: ESTACIONES (Atocha, Chamartín) → Cualquier destino (excepto aeropuerto)
     // Base: 8€ (cubre primeros 1,4 km)
     // Resto: T1 o T2 SIN bajada de bandera
-    // NOTA: Si destino es aeropuerto, NO aplica T7 (usaría T1/T2 normal)
     // =====================================================
-    if (isStation) {
+    else if (isStation) {
       console.log('[Fare] Applying TARIFA 7 (Station fare)');
       
       // Get coordinates of the station
