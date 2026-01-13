@@ -5673,6 +5673,20 @@ export default function TransportMeter() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
+      {/* Offline Banner */}
+      {showOfflineBanner && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={18} color="#FFFFFF" />
+          <Text style={styles.offlineBannerText}>Sin conexión a internet</Text>
+          <TouchableOpacity 
+            onPress={() => setShowOfflineBanner(false)}
+            style={styles.offlineBannerClose}
+          >
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
