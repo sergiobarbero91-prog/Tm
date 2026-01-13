@@ -8574,6 +8574,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
   },
+  // Offline Banner
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  offlineBannerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  offlineBannerClose: {
+    padding: 4,
+  },
   // NEW: Dropdown styles
   dropdownsRow: {
     flexDirection: 'row',
