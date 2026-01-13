@@ -1649,9 +1649,12 @@ export default function TransportMeter() {
       try {
         // Get coordinates of the station
         const stationName = pendingCheckOut?.locationName || 'Atocha';
-        const stationCoords = stationName === 'Chamartín' 
-          ? { lat: 40.4722, lng: -3.6825 }  // Chamartín
-          : { lat: 40.4065, lng: -3.6895 }; // Atocha
+        const stationCoords = stationName === 'Chamartín' || stationName === 'Chamartin'
+          ? { lat: 40.4720, lng: -3.6822 }  // Chamartín - zona taxis
+          : { lat: 40.4055, lng: -3.6883 }; // Atocha - zona taxis (salida Méndez Álvaro)
+        
+        console.log('[Fare] Station name:', stationName);
+        console.log('[Fare] Station coords:', stationCoords);
         
         const token = await AsyncStorage.getItem('token');
         const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
@@ -1665,11 +1668,20 @@ export default function TransportMeter() {
         });
         
         const distance_km = routeResponse.data.distance_km || 0;
+        console.log('[Fare] Station distance from OSRM:', distance_km, 'km');
         
         // First 1.4 km included in base fare of 8€
         const extra_km = Math.max(0, distance_km - 1.4);
         const extra_fare = extra_km * per_km_rate;
         const base_total = 8 + extra_fare;
+        
+        console.log('[Fare] Station calculation:', {
+          distance_km,
+          extra_km,
+          per_km_rate,
+          extra_fare,
+          base_total
+        });
         
         // Calculate range: +2% to +7%
         const fare_min = base_total * 1.02;
