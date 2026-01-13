@@ -1893,10 +1893,59 @@ export default function TransportMeter() {
   };
 
   // Handle taxi answer (for entry)
-  const handleTaxiAnswer = (answer: string | null) => {
+  const handleTaxiAnswer = async (answer: string | null) => {
     setShowTaxiQuestion(false);
     if (pendingCheckIn) {
-      performCheckIn(pendingCheckIn.locationType, pendingCheckIn.locationName, 'entry', answer, null);
+      await performCheckIn(pendingCheckIn.locationType, pendingCheckIn.locationName, 'entry', answer, null);
+      
+      // After successful entry, ask if user wants to join the radio channel
+      const locationName = pendingCheckIn.locationName;
+      const locationType = pendingCheckIn.locationType;
+      
+      // Map locations to radio channels
+      const radioChannelMap: { [key: string]: { channel: number; name: string } } = {
+        'Atocha': { channel: 1, name: 'Canal 1 - Atocha' },
+        'Chamartin': { channel: 2, name: 'Canal 2 - Chamartín' },
+        'Chamartín': { channel: 2, name: 'Canal 2 - Chamartín' },
+        'T1': { channel: 3, name: 'Canal 3 - T1' },
+        'T2': { channel: 4, name: 'Canal 4 - T2/T3' },
+        'T3': { channel: 4, name: 'Canal 4 - T2/T3' },
+        'T2-T3': { channel: 4, name: 'Canal 4 - T2/T3' },
+        'T4': { channel: 5, name: 'Canal 5 - T4/T4S' },
+        'T4S': { channel: 5, name: 'Canal 5 - T4/T4S' },
+        'T4-T4S': { channel: 5, name: 'Canal 5 - T4/T4S' },
+      };
+      
+      const radioInfo = radioChannelMap[locationName];
+      
+      if (radioInfo) {
+        // Show radio suggestion with motivational message
+        setTimeout(() => {
+          Alert.alert(
+            '📻 Radio Walkie-Talkie',
+            `¿Quieres conectarte al ${radioInfo.name}?\n\n` +
+            '💡 Informa a otros compañeros sobre el estado de la cola, ' +
+            'tiempo de espera y movimiento. Tu información ayuda a que ' +
+            'otros taxistas decidan si venir o buscar otra zona.',
+            [
+              {
+                text: 'No, gracias',
+                style: 'cancel'
+              },
+              {
+                text: '¡Sí, conectar!',
+                onPress: () => {
+                  // Connect to the corresponding radio channel
+                  setRadioChannel(radioInfo.channel);
+                  connectToRadioChannel(radioInfo.channel);
+                  setShowRadioDropdown(true);
+                }
+              }
+            ]
+          );
+        }, 500); // Small delay to let the first alert close
+      }
+      
       setPendingCheckIn(null);
     }
   };
