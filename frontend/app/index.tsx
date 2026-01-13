@@ -5651,8 +5651,8 @@ export default function TransportMeter() {
                 <View key={index} style={styles.activityItem}>
                   <View style={styles.activityTimeColumn}>
                     <Text style={styles.activityTimeText}>{timeString}</Text>
-                    {/* Show duration and distance for unload activities */}
-                    {activity.action === 'unload' && (
+                    {/* Show duration for unload and exit activities (time spent loading) */}
+                    {(activity.action === 'unload' || activity.action === 'station_exit' || activity.action === 'terminal_exit') && (
                       <>
                         {activity.duration_minutes !== undefined && activity.duration_minutes !== null && (
                           <View style={styles.durationBadge}>
@@ -5660,7 +5660,7 @@ export default function TransportMeter() {
                             <Text style={styles.durationText}>{activity.duration_minutes}min</Text>
                           </View>
                         )}
-                        {activity.distance_km !== undefined && activity.distance_km !== null && (
+                        {activity.distance_km !== undefined && activity.distance_km !== null && activity.action === 'unload' && (
                           <View style={styles.distanceBadgeSmall}>
                             <Ionicons name="navigate-outline" size={10} color="#6366F1" />
                             <Text style={styles.distanceTextSmall}>{activity.distance_km}km</Text>
