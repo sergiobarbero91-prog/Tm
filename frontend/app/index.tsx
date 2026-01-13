@@ -1645,67 +1645,78 @@ export default function TransportMeter() {
     let suplemento: string;
     
     if (locationType === 'station') {
-      // STATION FARE: 8€ for first 1.4 km + per km rate after that
-      try {
-        // Get coordinates of the station
-        const stationName = pendingCheckOut?.locationName || 'Atocha';
-        const stationCoords = stationName === 'Chamartín' || stationName === 'Chamartin'
-          ? { lat: 40.4720, lng: -3.6822 }  // Chamartín - zona taxis
-          : { lat: 40.4055, lng: -3.6883 }; // Atocha - zona taxis (salida Méndez Álvaro)
-        
-        console.log('[Fare] Station name:', stationName);
-        console.log('[Fare] Station coords:', stationCoords);
-        
-        const token = await AsyncStorage.getItem('token');
-        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
-          origin_lat: stationCoords.lat,
-          origin_lng: stationCoords.lng,
-          dest_lat: address.latitude,
-          dest_lng: address.longitude
-        }, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 15000
-        });
-        
-        const distance_km = routeResponse.data.distance_km || 0;
-        console.log('[Fare] Station distance from OSRM:', distance_km, 'km');
-        
-        // First 1.4 km included in base fare of 8€
-        const extra_km = Math.max(0, distance_km - 1.4);
-        const extra_fare = extra_km * per_km_rate;
-        const base_total = 8 + extra_fare;
-        
-        console.log('[Fare] Station calculation:', {
-          distance_km,
-          extra_km,
-          per_km_rate,
-          extra_fare,
-          base_total
-        });
-        
-        // Calculate range: +2% to +7%
-        const fare_min = base_total * 1.02;
-        const fare_max = base_total * 1.07;
-        
-        if (extra_km > 0) {
+      // STATION FARE
+      // Inside M30: Fixed fare of 33€ (Tarifa 4)
+      // Outside M30: 8€ for first 1.4 km + per km rate after that
+      
+      if (address.is_inside_m30) {
+        // Inside M30: Fixed fare of 33€ (no range)
+        tarifa = 'Tarifa 4 (Fija)';
+        suplemento = '33,00€';
+      } else {
+        // Outside M30: Calculate based on distance
+        try {
+          // Get coordinates of the station
+          const stationName = pendingCheckOut?.locationName || 'Atocha';
+          const stationCoords = stationName === 'Chamartín' || stationName === 'Chamartin'
+            ? { lat: 40.4720, lng: -3.6822 }  // Chamartín - zona taxis
+            : { lat: 40.4055, lng: -3.6883 }; // Atocha - zona taxis (salida Méndez Álvaro)
+          
+          console.log('[Fare] Station name:', stationName);
+          console.log('[Fare] Station coords:', stationCoords);
+          console.log('[Fare] Destination outside M30');
+          
+          const token = await AsyncStorage.getItem('token');
+          const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
+            origin_lat: stationCoords.lat,
+            origin_lng: stationCoords.lng,
+            dest_lat: address.latitude,
+            dest_lng: address.longitude
+          }, {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 15000
+          });
+          
+          const distance_km = routeResponse.data.distance_km || 0;
+          console.log('[Fare] Station distance from OSRM:', distance_km, 'km');
+          
+          // First 1.4 km included in base fare of 8€
+          const extra_km = Math.max(0, distance_km - 1.4);
+          const extra_fare = extra_km * per_km_rate;
+          const base_total = 8 + extra_fare;
+          
+          console.log('[Fare] Station calculation:', {
+            distance_km,
+            extra_km,
+            per_km_rate,
+            extra_fare,
+            base_total
+          });
+          
+          // Calculate range: +2% to +7%
+          const fare_min = base_total * 1.02;
+          const fare_max = base_total * 1.07;
+          
+          if (extra_km > 0) {
+            tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
+            suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+          } else {
+            tarifa = 'Tarifa Estación';
+            const min_base = 8 * 1.02;
+            const max_base = 8 * 1.07;
+            suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
+          }
+        } catch (error) {
+          console.log('Error calculating distance for station fare:', error);
           tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
-          suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
-        } else {
-          tarifa = 'Tarifa Estación';
-          const min_base = 8 * 1.02;
-          const max_base = 8 * 1.07;
-          suplemento = `${min_base.toFixed(2)}€ - ${max_base.toFixed(2)}€`;
+          suplemento = isNightOrWeekend ? '8€ + 1,60€/km (después de 1,4km)' : '8€ + 1,40€/km (después de 1,4km)';
         }
-      } catch (error) {
-        console.log('Error calculating distance for station fare:', error);
-        tarifa = isNightOrWeekend ? 'Tarifa Estación + T2' : 'Tarifa Estación + T1';
-        suplemento = isNightOrWeekend ? '8€ + 1,60€/km (después de 1,4km)' : '8€ + 1,40€/km (después de 1,4km)';
       }
     } else {
       // TERMINAL/AIRPORT FARE
       if (address.is_inside_m30) {
         // Inside M30: Fixed fare of 33€ (no range)
-        tarifa = 'Tarifa Fija';
+        tarifa = 'Tarifa 4 (Fija)';
         suplemento = '33,00€';
       } else {
         // Outside M30: 22€ for first 9 km + per km rate after that
