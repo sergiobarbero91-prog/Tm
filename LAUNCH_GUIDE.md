@@ -25,30 +25,66 @@ Para configurar un dominio propio, necesitarás:
    ALLOWED_ORIGINS=https://taxiapp.es,https://www.taxiapp.es
    ```
 
-### 3. Backup de MongoDB
-Script para backup automático (crear en `/app/backup.sh`):
+### 3. Backup de MongoDB ✅ CONFIGURADO
+
+**Scripts disponibles en `/app/scripts/`:**
+
 ```bash
-#!/bin/bash
-BACKUP_DIR="/app/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
+# Crear backup manual
+/app/scripts/backup_mongodb.sh
 
-# Crear backup
-mongodump --out $BACKUP_DIR/backup_$DATE
-
-# Comprimir
-tar -czf $BACKUP_DIR/backup_$DATE.tar.gz -C $BACKUP_DIR backup_$DATE
-rm -rf $BACKUP_DIR/backup_$DATE
-
-# Mantener solo últimos 7 días
-find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
-
-echo "Backup completado: backup_$DATE.tar.gz"
+# Restaurar desde backup
+/app/scripts/restore_mongodb.sh backup_20260113_184941.tar.gz
 ```
 
-Agregar al crontab para backup diario:
+**Backups automáticos:**
+- Diarios: Se guardan los últimos 7 días
+- Semanales (domingos): Se guardan los últimos 4
+- Ubicación: `/app/backups/`
+
+**Agregar al crontab para backup diario automático:**
 ```bash
-0 3 * * * /app/backup.sh >> /var/log/backup.log 2>&1
+# Editar crontab
+crontab -e
+
+# Añadir esta línea (backup diario a las 3:00 AM)
+0 3 * * * /app/scripts/backup_mongodb.sh >> /var/log/backup.log 2>&1
+```
+
+### 4. Monitorización de Errores (Sentry) ✅ CONFIGURADO
+
+**Para activar Sentry:**
+
+1. Crear cuenta gratuita en https://sentry.io
+2. Crear proyecto Python/FastAPI
+3. Copiar el DSN y añadir al `.env` del backend:
+   ```env
+   SENTRY_DSN=https://xxxx@o123456.ingest.sentry.io/789
+   ENVIRONMENT=production
+   APP_VERSION=1.0.0
+   ```
+4. Reiniciar backend: `sudo supervisorctl restart backend`
+
+**Endpoints de monitorización:**
+- `GET /api/health` - Health check básico
+- `GET /api/health/detailed` - Métricas del sistema (CPU, RAM, disco, MongoDB)
+- `GET /api/debug/sentry-test` - Probar que Sentry funciona
+
+**Ejemplo de health detallado:**
+```json
+{
+  "status": "healthy",
+  "system": {
+    "cpu_percent": 3.8,
+    "memory_percent": 53.2,
+    "memory_used_gb": 16.66,
+    "disk_percent": 15.2
+  },
+  "services": {
+    "mongodb": "healthy",
+    "sentry": "enabled"
+  }
+}
 ```
 
 ---
