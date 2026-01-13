@@ -339,13 +339,8 @@ async def cancel_alert_by_location(
     reporter_name = alert.get("reported_by_name", "Usuario")
     is_self_cancel = alert["reported_by"] == current_user["id"]
     
-    # If the user is the one who reported the alert, they cannot cancel within first minute
-    if is_self_cancel and seconds_since_created < FRAUD_THRESHOLD_SECONDS:
-        remaining_seconds = FRAUD_THRESHOLD_SECONDS - seconds_since_created
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Debes esperar {remaining_seconds} segundos para cerrar tu propia alerta"
-        )
+    # No blocking - anyone can cancel at any time
+    # The fraud detection system will handle penalties if needed
     
     # Delete the alert
     await station_alerts_collection.delete_one({"_id": alert["_id"]})
