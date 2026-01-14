@@ -5912,20 +5912,6 @@ export default function TransportMeter() {
               <Text style={styles.usernameText}>{currentUser?.username}</Text>
               <Ionicons name="log-out-outline" size={16} color="#EF4444" />
             </TouchableOpacity>
-            <View style={styles.notificationToggle}>
-              <Ionicons
-                name={notificationsEnabled ? 'notifications' : 'notifications-outline'}
-                size={20}
-                color={notificationsEnabled ? '#F59E0B' : '#94A3B8'}
-              />
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={toggleNotifications}
-                trackColor={{ false: '#334155', true: '#F59E0B' }}
-                thumbColor="#FFFFFF"
-                style={styles.switch}
-              />
-            </View>
           </View>
         </View>
         <Text style={styles.headerSubtitle}>
