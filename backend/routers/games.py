@@ -200,22 +200,36 @@ async def join_matchmaking(request: MatchmakingRequest):
                 "winner": None
             }
         elif game_type == "hangman":
-            word = random.choice(HANGMAN_WORDS)
-            # One player chooses word (or random), other guesses
+            # Hangman 1v1: Best of 3 rounds
+            # Round 1: Player 1 writes word, Player 2 guesses
+            # Round 2: Player 2 writes word, Player 1 guesses
+            # Round 3 (if needed): Player 1 writes, Player 2 guesses
             game_state = {
                 "type": "hangman",
                 "players": {
-                    player1["user_id"]: {"username": player1["username"], "role": "guesser"},
-                    player2["user_id"]: {"username": player2["username"], "role": "watcher"}
+                    player1["user_id"]: {
+                        "username": player1["username"],
+                        "score": 0
+                    },
+                    player2["user_id"]: {
+                        "username": player2["username"],
+                        "score": 0
+                    }
                 },
-                "word": word,
-                "revealed": ["_" if c != " " else " " for c in word],
+                "round": 1,
+                "max_rounds": 3,
+                "round_phase": "choosing",  # "choosing" or "guessing"
+                "word_chooser": player1["user_id"],
+                "guesser": player2["user_id"],
+                "word": None,
+                "revealed": [],
                 "guessed_letters": [],
                 "wrong_guesses": 0,
                 "max_wrong": 6,
-                "current_turn": player1["user_id"],
+                "current_turn": player1["user_id"],  # Chooser picks word first
                 "status": "active",
-                "winner": None
+                "winner": None,
+                "round_history": []
             }
         
         game_state["game_id"] = game_id
