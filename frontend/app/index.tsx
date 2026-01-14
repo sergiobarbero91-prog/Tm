@@ -6208,24 +6208,47 @@ export default function TransportMeter() {
           style={styles.gamesModalContainer}
         >
           <View 
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: '#0F172A' }}
             onStartShouldSetResponder={() => true}
           >
             {/* Header with minimize and close buttons */}
-            <View style={styles.gamesModalHeader}>
-              <View style={styles.gamesModalTitleRow}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: '#1E293B',
+              borderBottomWidth: 1,
+              borderBottomColor: '#334155',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Ionicons name="game-controller" size={28} color="#10B981" />
-                <Text style={styles.gamesModalTitle}>Juegos Online</Text>
+                <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' }}>Juegos Online</Text>
               </View>
-              <View style={styles.gamesModalHeaderButtons}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TouchableOpacity 
-                  style={styles.gamesModalHeaderButton}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#334155',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                   onPress={() => setGamesMinimized(true)}
                 >
                   <Ionicons name="remove" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.gamesModalHeaderButton, styles.gamesModalCloseButton]}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#EF4444',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                   onPress={() => {
                     setShowGamesModal(false);
                     setCurrentGame(null);
