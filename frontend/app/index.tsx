@@ -6352,13 +6352,14 @@ export default function TransportMeter() {
                   {/* Placeholder action button */}
                   <TouchableOpacity style={styles.gameStartButton}>
                     <Ionicons name="play" size={24} color="#FFFFFF" />
-                    <Text style={styles.gameStartButtonText}>Buscar partida</Text>
+                  <Text style={styles.gameStartButtonText}>Buscar partida</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
           </ScrollView>
-        </View>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Games Minimized Badge - Shows when game is minimized */}
