@@ -5891,6 +5891,23 @@ export default function TransportMeter() {
                 <Text style={styles.radioChannelBadge}>{radioChannel}</Text>
               )}
             </TouchableOpacity>
+            {/* Games Button */}
+            <TouchableOpacity 
+              style={[
+                styles.gamesButton,
+                currentGame && styles.gamesButtonActive
+              ]}
+              onPress={() => {
+                setShowGamesModal(true);
+                setGamesMinimized(false);
+              }}
+            >
+              <Ionicons 
+                name="game-controller" 
+                size={20} 
+                color={currentGame ? '#10B981' : '#94A3B8'} 
+              />
+            </TouchableOpacity>
           </View>
           <View style={styles.headerActions}>
             {/* Alerts Button */}
