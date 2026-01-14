@@ -6537,129 +6537,263 @@ export default function TransportMeter() {
                     {/* Hangman Game */}
                     {currentGame === 'hangman' && (
                       <View style={{ alignItems: 'center' }}>
-                        {/* Hangman drawing */}
-                        <View style={{ 
-                          backgroundColor: '#1E293B', 
-                          padding: 20, 
-                          borderRadius: 16,
-                          marginBottom: 20,
+                        {/* Round & Score info */}
+                        <View style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
                           width: '100%',
-                          alignItems: 'center'
+                          marginBottom: 16,
+                          padding: 12,
+                          backgroundColor: '#1E293B',
+                          borderRadius: 12
                         }}>
-                          <Text style={{ fontSize: 60, marginBottom: 10 }}>
-                            {gameState.wrong_guesses >= 1 ? '😵' : '😊'}
+                          <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+                            Ronda {gameState.round}/{gameState.max_rounds}
                           </Text>
-                          <Text style={{ color: '#EF4444', fontSize: 18 }}>
-                            Errores: {gameState.wrong_guesses}/{gameState.max_wrong}
+                          <Text style={{ color: '#F59E0B', fontSize: 16, fontWeight: 'bold' }}>
+                            {gameState.my_score} - {gameState.opponent_score}
+                          </Text>
+                          <Text style={{ color: '#94A3B8', fontSize: 14 }}>
+                            {gameState.is_chooser ? '📝 Eliges' : '🔍 Adivinas'}
                           </Text>
                         </View>
 
-                        {/* Word display */}
-                        <View style={{ 
-                          flexDirection: 'row', 
-                          flexWrap: 'wrap', 
-                          justifyContent: 'center',
-                          marginBottom: 20 
-                        }}>
-                          {gameState.revealed?.map((letter: string, index: number) => (
-                            <View key={index} style={{
-                              width: 35,
-                              height: 45,
-                              margin: 4,
-                              borderBottomWidth: 3,
-                              borderBottomColor: '#6366F1',
-                              alignItems: 'center',
-                              justifyContent: 'flex-end'
-                            }}>
-                              <Text style={{ 
-                                fontSize: 28, 
-                                fontWeight: 'bold',
-                                color: '#FFFFFF'
-                              }}>
-                                {letter}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-
-                        {/* Guessed letters */}
-                        <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
-                          Letras usadas: {gameState.guessed_letters?.join(', ') || 'Ninguna'}
-                        </Text>
-
-                        {/* Letter keyboard */}
-                        {gameState.status === 'active' && gameState.is_my_turn && (
+                        {/* Phase: Choosing word */}
+                        {gameState.round_phase === 'choosing' && gameState.is_chooser && (
                           <View style={{ 
-                            flexDirection: 'row', 
-                            flexWrap: 'wrap', 
-                            justifyContent: 'center',
-                            maxWidth: 350
+                            backgroundColor: '#1E293B', 
+                            padding: 20, 
+                            borderRadius: 16,
+                            width: '100%',
+                            alignItems: 'center'
                           }}>
-                            {'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map((letter) => {
-                              const isUsed = gameState.guessed_letters?.includes(letter);
-                              return (
-                                <TouchableOpacity
-                                  key={letter}
-                                  style={{
-                                    width: 40,
-                                    height: 40,
-                                    margin: 3,
-                                    borderRadius: 8,
-                                    backgroundColor: isUsed ? '#334155' : '#6366F1',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    opacity: isUsed ? 0.5 : 1
-                                  }}
-                                  disabled={isUsed}
-                                  onPress={async () => {
-                                    try {
-                                      const token = await AsyncStorage.getItem('token');
-                                      const response = await axios.post(`${API_BASE}/api/games/game/move`, {
-                                        game_id: gameState.game_id,
-                                        user_id: currentUser?.id,
-                                        move: { letter }
-                                      }, {
-                                        headers: { Authorization: `Bearer ${token}` }
-                                      });
-                                      
-                                      const gameResponse = await axios.get(
-                                        `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
-                                        { headers: { Authorization: `Bearer ${token}` } }
-                                      );
-                                      setGameState(gameResponse.data);
-                                      
-                                      if (response.data.game_over) {
-                                        Alert.alert('Fin del juego', response.data.message);
-                                      }
-                                    } catch (error: any) {
-                                      Alert.alert('Error', error.response?.data?.detail || 'Error');
-                                    }
-                                  }}
-                                >
-                                  <Text style={{ 
-                                    color: '#FFFFFF', 
-                                    fontSize: 18, 
-                                    fontWeight: 'bold' 
-                                  }}>
-                                    {letter}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
+                            <Ionicons name="create" size={50} color="#6366F1" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 16 }}>
+                              Elige una palabra
+                            </Text>
+                            <Text style={{ color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>
+                              Tu oponente intentará adivinarla
+                            </Text>
+                            <TextInput
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#0F172A',
+                                borderRadius: 12,
+                                padding: 16,
+                                color: '#FFFFFF',
+                                fontSize: 18,
+                                textAlign: 'center',
+                                marginTop: 20,
+                                borderWidth: 1,
+                                borderColor: '#334155'
+                              }}
+                              placeholder="Escribe la palabra..."
+                              placeholderTextColor="#64748B"
+                              autoCapitalize="characters"
+                              maxLength={15}
+                              onSubmitEditing={async (e) => {
+                                const word = e.nativeEvent.text.trim();
+                                if (word.length < 3) {
+                                  Alert.alert('Error', 'La palabra debe tener al menos 3 letras');
+                                  return;
+                                }
+                                try {
+                                  const token = await AsyncStorage.getItem('token');
+                                  await axios.post(`${API_BASE}/api/games/game/move`, {
+                                    game_id: gameState.game_id,
+                                    user_id: currentUser?.id,
+                                    move: { word }
+                                  }, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                  
+                                  const gameResponse = await axios.get(
+                                    `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                  );
+                                  setGameState(gameResponse.data);
+                                } catch (error: any) {
+                                  Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                }
+                              }}
+                            />
+                            <Text style={{ color: '#64748B', marginTop: 8, fontSize: 12 }}>
+                              Pulsa Enter para confirmar (3-15 letras)
+                            </Text>
                           </View>
                         )}
 
+                        {/* Phase: Waiting for word */}
+                        {gameState.round_phase === 'choosing' && !gameState.is_chooser && (
+                          <View style={{ 
+                            backgroundColor: '#1E293B', 
+                            padding: 20, 
+                            borderRadius: 16,
+                            width: '100%',
+                            alignItems: 'center'
+                          }}>
+                            <ActivityIndicator size="large" color="#6366F1" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 16 }}>
+                              Esperando...
+                            </Text>
+                            <Text style={{ color: '#94A3B8', marginTop: 8 }}>
+                              {gameState.opponent} está eligiendo la palabra
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* Phase: Guessing */}
+                        {gameState.round_phase === 'guessing' && (
+                          <>
+                            {/* Hangman drawing */}
+                            <View style={{ 
+                              backgroundColor: '#1E293B', 
+                              padding: 20, 
+                              borderRadius: 16,
+                              marginBottom: 20,
+                              width: '100%',
+                              alignItems: 'center'
+                            }}>
+                              <Text style={{ fontSize: 60, marginBottom: 10 }}>
+                                {gameState.wrong_guesses === 0 ? '😊' :
+                                 gameState.wrong_guesses === 1 ? '😐' :
+                                 gameState.wrong_guesses === 2 ? '😟' :
+                                 gameState.wrong_guesses === 3 ? '😨' :
+                                 gameState.wrong_guesses === 4 ? '😰' :
+                                 gameState.wrong_guesses === 5 ? '😱' : '💀'}
+                              </Text>
+                              <Text style={{ color: '#EF4444', fontSize: 18 }}>
+                                Errores: {gameState.wrong_guesses}/{gameState.max_wrong}
+                              </Text>
+                              {!gameState.is_guesser && (
+                                <Text style={{ color: '#10B981', marginTop: 8 }}>
+                                  Tu palabra: {gameState.word}
+                                </Text>
+                              )}
+                            </View>
+
+                            {/* Word display */}
+                            <View style={{ 
+                              flexDirection: 'row', 
+                              flexWrap: 'wrap', 
+                              justifyContent: 'center',
+                              marginBottom: 20 
+                            }}>
+                              {gameState.revealed?.map((letter: string, index: number) => (
+                                <View key={index} style={{
+                                  width: 35,
+                                  height: 45,
+                                  margin: 4,
+                                  borderBottomWidth: 3,
+                                  borderBottomColor: '#6366F1',
+                                  alignItems: 'center',
+                                  justifyContent: 'flex-end'
+                                }}>
+                                  <Text style={{ 
+                                    fontSize: 28, 
+                                    fontWeight: 'bold',
+                                    color: '#FFFFFF'
+                                  }}>
+                                    {letter}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+
+                            {/* Guessed letters */}
+                            <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
+                              Letras usadas: {gameState.guessed_letters?.join(', ') || 'Ninguna'}
+                            </Text>
+
+                            {/* Letter keyboard - only for guesser */}
+                            {gameState.is_guesser && gameState.is_my_turn && gameState.status === 'active' && (
+                              <View style={{ 
+                                flexDirection: 'row', 
+                                flexWrap: 'wrap', 
+                                justifyContent: 'center',
+                                maxWidth: 350
+                              }}>
+                                {'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map((letter) => {
+                                  const isUsed = gameState.guessed_letters?.includes(letter);
+                                  return (
+                                    <TouchableOpacity
+                                      key={letter}
+                                      style={{
+                                        width: 40,
+                                        height: 40,
+                                        margin: 3,
+                                        borderRadius: 8,
+                                        backgroundColor: isUsed ? '#334155' : '#6366F1',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: isUsed ? 0.5 : 1
+                                      }}
+                                      disabled={isUsed}
+                                      onPress={async () => {
+                                        try {
+                                          const token = await AsyncStorage.getItem('token');
+                                          const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                            game_id: gameState.game_id,
+                                            user_id: currentUser?.id,
+                                            move: { letter }
+                                          }, {
+                                            headers: { Authorization: `Bearer ${token}` }
+                                          });
+                                          
+                                          const gameResponse = await axios.get(
+                                            `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                            { headers: { Authorization: `Bearer ${token}` } }
+                                          );
+                                          setGameState(gameResponse.data);
+                                          
+                                          if (response.data.game_over) {
+                                            Alert.alert('Fin del juego', response.data.message);
+                                          } else if (response.data.new_round) {
+                                            Alert.alert('¡Siguiente ronda!', response.data.message);
+                                          }
+                                        } catch (error: any) {
+                                          Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                        }
+                                      }}
+                                    >
+                                      <Text style={{ 
+                                        color: '#FFFFFF', 
+                                        fontSize: 18, 
+                                        fontWeight: 'bold' 
+                                      }}>
+                                        {letter}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            )}
+
+                            {/* Waiting message for non-guesser */}
+                            {!gameState.is_guesser && gameState.status === 'active' && (
+                              <View style={{ alignItems: 'center', marginTop: 20 }}>
+                                <Text style={{ color: '#94A3B8' }}>
+                                  {gameState.opponent} está adivinando...
+                                </Text>
+                              </View>
+                            )}
+                          </>
+                        )}
+
+                        {/* Game finished */}
                         {gameState.status === 'finished' && (
                           <View style={{ marginTop: 20, alignItems: 'center' }}>
                             <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
-                              La palabra era: {gameState.word}
+                              Resultado final: {gameState.my_score} - {gameState.opponent_score}
                             </Text>
                             <Text style={{ 
-                              fontSize: 24, 
+                              fontSize: 28, 
                               fontWeight: 'bold',
-                              color: gameState.winner === currentUser?.id ? '#10B981' : '#EF4444'
+                              color: gameState.winner === currentUser?.id ? '#10B981' : 
+                                     gameState.winner === 'draw' ? '#F59E0B' : '#EF4444'
                             }}>
-                              {gameState.winner === currentUser?.id ? '¡Ganaste! 🎉' : 'Perdiste 😢'}
+                              {gameState.winner === currentUser?.id ? '¡Ganaste! 🎉' : 
+                               gameState.winner === 'draw' ? '¡Empate! 🤝' : 'Perdiste 😢'}
                             </Text>
                             <TouchableOpacity
                               style={[styles.gameStartButton, { marginTop: 16 }]}
