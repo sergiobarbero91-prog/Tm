@@ -6197,6 +6197,178 @@ export default function TransportMeter() {
         </View>
       </Modal>
 
+      {/* Games Modal - Full screen with minimize/close buttons */}
+      <Modal
+        visible={showGamesModal && !gamesMinimized}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setShowGamesModal(false)}
+      >
+        <View 
+          style={styles.gamesModalContainer}
+          onStartShouldSetResponder={() => true}
+        >
+          {/* Header with minimize and close buttons */}
+          <View style={styles.gamesModalHeader}>
+            <View style={styles.gamesModalTitleRow}>
+              <Ionicons name="game-controller" size={28} color="#10B981" />
+              <Text style={styles.gamesModalTitle}>Juegos Online</Text>
+            </View>
+            <View style={styles.gamesModalHeaderButtons}>
+              <TouchableOpacity 
+                style={styles.gamesModalHeaderButton}
+                onPress={() => setGamesMinimized(true)}
+              >
+                <Ionicons name="remove" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.gamesModalHeaderButton, styles.gamesModalCloseButton]}
+                onPress={() => {
+                  setShowGamesModal(false);
+                  setCurrentGame(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Games Content */}
+          <ScrollView style={styles.gamesContent} contentContainerStyle={styles.gamesContentContainer}>
+            {!currentGame ? (
+              <>
+                <Text style={styles.gamesSubtitle}>Selecciona un juego para jugar con otros taxistas conectados</Text>
+                
+                {/* Game Options */}
+                <View style={styles.gamesGrid}>
+                  {/* Trivia Game */}
+                  <TouchableOpacity 
+                    style={styles.gameCard}
+                    onPress={() => setCurrentGame('trivia')}
+                  >
+                    <View style={[styles.gameCardIcon, { backgroundColor: '#6366F120' }]}>
+                      <Ionicons name="help-circle" size={40} color="#6366F1" />
+                    </View>
+                    <Text style={styles.gameCardTitle}>Trivia Madrid</Text>
+                    <Text style={styles.gameCardDescription}>Preguntas sobre Madrid y el taxi</Text>
+                    <View style={styles.gameCardPlayers}>
+                      <Ionicons name="people" size={14} color="#10B981" />
+                      <Text style={styles.gameCardPlayersText}>2-10 jugadores</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Word Game */}
+                  <TouchableOpacity 
+                    style={styles.gameCard}
+                    onPress={() => setCurrentGame('palabras')}
+                  >
+                    <View style={[styles.gameCardIcon, { backgroundColor: '#F59E0B20' }]}>
+                      <Ionicons name="text" size={40} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.gameCardTitle}>Palabras</Text>
+                    <Text style={styles.gameCardDescription}>Adivina la palabra oculta</Text>
+                    <View style={styles.gameCardPlayers}>
+                      <Ionicons name="people" size={14} color="#10B981" />
+                      <Text style={styles.gameCardPlayersText}>2-8 jugadores</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Dice Game */}
+                  <TouchableOpacity 
+                    style={styles.gameCard}
+                    onPress={() => setCurrentGame('dados')}
+                  >
+                    <View style={[styles.gameCardIcon, { backgroundColor: '#EF444420' }]}>
+                      <Ionicons name="dice" size={40} color="#EF4444" />
+                    </View>
+                    <Text style={styles.gameCardTitle}>Dados</Text>
+                    <Text style={styles.gameCardDescription}>Lanza los dados y gana puntos</Text>
+                    <View style={styles.gameCardPlayers}>
+                      <Ionicons name="people" size={14} color="#10B981" />
+                      <Text style={styles.gameCardPlayersText}>2-6 jugadores</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Coming Soon */}
+                  <View style={[styles.gameCard, styles.gameCardDisabled]}>
+                    <View style={[styles.gameCardIcon, { backgroundColor: '#33415520' }]}>
+                      <Ionicons name="time" size={40} color="#64748B" />
+                    </View>
+                    <Text style={[styles.gameCardTitle, { color: '#64748B' }]}>Próximamente</Text>
+                    <Text style={styles.gameCardDescription}>Más juegos en camino</Text>
+                  </View>
+                </View>
+
+                {/* Online Players */}
+                <View style={styles.gamesOnlineSection}>
+                  <Text style={styles.gamesOnlineTitle}>
+                    <Ionicons name="wifi" size={16} color="#10B981" /> Taxistas Online
+                  </Text>
+                  <Text style={styles.gamesOnlineCount}>
+                    {gamePlayers.length > 0 ? `${gamePlayers.length} jugadores disponibles` : 'Cargando...'}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              /* Game in progress */
+              <View style={styles.gameInProgress}>
+                <View style={styles.gameInProgressHeader}>
+                  <TouchableOpacity 
+                    style={styles.gameBackButton}
+                    onPress={() => setCurrentGame(null)}
+                  >
+                    <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                    <Text style={styles.gameBackButtonText}>Volver</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.gameInProgressTitle}>
+                    {currentGame === 'trivia' ? '🎯 Trivia Madrid' :
+                     currentGame === 'palabras' ? '📝 Palabras' :
+                     currentGame === 'dados' ? '🎲 Dados' : 'Juego'}
+                  </Text>
+                </View>
+
+                {/* Game placeholder - can be expanded with actual game logic */}
+                <View style={styles.gamePlaceholder}>
+                  <Ionicons 
+                    name={currentGame === 'trivia' ? 'help-circle' :
+                          currentGame === 'palabras' ? 'text' : 'dice'} 
+                    size={80} 
+                    color="#6366F1" 
+                  />
+                  <Text style={styles.gamePlaceholderTitle}>
+                    {currentGame === 'trivia' ? 'Trivia Madrid' :
+                     currentGame === 'palabras' ? 'Juego de Palabras' : 'Juego de Dados'}
+                  </Text>
+                  <Text style={styles.gamePlaceholderText}>
+                    🚧 Juego en desarrollo
+                  </Text>
+                  <Text style={styles.gamePlaceholderSubtext}>
+                    Pronto podrás jugar con otros taxistas conectados
+                  </Text>
+                  
+                  {/* Placeholder action button */}
+                  <TouchableOpacity style={styles.gameStartButton}>
+                    <Ionicons name="play" size={24} color="#FFFFFF" />
+                    <Text style={styles.gameStartButtonText}>Buscar partida</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Games Minimized Badge - Shows when game is minimized */}
+      {showGamesModal && gamesMinimized && (
+        <TouchableOpacity 
+          style={styles.gamesMinimizedBadge}
+          onPress={() => setGamesMinimized(false)}
+        >
+          <Ionicons name="game-controller" size={20} color="#FFFFFF" />
+          <Text style={styles.gamesMinimizedText}>Juegos</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Tab Selector */}
       {/* NEW: Dropdowns Row - Page and Shift selectors */}
       <View style={styles.dropdownsRow}>
