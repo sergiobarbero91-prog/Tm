@@ -6606,7 +6606,7 @@ export default function TransportMeter() {
                   </View>
                 </View>
             ) : (
-              /* Game selected - Matchmaking or playing */
+              /* Active game - Playing */
               <View style={{ flex: 1 }}>
                 <View style={styles.gameInProgressHeader}>
                   <TouchableOpacity 
@@ -6614,10 +6614,11 @@ export default function TransportMeter() {
                     onPress={() => {
                       setCurrentGame(null);
                       setGameState(null);
+                      setSelectedGames([]);
                     }}
                   >
                     <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                    <Text style={styles.gameBackButtonText}>Volver</Text>
+                    <Text style={styles.gameBackButtonText}>Salir</Text>
                   </TouchableOpacity>
                   <Text style={styles.gameInProgressTitle}>
                     {currentGame === 'battleship' ? '🚢 Hundir la Flota' :
@@ -6626,81 +6627,8 @@ export default function TransportMeter() {
                   </Text>
                 </View>
 
-                {!gameState ? (
-                  /* Matchmaking screen */
-                  <View style={styles.gamePlaceholder}>
-                    <Ionicons 
-                      name={currentGame === 'battleship' ? 'boat' :
-                            currentGame === 'tictactoe' ? 'grid' : 'text'} 
-                      size={80} 
-                      color="#6366F1" 
-                    />
-                    <Text style={styles.gamePlaceholderTitle}>
-                      {currentGame === 'battleship' ? 'Hundir la Flota' :
-                       currentGame === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'}
-                    </Text>
-                    <Text style={styles.gamePlaceholderSubtext}>
-                      {currentGame === 'battleship' ? 'Coloca tus barcos y hunde la flota enemiga' :
-                       currentGame === 'tictactoe' ? 'Consigue tres en línea para ganar' :
-                       'Adivina la palabra antes de ser ahorcado'}
-                    </Text>
-                    
-                    {/* Matchmaking button */}
-                    <TouchableOpacity 
-                      style={styles.gameStartButton}
-                      onPress={async () => {
-                        try {
-                          const token = await AsyncStorage.getItem('token');
-                          const response = await axios.post(`${API_BASE}/api/games/matchmaking/join`, {
-                            game_type: currentGame,
-                            user_id: currentUser?.id,
-                            username: currentUser?.username
-                          }, {
-                            headers: { Authorization: `Bearer ${token}` }
-                          });
-                          
-                          if (response.data.status === 'matched') {
-                            // Game found! Fetch game state
-                            const gameResponse = await axios.get(
-                              `${API_BASE}/api/games/game/${response.data.game_id}?user_id=${currentUser?.id}`,
-                              { headers: { Authorization: `Bearer ${token}` } }
-                            );
-                            setGameState(gameResponse.data);
-                            Alert.alert('¡Partida encontrada!', `Jugando contra ${response.data.opponent}`);
-                          } else if (response.data.status === 'queued') {
-                            Alert.alert('Buscando partida...', `Posición en cola: ${response.data.position}`);
-                            // Start polling for match
-                            const pollInterval = setInterval(async () => {
-                              const statusResponse = await axios.get(
-                                `${API_BASE}/api/games/matchmaking/status/${currentGame}/${currentUser?.id}`,
-                                { headers: { Authorization: `Bearer ${token}` } }
-                              );
-                              if (statusResponse.data.status === 'matched') {
-                                clearInterval(pollInterval);
-                                const gameResponse = await axios.get(
-                                  `${API_BASE}/api/games/game/${statusResponse.data.game_id}?user_id=${currentUser?.id}`,
-                                  { headers: { Authorization: `Bearer ${token}` } }
-                                );
-                                setGameState(gameResponse.data);
-                                Alert.alert('¡Partida encontrada!', `Jugando contra ${statusResponse.data.opponent}`);
-                              }
-                            }, 2000);
-                            // Stop polling after 60 seconds
-                            setTimeout(() => clearInterval(pollInterval), 60000);
-                          }
-                        } catch (error) {
-                          console.log('Matchmaking error:', error);
-                          Alert.alert('Error', 'No se pudo buscar partida');
-                        }
-                      }}
-                    >
-                      <Ionicons name="search" size={24} color="#FFFFFF" />
-                      <Text style={styles.gameStartButtonText}>Buscar partida</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  /* Active game */
-                  <View style={{ flex: 1, padding: 16 }}>
+                {/* Active game content */}
+                <View style={{ flex: 1, padding: 16 }}>
                     {/* Opponent info */}
                     <View style={{ 
                       flexDirection: 'row', 
