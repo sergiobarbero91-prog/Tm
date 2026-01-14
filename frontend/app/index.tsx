@@ -6322,53 +6322,445 @@ export default function TransportMeter() {
                     <Ionicons name="wifi" size={16} color="#10B981" /> Taxistas Online
                   </Text>
                   <Text style={styles.gamesOnlineCount}>
-                    {gamePlayers.length > 0 ? `${gamePlayers.length} jugadores disponibles` : 'Cargando...'}
+                    Selecciona un juego y busca partida
                   </Text>
                 </View>
               </>
             ) : (
-              /* Game in progress */
-              <View style={styles.gameInProgress}>
+              /* Game selected - Matchmaking or playing */
+              <View style={{ flex: 1 }}>
                 <View style={styles.gameInProgressHeader}>
                   <TouchableOpacity 
                     style={styles.gameBackButton}
-                    onPress={() => setCurrentGame(null)}
+                    onPress={() => {
+                      setCurrentGame(null);
+                      setGameState(null);
+                    }}
                   >
                     <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                     <Text style={styles.gameBackButtonText}>Volver</Text>
                   </TouchableOpacity>
                   <Text style={styles.gameInProgressTitle}>
-                    {currentGame === 'trivia' ? '🎯 Trivia Madrid' :
-                     currentGame === 'palabras' ? '📝 Palabras' :
-                     currentGame === 'dados' ? '🎲 Dados' : 'Juego'}
+                    {currentGame === 'battleship' ? '🚢 Hundir la Flota' :
+                     currentGame === 'tictactoe' ? '⭕ Tres en Raya' :
+                     currentGame === 'hangman' ? '📝 Ahorcado' : 'Juego'}
                   </Text>
                 </View>
 
-                {/* Game placeholder - can be expanded with actual game logic */}
-                <View style={styles.gamePlaceholder}>
-                  <Ionicons 
-                    name={currentGame === 'trivia' ? 'help-circle' :
-                          currentGame === 'palabras' ? 'text' : 'dice'} 
-                    size={80} 
-                    color="#6366F1" 
-                  />
-                  <Text style={styles.gamePlaceholderTitle}>
-                    {currentGame === 'trivia' ? 'Trivia Madrid' :
-                     currentGame === 'palabras' ? 'Juego de Palabras' : 'Juego de Dados'}
-                  </Text>
-                  <Text style={styles.gamePlaceholderText}>
-                    🚧 Juego en desarrollo
-                  </Text>
-                  <Text style={styles.gamePlaceholderSubtext}>
-                    Pronto podrás jugar con otros taxistas conectados
-                  </Text>
-                  
-                  {/* Placeholder action button */}
-                  <TouchableOpacity style={styles.gameStartButton}>
-                    <Ionicons name="play" size={24} color="#FFFFFF" />
-                  <Text style={styles.gameStartButtonText}>Buscar partida</Text>
-                  </TouchableOpacity>
-                </View>
+                {!gameState ? (
+                  /* Matchmaking screen */
+                  <View style={styles.gamePlaceholder}>
+                    <Ionicons 
+                      name={currentGame === 'battleship' ? 'boat' :
+                            currentGame === 'tictactoe' ? 'grid' : 'text'} 
+                      size={80} 
+                      color="#6366F1" 
+                    />
+                    <Text style={styles.gamePlaceholderTitle}>
+                      {currentGame === 'battleship' ? 'Hundir la Flota' :
+                       currentGame === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'}
+                    </Text>
+                    <Text style={styles.gamePlaceholderSubtext}>
+                      {currentGame === 'battleship' ? 'Coloca tus barcos y hunde la flota enemiga' :
+                       currentGame === 'tictactoe' ? 'Consigue tres en línea para ganar' :
+                       'Adivina la palabra antes de ser ahorcado'}
+                    </Text>
+                    
+                    {/* Matchmaking button */}
+                    <TouchableOpacity 
+                      style={styles.gameStartButton}
+                      onPress={async () => {
+                        try {
+                          const token = await AsyncStorage.getItem('token');
+                          const response = await axios.post(`${API_BASE}/api/games/matchmaking/join`, {
+                            game_type: currentGame,
+                            user_id: currentUser?.id,
+                            username: currentUser?.username
+                          }, {
+                            headers: { Authorization: `Bearer ${token}` }
+                          });
+                          
+                          if (response.data.status === 'matched') {
+                            // Game found! Fetch game state
+                            const gameResponse = await axios.get(
+                              `${API_BASE}/api/games/game/${response.data.game_id}?user_id=${currentUser?.id}`,
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            setGameState(gameResponse.data);
+                            Alert.alert('¡Partida encontrada!', `Jugando contra ${response.data.opponent}`);
+                          } else if (response.data.status === 'queued') {
+                            Alert.alert('Buscando partida...', `Posición en cola: ${response.data.position}`);
+                            // Start polling for match
+                            const pollInterval = setInterval(async () => {
+                              const statusResponse = await axios.get(
+                                `${API_BASE}/api/games/matchmaking/status/${currentGame}/${currentUser?.id}`,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              if (statusResponse.data.status === 'matched') {
+                                clearInterval(pollInterval);
+                                const gameResponse = await axios.get(
+                                  `${API_BASE}/api/games/game/${statusResponse.data.game_id}?user_id=${currentUser?.id}`,
+                                  { headers: { Authorization: `Bearer ${token}` } }
+                                );
+                                setGameState(gameResponse.data);
+                                Alert.alert('¡Partida encontrada!', `Jugando contra ${statusResponse.data.opponent}`);
+                              }
+                            }, 2000);
+                            // Stop polling after 60 seconds
+                            setTimeout(() => clearInterval(pollInterval), 60000);
+                          }
+                        } catch (error) {
+                          console.log('Matchmaking error:', error);
+                          Alert.alert('Error', 'No se pudo buscar partida');
+                        }
+                      }}
+                    >
+                      <Ionicons name="search" size={24} color="#FFFFFF" />
+                      <Text style={styles.gameStartButtonText}>Buscar partida</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* Active game */
+                  <View style={{ flex: 1, padding: 16 }}>
+                    {/* Opponent info */}
+                    <View style={{ 
+                      flexDirection: 'row', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: 16,
+                      padding: 12,
+                      backgroundColor: '#1E293B',
+                      borderRadius: 12
+                    }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+                        vs {gameState.opponent}
+                      </Text>
+                      <Text style={{ 
+                        color: gameState.is_my_turn ? '#10B981' : '#94A3B8',
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                      }}>
+                        {gameState.is_my_turn ? '✨ Tu turno' : '⏳ Esperando...'}
+                      </Text>
+                    </View>
+
+                    {/* Tic Tac Toe Board */}
+                    {currentGame === 'tictactoe' && (
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={{ color: '#94A3B8', marginBottom: 16 }}>
+                          Tú juegas con: {gameState.my_symbol}
+                        </Text>
+                        <View style={{ 
+                          backgroundColor: '#1E293B', 
+                          padding: 16, 
+                          borderRadius: 16 
+                        }}>
+                          {gameState.board?.map((row: string[], rowIndex: number) => (
+                            <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                              {row.map((cell: string, colIndex: number) => (
+                                <TouchableOpacity
+                                  key={colIndex}
+                                  style={{
+                                    width: 80,
+                                    height: 80,
+                                    borderWidth: 2,
+                                    borderColor: '#334155',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: cell ? '#0F172A' : '#1E293B'
+                                  }}
+                                  onPress={async () => {
+                                    if (!gameState.is_my_turn || cell) return;
+                                    try {
+                                      const token = await AsyncStorage.getItem('token');
+                                      const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                        game_id: gameState.game_id,
+                                        user_id: currentUser?.id,
+                                        move: { row: rowIndex, col: colIndex }
+                                      }, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      
+                                      // Refresh game state
+                                      const gameResponse = await axios.get(
+                                        `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                      );
+                                      setGameState(gameResponse.data);
+                                      
+                                      if (response.data.game_over) {
+                                        Alert.alert('Fin del juego', response.data.message);
+                                      }
+                                    } catch (error: any) {
+                                      Alert.alert('Error', error.response?.data?.detail || 'Error al hacer movimiento');
+                                    }
+                                  }}
+                                  disabled={!gameState.is_my_turn || !!cell}
+                                >
+                                  <Text style={{ 
+                                    fontSize: 40, 
+                                    fontWeight: 'bold',
+                                    color: cell === 'X' ? '#3B82F6' : '#EF4444'
+                                  }}>
+                                    {cell}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+                        
+                        {gameState.status === 'finished' && (
+                          <View style={{ marginTop: 20, alignItems: 'center' }}>
+                            <Text style={{ 
+                              fontSize: 24, 
+                              fontWeight: 'bold',
+                              color: gameState.winner === currentUser?.id ? '#10B981' : 
+                                     gameState.winner === 'draw' ? '#F59E0B' : '#EF4444'
+                            }}>
+                              {gameState.winner === currentUser?.id ? '¡Ganaste! 🎉' : 
+                               gameState.winner === 'draw' ? '¡Empate! 🤝' : 'Perdiste 😢'}
+                            </Text>
+                            <TouchableOpacity
+                              style={[styles.gameStartButton, { marginTop: 16 }]}
+                              onPress={() => {
+                                setGameState(null);
+                              }}
+                            >
+                              <Text style={styles.gameStartButtonText}>Jugar otra vez</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Hangman Game */}
+                    {currentGame === 'hangman' && (
+                      <View style={{ alignItems: 'center' }}>
+                        {/* Hangman drawing */}
+                        <View style={{ 
+                          backgroundColor: '#1E293B', 
+                          padding: 20, 
+                          borderRadius: 16,
+                          marginBottom: 20,
+                          width: '100%',
+                          alignItems: 'center'
+                        }}>
+                          <Text style={{ fontSize: 60, marginBottom: 10 }}>
+                            {gameState.wrong_guesses >= 1 ? '😵' : '😊'}
+                          </Text>
+                          <Text style={{ color: '#EF4444', fontSize: 18 }}>
+                            Errores: {gameState.wrong_guesses}/{gameState.max_wrong}
+                          </Text>
+                        </View>
+
+                        {/* Word display */}
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          flexWrap: 'wrap', 
+                          justifyContent: 'center',
+                          marginBottom: 20 
+                        }}>
+                          {gameState.revealed?.map((letter: string, index: number) => (
+                            <View key={index} style={{
+                              width: 35,
+                              height: 45,
+                              margin: 4,
+                              borderBottomWidth: 3,
+                              borderBottomColor: '#6366F1',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end'
+                            }}>
+                              <Text style={{ 
+                                fontSize: 28, 
+                                fontWeight: 'bold',
+                                color: '#FFFFFF'
+                              }}>
+                                {letter}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Guessed letters */}
+                        <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
+                          Letras usadas: {gameState.guessed_letters?.join(', ') || 'Ninguna'}
+                        </Text>
+
+                        {/* Letter keyboard */}
+                        {gameState.status === 'active' && gameState.is_my_turn && (
+                          <View style={{ 
+                            flexDirection: 'row', 
+                            flexWrap: 'wrap', 
+                            justifyContent: 'center',
+                            maxWidth: 350
+                          }}>
+                            {'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map((letter) => {
+                              const isUsed = gameState.guessed_letters?.includes(letter);
+                              return (
+                                <TouchableOpacity
+                                  key={letter}
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    margin: 3,
+                                    borderRadius: 8,
+                                    backgroundColor: isUsed ? '#334155' : '#6366F1',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: isUsed ? 0.5 : 1
+                                  }}
+                                  disabled={isUsed}
+                                  onPress={async () => {
+                                    try {
+                                      const token = await AsyncStorage.getItem('token');
+                                      const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                        game_id: gameState.game_id,
+                                        user_id: currentUser?.id,
+                                        move: { letter }
+                                      }, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      
+                                      const gameResponse = await axios.get(
+                                        `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                      );
+                                      setGameState(gameResponse.data);
+                                      
+                                      if (response.data.game_over) {
+                                        Alert.alert('Fin del juego', response.data.message);
+                                      }
+                                    } catch (error: any) {
+                                      Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                    }
+                                  }}
+                                >
+                                  <Text style={{ 
+                                    color: '#FFFFFF', 
+                                    fontSize: 18, 
+                                    fontWeight: 'bold' 
+                                  }}>
+                                    {letter}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        )}
+
+                        {gameState.status === 'finished' && (
+                          <View style={{ marginTop: 20, alignItems: 'center' }}>
+                            <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
+                              La palabra era: {gameState.word}
+                            </Text>
+                            <Text style={{ 
+                              fontSize: 24, 
+                              fontWeight: 'bold',
+                              color: gameState.winner === currentUser?.id ? '#10B981' : '#EF4444'
+                            }}>
+                              {gameState.winner === currentUser?.id ? '¡Ganaste! 🎉' : 'Perdiste 😢'}
+                            </Text>
+                            <TouchableOpacity
+                              style={[styles.gameStartButton, { marginTop: 16 }]}
+                              onPress={() => setGameState(null)}
+                            >
+                              <Text style={styles.gameStartButtonText}>Jugar otra vez</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Battleship - Simplified view */}
+                    {currentGame === 'battleship' && (
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
+                          Tus barcos: {gameState.my_ships_remaining} | Enemigo: {gameState.opponent_ships_remaining}
+                        </Text>
+                        
+                        <Text style={{ color: '#FFFFFF', marginBottom: 10, fontWeight: 'bold' }}>
+                          Tablero enemigo (toca para disparar)
+                        </Text>
+                        
+                        {/* Enemy board */}
+                        <View style={{ backgroundColor: '#1E293B', padding: 8, borderRadius: 12 }}>
+                          {gameState.opponent_view?.map((row: string[], rowIndex: number) => (
+                            <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                              {row.map((cell: string, colIndex: number) => (
+                                <TouchableOpacity
+                                  key={colIndex}
+                                  style={{
+                                    width: 30,
+                                    height: 30,
+                                    borderWidth: 1,
+                                    borderColor: '#334155',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: cell === 'X' ? '#EF4444' : 
+                                                    cell === 'O' ? '#3B82F6' : '#0F172A'
+                                  }}
+                                  disabled={!gameState.is_my_turn || cell !== '~'}
+                                  onPress={async () => {
+                                    try {
+                                      const token = await AsyncStorage.getItem('token');
+                                      const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                        game_id: gameState.game_id,
+                                        user_id: currentUser?.id,
+                                        move: { row: rowIndex, col: colIndex }
+                                      }, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      
+                                      const gameResponse = await axios.get(
+                                        `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                      );
+                                      setGameState(gameResponse.data);
+                                      
+                                      Alert.alert(
+                                        response.data.hit ? '¡Tocado!' : 'Agua',
+                                        response.data.message
+                                      );
+                                      
+                                      if (response.data.game_over) {
+                                        Alert.alert('Fin del juego', response.data.message);
+                                      }
+                                    } catch (error: any) {
+                                      Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                    }
+                                  }}
+                                >
+                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>
+                                    {cell === 'X' ? '💥' : cell === 'O' ? '💧' : ''}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+
+                        {gameState.status === 'finished' && (
+                          <View style={{ marginTop: 20, alignItems: 'center' }}>
+                            <Text style={{ 
+                              fontSize: 24, 
+                              fontWeight: 'bold',
+                              color: gameState.winner === currentUser?.id ? '#10B981' : '#EF4444'
+                            }}>
+                              {gameState.winner === currentUser?.id ? '¡Victoria! 🎉' : 'Derrota 😢'}
+                            </Text>
+                            <TouchableOpacity
+                              style={[styles.gameStartButton, { marginTop: 16 }]}
+                              onPress={() => setGameState(null)}
+                            >
+                              <Text style={styles.gameStartButtonText}>Jugar otra vez</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
           </ScrollView>
