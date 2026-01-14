@@ -64,6 +64,7 @@ from routers import status as status_router
 from routers import geocoding as geocoding_router
 from routers import station_alerts as station_alerts_router
 from routers import radio as radio_router
+from routers import games as games_router
 
 # Import history collections from shared
 from shared import trains_history_collection, flights_history_collection
