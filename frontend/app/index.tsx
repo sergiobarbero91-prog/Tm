@@ -6276,24 +6276,26 @@ export default function TransportMeter() {
                     Selecciona un juego para jugar con otros taxistas conectados
                   </Text>
                   
-                  {/* Game Options - Horizontal Cards */}
+                  {/* Game Options - Cards in a row */}
                   <View style={{ 
                     flexDirection: 'row', 
-                    flexWrap: 'wrap', 
                     justifyContent: 'center', 
-                    gap: 20,
+                    alignItems: 'flex-start',
+                    flexWrap: 'wrap',
+                    marginHorizontal: -10,
                     marginBottom: 32
                   }}>
                     {/* Battleship */}
                     <TouchableOpacity 
                       style={{
                         width: 180,
+                        margin: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
                         padding: 24,
                         alignItems: 'center',
                         borderWidth: 2,
-                        borderColor: '#334155',
+                        borderColor: '#3B82F6',
                       }}
                       onPress={() => setCurrentGame('battleship')}
                       activeOpacity={0.8}
@@ -6333,12 +6335,13 @@ export default function TransportMeter() {
                     <TouchableOpacity 
                       style={{
                         width: 180,
+                        margin: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
                         padding: 24,
                         alignItems: 'center',
                         borderWidth: 2,
-                        borderColor: '#334155',
+                        borderColor: '#10B981',
                       }}
                       onPress={() => setCurrentGame('tictactoe')}
                       activeOpacity={0.8}
@@ -6378,12 +6381,13 @@ export default function TransportMeter() {
                     <TouchableOpacity 
                       style={{
                         width: 180,
+                        margin: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
                         padding: 24,
                         alignItems: 'center',
                         borderWidth: 2,
-                        borderColor: '#334155',
+                        borderColor: '#F59E0B',
                       }}
                       onPress={() => setCurrentGame('hangman')}
                       activeOpacity={0.8}
