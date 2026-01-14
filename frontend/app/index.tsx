@@ -2042,31 +2042,11 @@ export default function TransportMeter() {
       const radioInfo = radioChannelMap[locationName];
       
       if (radioInfo) {
-        // Show radio suggestion with motivational message
+        // Show radio question modal instead of Alert
         setTimeout(() => {
-          Alert.alert(
-            '📻 Radio Walkie-Talkie',
-            `¿Quieres conectarte al ${radioInfo.name}?\n\n` +
-            '💡 Informa a otros compañeros sobre el estado de la cola, ' +
-            'tiempo de espera y movimiento. Tu información ayuda a que ' +
-            'otros taxistas decidan si venir o buscar otra zona.',
-            [
-              {
-                text: 'No, gracias',
-                style: 'cancel'
-              },
-              {
-                text: '¡Sí, conectar!',
-                onPress: () => {
-                  // Connect to the corresponding radio channel
-                  setRadioChannel(radioInfo.channel);
-                  connectToRadioChannel(radioInfo.channel);
-                  setShowRadioDropdown(true);
-                }
-              }
-            ]
-          );
-        }, 500); // Small delay to let the first alert close
+          setPendingRadioChannel(radioInfo);
+          setShowRadioQuestion(true);
+        }, 500);
       }
       
       setPendingCheckIn(null);
