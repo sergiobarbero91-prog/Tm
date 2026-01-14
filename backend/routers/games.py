@@ -724,8 +724,18 @@ async def get_filtered_game_state(game_id: str, user_id: str) -> dict:
             "winner": game["winner"]
         }
     elif game["type"] == "hangman":
+        is_chooser = user_id == game["word_chooser"]
+        is_guesser = user_id == game["guesser"]
         return {
             "type": "hangman",
+            "round": game["round"],
+            "max_rounds": game["max_rounds"],
+            "round_phase": game["round_phase"],
+            "is_chooser": is_chooser,
+            "is_guesser": is_guesser,
+            "my_score": game["players"][user_id]["score"],
+            "opponent_score": game["players"][opponent_id]["score"],
+            "word_length": len(game["word"]) if game["word"] else 0,
             "revealed": game["revealed"],
             "guessed_letters": game["guessed_letters"],
             "wrong_guesses": game["wrong_guesses"],
@@ -734,7 +744,8 @@ async def get_filtered_game_state(game_id: str, user_id: str) -> dict:
             "opponent": game["players"][opponent_id]["username"],
             "status": game["status"],
             "winner": game["winner"],
-            "word": game["word"] if game["status"] == "finished" else None
+            "word": game["word"] if (game["status"] == "finished" or (game["round_phase"] == "guessing" and not is_guesser)) else None,
+            "round_history": game["round_history"]
         }
 
 async def notify_game_update(game_id: str, game: dict, result: dict):
