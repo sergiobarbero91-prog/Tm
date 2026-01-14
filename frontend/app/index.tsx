@@ -5879,7 +5879,6 @@ export default function TransportMeter() {
                 <Text style={styles.radioChannelBadge}>{radioChannel}</Text>
               )}
             </TouchableOpacity>
-            <Ionicons name="car" size={24} color="#F59E0B" />
           </View>
           <View style={styles.headerActions}>
             {/* Alerts Button */}
