@@ -6262,7 +6262,11 @@ export default function TransportMeter() {
             {/* Games Content */}
             <ScrollView 
               style={{ flex: 1 }} 
-              contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+              contentContainerStyle={{ 
+                padding: 24, 
+                paddingBottom: 40,
+                alignItems: 'center'
+              }}
             >
               {!currentGame ? (
                 <>
@@ -6270,156 +6274,151 @@ export default function TransportMeter() {
                     color: '#94A3B8', 
                     fontSize: 16, 
                     textAlign: 'center', 
-                    marginBottom: 32,
-                    lineHeight: 24
+                    marginBottom: 40,
+                    lineHeight: 24,
+                    maxWidth: 400
                   }}>
                     Selecciona un juego para jugar con otros taxistas conectados
                   </Text>
                   
-                  {/* Game Options - Cards in a row */}
+                  {/* Game Options - Row 1: All 3 games */}
                   <View style={{ 
                     flexDirection: 'row', 
-                    justifyContent: 'center', 
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                    marginHorizontal: -10,
-                    marginBottom: 32
+                    justifyContent: 'center',
+                    marginBottom: 32,
                   }}>
                     {/* Battleship */}
                     <TouchableOpacity 
                       style={{
-                        width: 180,
-                        margin: 10,
+                        width: 170,
+                        marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
-                        padding: 24,
+                        padding: 20,
                         alignItems: 'center',
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#3B82F6',
                       }}
                       onPress={() => setCurrentGame('battleship')}
-                      activeOpacity={0.8}
+                      activeOpacity={0.7}
                     >
                       <View style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: 45,
-                        backgroundColor: '#3B82F620',
+                        width: 80,
+                        height: 80,
+                        borderRadius: 40,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 16
+                        marginBottom: 14
                       }}>
-                        <Ionicons name="boat" size={48} color="#3B82F6" />
+                        <Ionicons name="boat" size={44} color="#3B82F6" />
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
                         Hundir la Flota
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
-                        Hunde los barcos enemigos
+                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
+                        Hunde los barcos
                       </Text>
                       <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#0F172A',
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
-                        borderRadius: 20
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 14
                       }}>
-                        <Ionicons name="people" size={16} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
 
                     {/* Tic Tac Toe */}
                     <TouchableOpacity 
                       style={{
-                        width: 180,
-                        margin: 10,
+                        width: 170,
+                        marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
-                        padding: 24,
+                        padding: 20,
                         alignItems: 'center',
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#10B981',
                       }}
                       onPress={() => setCurrentGame('tictactoe')}
-                      activeOpacity={0.8}
+                      activeOpacity={0.7}
                     >
                       <View style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: 45,
-                        backgroundColor: '#10B98120',
+                        width: 80,
+                        height: 80,
+                        borderRadius: 40,
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 16
+                        marginBottom: 14
                       }}>
-                        <Ionicons name="grid" size={48} color="#10B981" />
+                        <Ionicons name="grid" size={44} color="#10B981" />
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
                         Tres en Raya
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
                         El clásico X y O
                       </Text>
                       <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#0F172A',
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
-                        borderRadius: 20
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 14
                       }}>
-                        <Ionicons name="people" size={16} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
 
                     {/* Hangman */}
                     <TouchableOpacity 
                       style={{
-                        width: 180,
-                        margin: 10,
+                        width: 170,
+                        marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
-                        padding: 24,
+                        padding: 20,
                         alignItems: 'center',
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#F59E0B',
                       }}
                       onPress={() => setCurrentGame('hangman')}
-                      activeOpacity={0.8}
+                      activeOpacity={0.7}
                     >
                       <View style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: 45,
-                        backgroundColor: '#F59E0B20',
+                        width: 80,
+                        height: 80,
+                        borderRadius: 40,
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 16
+                        marginBottom: 14
                       }}>
-                        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#F59E0B' }}>Aa</Text>
+                        <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#F59E0B' }}>Aa</Text>
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
                         Ahorcado
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
                         Adivina la palabra
                       </Text>
                       <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#0F172A',
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
-                        borderRadius: 20
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 14
                       }}>
-                        <Ionicons name="people" size={16} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -6432,11 +6431,12 @@ export default function TransportMeter() {
                     alignItems: 'center',
                     borderWidth: 1,
                     borderColor: '#334155',
-                    marginTop: 8
+                    width: '100%',
+                    maxWidth: 560
                   }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                       <Ionicons name="wifi" size={20} color="#10B981" />
-                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginLeft: 10 }}>
                         Taxistas Online
                       </Text>
                     </View>
