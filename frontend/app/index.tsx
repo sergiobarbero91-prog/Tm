@@ -437,6 +437,9 @@ export default function TransportMeter() {
   const [showGamesModal, setShowGamesModal] = useState(false);
   const [gamesMinimized, setGamesMinimized] = useState(false);
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [selectedGames, setSelectedGames] = useState<string[]>([]);
+  const [isSearchingMatch, setIsSearchingMatch] = useState(false);
+  const [matchmakingInterval, setMatchmakingInterval] = useState<NodeJS.Timeout | null>(null);
   const [gameWs, setGameWs] = useState<WebSocket | null>(null);
   const [gamePlayers, setGamePlayers] = useState<Array<{
     user_id: string;
