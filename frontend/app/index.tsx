@@ -6281,16 +6281,20 @@ export default function TransportMeter() {
                     Selecciona un juego para jugar con otros taxistas conectados
                   </Text>
                   
-                  {/* Game Options - Row 1: All 3 games */}
+                  {/* Game Options - Row of 3 games */}
                   <View style={{ 
                     flexDirection: 'row', 
                     justifyContent: 'center',
                     marginBottom: 32,
+                    flexWrap: 'nowrap',
                   }}>
                     {/* Battleship */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
+                        flex: 0,
+                        flexBasis: 170,
+                        minWidth: 170,
+                        maxWidth: 170,
                         marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
@@ -6335,7 +6339,10 @@ export default function TransportMeter() {
                     {/* Tic Tac Toe */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
+                        flex: 0,
+                        flexBasis: 170,
+                        minWidth: 170,
+                        maxWidth: 170,
                         marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
@@ -6380,7 +6387,10 @@ export default function TransportMeter() {
                     {/* Hangman */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
+                        flex: 0,
+                        flexBasis: 170,
+                        minWidth: 170,
+                        maxWidth: 170,
                         marginHorizontal: 10,
                         backgroundColor: '#1E293B',
                         borderRadius: 24,
