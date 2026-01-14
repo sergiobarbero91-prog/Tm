@@ -433,6 +433,18 @@ export default function TransportMeter() {
   const webAudioUnlockedRef = useRef(false);
   const radioMutedRef = useRef(false);
 
+  // Games states
+  const [showGamesModal, setShowGamesModal] = useState(false);
+  const [gamesMinimized, setGamesMinimized] = useState(false);
+  const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [gameWs, setGameWs] = useState<WebSocket | null>(null);
+  const [gamePlayers, setGamePlayers] = useState<Array<{
+    user_id: string;
+    username: string;
+    score: number;
+  }>>([]);
+  const [gameState, setGameState] = useState<any>(null);
+
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
