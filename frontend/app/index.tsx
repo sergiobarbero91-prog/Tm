@@ -6260,72 +6260,187 @@ export default function TransportMeter() {
             </View>
 
             {/* Games Content */}
-            <ScrollView style={styles.gamesContent} contentContainerStyle={styles.gamesContentContainer}>
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            >
               {!currentGame ? (
                 <>
-                  <Text style={styles.gamesSubtitle}>Selecciona un juego para jugar con otros taxistas conectados</Text>
+                  <Text style={{ 
+                    color: '#94A3B8', 
+                    fontSize: 16, 
+                    textAlign: 'center', 
+                    marginBottom: 32,
+                    lineHeight: 24
+                  }}>
+                    Selecciona un juego para jugar con otros taxistas conectados
+                  </Text>
                   
-                  {/* Game Options */}
-                  <View style={styles.gamesGrid}>
+                  {/* Game Options - Horizontal Cards */}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    flexWrap: 'wrap', 
+                    justifyContent: 'center', 
+                    gap: 20,
+                    marginBottom: 32
+                  }}>
                     {/* Battleship */}
                     <TouchableOpacity 
-                      style={styles.gameCard}
+                      style={{
+                        width: 180,
+                        backgroundColor: '#1E293B',
+                        borderRadius: 24,
+                        padding: 24,
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: '#334155',
+                      }}
                       onPress={() => setCurrentGame('battleship')}
+                      activeOpacity={0.8}
                     >
-                      <View style={[styles.gameCardIcon, { backgroundColor: '#3B82F620' }]}>
-                        <Ionicons name="boat" size={40} color="#3B82F6" />
+                      <View style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 45,
+                        backgroundColor: '#3B82F620',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 16
+                      }}>
+                        <Ionicons name="boat" size={48} color="#3B82F6" />
                       </View>
-                      <Text style={styles.gameCardTitle}>Hundir la Flota</Text>
-                      <Text style={styles.gameCardDescription}>Hunde los barcos enemigos</Text>
-                      <View style={styles.gameCardPlayers}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                        Hundir la Flota
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                        Hunde los barcos enemigos
+                      </Text>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#0F172A',
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 20
+                      }}>
+                        <Ionicons name="people" size={16} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
 
                     {/* Tic Tac Toe */}
                     <TouchableOpacity 
-                      style={styles.gameCard}
+                      style={{
+                        width: 180,
+                        backgroundColor: '#1E293B',
+                        borderRadius: 24,
+                        padding: 24,
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: '#334155',
+                      }}
                       onPress={() => setCurrentGame('tictactoe')}
+                      activeOpacity={0.8}
                     >
-                      <View style={[styles.gameCardIcon, { backgroundColor: '#10B98120' }]}>
-                        <Ionicons name="grid" size={40} color="#10B981" />
+                      <View style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 45,
+                        backgroundColor: '#10B98120',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 16
+                      }}>
+                        <Ionicons name="grid" size={48} color="#10B981" />
                       </View>
-                      <Text style={styles.gameCardTitle}>Tres en Raya</Text>
-                      <Text style={styles.gameCardDescription}>El clásico X y O</Text>
-                      <View style={styles.gameCardPlayers}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                        Tres en Raya
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                        El clásico X y O
+                      </Text>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#0F172A',
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 20
+                      }}>
+                        <Ionicons name="people" size={16} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
 
                     {/* Hangman */}
                     <TouchableOpacity 
-                      style={styles.gameCard}
+                      style={{
+                        width: 180,
+                        backgroundColor: '#1E293B',
+                        borderRadius: 24,
+                        padding: 24,
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: '#334155',
+                      }}
                       onPress={() => setCurrentGame('hangman')}
+                      activeOpacity={0.8}
                     >
-                      <View style={[styles.gameCardIcon, { backgroundColor: '#F59E0B20' }]}>
-                        <Ionicons name="text" size={40} color="#F59E0B" />
+                      <View style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 45,
+                        backgroundColor: '#F59E0B20',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 16
+                      }}>
+                        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#F59E0B' }}>Aa</Text>
                       </View>
-                      <Text style={styles.gameCardTitle}>Ahorcado</Text>
-                      <Text style={styles.gameCardDescription}>Adivina la palabra</Text>
-                      <View style={styles.gameCardPlayers}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                        Ahorcado
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                        Adivina la palabra
+                      </Text>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#0F172A',
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 20
+                      }}>
+                        <Ionicons name="people" size={16} color="#10B981" />
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '600' }}>2 jugadores</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
 
-                {/* Online Players */}
-                <View style={styles.gamesOnlineSection}>
-                  <Text style={styles.gamesOnlineTitle}>
-                    <Ionicons name="wifi" size={16} color="#10B981" /> Taxistas Online
-                  </Text>
-                  <Text style={styles.gamesOnlineCount}>
-                    Selecciona un juego y busca partida
-                  </Text>
-                </View>
-              </>
+                  {/* Online Players Section */}
+                  <View style={{
+                    backgroundColor: '#1E293B',
+                    borderRadius: 20,
+                    padding: 24,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: '#334155',
+                    marginTop: 8
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <Ionicons name="wifi" size={20} color="#10B981" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' }}>
+                        Taxistas Online
+                      </Text>
+                    </View>
+                    <Text style={{ color: '#94A3B8', fontSize: 14, textAlign: 'center' }}>
+                      Selecciona un juego y busca partida
+                    </Text>
+                  </View>
+                </>
             ) : (
               /* Game selected - Matchmaking or playing */
               <View style={{ flex: 1 }}>
