@@ -1375,6 +1375,13 @@ export default function TransportMeter() {
     locationName: string;
   } | null>(null);
 
+  // Radio question state (after entry)
+  const [showRadioQuestion, setShowRadioQuestion] = useState(false);
+  const [pendingRadioChannel, setPendingRadioChannel] = useState<{
+    channel: number;
+    name: string;
+  } | null>(null);
+
   // Queue question state (for exit - people waiting)
   const [showQueueQuestion, setShowQueueQuestion] = useState(false);
   const [pendingCheckOut, setPendingCheckOut] = useState<{
