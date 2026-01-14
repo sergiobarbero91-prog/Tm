@@ -457,39 +457,154 @@ async def make_move(move: GameMove):
             game["current_turn"] = opponent_id
             
     elif game["type"] == "hangman":
-        letter = move.move.get("letter", "").upper()
+        # Hangman 1v1 with rounds - best of 3
         
-        if not letter or len(letter) != 1 or not letter.isalpha():
-            raise HTTPException(status_code=400, detail="Letra inválida")
-        
-        if letter in game["guessed_letters"]:
-            raise HTTPException(status_code=400, detail="Ya adivinaste esa letra")
-        
-        game["guessed_letters"].append(letter)
-        
-        if letter in game["word"]:
-            # Correct guess - reveal letters
-            for i, c in enumerate(game["word"]):
-                if c == letter:
-                    game["revealed"][i] = letter
-            result = {"valid": True, "correct": True, "message": f"¡Correcto! La letra {letter} está en la palabra"}
+        # Phase 1: Word chooser sets the word
+        if game["round_phase"] == "choosing":
+            word = move.move.get("word", "").upper().strip()
             
-            # Check if word is complete
-            if "_" not in game["revealed"]:
-                game["status"] = "finished"
-                game["winner"] = user_id
-                result["game_over"] = True
-                result["message"] = f"¡Has ganado! La palabra era: {game['word']}"
-        else:
-            # Wrong guess
-            game["wrong_guesses"] += 1
-            result = {"valid": True, "correct": False, "message": f"La letra {letter} no está"}
+            if user_id != game["word_chooser"]:
+                raise HTTPException(status_code=400, detail="No te toca elegir palabra")
             
-            if game["wrong_guesses"] >= game["max_wrong"]:
-                game["status"] = "finished"
-                game["winner"] = opponent_id
-                result["game_over"] = True
-                result["message"] = f"¡Ahorcado! La palabra era: {game['word']}"
+            if not word or len(word) < 3 or len(word) > 15:
+                raise HTTPException(status_code=400, detail="La palabra debe tener entre 3 y 15 letras")
+            
+            if not word.isalpha():
+                raise HTTPException(status_code=400, detail="La palabra solo puede contener letras")
+            
+            # Set the word and start guessing phase
+            game["word"] = word
+            game["revealed"] = ["_" for _ in word]
+            game["guessed_letters"] = []
+            game["wrong_guesses"] = 0
+            game["round_phase"] = "guessing"
+            game["current_turn"] = game["guesser"]
+            
+            result = {
+                "valid": True, 
+                "message": f"Palabra establecida ({len(word)} letras). El oponente debe adivinar.",
+                "phase": "guessing"
+            }
+        
+        # Phase 2: Guesser guesses letters
+        elif game["round_phase"] == "guessing":
+            letter = move.move.get("letter", "").upper()
+            
+            if user_id != game["guesser"]:
+                raise HTTPException(status_code=400, detail="No te toca adivinar")
+            
+            if not letter or len(letter) != 1 or not letter.isalpha():
+                raise HTTPException(status_code=400, detail="Letra inválida")
+            
+            if letter in game["guessed_letters"]:
+                raise HTTPException(status_code=400, detail="Ya adivinaste esa letra")
+            
+            game["guessed_letters"].append(letter)
+            
+            if letter in game["word"]:
+                # Correct guess - reveal letters
+                for i, c in enumerate(game["word"]):
+                    if c == letter:
+                        game["revealed"][i] = letter
+                result = {"valid": True, "correct": True, "message": f"¡Correcto! La letra {letter} está"}
+                
+                # Check if word is complete - Guesser wins the round
+                if "_" not in game["revealed"]:
+                    game["players"][game["guesser"]]["score"] += 1
+                    round_result = {
+                        "round": game["round"],
+                        "word": game["word"],
+                        "winner": game["guesser"],
+                        "guesses": len(game["guessed_letters"])
+                    }
+                    game["round_history"].append(round_result)
+                    result["round_won"] = True
+                    result["message"] = f"¡Adivinaste! La palabra era: {game['word']}"
+                    
+                    # Check for game winner (best of 3)
+                    guesser_score = game["players"][game["guesser"]]["score"]
+                    chooser_score = game["players"][game["word_chooser"]]["score"]
+                    
+                    if guesser_score >= 2:
+                        game["status"] = "finished"
+                        game["winner"] = game["guesser"]
+                        result["game_over"] = True
+                        result["message"] += f" ¡Ganaste la partida {guesser_score}-{chooser_score}!"
+                    elif game["round"] >= 3:
+                        game["status"] = "finished"
+                        if guesser_score > chooser_score:
+                            game["winner"] = game["guesser"]
+                        elif chooser_score > guesser_score:
+                            game["winner"] = game["word_chooser"]
+                        else:
+                            game["winner"] = "draw"
+                        result["game_over"] = True
+                        result["message"] += f" Resultado final: {guesser_score}-{chooser_score}"
+                    else:
+                        # Start next round - swap roles
+                        game["round"] += 1
+                        old_guesser = game["guesser"]
+                        game["guesser"] = game["word_chooser"]
+                        game["word_chooser"] = old_guesser
+                        game["round_phase"] = "choosing"
+                        game["current_turn"] = game["word_chooser"]
+                        game["word"] = None
+                        game["revealed"] = []
+                        game["guessed_letters"] = []
+                        game["wrong_guesses"] = 0
+                        result["new_round"] = True
+                        result["message"] += f" ¡Ronda {game['round']}! Ahora te toca elegir palabra."
+            else:
+                # Wrong guess
+                game["wrong_guesses"] += 1
+                result = {"valid": True, "correct": False, "message": f"La letra {letter} no está"}
+                
+                # Check if hanged - Chooser wins the round
+                if game["wrong_guesses"] >= game["max_wrong"]:
+                    game["players"][game["word_chooser"]]["score"] += 1
+                    round_result = {
+                        "round": game["round"],
+                        "word": game["word"],
+                        "winner": game["word_chooser"],
+                        "guesses": len(game["guessed_letters"])
+                    }
+                    game["round_history"].append(round_result)
+                    result["round_lost"] = True
+                    result["message"] = f"¡Ahorcado! La palabra era: {game['word']}"
+                    
+                    # Check for game winner
+                    guesser_score = game["players"][game["guesser"]]["score"]
+                    chooser_score = game["players"][game["word_chooser"]]["score"]
+                    
+                    if chooser_score >= 2:
+                        game["status"] = "finished"
+                        game["winner"] = game["word_chooser"]
+                        result["game_over"] = True
+                        result["message"] += f" Tu oponente gana {chooser_score}-{guesser_score}"
+                    elif game["round"] >= 3:
+                        game["status"] = "finished"
+                        if guesser_score > chooser_score:
+                            game["winner"] = game["guesser"]
+                        elif chooser_score > guesser_score:
+                            game["winner"] = game["word_chooser"]
+                        else:
+                            game["winner"] = "draw"
+                        result["game_over"] = True
+                        result["message"] += f" Resultado final: {guesser_score}-{chooser_score}"
+                    else:
+                        # Start next round - swap roles
+                        game["round"] += 1
+                        old_guesser = game["guesser"]
+                        game["guesser"] = game["word_chooser"]
+                        game["word_chooser"] = old_guesser
+                        game["round_phase"] = "choosing"
+                        game["current_turn"] = game["word_chooser"]
+                        game["word"] = None
+                        game["revealed"] = []
+                        game["guessed_letters"] = []
+                        game["wrong_guesses"] = 0
+                        result["new_round"] = True
+                        result["message"] += f" ¡Ronda {game['round']}! Ahora te toca elegir palabra."
     
     # Notify via WebSocket if connected
     await notify_game_update(game_id, game, result)
