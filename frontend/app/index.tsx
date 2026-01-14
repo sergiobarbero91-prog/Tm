@@ -6267,63 +6267,54 @@ export default function TransportMeter() {
                   
                   {/* Game Options */}
                   <View style={styles.gamesGrid}>
-                    {/* Trivia Game */}
+                    {/* Battleship */}
                     <TouchableOpacity 
                       style={styles.gameCard}
-                      onPress={() => setCurrentGame('trivia')}
+                      onPress={() => setCurrentGame('battleship')}
                     >
-                      <View style={[styles.gameCardIcon, { backgroundColor: '#6366F120' }]}>
-                        <Ionicons name="help-circle" size={40} color="#6366F1" />
-                    </View>
-                    <Text style={styles.gameCardTitle}>Trivia Madrid</Text>
-                    <Text style={styles.gameCardDescription}>Preguntas sobre Madrid y el taxi</Text>
-                    <View style={styles.gameCardPlayers}>
-                      <Ionicons name="people" size={14} color="#10B981" />
-                      <Text style={styles.gameCardPlayersText}>2-10 jugadores</Text>
-                    </View>
-                  </TouchableOpacity>
+                      <View style={[styles.gameCardIcon, { backgroundColor: '#3B82F620' }]}>
+                        <Ionicons name="boat" size={40} color="#3B82F6" />
+                      </View>
+                      <Text style={styles.gameCardTitle}>Hundir la Flota</Text>
+                      <Text style={styles.gameCardDescription}>Hunde los barcos enemigos</Text>
+                      <View style={styles.gameCardPlayers}>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      </View>
+                    </TouchableOpacity>
 
-                  {/* Word Game */}
-                  <TouchableOpacity 
-                    style={styles.gameCard}
-                    onPress={() => setCurrentGame('palabras')}
-                  >
-                    <View style={[styles.gameCardIcon, { backgroundColor: '#F59E0B20' }]}>
-                      <Ionicons name="text" size={40} color="#F59E0B" />
-                    </View>
-                    <Text style={styles.gameCardTitle}>Palabras</Text>
-                    <Text style={styles.gameCardDescription}>Adivina la palabra oculta</Text>
-                    <View style={styles.gameCardPlayers}>
-                      <Ionicons name="people" size={14} color="#10B981" />
-                      <Text style={styles.gameCardPlayersText}>2-8 jugadores</Text>
-                    </View>
-                  </TouchableOpacity>
+                    {/* Tic Tac Toe */}
+                    <TouchableOpacity 
+                      style={styles.gameCard}
+                      onPress={() => setCurrentGame('tictactoe')}
+                    >
+                      <View style={[styles.gameCardIcon, { backgroundColor: '#10B98120' }]}>
+                        <Ionicons name="grid" size={40} color="#10B981" />
+                      </View>
+                      <Text style={styles.gameCardTitle}>Tres en Raya</Text>
+                      <Text style={styles.gameCardDescription}>El clásico X y O</Text>
+                      <View style={styles.gameCardPlayers}>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      </View>
+                    </TouchableOpacity>
 
-                  {/* Dice Game */}
-                  <TouchableOpacity 
-                    style={styles.gameCard}
-                    onPress={() => setCurrentGame('dados')}
-                  >
-                    <View style={[styles.gameCardIcon, { backgroundColor: '#EF444420' }]}>
-                      <Ionicons name="dice" size={40} color="#EF4444" />
-                    </View>
-                    <Text style={styles.gameCardTitle}>Dados</Text>
-                    <Text style={styles.gameCardDescription}>Lanza los dados y gana puntos</Text>
-                    <View style={styles.gameCardPlayers}>
-                      <Ionicons name="people" size={14} color="#10B981" />
-                      <Text style={styles.gameCardPlayersText}>2-6 jugadores</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Coming Soon */}
-                  <View style={[styles.gameCard, styles.gameCardDisabled]}>
-                    <View style={[styles.gameCardIcon, { backgroundColor: '#33415520' }]}>
-                      <Ionicons name="time" size={40} color="#64748B" />
-                    </View>
-                    <Text style={[styles.gameCardTitle, { color: '#64748B' }]}>Próximamente</Text>
-                    <Text style={styles.gameCardDescription}>Más juegos en camino</Text>
+                    {/* Hangman */}
+                    <TouchableOpacity 
+                      style={styles.gameCard}
+                      onPress={() => setCurrentGame('hangman')}
+                    >
+                      <View style={[styles.gameCardIcon, { backgroundColor: '#F59E0B20' }]}>
+                        <Ionicons name="text" size={40} color="#F59E0B" />
+                      </View>
+                      <Text style={styles.gameCardTitle}>Ahorcado</Text>
+                      <Text style={styles.gameCardDescription}>Adivina la palabra</Text>
+                      <View style={styles.gameCardPlayers}>
+                        <Ionicons name="people" size={14} color="#10B981" />
+                        <Text style={styles.gameCardPlayersText}>2 jugadores</Text>
+                      </View>
+                    </TouchableOpacity>
                   </View>
-                </View>
 
                 {/* Online Players */}
                 <View style={styles.gamesOnlineSection}>
