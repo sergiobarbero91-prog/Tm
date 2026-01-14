@@ -6266,189 +6266,342 @@ export default function TransportMeter() {
             <ScrollView 
               style={{ flex: 1 }} 
               contentContainerStyle={{ 
-                padding: 24, 
+                padding: 20, 
                 paddingBottom: 40
               }}
               horizontal={false}
             >
-              {!currentGame ? (
+              {!gameState ? (
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ 
                     color: '#94A3B8', 
-                    fontSize: 16, 
+                    fontSize: 15, 
                     textAlign: 'center', 
-                    marginBottom: 40,
-                    lineHeight: 24,
-                    maxWidth: 400
+                    marginBottom: 24,
+                    lineHeight: 22,
+                    paddingHorizontal: 10
                   }}>
-                    Selecciona un juego para jugar con otros taxistas conectados
+                    Selecciona los juegos que quieres jugar y busca partida
                   </Text>
                   
-                  {/* Game Options - Horizontal scroll for cards */}
-                  <ScrollView 
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ 
-                      paddingHorizontal: 10,
-                      justifyContent: 'center'
-                    }}
-                    style={{ marginBottom: 32 }}
-                  >
+                  {/* Game Selection Cards - Smaller and Toggleable */}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    marginBottom: 24,
+                    maxWidth: 500
+                  }}>
                     {/* Battleship */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
-                        marginHorizontal: 10,
-                        backgroundColor: '#1E293B',
-                        borderRadius: 24,
-                        padding: 20,
+                        width: 145,
+                        margin: 8,
+                        backgroundColor: selectedGames.includes('battleship') ? '#1E3A5F' : '#1E293B',
+                        borderRadius: 16,
+                        padding: 16,
                         alignItems: 'center',
                         borderWidth: 3,
-                        borderColor: '#3B82F6',
+                        borderColor: selectedGames.includes('battleship') ? '#3B82F6' : '#334155',
                       }}
-                      onPress={() => setCurrentGame('battleship')}
+                      onPress={() => {
+                        if (selectedGames.includes('battleship')) {
+                          setSelectedGames(selectedGames.filter(g => g !== 'battleship'));
+                        } else {
+                          setSelectedGames([...selectedGames, 'battleship']);
+                        }
+                      }}
                       activeOpacity={0.7}
+                      disabled={isSearchingMatch}
                     >
+                      {selectedGames.includes('battleship') && (
+                        <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                          <Ionicons name="checkmark-circle" size={22} color="#3B82F6" />
+                        </View>
+                      )}
                       <View style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
                         backgroundColor: 'rgba(59, 130, 246, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 14
+                        marginBottom: 10
                       }}>
-                        <Ionicons name="boat" size={44} color="#3B82F6" />
+                        <Ionicons name="boat" size={32} color="#3B82F6" />
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>
                         Hundir la Flota
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
-                        Hunde los barcos
-                      </Text>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 14
-                      }}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
-                      </View>
                     </TouchableOpacity>
 
                     {/* Tic Tac Toe */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
-                        marginHorizontal: 10,
-                        backgroundColor: '#1E293B',
-                        borderRadius: 24,
-                        padding: 20,
+                        width: 145,
+                        margin: 8,
+                        backgroundColor: selectedGames.includes('tictactoe') ? '#0F3D32' : '#1E293B',
+                        borderRadius: 16,
+                        padding: 16,
                         alignItems: 'center',
                         borderWidth: 3,
-                        borderColor: '#10B981',
+                        borderColor: selectedGames.includes('tictactoe') ? '#10B981' : '#334155',
                       }}
-                      onPress={() => setCurrentGame('tictactoe')}
+                      onPress={() => {
+                        if (selectedGames.includes('tictactoe')) {
+                          setSelectedGames(selectedGames.filter(g => g !== 'tictactoe'));
+                        } else {
+                          setSelectedGames([...selectedGames, 'tictactoe']);
+                        }
+                      }}
                       activeOpacity={0.7}
+                      disabled={isSearchingMatch}
                     >
+                      {selectedGames.includes('tictactoe') && (
+                        <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                          <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                        </View>
+                      )}
                       <View style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 14
+                        marginBottom: 10
                       }}>
-                        <Ionicons name="grid" size={44} color="#10B981" />
+                        <Ionicons name="grid" size={32} color="#10B981" />
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>
                         Tres en Raya
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
-                        El clásico X y O
-                      </Text>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 14
-                      }}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
-                      </View>
                     </TouchableOpacity>
 
                     {/* Hangman */}
                     <TouchableOpacity 
                       style={{
-                        width: 170,
-                        marginHorizontal: 10,
-                        backgroundColor: '#1E293B',
-                        borderRadius: 24,
-                        padding: 20,
+                        width: 145,
+                        margin: 8,
+                        backgroundColor: selectedGames.includes('hangman') ? '#3D2E0F' : '#1E293B',
+                        borderRadius: 16,
+                        padding: 16,
                         alignItems: 'center',
                         borderWidth: 3,
-                        borderColor: '#F59E0B',
+                        borderColor: selectedGames.includes('hangman') ? '#F59E0B' : '#334155',
                       }}
-                      onPress={() => setCurrentGame('hangman')}
+                      onPress={() => {
+                        if (selectedGames.includes('hangman')) {
+                          setSelectedGames(selectedGames.filter(g => g !== 'hangman'));
+                        } else {
+                          setSelectedGames([...selectedGames, 'hangman']);
+                        }
+                      }}
                       activeOpacity={0.7}
+                      disabled={isSearchingMatch}
                     >
+                      {selectedGames.includes('hangman') && (
+                        <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                          <Ionicons name="checkmark-circle" size={22} color="#F59E0B" />
+                        </View>
+                      )}
                       <View style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
                         backgroundColor: 'rgba(245, 158, 11, 0.2)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 14
+                        marginBottom: 10
                       }}>
-                        <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#F59E0B' }}>Aa</Text>
+                        <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#F59E0B' }}>Aa</Text>
                       </View>
-                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 6, textAlign: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>
                         Ahorcado
                       </Text>
-                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
-                        Adivina la palabra
-                      </Text>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 14
-                      }}>
-                        <Ionicons name="people" size={14} color="#10B981" />
-                        <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>2 jugadores</Text>
-                      </View>
                     </TouchableOpacity>
-                  </ScrollView>
+                  </View>
 
-                  {/* Online Players Section */}
+                  {/* Selected Games Count */}
+                  {selectedGames.length > 0 && (
+                    <Text style={{ color: '#10B981', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>
+                      {selectedGames.length} juego{selectedGames.length > 1 ? 's' : ''} seleccionado{selectedGames.length > 1 ? 's' : ''}
+                    </Text>
+                  )}
+
+                  {/* Search Match Button */}
+                  <TouchableOpacity 
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: selectedGames.length === 0 ? '#334155' : (isSearchingMatch ? '#EF4444' : '#6366F1'),
+                      paddingVertical: 16,
+                      paddingHorizontal: 40,
+                      borderRadius: 16,
+                      marginBottom: 24,
+                      opacity: selectedGames.length === 0 ? 0.5 : 1
+                    }}
+                    disabled={selectedGames.length === 0}
+                    onPress={async () => {
+                      if (isSearchingMatch) {
+                        // Cancel search
+                        if (matchmakingInterval) {
+                          clearInterval(matchmakingInterval);
+                          setMatchmakingInterval(null);
+                        }
+                        // Leave all queues
+                        const token = await AsyncStorage.getItem('token');
+                        for (const gameType of selectedGames) {
+                          try {
+                            await axios.post(`${API_BASE}/api/games/matchmaking/leave`, {
+                              game_type: gameType,
+                              user_id: currentUser?.id,
+                              username: currentUser?.username
+                            }, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                          } catch (e) {
+                            console.log('Leave queue error:', e);
+                          }
+                        }
+                        setIsSearchingMatch(false);
+                      } else {
+                        // Start search
+                        setIsSearchingMatch(true);
+                        const token = await AsyncStorage.getItem('token');
+                        
+                        // Join all selected game queues
+                        for (const gameType of selectedGames) {
+                          try {
+                            const response = await axios.post(`${API_BASE}/api/games/matchmaking/join`, {
+                              game_type: gameType,
+                              user_id: currentUser?.id,
+                              username: currentUser?.username
+                            }, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            
+                            if (response.data.status === 'matched') {
+                              // Found match immediately!
+                              const gameResponse = await axios.get(
+                                `${API_BASE}/api/games/game/${response.data.game_id}?user_id=${currentUser?.id}`,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              setGameState(gameResponse.data);
+                              setCurrentGame(gameType);
+                              setIsSearchingMatch(false);
+                              Alert.alert('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${response.data.opponent}`);
+                              return;
+                            }
+                          } catch (e) {
+                            console.log('Join queue error:', e);
+                          }
+                        }
+                        
+                        // Start polling for matches
+                        const interval = setInterval(async () => {
+                          for (const gameType of selectedGames) {
+                            try {
+                              const statusResponse = await axios.get(
+                                `${API_BASE}/api/games/matchmaking/status/${gameType}/${currentUser?.id}`,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              
+                              if (statusResponse.data.status === 'matched') {
+                                clearInterval(interval);
+                                setMatchmakingInterval(null);
+                                
+                                const gameResponse = await axios.get(
+                                  `${API_BASE}/api/games/game/${statusResponse.data.game_id}?user_id=${currentUser?.id}`,
+                                  { headers: { Authorization: `Bearer ${token}` } }
+                                );
+                                setGameState(gameResponse.data);
+                                setCurrentGame(gameType);
+                                setIsSearchingMatch(false);
+                                Alert.alert('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${statusResponse.data.opponent}`);
+                                return;
+                              }
+                            } catch (e) {
+                              console.log('Status check error:', e);
+                            }
+                          }
+                        }, 2000);
+                        
+                        setMatchmakingInterval(interval);
+                        
+                        // Stop after 2 minutes
+                        setTimeout(() => {
+                          if (interval) {
+                            clearInterval(interval);
+                            setMatchmakingInterval(null);
+                            setIsSearchingMatch(false);
+                            Alert.alert('Búsqueda cancelada', 'No se encontró partida. Intenta de nuevo.');
+                          }
+                        }, 120000);
+                      }
+                    }}
+                  >
+                    {isSearchingMatch ? (
+                      <>
+                        <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 10 }} />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>
+                          Cancelar búsqueda
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="search" size={22} color="#FFFFFF" style={{ marginRight: 10 }} />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>
+                          Buscar partida
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Searching Status */}
+                  {isSearchingMatch && (
+                    <View style={{
+                      backgroundColor: '#1E293B',
+                      borderRadius: 12,
+                      padding: 16,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: '#6366F1',
+                      marginBottom: 20,
+                      width: '100%',
+                      maxWidth: 400
+                    }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, marginBottom: 8 }}>
+                        Buscando oponente...
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center' }}>
+                        Juegos: {selectedGames.map(g => g === 'battleship' ? 'Flota' : g === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado').join(', ')}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Info Section */}
                   <View style={{
                     backgroundColor: '#1E293B',
-                    borderRadius: 20,
-                    padding: 24,
+                    borderRadius: 16,
+                    padding: 20,
                     alignItems: 'center',
                     borderWidth: 1,
                     borderColor: '#334155',
                     width: '100%',
-                    maxWidth: 560
+                    maxWidth: 400
                   }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <Ionicons name="wifi" size={20} color="#10B981" />
-                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginLeft: 10 }}>
-                        Taxistas Online
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <Ionicons name="information-circle" size={20} color="#6366F1" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 'bold', marginLeft: 8 }}>
+                        Cómo funciona
                       </Text>
                     </View>
-                    <Text style={{ color: '#94A3B8', fontSize: 14, textAlign: 'center' }}>
-                      Selecciona un juego y busca partida
+                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+                      1. Selecciona uno o más juegos{'\n'}
+                      2. Pulsa "Buscar partida"{'\n'}
+                      3. Espera a que otro taxista busque los mismos juegos
                     </Text>
                   </View>
                 </View>
