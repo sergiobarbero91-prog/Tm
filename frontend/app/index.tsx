@@ -6204,50 +6204,53 @@ export default function TransportMeter() {
         animationType="slide"
         onRequestClose={() => setShowGamesModal(false)}
       >
-        <View 
+        <SafeAreaView 
           style={styles.gamesModalContainer}
-          onStartShouldSetResponder={() => true}
         >
-          {/* Header with minimize and close buttons */}
-          <View style={styles.gamesModalHeader}>
-            <View style={styles.gamesModalTitleRow}>
-              <Ionicons name="game-controller" size={28} color="#10B981" />
-              <Text style={styles.gamesModalTitle}>Juegos Online</Text>
+          <View 
+            style={{ flex: 1 }}
+            onStartShouldSetResponder={() => true}
+          >
+            {/* Header with minimize and close buttons */}
+            <View style={styles.gamesModalHeader}>
+              <View style={styles.gamesModalTitleRow}>
+                <Ionicons name="game-controller" size={28} color="#10B981" />
+                <Text style={styles.gamesModalTitle}>Juegos Online</Text>
+              </View>
+              <View style={styles.gamesModalHeaderButtons}>
+                <TouchableOpacity 
+                  style={styles.gamesModalHeaderButton}
+                  onPress={() => setGamesMinimized(true)}
+                >
+                  <Ionicons name="remove" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.gamesModalHeaderButton, styles.gamesModalCloseButton]}
+                  onPress={() => {
+                    setShowGamesModal(false);
+                    setCurrentGame(null);
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.gamesModalHeaderButtons}>
-              <TouchableOpacity 
-                style={styles.gamesModalHeaderButton}
-                onPress={() => setGamesMinimized(true)}
-              >
-                <Ionicons name="remove" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.gamesModalHeaderButton, styles.gamesModalCloseButton]}
-                onPress={() => {
-                  setShowGamesModal(false);
-                  setCurrentGame(null);
-                }}
-              >
-                <Ionicons name="close" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Games Content */}
-          <ScrollView style={styles.gamesContent} contentContainerStyle={styles.gamesContentContainer}>
-            {!currentGame ? (
-              <>
-                <Text style={styles.gamesSubtitle}>Selecciona un juego para jugar con otros taxistas conectados</Text>
-                
-                {/* Game Options */}
-                <View style={styles.gamesGrid}>
-                  {/* Trivia Game */}
-                  <TouchableOpacity 
-                    style={styles.gameCard}
-                    onPress={() => setCurrentGame('trivia')}
-                  >
-                    <View style={[styles.gameCardIcon, { backgroundColor: '#6366F120' }]}>
-                      <Ionicons name="help-circle" size={40} color="#6366F1" />
+            {/* Games Content */}
+            <ScrollView style={styles.gamesContent} contentContainerStyle={styles.gamesContentContainer}>
+              {!currentGame ? (
+                <>
+                  <Text style={styles.gamesSubtitle}>Selecciona un juego para jugar con otros taxistas conectados</Text>
+                  
+                  {/* Game Options */}
+                  <View style={styles.gamesGrid}>
+                    {/* Trivia Game */}
+                    <TouchableOpacity 
+                      style={styles.gameCard}
+                      onPress={() => setCurrentGame('trivia')}
+                    >
+                      <View style={[styles.gameCardIcon, { backgroundColor: '#6366F120' }]}>
+                        <Ionicons name="help-circle" size={40} color="#6366F1" />
                     </View>
                     <Text style={styles.gameCardTitle}>Trivia Madrid</Text>
                     <Text style={styles.gameCardDescription}>Preguntas sobre Madrid y el taxi</Text>
