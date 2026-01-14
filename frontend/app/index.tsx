@@ -8823,6 +8823,71 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Radio Question Modal (after entry) */}
+      {showRadioQuestion && pendingRadioChannel && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.taxiQuestionModal}>
+            <View style={styles.taxiQuestionHeader}>
+              <Ionicons name="radio" size={50} color="#6366F1" />
+              <Text style={styles.taxiQuestionTitle}>📻 Radio Walkie-Talkie</Text>
+              <Text style={styles.taxiQuestionSubtitle}>
+                ¿Quieres conectarte al {pendingRadioChannel.name}?
+              </Text>
+            </View>
+            
+            <Text style={{ 
+              color: '#94A3B8', 
+              fontSize: 14, 
+              textAlign: 'center', 
+              marginBottom: 20,
+              paddingHorizontal: 20,
+              lineHeight: 20
+            }}>
+              💡 Informa a otros compañeros sobre el estado de la cola, tiempo de espera y movimiento. Tu información ayuda a que otros taxistas decidan si venir o buscar otra zona.
+            </Text>
+            
+            <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 20 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#334155',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center'
+                }}
+                onPress={() => {
+                  setShowRadioQuestion(false);
+                  setPendingRadioChannel(null);
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>No, gracias</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#6366F1',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center'
+                }}
+                onPress={() => {
+                  // Connect to the corresponding radio channel
+                  setRadioChannel(pendingRadioChannel.channel);
+                  connectToRadioChannel(pendingRadioChannel.channel);
+                  setShowRadioDropdown(true);
+                  setShowRadioQuestion(false);
+                  setPendingRadioChannel(null);
+                }}
+              >
+                <Ionicons name="radio" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>¡Sí, conectar!</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Destination & Fare Modal (for terminal exit) */}
       {showDestinationModal && (
         <View style={styles.modalOverlay}>
