@@ -6817,7 +6817,7 @@ export default function TransportMeter() {
 
                     {/* Hangman Game */}
                     {currentGame === 'hangman' && (
-                      <View style={{ alignItems: 'center' }}>
+                      <View style={{ alignItems: 'center', width: '100%' }}>
                         {/* Round & Score info */}
                         <View style={{
                           flexDirection: 'row',
@@ -6829,10 +6829,10 @@ export default function TransportMeter() {
                           borderRadius: 12
                         }}>
                           <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
-                            Ronda {gameState.round}/{gameState.max_rounds}
+                            Ronda {gameState.round || 1}/{gameState.max_rounds || 3}
                           </Text>
                           <Text style={{ color: '#F59E0B', fontSize: 16, fontWeight: 'bold' }}>
-                            {gameState.my_score} - {gameState.opponent_score}
+                            {gameState.my_score || 0} - {gameState.opponent_score || 0}
                           </Text>
                           <Text style={{ color: '#94A3B8', fontSize: 14 }}>
                             {gameState.is_chooser ? '📝 Eliges' : '🔍 Adivinas'}
@@ -6848,7 +6848,7 @@ export default function TransportMeter() {
                             width: '100%',
                             alignItems: 'center'
                           }}>
-                            <Ionicons name="create" size={50} color="#6366F1" />
+                            <Ionicons name="create" size={50} color="#F59E0B" />
                             <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 16 }}>
                               Elige una palabra
                             </Text>
@@ -6862,18 +6862,32 @@ export default function TransportMeter() {
                                 borderRadius: 12,
                                 padding: 16,
                                 color: '#FFFFFF',
-                                fontSize: 18,
+                                fontSize: 20,
                                 textAlign: 'center',
                                 marginTop: 20,
-                                borderWidth: 1,
-                                borderColor: '#334155'
+                                borderWidth: 2,
+                                borderColor: '#F59E0B'
                               }}
-                              placeholder="Escribe la palabra..."
+                              placeholder="Escribe aquí..."
                               placeholderTextColor="#64748B"
                               autoCapitalize="characters"
+                              autoCorrect={false}
                               maxLength={15}
-                              onSubmitEditing={async (e) => {
-                                const word = e.nativeEvent.text.trim();
+                              value={hangmanWord}
+                              onChangeText={setHangmanWord}
+                            />
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: hangmanWord.length >= 3 ? '#F59E0B' : '#334155',
+                                paddingVertical: 14,
+                                paddingHorizontal: 40,
+                                borderRadius: 12,
+                                marginTop: 16,
+                                opacity: hangmanWord.length >= 3 ? 1 : 0.5
+                              }}
+                              disabled={hangmanWord.length < 3}
+                              onPress={async () => {
+                                const word = hangmanWord.trim().toUpperCase();
                                 if (word.length < 3) {
                                   Alert.alert('Error', 'La palabra debe tener al menos 3 letras');
                                   return;
@@ -6888,18 +6902,23 @@ export default function TransportMeter() {
                                     headers: { Authorization: `Bearer ${token}` }
                                   });
                                   
+                                  setHangmanWord('');
                                   const gameResponse = await axios.get(
                                     `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
                                     { headers: { Authorization: `Bearer ${token}` } }
                                   );
                                   setGameState(gameResponse.data);
                                 } catch (error: any) {
-                                  Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                  Alert.alert('Error', error.response?.data?.detail || 'Error al enviar palabra');
                                 }
                               }}
-                            />
-                            <Text style={{ color: '#64748B', marginTop: 8, fontSize: 12 }}>
-                              Pulsa Enter para confirmar (3-15 letras)
+                            >
+                              <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                                ✓ Confirmar palabra
+                              </Text>
+                            </TouchableOpacity>
+                            <Text style={{ color: '#64748B', marginTop: 12, fontSize: 12 }}>
+                              Mínimo 3 letras, máximo 15
                             </Text>
                           </View>
                         )}
