@@ -6700,6 +6700,30 @@ export default function TransportMeter() {
                     {/* Tic Tac Toe Board */}
                     {currentGame === 'tictactoe' && (
                       <View style={{ alignItems: 'center' }}>
+                        {/* Score display */}
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          justifyContent: 'center', 
+                          marginBottom: 16,
+                          backgroundColor: '#1E293B',
+                          padding: 12,
+                          borderRadius: 12,
+                          width: '100%',
+                          maxWidth: 280
+                        }}>
+                          <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                            Ronda {gameState.round || 1}/{gameState.max_rounds || 3}
+                          </Text>
+                          <Text style={{ color: '#94A3B8', marginHorizontal: 12 }}>|</Text>
+                          <Text style={{ color: '#10B981', fontWeight: 'bold' }}>
+                            Tú: {gameState.my_score || 0}
+                          </Text>
+                          <Text style={{ color: '#94A3B8', marginHorizontal: 8 }}>-</Text>
+                          <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>
+                            {gameState.opponent}: {gameState.opponent_score || 0}
+                          </Text>
+                        </View>
+                        
                         <Text style={{ color: '#94A3B8', marginBottom: 16 }}>
                           Tú juegas con: {gameState.my_symbol}
                         </Text>
@@ -6741,8 +6765,12 @@ export default function TransportMeter() {
                                       );
                                       setGameState(gameResponse.data);
                                       
+                                      if (response.data.round_over && !response.data.game_over) {
+                                        Alert.alert('¡Ronda terminada!', response.data.message);
+                                      }
+                                      
                                       if (response.data.game_over) {
-                                        Alert.alert('Fin del juego', response.data.message);
+                                        Alert.alert('¡Partida terminada!', response.data.message);
                                       }
                                     } catch (error: any) {
                                       Alert.alert('Error', error.response?.data?.detail || 'Error al hacer movimiento');
