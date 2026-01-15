@@ -6240,8 +6240,16 @@ export default function TransportMeter() {
                     justifyContent: 'center',
                   }}
                   onPress={() => {
-                    setShowGamesModal(false);
+                    // Clean up everything when closing games modal
+                    if (matchmakingInterval) {
+                      clearInterval(matchmakingInterval);
+                      setMatchmakingInterval(null);
+                    }
+                    setIsSearchingMatch(false);
+                    setSelectedGames([]);
+                    setGameState(null);
                     setCurrentGame(null);
+                    setShowGamesModal(false);
                   }}
                 >
                   <Ionicons name="close" size={24} color="#FFFFFF" />
