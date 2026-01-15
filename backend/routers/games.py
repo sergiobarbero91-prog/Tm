@@ -167,37 +167,60 @@ async def join_matchmaking(request: MatchmakingRequest):
         
         # Initialize game state based on type
         if game_type == "battleship":
+            # Battleship: Best of 3, with manual ship placement phase
             game_state = {
                 "type": "battleship",
+                "phase": "placing",  # "placing" -> "playing"
                 "players": {
                     player1["user_id"]: {
                         "username": player1["username"],
-                        "board": place_ships_randomly(create_battleship_board()),
+                        "board": create_battleship_board(),  # Empty board for manual placement
                         "opponent_view": create_battleship_board(),
-                        "ships_remaining": 17  # 5+4+3+3+2
+                        "ships_remaining": 17,  # 5+4+3+3+2
+                        "ships_placed": False,
+                        "score": 0
                     },
                     player2["user_id"]: {
                         "username": player2["username"],
-                        "board": place_ships_randomly(create_battleship_board()),
+                        "board": create_battleship_board(),
                         "opponent_view": create_battleship_board(),
-                        "ships_remaining": 17
+                        "ships_remaining": 17,
+                        "ships_placed": False,
+                        "score": 0
                     }
                 },
+                "ships_to_place": [5, 4, 3, 3, 2],  # Ship sizes
+                "round": 1,
+                "max_rounds": 3,
                 "current_turn": player1["user_id"],
                 "status": "active",
-                "winner": None
+                "winner": None,
+                "round_history": []
             }
         elif game_type == "tictactoe":
+            # Tic Tac Toe: Best of 3
             game_state = {
                 "type": "tictactoe",
                 "players": {
-                    player1["user_id"]: {"username": player1["username"], "symbol": "X"},
-                    player2["user_id"]: {"username": player2["username"], "symbol": "O"}
+                    player1["user_id"]: {
+                        "username": player1["username"], 
+                        "symbol": "X",
+                        "score": 0
+                    },
+                    player2["user_id"]: {
+                        "username": player2["username"], 
+                        "symbol": "O",
+                        "score": 0
+                    }
                 },
                 "board": create_tictactoe_board(),
+                "round": 1,
+                "max_rounds": 3,
                 "current_turn": player1["user_id"],
+                "first_player": player1["user_id"],  # Track who starts
                 "status": "active",
-                "winner": None
+                "winner": None,
+                "round_history": []
             }
         elif game_type == "hangman":
             # Hangman 1v1: Best of 3 rounds
