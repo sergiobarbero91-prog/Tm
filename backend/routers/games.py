@@ -432,14 +432,77 @@ async def make_move(move: GameMove):
     if game["status"] != "active":
         raise HTTPException(status_code=400, detail="La partida ha terminado")
     
-    if game["current_turn"] != user_id:
-        raise HTTPException(status_code=400, detail="No es tu turno")
-    
     opponent_id = [pid for pid in game["player_ids"] if pid != user_id][0]
     result = {"valid": False, "message": "Movimiento no válido"}
     
     # Process move based on game type
     if game["type"] == "battleship":
+        phase = game.get("phase", "playing")
+        
+        # Phase 1: Ship placement
+        if phase == "placing":
+            ships = move.move.get("ships")  # [{size, row, col, horizontal}, ...]
+            
+            if not ships:
+                raise HTTPException(status_code=400, detail="Debes enviar la posición de los barcos")
+            
+            # Validate and place ships
+            required_ships = game.get("ships_to_place", [5, 4, 3, 3, 2])
+            if len(ships) != len(required_ships):
+                raise HTTPException(status_code=400, detail=f"Debes colocar {len(required_ships)} barcos")
+            
+            # Create a new board for validation
+            new_board = create_battleship_board()
+            ships_placed = []
+            
+            for i, ship in enumerate(ships):
+                size = required_ships[i]
+                row = ship.get("row", 0)
+                col = ship.get("col", 0)
+                horizontal = ship.get("horizontal", True)
+                
+                # Validate position
+                if horizontal:
+                    if col + size > 10:
+                        raise HTTPException(status_code=400, detail=f"Barco {i+1} sale del tablero")
+                    positions = [(row, col + j) for j in range(size)]
+                else:
+                    if row + size > 10:
+                        raise HTTPException(status_code=400, detail=f"Barco {i+1} sale del tablero")
+                    positions = [(row + j, col) for j in range(size)]
+                
+                # Check for overlaps
+                for r, c in positions:
+                    if not (0 <= r < 10 and 0 <= c < 10):
+                        raise HTTPException(status_code=400, detail=f"Barco {i+1} tiene posición inválida")
+                    if new_board[r][c] == "S":
+                        raise HTTPException(status_code=400, detail=f"Barco {i+1} se superpone con otro")
+                
+                # Place the ship
+                for r, c in positions:
+                    new_board[r][c] = "S"
+                ships_placed.append(positions)
+            
+            # Save the board
+            game["players"][user_id]["board"] = new_board
+            game["players"][user_id]["ships_placed"] = True
+            
+            result = {"valid": True, "message": "Barcos colocados correctamente"}
+            
+            # Check if both players have placed ships
+            if game["players"][opponent_id].get("ships_placed", False):
+                game["phase"] = "playing"
+                result["phase"] = "playing"
+                result["message"] = "¡Ambos listos! Empieza la batalla"
+            else:
+                result["message"] = "Barcos colocados. Esperando al oponente..."
+            
+            return result
+        
+        # Phase 2: Playing (shooting)
+        if game["current_turn"] != user_id:
+            raise HTTPException(status_code=400, detail="No es tu turno")
+        
         row = move.move.get("row")
         col = move.move.get("col")
         
@@ -459,12 +522,41 @@ async def make_move(move: GameMove):
             game["players"][opponent_id]["ships_remaining"] -= 1
             result = {"valid": True, "hit": True, "message": "¡Tocado!"}
             
-            # Check if all ships sunk
+            # Check if all ships sunk (round over)
             if game["players"][opponent_id]["ships_remaining"] <= 0:
-                game["status"] = "finished"
-                game["winner"] = user_id
-                result["game_over"] = True
-                result["message"] = "¡Hundido! ¡Has ganado!"
+                # Player wins this round
+                game["players"][user_id]["score"] = game["players"][user_id].get("score", 0) + 1
+                round_num = game.get("round", 1)
+                
+                game["round_history"].append({
+                    "round": round_num,
+                    "winner": user_id,
+                    "winner_name": game["players"][user_id]["username"]
+                })
+                
+                my_score = game["players"][user_id]["score"]
+                opp_score = game["players"][opponent_id]["score"]
+                
+                # Check if match is over (best of 3)
+                if my_score >= 2:
+                    game["status"] = "finished"
+                    game["winner"] = user_id
+                    result["game_over"] = True
+                    result["message"] = f"¡Hundido! ¡Has ganado la partida {my_score}-{opp_score}!"
+                else:
+                    # Start new round
+                    game["round"] = round_num + 1
+                    game["phase"] = "placing"
+                    # Reset boards
+                    for pid in game["player_ids"]:
+                        game["players"][pid]["board"] = create_battleship_board()
+                        game["players"][pid]["opponent_view"] = create_battleship_board()
+                        game["players"][pid]["ships_remaining"] = 17
+                        game["players"][pid]["ships_placed"] = False
+                    
+                    result["round_over"] = True
+                    result["new_round"] = game["round"]
+                    result["message"] = f"¡Hundido! Ganaste la ronda. Marcador: {my_score}-{opp_score}. Ronda {game['round']}"
         else:
             # Miss
             opponent_board[row][col] = "O"
@@ -475,6 +567,9 @@ async def make_move(move: GameMove):
         game["current_turn"] = opponent_id
         
     elif game["type"] == "tictactoe":
+        if game["current_turn"] != user_id:
+            raise HTTPException(status_code=400, detail="No es tu turno")
+        
         row = move.move.get("row")
         col = move.move.get("col")
         
@@ -491,10 +586,41 @@ async def make_move(move: GameMove):
         # Check winner
         winner_symbol = check_tictactoe_winner(game["board"])
         if winner_symbol:
-            game["status"] = "finished"
-            game["winner"] = user_id
-            result["game_over"] = True
-            result["message"] = "¡Has ganado!"
+            # Player wins this round
+            game["players"][user_id]["score"] = game["players"][user_id].get("score", 0) + 1
+            round_num = game.get("round", 1)
+            
+            game.setdefault("round_history", []).append({
+                "round": round_num,
+                "winner": user_id,
+                "winner_name": game["players"][user_id]["username"],
+                "symbol": symbol
+            })
+            
+            my_score = game["players"][user_id]["score"]
+            opp_score = game["players"][opponent_id].get("score", 0)
+            
+            # Check if match is over (best of 3)
+            if my_score >= 2:
+                game["status"] = "finished"
+                game["winner"] = user_id
+                result["game_over"] = True
+                result["message"] = f"¡Has ganado la partida {my_score}-{opp_score}!"
+            else:
+                # Start new round
+                game["round"] = round_num + 1
+                game["board"] = create_tictactoe_board()
+                # Alternate who starts
+                first_player = game.get("first_player", game["player_ids"][0])
+                new_first = opponent_id if first_player == user_id else user_id
+                game["first_player"] = new_first
+                game["current_turn"] = new_first
+                
+                result["round_over"] = True
+                result["new_round"] = game["round"]
+                result["message"] = f"¡Ganaste la ronda! Marcador: {my_score}-{opp_score}. Ronda {game['round']}"
+                return result  # Don't switch turn, new round starts
+                
         elif is_tictactoe_draw(game["board"]):
             game["status"] = "finished"
             game["winner"] = "draw"
