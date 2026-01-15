@@ -7149,70 +7149,256 @@ export default function TransportMeter() {
                     {/* Battleship */}
                     {currentGame === 'battleship' && (
                       <View style={{ alignItems: 'center' }}>
-                        {/* Phase: Placing Ships */}
+                        {/* Phase: Placing Ships - Manual placement */}
                         {gameState.phase === 'placing' && !gameState.ships_placed && (
-                          <View style={{ alignItems: 'center', padding: 20 }}>
-                            <Ionicons name="boat" size={60} color="#3B82F6" />
-                            <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', marginTop: 16, marginBottom: 8 }}>
-                              Coloca tus barcos
-                            </Text>
-                            <Text style={{ color: '#94A3B8', textAlign: 'center', marginBottom: 20 }}>
-                              Barcos a colocar: {gameState.ships_to_place?.join(', ')} casillas
+                          <View style={{ alignItems: 'center', padding: 10 }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
+                              🚢 Coloca tus barcos
                             </Text>
                             
-                            {/* Auto-place button for simplicity */}
-                            <TouchableOpacity
-                              style={{
-                                backgroundColor: '#3B82F6',
-                                paddingVertical: 14,
-                                paddingHorizontal: 28,
-                                borderRadius: 12,
-                                marginBottom: 16
-                              }}
-                              onPress={async () => {
-                                try {
-                                  const token = await AsyncStorage.getItem('token');
-                                  // Auto-place ships in horizontal lines
-                                  const ships = [
-                                    { row: 0, col: 0, horizontal: true },  // 5
-                                    { row: 2, col: 0, horizontal: true },  // 4
-                                    { row: 4, col: 0, horizontal: true },  // 3
-                                    { row: 6, col: 0, horizontal: true },  // 3
-                                    { row: 8, col: 0, horizontal: true }   // 2
-                                  ];
-                                  const response = await axios.post(`${API_BASE}/api/games/game/move`, {
-                                    game_id: gameState.game_id,
-                                    user_id: currentUser?.id,
-                                    move: { ships }
-                                  }, {
-                                    headers: { Authorization: `Bearer ${token}` }
-                                  });
-                                  
-                                  // Refresh game state
-                                  const gameResponse = await axios.get(
-                                    `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
-                                    { headers: { Authorization: `Bearer ${token}` } }
-                                  );
-                                  setGameState(gameResponse.data);
-                                  
-                                  if (response.data.phase === 'playing') {
-                                    Alert.alert('¡Listo!', '¡Ambos jugadores listos! Empieza la batalla.');
-                                  } else {
-                                    Alert.alert('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
-                                  }
-                                } catch (error) {
-                                  Alert.alert('Error', 'No se pudieron colocar los barcos');
-                                }
-                              }}
-                            >
-                              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>
-                                🚢 Colocar barcos automáticamente
+                            {/* Current ship info */}
+                            <View style={{ 
+                              backgroundColor: '#1E3A5F', 
+                              padding: 12, 
+                              borderRadius: 10, 
+                              marginBottom: 12,
+                              width: '100%',
+                              maxWidth: 350
+                            }}>
+                              <Text style={{ color: '#3B82F6', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                {placingShipIndex < shipSizes.length 
+                                  ? `Colocando: ${shipNames[placingShipIndex]}`
+                                  : '✅ Todos los barcos colocados'}
                               </Text>
-                            </TouchableOpacity>
+                              <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                                {placingShipIndex < shipSizes.length 
+                                  ? `Barco ${placingShipIndex + 1} de 5 • Toca una celda para colocar`
+                                  : 'Pulsa "Confirmar" para empezar'}
+                              </Text>
+                            </View>
                             
-                            <Text style={{ color: '#6B7280', fontSize: 12 }}>
-                              (Se colocarán en filas horizontales)
-                            </Text>
+                            {/* Orientation toggle */}
+                            {placingShipIndex < shipSizes.length && (
+                              <View style={{ flexDirection: 'row', marginBottom: 12, gap: 8 }}>
+                                <TouchableOpacity
+                                  style={{
+                                    paddingVertical: 8,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 8,
+                                    backgroundColor: placingOrientation === 'horizontal' ? '#3B82F6' : '#334155',
+                                  }}
+                                  onPress={() => setPlacingOrientation('horizontal')}
+                                >
+                                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>↔️ Horizontal</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={{
+                                    paddingVertical: 8,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 8,
+                                    backgroundColor: placingOrientation === 'vertical' ? '#3B82F6' : '#334155',
+                                  }}
+                                  onPress={() => setPlacingOrientation('vertical')}
+                                >
+                                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>↕️ Vertical</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                            
+                            {/* Placement board - 10x10 grid */}
+                            <View style={{ 
+                              backgroundColor: '#0F172A', 
+                              padding: 4, 
+                              borderRadius: 8,
+                              borderWidth: 2,
+                              borderColor: '#3B82F6'
+                            }}>
+                              {/* Column headers */}
+                              <View style={{ flexDirection: 'row', marginLeft: 20 }}>
+                                {[0,1,2,3,4,5,6,7,8,9].map(col => (
+                                  <Text key={col} style={{ 
+                                    width: 28, 
+                                    textAlign: 'center', 
+                                    color: '#64748B', 
+                                    fontSize: 10,
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {col}
+                                  </Text>
+                                ))}
+                              </View>
+                              
+                              {placementBoard.map((row, rowIndex) => (
+                                <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                                  {/* Row header */}
+                                  <Text style={{ 
+                                    width: 20, 
+                                    textAlign: 'center', 
+                                    color: '#64748B', 
+                                    fontSize: 10,
+                                    fontWeight: 'bold',
+                                    lineHeight: 28
+                                  }}>
+                                    {rowIndex}
+                                  </Text>
+                                  
+                                  {row.map((cell, colIndex) => {
+                                    // Calculate if current ship would fit here
+                                    const currentShipSize = shipSizes[placingShipIndex] || 0;
+                                    const wouldFit = placingShipIndex < shipSizes.length && (
+                                      placingOrientation === 'horizontal' 
+                                        ? colIndex + currentShipSize <= 10
+                                        : rowIndex + currentShipSize <= 10
+                                    );
+                                    
+                                    // Check if placement would overlap
+                                    const wouldOverlap = () => {
+                                      if (!wouldFit || placingShipIndex >= shipSizes.length) return false;
+                                      for (let i = 0; i < currentShipSize; i++) {
+                                        const checkRow = placingOrientation === 'horizontal' ? rowIndex : rowIndex + i;
+                                        const checkCol = placingOrientation === 'horizontal' ? colIndex + i : colIndex;
+                                        if (placementBoard[checkRow]?.[checkCol] === 'S') return true;
+                                      }
+                                      return false;
+                                    };
+                                    
+                                    const canPlace = wouldFit && !wouldOverlap();
+                                    
+                                    return (
+                                      <TouchableOpacity
+                                        key={colIndex}
+                                        style={{
+                                          width: 28,
+                                          height: 28,
+                                          borderWidth: 1,
+                                          borderColor: '#1E3A5F',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          backgroundColor: cell === 'S' ? '#3B82F6' : '#0F172A'
+                                        }}
+                                        disabled={!canPlace || placingShipIndex >= shipSizes.length}
+                                        onPress={() => {
+                                          if (!canPlace || placingShipIndex >= shipSizes.length) return;
+                                          
+                                          // Place the ship
+                                          const newBoard = placementBoard.map(r => [...r]);
+                                          const shipSize = shipSizes[placingShipIndex];
+                                          
+                                          for (let i = 0; i < shipSize; i++) {
+                                            const placeRow = placingOrientation === 'horizontal' ? rowIndex : rowIndex + i;
+                                            const placeCol = placingOrientation === 'horizontal' ? colIndex + i : colIndex;
+                                            newBoard[placeRow][placeCol] = 'S';
+                                          }
+                                          
+                                          setPlacementBoard(newBoard);
+                                          setPlacedShips([...placedShips, {
+                                            row: rowIndex,
+                                            col: colIndex,
+                                            horizontal: placingOrientation === 'horizontal',
+                                            size: shipSize
+                                          }]);
+                                          setPlacingShipIndex(placingShipIndex + 1);
+                                        }}
+                                      >
+                                        {cell === 'S' && (
+                                          <View style={{
+                                            width: 20,
+                                            height: 20,
+                                            borderRadius: 4,
+                                            backgroundColor: '#60A5FA'
+                                          }} />
+                                        )}
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              ))}
+                            </View>
+                            
+                            {/* Ship status */}
+                            <View style={{ marginTop: 12, width: '100%', maxWidth: 350 }}>
+                              {shipNames.map((name, idx) => (
+                                <View key={idx} style={{ 
+                                  flexDirection: 'row', 
+                                  alignItems: 'center', 
+                                  paddingVertical: 4,
+                                  opacity: idx < placingShipIndex ? 1 : 0.5
+                                }}>
+                                  <Text style={{ color: idx < placingShipIndex ? '#10B981' : '#64748B', marginRight: 8 }}>
+                                    {idx < placingShipIndex ? '✓' : '○'}
+                                  </Text>
+                                  <Text style={{ color: idx < placingShipIndex ? '#FFFFFF' : '#64748B', fontSize: 12 }}>
+                                    {name}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                            
+                            {/* Action buttons */}
+                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                              {/* Reset button */}
+                              <TouchableOpacity
+                                style={{
+                                  paddingVertical: 12,
+                                  paddingHorizontal: 20,
+                                  borderRadius: 10,
+                                  backgroundColor: '#EF4444',
+                                }}
+                                onPress={() => {
+                                  setPlacementBoard(Array(10).fill(null).map(() => Array(10).fill('~')));
+                                  setPlacedShips([]);
+                                  setPlacingShipIndex(0);
+                                }}
+                              >
+                                <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>🔄 Reiniciar</Text>
+                              </TouchableOpacity>
+                              
+                              {/* Confirm button */}
+                              <TouchableOpacity
+                                style={{
+                                  paddingVertical: 12,
+                                  paddingHorizontal: 20,
+                                  borderRadius: 10,
+                                  backgroundColor: placingShipIndex >= shipSizes.length ? '#10B981' : '#334155',
+                                  opacity: placingShipIndex >= shipSizes.length ? 1 : 0.5
+                                }}
+                                disabled={placingShipIndex < shipSizes.length}
+                                onPress={async () => {
+                                  if (placingShipIndex < shipSizes.length) return;
+                                  try {
+                                    const token = await AsyncStorage.getItem('token');
+                                    const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                      game_id: gameState.game_id,
+                                      user_id: currentUser?.id,
+                                      move: { ships: placedShips.map(s => ({ row: s.row, col: s.col, horizontal: s.horizontal })) }
+                                    }, {
+                                      headers: { Authorization: `Bearer ${token}` }
+                                    });
+                                    
+                                    const gameResponse = await axios.get(
+                                      `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                      { headers: { Authorization: `Bearer ${token}` } }
+                                    );
+                                    setGameState(gameResponse.data);
+                                    
+                                    // Reset placement state for potential next round
+                                    setPlacementBoard(Array(10).fill(null).map(() => Array(10).fill('~')));
+                                    setPlacedShips([]);
+                                    setPlacingShipIndex(0);
+                                    
+                                    if (response.data.phase === 'playing') {
+                                      Alert.alert('¡Listo!', '¡Ambos jugadores listos! Empieza la batalla.');
+                                    } else {
+                                      Alert.alert('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
+                                    }
+                                  } catch (error: any) {
+                                    Alert.alert('Error', error.response?.data?.detail || 'No se pudieron colocar los barcos');
+                                  }
+                                }}
+                              >
+                                <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>✓ Confirmar</Text>
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         )}
                         
