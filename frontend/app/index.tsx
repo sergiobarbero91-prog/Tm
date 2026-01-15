@@ -6669,9 +6669,15 @@ export default function TransportMeter() {
                   <TouchableOpacity 
                     style={styles.gameBackButton}
                     onPress={() => {
+                      // Clean up game state but stay in games modal
+                      if (gamePollingInterval) {
+                        clearInterval(gamePollingInterval);
+                        setGamePollingInterval(null);
+                      }
                       setCurrentGame(null);
                       setGameState(null);
                       setSelectedGames([]);
+                      setHangmanWord('');
                     }}
                   >
                     <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
