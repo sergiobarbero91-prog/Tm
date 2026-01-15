@@ -449,6 +449,16 @@ export default function TransportMeter() {
   const [gameState, setGameState] = useState<any>(null);
   const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
+  
+  // Battleship manual ship placement states
+  const [placingShipIndex, setPlacingShipIndex] = useState(0);  // Current ship being placed (0-4)
+  const [placingOrientation, setPlacingOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [placedShips, setPlacedShips] = useState<Array<{row: number, col: number, horizontal: boolean, size: number}>>([]);
+  const [placementBoard, setPlacementBoard] = useState<string[][]>(
+    Array(10).fill(null).map(() => Array(10).fill('~'))
+  );
+  const shipSizes = [5, 4, 3, 3, 2];  // Standard battleship ship sizes
+  const shipNames = ['Portaaviones (5)', 'Acorazado (4)', 'Crucero (3)', 'Submarino (3)', 'Destructor (2)'];
 
   // Centralized cleanup function for games
   const cleanupGames = useCallback(() => {
