@@ -7218,45 +7218,120 @@ export default function TransportMeter() {
                               Tus barcos: {gameState.my_ships_remaining} | Enemigo: {gameState.opponent_ships_remaining}
                             </Text>
                             
-                            <Text style={{ color: '#FFFFFF', marginBottom: 10, fontWeight: 'bold' }}>
-                              Tablero enemigo (toca para disparar)
-                            </Text>
+                            {/* Two boards side by side */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
+                              {/* My board (left) */}
+                              <View style={{ marginRight: 10, marginBottom: 10 }}>
+                                <Text style={{ color: '#10B981', marginBottom: 6, fontWeight: 'bold', textAlign: 'center', fontSize: 12 }}>
+                                  TU FLOTA
+                                </Text>
+                                <View style={{ backgroundColor: '#0F172A', padding: 4, borderRadius: 8, borderWidth: 2, borderColor: '#10B981' }}>
+                                  {gameState.my_board?.map((row: string[], rowIndex: number) => (
+                                    <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                                      {row.map((cell: string, colIndex: number) => (
+                                        <View
+                                          key={colIndex}
+                                          style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderWidth: 1,
+                                            borderColor: '#1E293B',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: cell === 'S' ? '#10B981' : 
+                                                            cell === 'X' ? '#EF4444' : 
+                                                            cell === 'O' ? '#3B82F6' : '#0F172A'
+                                          }}
+                                        >
+                                          <Text style={{ color: '#FFFFFF', fontSize: 10 }}>
+                                            {cell === 'S' ? '🚢' : cell === 'X' ? '💥' : cell === 'O' ? '🌊' : ''}
+                                          </Text>
+                                        </View>
+                                      ))}
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                              
+                              {/* Enemy board (right) */}
+                              <View style={{ marginLeft: 10 }}>
+                                <Text style={{ color: '#EF4444', marginBottom: 6, fontWeight: 'bold', textAlign: 'center', fontSize: 12 }}>
+                                  ENEMIGO {gameState.is_my_turn ? '(DISPARA)' : ''}
+                                </Text>
+                                <View style={{ backgroundColor: '#1E293B', padding: 4, borderRadius: 8, borderWidth: 2, borderColor: gameState.is_my_turn ? '#EF4444' : '#334155' }}>
+                                  {gameState.opponent_view?.map((row: string[], rowIndex: number) => (
+                                    <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                                      {row.map((cell: string, colIndex: number) => (
+                                        <TouchableOpacity
+                                          key={colIndex}
+                                          style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderWidth: 1,
+                                            borderColor: '#334155',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: cell === 'X' ? '#EF4444' : 
+                                                            cell === 'O' ? '#3B82F6' : '#0F172A'
+                                          }}
+                                          disabled={!gameState.is_my_turn || cell !== '~'}
+                                          onPress={async () => {
+                                            try {
+                                              const token = await AsyncStorage.getItem('token');
+                                              const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                                game_id: gameState.game_id,
+                                                user_id: currentUser?.id,
+                                                move: { row: rowIndex, col: colIndex }
+                                              }, {
+                                                headers: { Authorization: `Bearer ${token}` }
+                                              });
+                                              
+                                              // Refresh game state
+                                              const gameResponse = await axios.get(
+                                                `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                                { headers: { Authorization: `Bearer ${token}` } }
+                                              );
+                                              setGameState(gameResponse.data);
+                                              
+                                              if (response.data.hit) {
+                                                Alert.alert('¡Tocado!', '💥 Has dado a un barco enemigo');
+                                              } else {
+                                                Alert.alert('Agua', '🌊 No hay ningún barco ahí');
+                                              }
+                                              
+                                              if (response.data.round_over) {
+                                                Alert.alert('¡Ronda terminada!', response.data.message);
+                                              }
+                                              
+                                              if (response.data.game_over) {
+                                                Alert.alert('¡Partida terminada!', response.data.message);
+                                              }
+                                            } catch (error: any) {
+                                              Alert.alert('Error', error.response?.data?.detail || 'No se pudo disparar');
+                                            }
+                                          }}
+                                        >
+                                          <Text style={{ color: '#FFFFFF', fontSize: 10 }}>
+                                            {cell === 'X' ? '💥' : cell === 'O' ? '🌊' : ''}
+                                          </Text>
+                                        </TouchableOpacity>
+                                      ))}
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                            </View>
                             
-                            {/* Enemy board */}
-                            <View style={{ backgroundColor: '#1E293B', padding: 8, borderRadius: 12 }}>
-                              {gameState.opponent_view?.map((row: string[], rowIndex: number) => (
-                                <View key={rowIndex} style={{ flexDirection: 'row' }}>
-                                  {row.map((cell: string, colIndex: number) => (
-                                    <TouchableOpacity
-                                      key={colIndex}
-                                      style={{
-                                        width: 30,
-                                        height: 30,
-                                        borderWidth: 1,
-                                        borderColor: '#334155',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        backgroundColor: cell === 'X' ? '#EF4444' : 
-                                                        cell === 'O' ? '#3B82F6' : '#0F172A'
-                                      }}
-                                      disabled={!gameState.is_my_turn || cell !== '~'}
-                                      onPress={async () => {
-                                        try {
-                                          const token = await AsyncStorage.getItem('token');
-                                          const response = await axios.post(`${API_BASE}/api/games/game/move`, {
-                                            game_id: gameState.game_id,
-                                            user_id: currentUser?.id,
-                                            move: { row: rowIndex, col: colIndex }
-                                          }, {
-                                            headers: { Authorization: `Bearer ${token}` }
-                                          });
-                                          
-                                          // Refresh game state
-                                          const gameResponse = await axios.get(
-                                            `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
-                                            { headers: { Authorization: `Bearer ${token}` } }
-                                          );
-                                          setGameState(gameResponse.data);
+                            {/* Legend */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+                              <Text style={{ color: '#10B981', fontSize: 11, marginHorizontal: 6 }}>🚢 Barco</Text>
+                              <Text style={{ color: '#EF4444', fontSize: 11, marginHorizontal: 6 }}>💥 Tocado</Text>
+                              <Text style={{ color: '#3B82F6', fontSize: 11, marginHorizontal: 6 }}>🌊 Agua</Text>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    )}
                                           
                                           if (response.data.hit) {
                                             Alert.alert('¡Tocado!', '💥 Has dado a un barco enemigo');
