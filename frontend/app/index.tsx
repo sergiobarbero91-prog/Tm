@@ -6309,15 +6309,8 @@ export default function TransportMeter() {
                     justifyContent: 'center',
                   }}
                   onPress={() => {
-                    // Clean up everything when closing games modal
-                    if (matchmakingInterval) {
-                      clearInterval(matchmakingInterval);
-                      setMatchmakingInterval(null);
-                    }
-                    setIsSearchingMatch(false);
-                    setSelectedGames([]);
-                    setGameState(null);
-                    setCurrentGame(null);
+                    // Use centralized cleanup
+                    cleanupGames();
                     setShowGamesModal(false);
                   }}
                 >
