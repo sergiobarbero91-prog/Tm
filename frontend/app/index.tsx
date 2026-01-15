@@ -450,18 +450,51 @@ export default function TransportMeter() {
   const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
 
+  // Centralized cleanup function for games
+  const cleanupGames = useCallback(() => {
+    console.log('[Games] Cleaning up all game state');
+    if (gamePollingInterval) {
+      clearInterval(gamePollingInterval);
+    }
+    if (matchmakingInterval) {
+      clearInterval(matchmakingInterval);
+    }
+    setGamePollingInterval(null);
+    setMatchmakingInterval(null);
+    setIsSearchingMatch(false);
+    setSelectedGames([]);
+    setGameState(null);
+    setCurrentGame(null);
+    setHangmanWord('');
+  }, [gamePollingInterval, matchmakingInterval]);
+
+  // Clean up when games modal is closed
+  useEffect(() => {
+    if (!showGamesModal) {
+      cleanupGames();
+    }
+  }, [showGamesModal]);
+
   // Effect for game state polling - refresh every 2 seconds when in active game
   useEffect(() => {
-    if (gameState && gameState.game_id && gameState.status === 'active' && !gameState.is_my_turn) {
+    // Only poll if modal is open and game is active
+    if (!showGamesModal || !gameState || !gameState.game_id) {
+      return;
+    }
+    
+    if (gameState.status === 'active' && !gameState.is_my_turn) {
       // Only poll when waiting for opponent's turn
       const pollGameState = async () => {
+        if (!showGamesModal) return; // Extra check before making request
         try {
           const token = await AsyncStorage.getItem('token');
           const response = await axios.get(
             `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          setGameState(response.data);
+          if (showGamesModal) { // Only update if modal still open
+            setGameState(response.data);
+          }
         } catch (error) {
           console.log('Game poll error:', error);
         }
@@ -474,21 +507,13 @@ export default function TransportMeter() {
         clearInterval(interval);
         setGamePollingInterval(null);
       };
-    } else if (gamePollingInterval) {
-      clearInterval(gamePollingInterval);
-      setGamePollingInterval(null);
     }
-  }, [gameState?.game_id, gameState?.is_my_turn, gameState?.status, currentUser?.id]);
+  }, [showGamesModal, gameState?.game_id, gameState?.is_my_turn, gameState?.status, currentUser?.id]);
 
   // Clean up polling when component unmounts
   useEffect(() => {
     return () => {
-      if (gamePollingInterval) {
-        clearInterval(gamePollingInterval);
-      }
-      if (matchmakingInterval) {
-        clearInterval(matchmakingInterval);
-      }
+      cleanupGames();
     };
   }, []);
 
