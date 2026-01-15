@@ -7332,37 +7332,6 @@ export default function TransportMeter() {
                         )}
                       </View>
                     )}
-                                          
-                                          if (response.data.hit) {
-                                            Alert.alert('¡Tocado!', '💥 Has dado a un barco enemigo');
-                                          } else {
-                                            Alert.alert('Agua', '🌊 No hay ningún barco ahí');
-                                          }
-                                          
-                                          if (response.data.round_over) {
-                                            Alert.alert('¡Ronda terminada!', response.data.message);
-                                          }
-                                          
-                                          if (response.data.game_over) {
-                                            Alert.alert('¡Partida terminada!', response.data.message);
-                                          }
-                                        } catch (error: any) {
-                                          Alert.alert('Error', error.response?.data?.detail || 'No se pudo disparar');
-                                        }
-                                      }}
-                                    >
-                                      <Text style={{ color: '#FFFFFF', fontSize: 12 }}>
-                                        {cell === 'X' ? '💥' : cell === 'O' ? '🌊' : ''}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  ))}
-                                </View>
-                              ))}
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    )}
                       </>
                     )}
                   </View>
