@@ -7059,45 +7059,187 @@ export default function TransportMeter() {
                       </View>
                     )}
 
-                    {/* Battleship - Simplified view */}
+                    {/* Battleship */}
                     {currentGame === 'battleship' && (
                       <View style={{ alignItems: 'center' }}>
-                        <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
-                          Tus barcos: {gameState.my_ships_remaining} | Enemigo: {gameState.opponent_ships_remaining}
-                        </Text>
+                        {/* Phase: Placing Ships */}
+                        {gameState.phase === 'placing' && !gameState.ships_placed && (
+                          <View style={{ alignItems: 'center', padding: 20 }}>
+                            <Ionicons name="boat" size={60} color="#3B82F6" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', marginTop: 16, marginBottom: 8 }}>
+                              Coloca tus barcos
+                            </Text>
+                            <Text style={{ color: '#94A3B8', textAlign: 'center', marginBottom: 20 }}>
+                              Barcos a colocar: {gameState.ships_to_place?.join(', ')} casillas
+                            </Text>
+                            
+                            {/* Auto-place button for simplicity */}
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#3B82F6',
+                                paddingVertical: 14,
+                                paddingHorizontal: 28,
+                                borderRadius: 12,
+                                marginBottom: 16
+                              }}
+                              onPress={async () => {
+                                try {
+                                  const token = await AsyncStorage.getItem('token');
+                                  // Auto-place ships in horizontal lines
+                                  const ships = [
+                                    { row: 0, col: 0, horizontal: true },  // 5
+                                    { row: 2, col: 0, horizontal: true },  // 4
+                                    { row: 4, col: 0, horizontal: true },  // 3
+                                    { row: 6, col: 0, horizontal: true },  // 3
+                                    { row: 8, col: 0, horizontal: true }   // 2
+                                  ];
+                                  const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                    game_id: gameState.game_id,
+                                    user_id: currentUser?.id,
+                                    move: { ships }
+                                  }, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                  
+                                  // Refresh game state
+                                  const gameResponse = await axios.get(
+                                    `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                  );
+                                  setGameState(gameResponse.data);
+                                  
+                                  if (response.data.phase === 'playing') {
+                                    Alert.alert('¡Listo!', '¡Ambos jugadores listos! Empieza la batalla.');
+                                  } else {
+                                    Alert.alert('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
+                                  }
+                                } catch (error) {
+                                  Alert.alert('Error', 'No se pudieron colocar los barcos');
+                                }
+                              }}
+                            >
+                              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }}>
+                                🚢 Colocar barcos automáticamente
+                              </Text>
+                            </TouchableOpacity>
+                            
+                            <Text style={{ color: '#6B7280', fontSize: 12 }}>
+                              (Se colocarán en filas horizontales)
+                            </Text>
+                          </View>
+                        )}
                         
-                        <Text style={{ color: '#FFFFFF', marginBottom: 10, fontWeight: 'bold' }}>
-                          Tablero enemigo (toca para disparar)
-                        </Text>
+                        {/* Phase: Waiting for opponent to place */}
+                        {gameState.phase === 'placing' && gameState.ships_placed && !gameState.opponent_ships_placed && (
+                          <View style={{ alignItems: 'center', padding: 20 }}>
+                            <ActivityIndicator size="large" color="#3B82F6" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 18, marginTop: 16 }}>
+                              Esperando al oponente...
+                            </Text>
+                            <Text style={{ color: '#94A3B8', marginTop: 8 }}>
+                              Tu oponente está colocando sus barcos
+                            </Text>
+                          </View>
+                        )}
                         
-                        {/* Enemy board */}
-                        <View style={{ backgroundColor: '#1E293B', padding: 8, borderRadius: 12 }}>
-                          {gameState.opponent_view?.map((row: string[], rowIndex: number) => (
-                            <View key={rowIndex} style={{ flexDirection: 'row' }}>
-                              {row.map((cell: string, colIndex: number) => (
-                                <TouchableOpacity
-                                  key={colIndex}
-                                  style={{
-                                    width: 30,
-                                    height: 30,
-                                    borderWidth: 1,
-                                    borderColor: '#334155',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    backgroundColor: cell === 'X' ? '#EF4444' : 
-                                                    cell === 'O' ? '#3B82F6' : '#0F172A'
-                                  }}
-                                  disabled={!gameState.is_my_turn || cell !== '~'}
-                                  onPress={async () => {
-                                    try {
-                                      const token = await AsyncStorage.getItem('token');
-                                      const response = await axios.post(`${API_BASE}/api/games/game/move`, {
-                                        game_id: gameState.game_id,
-                                        user_id: currentUser?.id,
-                                        move: { row: rowIndex, col: colIndex }
-                                      }, {
-                                        headers: { Authorization: `Bearer ${token}` }
-                                      });
+                        {/* Phase: Playing */}
+                        {gameState.phase === 'playing' && (
+                          <>
+                            {/* Score display */}
+                            <View style={{ 
+                              flexDirection: 'row', 
+                              justifyContent: 'center', 
+                              marginBottom: 12,
+                              backgroundColor: '#1E293B',
+                              padding: 10,
+                              borderRadius: 10
+                            }}>
+                              <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                                Ronda {gameState.round}/{gameState.max_rounds} | 
+                              </Text>
+                              <Text style={{ color: '#10B981', fontWeight: 'bold', marginLeft: 8 }}>
+                                Tú: {gameState.my_score}
+                              </Text>
+                              <Text style={{ color: '#94A3B8', marginHorizontal: 8 }}>-</Text>
+                              <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>
+                                {gameState.opponent}: {gameState.opponent_score}
+                              </Text>
+                            </View>
+                            
+                            <Text style={{ color: '#94A3B8', marginBottom: 10 }}>
+                              Tus barcos: {gameState.my_ships_remaining} | Enemigo: {gameState.opponent_ships_remaining}
+                            </Text>
+                            
+                            <Text style={{ color: '#FFFFFF', marginBottom: 10, fontWeight: 'bold' }}>
+                              Tablero enemigo (toca para disparar)
+                            </Text>
+                            
+                            {/* Enemy board */}
+                            <View style={{ backgroundColor: '#1E293B', padding: 8, borderRadius: 12 }}>
+                              {gameState.opponent_view?.map((row: string[], rowIndex: number) => (
+                                <View key={rowIndex} style={{ flexDirection: 'row' }}>
+                                  {row.map((cell: string, colIndex: number) => (
+                                    <TouchableOpacity
+                                      key={colIndex}
+                                      style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderWidth: 1,
+                                        borderColor: '#334155',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: cell === 'X' ? '#EF4444' : 
+                                                        cell === 'O' ? '#3B82F6' : '#0F172A'
+                                      }}
+                                      disabled={!gameState.is_my_turn || cell !== '~'}
+                                      onPress={async () => {
+                                        try {
+                                          const token = await AsyncStorage.getItem('token');
+                                          const response = await axios.post(`${API_BASE}/api/games/game/move`, {
+                                            game_id: gameState.game_id,
+                                            user_id: currentUser?.id,
+                                            move: { row: rowIndex, col: colIndex }
+                                          }, {
+                                            headers: { Authorization: `Bearer ${token}` }
+                                          });
+                                          
+                                          // Refresh game state
+                                          const gameResponse = await axios.get(
+                                            `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+                                            { headers: { Authorization: `Bearer ${token}` } }
+                                          );
+                                          setGameState(gameResponse.data);
+                                          
+                                          if (response.data.hit) {
+                                            Alert.alert('¡Tocado!', '💥 Has dado a un barco enemigo');
+                                          } else {
+                                            Alert.alert('Agua', '🌊 No hay ningún barco ahí');
+                                          }
+                                          
+                                          if (response.data.round_over) {
+                                            Alert.alert('¡Ronda terminada!', response.data.message);
+                                          }
+                                          
+                                          if (response.data.game_over) {
+                                            Alert.alert('¡Partida terminada!', response.data.message);
+                                          }
+                                        } catch (error: any) {
+                                          Alert.alert('Error', error.response?.data?.detail || 'No se pudo disparar');
+                                        }
+                                      }}
+                                    >
+                                      <Text style={{ color: '#FFFFFF', fontSize: 12 }}>
+                                        {cell === 'X' ? '💥' : cell === 'O' ? '🌊' : ''}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              ))}
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    )}
                                       
                                       const gameResponse = await axios.get(
                                         `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
