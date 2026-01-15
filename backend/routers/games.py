@@ -144,6 +144,19 @@ async def join_matchmaking(request: MatchmakingRequest):
     if game_type not in matchmaking_queues:
         raise HTTPException(status_code=400, detail="Tipo de juego no válido")
     
+    # Check if user already has an active game of this type
+    for game_id, game in active_games.items():
+        if game["type"] == game_type and request.user_id in game["players"]:
+            if game.get("status", "active") != "finished":
+                # User already has an active game - return it
+                opponent_id = [pid for pid in game["players"] if pid != request.user_id][0]
+                opponent_name = game["players"][opponent_id]["username"]
+                return {
+                    "status": "matched",
+                    "game_id": game_id,
+                    "opponent": opponent_name
+                }
+    
     # Check if user is already in queue
     for player in matchmaking_queues[game_type]:
         if player["user_id"] == request.user_id:
