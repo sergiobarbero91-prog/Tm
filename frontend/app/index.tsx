@@ -6624,27 +6624,35 @@ export default function TransportMeter() {
 
                 {/* Active game content */}
                 <View style={{ flex: 1, padding: 16 }}>
-                    {/* Opponent info */}
-                    <View style={{ 
-                      flexDirection: 'row', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      marginBottom: 16,
-                      padding: 12,
-                      backgroundColor: '#1E293B',
-                      borderRadius: 12
-                    }}>
-                      <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
-                        vs {gameState.opponent}
-                      </Text>
-                      <Text style={{ 
-                        color: gameState.is_my_turn ? '#10B981' : '#94A3B8',
-                        fontSize: 14,
-                        fontWeight: 'bold'
-                      }}>
-                        {gameState.is_my_turn ? '✨ Tu turno' : '⏳ Esperando...'}
-                      </Text>
-                    </View>
+                    {/* Loading check */}
+                    {!gameState ? (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <ActivityIndicator size="large" color="#6366F1" />
+                        <Text style={{ color: '#94A3B8', marginTop: 16 }}>Cargando partida...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        {/* Opponent info */}
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          marginBottom: 16,
+                          padding: 12,
+                          backgroundColor: '#1E293B',
+                          borderRadius: 12
+                        }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+                            vs {gameState.opponent || 'Oponente'}
+                          </Text>
+                          <Text style={{ 
+                            color: gameState.is_my_turn ? '#10B981' : '#94A3B8',
+                            fontSize: 14,
+                            fontWeight: 'bold'
+                          }}>
+                            {gameState.is_my_turn ? '✨ Tu turno' : '⏳ Esperando...'}
+                          </Text>
+                        </View>
 
                     {/* Tic Tac Toe Board */}
                     {currentGame === 'tictactoe' && (
