@@ -7240,54 +7240,6 @@ export default function TransportMeter() {
                         )}
                       </View>
                     )}
-                                      
-                                      const gameResponse = await axios.get(
-                                        `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
-                                        { headers: { Authorization: `Bearer ${token}` } }
-                                      );
-                                      setGameState(gameResponse.data);
-                                      
-                                      Alert.alert(
-                                        response.data.hit ? '¡Tocado!' : 'Agua',
-                                        response.data.message
-                                      );
-                                      
-                                      if (response.data.game_over) {
-                                        Alert.alert('Fin del juego', response.data.message);
-                                      }
-                                    } catch (error: any) {
-                                      Alert.alert('Error', error.response?.data?.detail || 'Error');
-                                    }
-                                  }}
-                                >
-                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>
-                                    {cell === 'X' ? '💥' : cell === 'O' ? '💧' : ''}
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-                          ))}
-                        </View>
-
-                        {gameState.status === 'finished' && (
-                          <View style={{ marginTop: 20, alignItems: 'center' }}>
-                            <Text style={{ 
-                              fontSize: 24, 
-                              fontWeight: 'bold',
-                              color: gameState.winner === currentUser?.id ? '#10B981' : '#EF4444'
-                            }}>
-                              {gameState.winner === currentUser?.id ? '¡Victoria! 🎉' : 'Derrota 😢'}
-                            </Text>
-                            <TouchableOpacity
-                              style={[styles.gameStartButton, { marginTop: 16 }]}
-                              onPress={() => setGameState(null)}
-                            >
-                              <Text style={styles.gameStartButtonText}>Jugar otra vez</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    )}
                       </>
                     )}
                   </View>
