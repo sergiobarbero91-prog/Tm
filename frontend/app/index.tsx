@@ -447,6 +447,49 @@ export default function TransportMeter() {
     score: number;
   }>>([]);
   const [gameState, setGameState] = useState<any>(null);
+  const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Effect for game state polling - refresh every 2 seconds when in active game
+  useEffect(() => {
+    if (gameState && gameState.game_id && gameState.status === 'active' && !gameState.is_my_turn) {
+      // Only poll when waiting for opponent's turn
+      const pollGameState = async () => {
+        try {
+          const token = await AsyncStorage.getItem('token');
+          const response = await axios.get(
+            `${API_BASE}/api/games/game/${gameState.game_id}?user_id=${currentUser?.id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setGameState(response.data);
+        } catch (error) {
+          console.log('Game poll error:', error);
+        }
+      };
+      
+      const interval = setInterval(pollGameState, 2000);
+      setGamePollingInterval(interval);
+      
+      return () => {
+        clearInterval(interval);
+        setGamePollingInterval(null);
+      };
+    } else if (gamePollingInterval) {
+      clearInterval(gamePollingInterval);
+      setGamePollingInterval(null);
+    }
+  }, [gameState?.game_id, gameState?.is_my_turn, gameState?.status, currentUser?.id]);
+
+  // Clean up polling when component unmounts
+  useEffect(() => {
+    return () => {
+      if (gamePollingInterval) {
+        clearInterval(gamePollingInterval);
+      }
+      if (matchmakingInterval) {
+        clearInterval(matchmakingInterval);
+      }
+    };
+  }, []);
 
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
