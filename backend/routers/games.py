@@ -349,15 +349,24 @@ async def get_game_state(game_id: str, user_id: str):
         return {
             "game_id": game_id,
             "type": game["type"],
+            "phase": game.get("phase", "playing"),
             "my_board": game["players"][user_id]["board"],
             "opponent_view": game["players"][user_id]["opponent_view"],
             "my_ships_remaining": game["players"][user_id]["ships_remaining"],
             "opponent_ships_remaining": game["players"][opponent_id]["ships_remaining"],
+            "ships_placed": game["players"][user_id].get("ships_placed", True),
+            "opponent_ships_placed": game["players"][opponent_id].get("ships_placed", True),
+            "ships_to_place": game.get("ships_to_place", []),
+            "round": game.get("round", 1),
+            "max_rounds": game.get("max_rounds", 3),
+            "my_score": game["players"][user_id].get("score", 0),
+            "opponent_score": game["players"][opponent_id].get("score", 0),
             "current_turn": game["current_turn"],
             "is_my_turn": game["current_turn"] == user_id,
             "opponent": game["players"][opponent_id]["username"],
             "status": game["status"],
-            "winner": game["winner"]
+            "winner": game["winner"],
+            "round_history": game.get("round_history", [])
         }
     elif game["type"] == "tictactoe":
         opponent_id = [pid for pid in game["player_ids"] if pid != user_id][0]
@@ -366,11 +375,16 @@ async def get_game_state(game_id: str, user_id: str):
             "type": game["type"],
             "board": game["board"],
             "my_symbol": game["players"][user_id]["symbol"],
+            "round": game.get("round", 1),
+            "max_rounds": game.get("max_rounds", 3),
+            "my_score": game["players"][user_id].get("score", 0),
+            "opponent_score": game["players"][opponent_id].get("score", 0),
             "current_turn": game["current_turn"],
             "is_my_turn": game["current_turn"] == user_id,
             "opponent": game["players"][opponent_id]["username"],
             "status": game["status"],
-            "winner": game["winner"]
+            "winner": game["winner"],
+            "round_history": game.get("round_history", [])
         }
     elif game["type"] == "hangman":
         opponent_id = [pid for pid in game["player_ids"] if pid != user_id][0]
