@@ -622,10 +622,31 @@ async def make_move(move: GameMove):
                 return result  # Don't switch turn, new round starts
                 
         elif is_tictactoe_draw(game["board"]):
-            game["status"] = "finished"
-            game["winner"] = "draw"
-            result["game_over"] = True
-            result["message"] = "¡Empate!"
+            # Draw - start new round without points
+            round_num = game.get("round", 1)
+            
+            game.setdefault("round_history", []).append({
+                "round": round_num,
+                "winner": "draw",
+                "winner_name": "Empate"
+            })
+            
+            my_score = game["players"][user_id].get("score", 0)
+            opp_score = game["players"][opponent_id].get("score", 0)
+            
+            # Start new round (no points awarded)
+            game["round"] = round_num + 1
+            game["board"] = create_tictactoe_board()
+            # Alternate who starts
+            first_player = game.get("first_player", game["player_ids"][0])
+            new_first = opponent_id if first_player == user_id else user_id
+            game["first_player"] = new_first
+            game["current_turn"] = new_first
+            
+            result["round_over"] = True
+            result["new_round"] = game["round"]
+            result["message"] = f"¡Empate! Marcador: {my_score}-{opp_score}. Nueva ronda {game['round']}"
+            return result
         else:
             # Switch turn
             game["current_turn"] = opponent_id
