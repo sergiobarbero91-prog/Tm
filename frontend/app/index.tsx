@@ -448,6 +448,7 @@ export default function TransportMeter() {
   }>>([]);
   const [gameState, setGameState] = useState<any>(null);
   const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
 
   // Effect for game state polling - refresh every 2 seconds when in active game
   useEffect(() => {
