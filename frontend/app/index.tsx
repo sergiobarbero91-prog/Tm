@@ -476,6 +476,11 @@ export default function TransportMeter() {
     setGameState(null);
     setCurrentGame(null);
     setHangmanWord('');
+    // Reset battleship placement state
+    setPlacingShipIndex(0);
+    setPlacingOrientation('horizontal');
+    setPlacedShips([]);
+    setPlacementBoard(Array(10).fill(null).map(() => Array(10).fill('~')));
   }, [gamePollingInterval, matchmakingInterval]);
 
   // Clean up when games modal is closed
