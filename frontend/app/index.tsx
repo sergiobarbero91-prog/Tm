@@ -6608,7 +6608,7 @@ export default function TransportMeter() {
                               setGameState(gameResponse.data);
                               setCurrentGame(gameType);
                               setIsSearchingMatch(false);
-                              Alert.alert('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${response.data.opponent}`);
+                              showGameToast('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${response.data.opponent}`);
                               return;
                             }
                           } catch (e) {
@@ -6636,7 +6636,7 @@ export default function TransportMeter() {
                                 setGameState(gameResponse.data);
                                 setCurrentGame(gameType);
                                 setIsSearchingMatch(false);
-                                Alert.alert('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${statusResponse.data.opponent}`);
+                                showGameToast('¡Partida encontrada!', `Jugando ${gameType === 'battleship' ? 'Hundir la Flota' : gameType === 'tictactoe' ? 'Tres en Raya' : 'Ahorcado'} contra ${statusResponse.data.opponent}`);
                                 return;
                               }
                             } catch (e) {
@@ -6653,7 +6653,7 @@ export default function TransportMeter() {
                             clearInterval(interval);
                             setMatchmakingInterval(null);
                             setIsSearchingMatch(false);
-                            Alert.alert('Búsqueda cancelada', 'No se encontró partida. Intenta de nuevo.');
+                            showGameToast('Búsqueda cancelada', 'No se encontró partida. Intenta de nuevo.');
                           }
                         }, 120000);
                       }
@@ -6851,11 +6851,11 @@ export default function TransportMeter() {
                                       setGameState(gameResponse.data);
                                       
                                       if (response.data.round_over && !response.data.game_over) {
-                                        Alert.alert('¡Ronda terminada!', response.data.message);
+                                        showGameToast('¡Ronda terminada!', response.data.message);
                                       }
                                       
                                       if (response.data.game_over) {
-                                        Alert.alert('¡Partida terminada!', response.data.message);
+                                        showGameToast('¡Partida terminada!', response.data.message);
                                       }
                                     } catch (error: any) {
                                       Alert.alert('Error', error.response?.data?.detail || 'Error al hacer movimiento');
@@ -7134,7 +7134,7 @@ export default function TransportMeter() {
                                           if (response.data.game_over) {
                                             Alert.alert('Fin del juego', response.data.message);
                                           } else if (response.data.new_round) {
-                                            Alert.alert('¡Siguiente ronda!', response.data.message);
+                                            showGameToast('¡Siguiente ronda!', response.data.message);
                                           }
                                         } catch (error: any) {
                                           Alert.alert('Error', error.response?.data?.detail || 'Error');
@@ -7432,9 +7432,9 @@ export default function TransportMeter() {
                                     setPlacingShipIndex(0);
                                     
                                     if (response.data.phase === 'playing') {
-                                      Alert.alert('¡Listo!', '¡Ambos jugadores listos! Empieza la batalla.');
+                                      showGameToast('¡Listo!', '¡Ambos jugadores listos! Empieza la batalla.');
                                     } else {
-                                      Alert.alert('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
+                                      showGameToast('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
                                     }
                                   } catch (error: any) {
                                     Alert.alert('Error', error.response?.data?.detail || 'No se pudieron colocar los barcos');
@@ -7564,17 +7564,17 @@ export default function TransportMeter() {
                                               setGameState(gameResponse.data);
                                               
                                               if (response.data.hit) {
-                                                Alert.alert('¡Tocado!', '💥 Has dado a un barco enemigo');
+                                                showGameToast('¡Tocado!', '💥 Has dado a un barco enemigo');
                                               } else {
-                                                Alert.alert('Agua', '🌊 No hay ningún barco ahí');
+                                                showGameToast('Agua', '🌊 No hay ningún barco ahí');
                                               }
                                               
                                               if (response.data.round_over) {
-                                                Alert.alert('¡Ronda terminada!', response.data.message);
+                                                showGameToast('¡Ronda terminada!', response.data.message);
                                               }
                                               
                                               if (response.data.game_over) {
-                                                Alert.alert('¡Partida terminada!', response.data.message);
+                                                showGameToast('¡Partida terminada!', response.data.message);
                                               }
                                             } catch (error: any) {
                                               Alert.alert('Error', error.response?.data?.detail || 'No se pudo disparar');
