@@ -114,7 +114,7 @@ class RadioConnectionManager:
         for uid, ws in list(self.active_connections[channel].items()):
             try:
                 await ws.send_text(status_message)
-            except:
+            except Exception:
                 pass
     
     async def start_transmission(self, channel: int, user_id: str) -> bool:
@@ -153,7 +153,7 @@ class RadioConnectionManager:
         final_mime_type = mime_type or "audio/mp4"
         
         if mime_type and 'webm' in mime_type.lower():
-            logger.info(f"Radio: Converting webm audio to mp4 for compatibility")
+            logger.info("Radio: Converting webm audio to mp4 for compatibility")
             try:
                 # Extract base64 data (remove data URL prefix if present)
                 if audio_data.startswith('data:'):
@@ -199,7 +199,7 @@ class RadioConnectionManager:
                     os.unlink(input_path)
                     if os.path.exists(output_path):
                         os.unlink(output_path)
-                except:
+                except OSError:
                     pass
                     
             except Exception as e:
