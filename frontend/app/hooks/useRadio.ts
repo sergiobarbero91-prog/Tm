@@ -257,9 +257,9 @@ export const useRadio = (): UseRadioReturn => {
           ? Audio.RecordingOptionsPresets.HIGH_QUALITY
           : {
               android: {
-                extension: '.webm',
-                outputFormat: Audio.AndroidOutputFormat.WEBM,
-                audioEncoder: Audio.AndroidAudioEncoder.OPUS,
+                extension: '.m4a',
+                outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+                audioEncoder: Audio.AndroidAudioEncoder.AAC,
                 sampleRate: 16000,
                 numberOfChannels: 1,
                 bitRate: 32000,
