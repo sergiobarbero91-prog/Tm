@@ -2457,9 +2457,24 @@ export default function TransportMeter() {
   // Get alert info for a specific location
   const getLocationAlerts = (locationType: string, locationName: string) => {
     const normalizedName = locationType === 'station' ? locationName.toLowerCase() : locationName;
-    return stationAlerts.alerts.filter(
-      alert => alert.location_type === locationType && alert.location_name === normalizedName
-    );
+    const elapsedSinceFetch = Math.floor((Date.now() - alertsFetchedAt) / 1000);
+    
+    return stationAlerts.alerts.filter(alert => {
+      // Filter by location
+      if (alert.location_type !== locationType || alert.location_name !== normalizedName) {
+        return false;
+      }
+      
+      // Calculate actual age of the alert
+      const actualSecondsAgo = alert.seconds_ago + elapsedSinceFetch;
+      
+      // Exclude alerts older than 5 minutes (300 seconds) - they should have expired
+      if (actualSecondsAgo > 300) {
+        return false;
+      }
+      
+      return true;
+    });
   };
 
   // Format seconds ago as "Xm Xs" - calculates real-time based on backend seconds_ago + elapsed time
