@@ -1,9 +1,11 @@
 """
 Authentication router for login, registration, and profile management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from datetime import datetime
 import uuid
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from shared import (
     users_collection,
@@ -14,10 +16,12 @@ from shared import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(login_data: UserLogin):
+@limiter.limit("10/minute")  # Rate limit: 10 login attempts per minute
+async def login(request: Request, login_data: UserLogin):
     """Login with username and password."""
     user = await users_collection.find_one({"username": login_data.username})
     if not user or not verify_password(login_data.password, user["hashed_password"]):
