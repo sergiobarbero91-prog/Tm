@@ -2685,10 +2685,16 @@ api_router.include_router(games_router.router)
 # Include the router in the main app
 app.include_router(api_router)
 
+# Add rate limiting to the app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS configuration - use environment variable for production domains
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS != ["*"] else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
