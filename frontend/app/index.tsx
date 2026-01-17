@@ -1419,17 +1419,6 @@ export default function TransportMeter() {
     }
   };
 
-  // Open GPS for street fare destination
-  const openStreetFareGps = () => {
-    if (streetSelectedAddress) {
-      openGpsNavigation(
-        streetSelectedAddress.latitude,
-        streetSelectedAddress.longitude,
-        streetSelectedAddress.address
-      );
-    }
-  };
-
   // Close street fare modal and register load activity
   const handleStreetFareComplete = async () => {
     // First, open GPS with destination (before anything else)
