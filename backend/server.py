@@ -1741,7 +1741,15 @@ async def health_check_detailed():
         "services": {
             "mongodb": mongo_status,
             "sentry": "enabled" if SENTRY_DSN else "disabled",
-        }
+        },
+        "cache": {
+            "trains_cached": arrival_cache["trains"]["data"] is not None,
+            "trains_last_update": arrival_cache["trains"]["timestamp"].isoformat() if arrival_cache["trains"]["timestamp"] else None,
+            "flights_cached": arrival_cache["flights"]["data"] is not None,
+            "flights_last_update": arrival_cache["flights"]["timestamp"].isoformat() if arrival_cache["flights"]["timestamp"] else None,
+        },
+        "rate_limiting": "enabled",
+        "gzip_compression": "enabled"
     }
 
 @api_router.get("/debug/sentry-test")
