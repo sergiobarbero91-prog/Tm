@@ -461,14 +461,52 @@ export default function TransportMeter() {
   const shipNames = ['Portaaviones (5)', 'Acorazado (4)', 'Crucero (3)', 'Submarino (3)', 'Destructor (2)'];
 
   // Centralized cleanup function for games
-  const cleanupGames = useCallback(() => {
+  const cleanupGames = useCallback(async () => {
     console.log('[Games] Cleaning up all game state');
+    
+    // First, clear intervals to stop polling
     if (gamePollingInterval) {
       clearInterval(gamePollingInterval);
     }
     if (matchmakingInterval) {
       clearInterval(matchmakingInterval);
     }
+    
+    // Abandon active game on server if exists
+    if (gameState?.game_id && currentUser?.id) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        await axios.post(`${API_BASE}/api/games/game/${gameState.game_id}/forfeit`, {
+          user_id: currentUser.id
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log('[Games] Game forfeited on server');
+      } catch (error) {
+        console.log('[Games] Error forfeiting game:', error);
+      }
+    }
+    
+    // Leave matchmaking queues if searching
+    if (isSearchingMatch && currentUser?.id) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        for (const gameType of selectedGames) {
+          await axios.post(`${API_BASE}/api/games/matchmaking/leave`, {
+            game_type: gameType,
+            user_id: currentUser.id,
+            username: currentUser.username
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        }
+        console.log('[Games] Left matchmaking queues');
+      } catch (error) {
+        console.log('[Games] Error leaving queues:', error);
+      }
+    }
+    
+    // Reset all state
     setGamePollingInterval(null);
     setMatchmakingInterval(null);
     setIsSearchingMatch(false);
@@ -481,7 +519,7 @@ export default function TransportMeter() {
     setPlacingOrientation('horizontal');
     setPlacedShips([]);
     setPlacementBoard(Array(10).fill(null).map(() => Array(10).fill('~')));
-  }, [gamePollingInterval, matchmakingInterval]);
+  }, [gamePollingInterval, matchmakingInterval, gameState?.game_id, currentUser?.id, currentUser?.username, isSearchingMatch, selectedGames]);
 
   // Clean up when games modal is closed
   useEffect(() => {
