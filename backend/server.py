@@ -2694,6 +2694,10 @@ app.include_router(api_router)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# GZIP compression middleware for faster responses
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
+
 # CORS configuration - use environment variable for production domains
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
