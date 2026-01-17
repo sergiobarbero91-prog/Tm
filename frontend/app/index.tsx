@@ -449,6 +449,7 @@ export default function TransportMeter() {
   const [gameState, setGameState] = useState<any>(null);
   const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
+  const [gameToast, setGameToast] = useState<{title: string, message: string} | null>(null);  // Toast for game notifications
   
   // Battleship manual ship placement states
   const [placingShipIndex, setPlacingShipIndex] = useState(0);  // Current ship being placed (0-4)
@@ -459,6 +460,12 @@ export default function TransportMeter() {
   );
   const shipSizes = [5, 4, 3, 3, 2];  // Standard battleship ship sizes
   const shipNames = ['Portaaviones (5)', 'Acorazado (4)', 'Crucero (3)', 'Submarino (3)', 'Destructor (2)'];
+  
+  // Helper function to show game toast instead of Alert.alert
+  const showGameToast = useCallback((title: string, message: string) => {
+    setGameToast({ title, message });
+    setTimeout(() => setGameToast(null), 3000);
+  }, []);
 
   // Centralized cleanup function for games
   const cleanupGames = useCallback(async () => {
