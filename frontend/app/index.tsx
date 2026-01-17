@@ -2392,7 +2392,7 @@ export default function TransportMeter() {
     
     setReportingAlert(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'Debes iniciar sesión');
         setReportingAlert(false);
