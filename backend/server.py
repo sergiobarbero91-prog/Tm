@@ -2899,6 +2899,45 @@ async def startup_db_client():
     except Exception as e:
         logger.info(f"Index setup: {e}")
     
+    # Create additional indexes for other collections
+    logger.info("Setting up additional indexes...")
+    try:
+        # Index for users by username (unique lookups)
+        await users_collection.create_index("username", unique=True, background=True)
+        logger.info("Created unique index on users.username")
+        
+        # Index for users by license_number (unique lookups)
+        await users_collection.create_index("license_number", unique=True, sparse=True, background=True)
+        logger.info("Created unique index on users.license_number")
+        
+        # Index for station_alerts by expires_at (for cleanup queries)
+        await station_alerts_collection.create_index("expires_at", background=True)
+        logger.info("Created index on station_alerts.expires_at")
+        
+        # Compound index for station_alerts by location
+        await station_alerts_collection.create_index(
+            [("location_type", 1), ("location_name", 1), ("expires_at", -1)],
+            background=True
+        )
+        logger.info("Created compound index on station_alerts")
+        
+        # Index for chat_messages by channel and created_at
+        await chat_messages_collection.create_index(
+            [("channel", 1), ("created_at", -1)],
+            background=True
+        )
+        logger.info("Created compound index on chat_messages")
+        
+        # Index for checkins by user_id and location
+        await checkins_collection.create_index(
+            [("user_id", 1), ("status", 1)],
+            background=True
+        )
+        logger.info("Created compound index on checkins")
+        
+    except Exception as e:
+        logger.info(f"Additional indexes setup: {e}")
+    
     # Create TTL indexes for history collections (12 hours = 43200 seconds)
     logger.info("Setting up TTL indexes for history collections...")
     try:
