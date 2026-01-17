@@ -201,9 +201,11 @@ async def get_chat_messages(
 
 
 @router.post("/{channel}/messages")
+@limiter.limit("30/minute")  # Rate limit: 30 messages per minute
 async def send_chat_message(
     channel: str,
-    request: SendMessageRequest,
+    request_body: SendMessageRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user_required)
 ):
     """Send a message to a chat channel."""
@@ -220,8 +222,11 @@ async def send_chat_message(
     if is_blocked:
         raise HTTPException(status_code=403, detail=block_message)
     
-    if not request.message.strip():
+    if not request_body.message.strip():
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+    
+    # Sanitize message to prevent XSS
+    sanitized_message = sanitize_message(request_body.message.strip()[:1000])
     
     try:
         message_doc = {
@@ -230,7 +235,7 @@ async def send_chat_message(
             "user_id": current_user["id"],
             "username": current_user["username"],
             "full_name": current_user.get("full_name"),
-            "message": request.message.strip()[:1000],  # Limit message length
+            "message": sanitized_message,  # Use sanitized message
             "created_at": datetime.utcnow()
         }
         
