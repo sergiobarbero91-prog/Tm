@@ -7003,7 +7003,7 @@ export default function TransportMeter() {
                               onPress={async () => {
                                 const word = hangmanWord.trim().toUpperCase();
                                 if (word.length < 3) {
-                                  Alert.alert('Error', 'La palabra debe tener al menos 3 letras');
+                                  showGameToast('Error', 'La palabra debe tener al menos 3 letras');
                                   return;
                                 }
                                 try {
@@ -7023,7 +7023,7 @@ export default function TransportMeter() {
                                   );
                                   setGameState(gameResponse.data);
                                 } catch (error: any) {
-                                  Alert.alert('Error', error.response?.data?.detail || 'Error al enviar palabra');
+                                  showGameToast('Error', error.response?.data?.detail || 'Error al enviar palabra');
                                 }
                               }}
                             >
