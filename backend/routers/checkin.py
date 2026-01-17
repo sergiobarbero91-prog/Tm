@@ -105,7 +105,7 @@ async def register_checkin(
                     entry_time = datetime.fromisoformat(entry_time_str)
                     duration = now - entry_time
                     duration_minutes = int(duration.total_seconds() / 60)
-                except:
+                except ValueError:
                     pass
             await delete_active_checkin(user_id)
         

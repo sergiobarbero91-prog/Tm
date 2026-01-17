@@ -40,7 +40,7 @@ async def create_event(
         try:
             event_hour, event_minute = map(int, request.event_time.split(':'))
             event_datetime = now.replace(hour=event_hour, minute=event_minute, second=0, microsecond=0)
-        except:
+        except ValueError:
             raise HTTPException(status_code=400, detail="Formato de hora inválido. Use HH:MM")
         
         event_id = str(uuid.uuid4())
