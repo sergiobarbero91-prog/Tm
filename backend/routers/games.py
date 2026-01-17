@@ -820,26 +820,34 @@ async def make_move(move: GameMove):
     return result
 
 @router.post("/game/{game_id}/forfeit")
-async def forfeit_game(game_id: str, user_id: str):
-    """Forfeit a game"""
+async def forfeit_game(game_id: str, request: dict):
+    """Forfeit/abandon a game - removes it from active games"""
+    user_id = request.get("user_id")
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id requerido")
+    
     if game_id not in active_games:
-        raise HTTPException(status_code=404, detail="Partida no encontrada")
+        # Game doesn't exist, that's fine - just return success
+        return {"status": "deleted", "message": "Partida no existe o ya fue eliminada"}
     
     game = active_games[game_id]
     
     if user_id not in game["player_ids"]:
         raise HTTPException(status_code=403, detail="No eres parte de esta partida")
     
-    if game["status"] != "active":
-        raise HTTPException(status_code=400, detail="La partida ya terminó")
-    
+    # Notify opponent via WebSocket before deleting
     opponent_id = [pid for pid in game["player_ids"] if pid != user_id][0]
-    game["status"] = "finished"
-    game["winner"] = opponent_id
+    await notify_game_update(game_id, game, {"forfeit": True, "loser": user_id, "abandoned": True})
     
-    await notify_game_update(game_id, game, {"forfeit": True, "loser": user_id})
+    # Delete the game completely from active_games
+    del active_games[game_id]
     
-    return {"status": "forfeited", "winner": opponent_id}
+    # Clean up WebSocket connections for this game
+    if game_id in game_connections:
+        del game_connections[game_id]
+    
+    return {"status": "deleted", "message": "Partida abandonada y eliminada"}
 
 # =============================================================================
 # WEBSOCKET FOR REAL-TIME UPDATES
