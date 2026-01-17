@@ -6748,7 +6748,7 @@ export default function TransportMeter() {
                     </View>
                     <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
                       1. Selecciona uno o más juegos{'\n'}
-                      2. Pulsa "Buscar partida"{'\n'}
+                      2. Pulsa {'"'}Buscar partida{'"'}{'\n'}
                       3. Espera a que otro taxista busque los mismos juegos
                     </Text>
                   </View>
@@ -8370,7 +8370,7 @@ export default function TransportMeter() {
                                   )}
                                   {user.last_chat_abuse_message && (
                                     <Text style={styles.blockedUserAbuseMessage} numberOfLines={1}>
-                                      "{user.last_chat_abuse_message}"
+                                      {'"'}{user.last_chat_abuse_message}{'"'}
                                     </Text>
                                   )}
                                 </View>
