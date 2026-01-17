@@ -837,7 +837,6 @@ async def forfeit_game(game_id: str, request: dict):
         raise HTTPException(status_code=403, detail="No eres parte de esta partida")
     
     # Notify opponent via WebSocket before deleting
-    opponent_id = [pid for pid in game["player_ids"] if pid != user_id][0]
     await notify_game_update(game_id, game, {"forfeit": True, "loser": user_id, "abandoned": True})
     
     # Delete the game completely from active_games
@@ -965,5 +964,5 @@ async def notify_game_update(game_id: str, game: dict, result: dict):
                 "state": await get_filtered_game_state(game_id, player_id),
                 "result": result
             })
-        except:
+        except Exception:
             pass
