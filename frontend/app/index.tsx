@@ -7437,7 +7437,7 @@ export default function TransportMeter() {
                                       showGameToast('Barcos colocados', 'Esperando a que el oponente coloque sus barcos...');
                                     }
                                   } catch (error: any) {
-                                    Alert.alert('Error', error.response?.data?.detail || 'No se pudieron colocar los barcos');
+                                    showGameToast('Error', error.response?.data?.detail || 'No se pudieron colocar los barcos');
                                   }
                                 }}
                               >
