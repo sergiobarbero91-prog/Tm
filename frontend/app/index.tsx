@@ -7161,12 +7161,12 @@ export default function TransportMeter() {
                                           setGameState(gameResponse.data);
                                           
                                           if (response.data.game_over) {
-                                            Alert.alert('Fin del juego', response.data.message);
+                                            showGameToast('Fin del juego', response.data.message);
                                           } else if (response.data.new_round) {
                                             showGameToast('¡Siguiente ronda!', response.data.message);
                                           }
                                         } catch (error: any) {
-                                          Alert.alert('Error', error.response?.data?.detail || 'Error');
+                                          showGameToast('Error', error.response?.data?.detail || 'Error');
                                         }
                                       }}
                                     >
