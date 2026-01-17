@@ -4678,7 +4678,7 @@ export default function TransportMeter() {
                   <Text style={styles.trainType}>{arrival.train_type}</Text>
                   {arrival.delay_minutes && arrival.delay_minutes > 0 && (
                     <View style={styles.delayBadge}>
-                      <Text style={styles.delayText}>+{arrival.delay_minutes}'</Text>
+                      <Text style={styles.delayText}>+{arrival.delay_minutes} min</Text>
                     </View>
                   )}
                 </View>
@@ -5083,12 +5083,12 @@ export default function TransportMeter() {
                     <Text style={styles.flightNumber}>{flight.flight_number}</Text>
                     {flight.delay_minutes && flight.delay_minutes > 0 && (
                       <View style={styles.delayBadge}>
-                        <Text style={styles.delayText}>+{flight.delay_minutes}'</Text>
+                        <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
                       </View>
                     )}
                     {flight.delay_minutes && flight.delay_minutes < 0 && (
                       <View style={[styles.delayBadge, styles.earlyBadge]}>
-                        <Text style={styles.earlyText}>{flight.delay_minutes}'</Text>
+                        <Text style={styles.earlyText}>{flight.delay_minutes} min</Text>
                       </View>
                     )}
                   </View>
