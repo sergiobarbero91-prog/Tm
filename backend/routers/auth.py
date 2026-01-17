@@ -55,7 +55,8 @@ async def login(request: Request, login_data: UserLogin):
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(register_data: UserRegister):
+@limiter.limit("5/minute")  # Rate limit: 5 registrations per minute
+async def register(request: Request, register_data: UserRegister):
     """Public registration endpoint for new users."""
     # Check if username already exists
     existing_user = await users_collection.find_one({"username": register_data.username})
