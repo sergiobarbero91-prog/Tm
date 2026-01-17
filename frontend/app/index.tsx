@@ -689,8 +689,18 @@ export default function TransportMeter() {
       const token = await AsyncStorage.getItem('token');
       const userStr = await AsyncStorage.getItem('user');
       if (token && userStr) {
-        const user = JSON.parse(userStr);
-        setCurrentUser(user);
+        // Verify token is still valid by making a test request
+        try {
+          await api.get('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const user = JSON.parse(userStr);
+          setCurrentUser(user);
+        } catch (verifyError: any) {
+          // Token is invalid or expired
+          console.log('[Auth] Session expired during verification');
+          await AsyncStorage.multiRemove(['token', 'user']);
+        }
       }
     } catch (error) {
       console.error('Error checking session:', error);
@@ -698,6 +708,45 @@ export default function TransportMeter() {
       setAuthChecked(true);
     }
   };
+
+  // Auto-refresh token every 20 hours to prevent expiration
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const refreshToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await api.post('/api/auth/refresh-token', {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const { access_token } = response.data;
+        await AsyncStorage.setItem('token', access_token);
+        console.log('[Auth] Token refreshed successfully');
+      } catch (error) {
+        console.error('[Auth] Failed to refresh token:', error);
+      }
+    };
+    
+    // Refresh token every 20 hours (token expires in 24 hours)
+    const refreshInterval = setInterval(refreshToken, 20 * 60 * 60 * 1000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [currentUser]);
+
+  // Register session expiration handler for the axios interceptor
+  useEffect(() => {
+    handleSessionExpired = () => {
+      setCurrentUser(null);
+      showGameToast('Sesión expirada', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+    };
+    
+    return () => {
+      handleSessionExpired = null;
+    };
+  }, [showGameToast]);
 
   const handleLogin = async () => {
     if (!loginUsername || !loginPassword) {
