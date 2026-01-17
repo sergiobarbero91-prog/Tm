@@ -79,8 +79,7 @@ from routers import games as games_router
 from shared import (
     trains_history_collection, 
     flights_history_collection,
-    station_alerts_collection,
-    active_checkins_collection
+    station_alerts_collection
 )
 
 # Madrid timezone
