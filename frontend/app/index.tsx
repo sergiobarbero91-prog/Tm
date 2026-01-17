@@ -28,6 +28,36 @@ import { Audio } from 'expo-av';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+// =============================================================================
+// ANALYTICS - Simple privacy-friendly analytics
+// =============================================================================
+const ANALYTICS_ENABLED = process.env.EXPO_PUBLIC_ANALYTICS_ENABLED === 'true';
+
+const trackEvent = async (eventName: string, properties?: Record<string, any>) => {
+  if (!ANALYTICS_ENABLED) return;
+  
+  try {
+    const token = await AsyncStorage.getItem('token');
+    await axios.post(`${API_BASE}/api/analytics/event`, {
+      event: eventName,
+      properties: properties || {},
+      timestamp: new Date().toISOString(),
+      platform: Platform.OS,
+    }, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+  } catch (error) {
+    // Silently fail - analytics should never break the app
+    console.log('[Analytics] Failed to track event:', eventName);
+  }
+};
+
+const trackPageView = (pageName: string) => {
+  trackEvent('page_view', { page: pageName });
+};
+
+// =============================================================================
+
 // Create axios instance with interceptors for automatic token handling
 const api = axios.create({
   baseURL: API_BASE,
