@@ -423,7 +423,6 @@ export default function TransportMeter() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const audioQueueRef = useRef<string[]>([]);
-  const isPlayingRef = useRef(false);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const webAudioUnlockedRef = useRef(false);
   const radioMutedRef = useRef(false);
@@ -435,12 +434,6 @@ export default function TransportMeter() {
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
   const [isSearchingMatch, setIsSearchingMatch] = useState(false);
   const [matchmakingInterval, setMatchmakingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const [gameWs, setGameWs] = useState<WebSocket | null>(null);
-  const [gamePlayers, setGamePlayers] = useState<Array<{
-    user_id: string;
-    username: string;
-    score: number;
-  }>>([]);
   const [gameState, setGameState] = useState<any>(null);
   const [gamePollingInterval, setGamePollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
