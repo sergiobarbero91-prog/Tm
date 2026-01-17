@@ -2934,7 +2934,7 @@ async def startup_db_client():
         logger.info("Created compound index on chat_messages")
         
         # Index for checkins by user_id and location
-        await checkins_collection.create_index(
+        await active_checkins_collection.create_index(
             [("user_id", 1), ("status", 1)],
             background=True
         )
