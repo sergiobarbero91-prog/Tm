@@ -521,6 +521,7 @@ export default function TransportMeter() {
     setGameState(null);
     setCurrentGame(null);
     setHangmanWord('');
+    setGameToast(null);
     // Reset battleship placement state
     setPlacingShipIndex(0);
     setPlacingOrientation('horizontal');
