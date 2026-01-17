@@ -1,478 +1,496 @@
+diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+index 2e3ecc1..14ffb80 100644
+--- a/frontend/app/index.tsx
++++ b/frontend/app/index.tsx
+@@ -7631,6 +7631,8 @@ export default function TransportMeter() {
+                         )}
+                       </View>
+                     )}
++                      </>
++                    )}
+                   </View>
+                 )}
+               </View>
 diff --git a/model.patch b/model.patch
-index 9d17b1f..e69de29 100644
+index 054fd14..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,473 +0,0 @@
--diff --git a/backend/server.py b/backend/server.py
--index c515f2f..b39c2fc 100644
----- a/backend/server.py
--+++ b/backend/server.py
--@@ -1002,6 +1002,35 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
--     
--     return count
-- 
--+
--+def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
--+    """Calculate weighted arrival score combining future and past arrivals.
--+    
--+    Formula:
--+    - 50% weight: arrivals in the next [window_minutes] (future)
--+    - 50% weight: arrivals in the last [window_minutes / 2] (recent past)
--+    
--+    Returns dict with:
--+    - future_count: arrivals in future window
--+    - past_count: arrivals in past half-window
--+    - weighted_score: combined score (average of both)
--+    - total_raw: simple sum for display
--+    """
--+    future_count = count_arrivals_in_window(arrivals, window_minutes)
--+    half_window = window_minutes // 2
--+    past_count = count_arrivals_in_past_window(arrivals, half_window, 0)
--+    
--+    # Weighted score: 50% future + 50% past (normalized)
--+    weighted_score = (future_count * 0.5) + (past_count * 0.5)
--+    
--+    return {
--+        "future_count": future_count,
--+        "past_count": past_count,
--+        "weighted_score": round(weighted_score, 1),
--+        "total_raw": future_count + past_count
--+    }
--+
--+
-- def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
--     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
--     Works for both flights and trains.
+@@ -1,478 +0,0 @@
 -diff --git a/model.patch b/model.patch
--index 8ce077d..e69de29 100644
+-index 9d17b1f..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,428 +0,0 @@
+-@@ -1,473 +0,0 @@
 --diff --git a/backend/server.py b/backend/server.py
---index c0c1cb3..ce6d978 100644
+--index c515f2f..b39c2fc 100644
 ----- a/backend/server.py
 --+++ b/backend/server.py
---@@ -2657,17 +2657,20 @@ async def get_taxi_status(
--- async def get_queue_status(
---     location_type: Optional[str] = None,
---     location_name: Optional[str] = None,
----    minutes: int = 60,  # Time window to filter - only show data from previous window
---+    minutes: int = 60,  # Time window to filter
---     current_user: dict = Depends(get_current_user_required)
--- ):
----    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
---+    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
---     now = datetime.now(MADRID_TZ)
----    # Previous window: from (now - 2*minutes) to (now - minutes)
----    previous_window_start = now - timedelta(minutes=minutes * 2)
----    previous_window_end = now - timedelta(minutes=minutes)
+--@@ -1002,6 +1002,35 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
 --     
----    # Build query with time filter
----    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
---+    # Start of today (midnight Madrid time)
---+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+--     return count
+-- 
+--+
+--+def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
+--+    """Calculate weighted arrival score combining future and past arrivals.
 --+    
---+    # Time window: from (now - minutes) to now, but not before today
---+    window_start = max(now - timedelta(minutes=minutes), today_start)
+--+    Formula:
+--+    - 50% weight: arrivals in the next [window_minutes] (future)
+--+    - 50% weight: arrivals in the last [window_minutes / 2] (recent past)
 --+    
---+    # Build query: only today's data within the time window
---+    query = {"reported_at": {"$gte": window_start, "$lte": now}}
---     if location_type:
---         query["location_type"] = location_type
---     if location_name:
+--+    Returns dict with:
+--+    - future_count: arrivals in future window
+--+    - past_count: arrivals in past half-window
+--+    - weighted_score: combined score (average of both)
+--+    - total_raw: simple sum for display
+--+    """
+--+    future_count = count_arrivals_in_window(arrivals, window_minutes)
+--+    half_window = window_minutes // 2
+--+    past_count = count_arrivals_in_past_window(arrivals, half_window, 0)
+--+    
+--+    # Weighted score: 50% future + 50% past (normalized)
+--+    weighted_score = (future_count * 0.5) + (past_count * 0.5)
+--+    
+--+    return {
+--+        "future_count": future_count,
+--+        "past_count": past_count,
+--+        "weighted_score": round(weighted_score, 1),
+--+        "total_raw": future_count + past_count
+--+    }
+--+
+--+
+-- def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
+--     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
+--     Works for both flights and trains.
 --diff --git a/model.patch b/model.patch
---index 418b197..e69de29 100644
+--index 8ce077d..e69de29 100644
 ----- a/model.patch
 --+++ b/model.patch
---@@ -1,391 +0,0 @@
----diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
----index 3717594..166a22d 100644
------- a/frontend/app/index.tsx
----+++ b/frontend/app/index.tsx
----@@ -250,9 +250,6 @@ export default function TransportMeter() {
----   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
----   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
---- 
-----  // Tab transition state - prevent DOM errors during tab changes
-----  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
-----  
----   // Auth states
----   const [currentUser, setCurrentUser] = useState<User | null>(null);
----   const [authChecked, setAuthChecked] = useState(false);
----@@ -2926,14 +2923,9 @@ export default function TransportMeter() {
----         <TouchableOpacity
----           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
----           onPress={() => {
-----            if (activeTab !== 'trains' && !isTabTransitioning) {
-----              setIsTabTransitioning(true);
----+            if (activeTab !== 'trains') {
----               setLoading(true);
-----              // Use requestAnimationFrame to allow current render to complete
-----              requestAnimationFrame(() => {
-----                setActiveTab('trains');
-----                setTimeout(() => setIsTabTransitioning(false), 100);
-----              });
----+              setActiveTab('trains');
----             }
----           }}
----         >
----@@ -2954,13 +2946,9 @@ export default function TransportMeter() {
----         <TouchableOpacity
----           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
----           onPress={() => {
-----            if (activeTab !== 'flights' && !isTabTransitioning) {
-----              setIsTabTransitioning(true);
----+            if (activeTab !== 'flights') {
----               setLoading(true);
-----              requestAnimationFrame(() => {
-----                setActiveTab('flights');
-----                setTimeout(() => setIsTabTransitioning(false), 100);
-----              });
----+              setActiveTab('flights');
----             }
----           }}
----         >
----@@ -2981,13 +2969,9 @@ export default function TransportMeter() {
----         <TouchableOpacity
----           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
----           onPress={() => {
-----            if (activeTab !== 'street' && !isTabTransitioning) {
-----              setIsTabTransitioning(true);
----+            if (activeTab !== 'street') {
----               setLoading(true);
-----              requestAnimationFrame(() => {
-----                setActiveTab('street');
-----                setTimeout(() => setIsTabTransitioning(false), 100);
-----              });
----+              setActiveTab('street');
----             }
----           }}
----         >
----@@ -3145,7 +3129,7 @@ export default function TransportMeter() {
----           />
----         }
----       >
-----        {loading || isTabTransitioning ? (
----+        {loading ? (
----           <View style={styles.loadingContainer}>
----             <ActivityIndicator size="large" color="#6366F1" />
----             <Text style={styles.loadingText}>Cargando datos...</Text>
+--@@ -1,428 +0,0 @@
+---diff --git a/backend/server.py b/backend/server.py
+---index c0c1cb3..ce6d978 100644
+------ a/backend/server.py
+---+++ b/backend/server.py
+---@@ -2657,17 +2657,20 @@ async def get_taxi_status(
+--- async def get_queue_status(
+---     location_type: Optional[str] = None,
+---     location_name: Optional[str] = None,
+----    minutes: int = 60,  # Time window to filter - only show data from previous window
+---+    minutes: int = 60,  # Time window to filter
+---     current_user: dict = Depends(get_current_user_required)
+--- ):
+----    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
+---+    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
+---     now = datetime.now(MADRID_TZ)
+----    # Previous window: from (now - 2*minutes) to (now - minutes)
+----    previous_window_start = now - timedelta(minutes=minutes * 2)
+----    previous_window_end = now - timedelta(minutes=minutes)
+---     
+----    # Build query with time filter
+----    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
+---+    # Start of today (midnight Madrid time)
+---+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+---+    
+---+    # Time window: from (now - minutes) to now, but not before today
+---+    window_start = max(now - timedelta(minutes=minutes), today_start)
+---+    
+---+    # Build query: only today's data within the time window
+---+    query = {"reported_at": {"$gte": window_start, "$lte": now}}
+---     if location_type:
+---         query["location_type"] = location_type
+---     if location_name:
 ---diff --git a/model.patch b/model.patch
----index 5daf285..e69de29 100644
+---index 418b197..e69de29 100644
 ------ a/model.patch
 ---+++ b/model.patch
----@@ -1,314 +0,0 @@
+---@@ -1,391 +0,0 @@
+----diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+----index 3717594..166a22d 100644
+------- a/frontend/app/index.tsx
+----+++ b/frontend/app/index.tsx
+----@@ -250,9 +250,6 @@ export default function TransportMeter() {
+----   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
+----   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+---- 
+-----  // Tab transition state - prevent DOM errors during tab changes
+-----  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
+-----  
+----   // Auth states
+----   const [currentUser, setCurrentUser] = useState<User | null>(null);
+----   const [authChecked, setAuthChecked] = useState(false);
+----@@ -2926,14 +2923,9 @@ export default function TransportMeter() {
+----         <TouchableOpacity
+----           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
+----           onPress={() => {
+-----            if (activeTab !== 'trains' && !isTabTransitioning) {
+-----              setIsTabTransitioning(true);
+----+            if (activeTab !== 'trains') {
+----               setLoading(true);
+-----              // Use requestAnimationFrame to allow current render to complete
+-----              requestAnimationFrame(() => {
+-----                setActiveTab('trains');
+-----                setTimeout(() => setIsTabTransitioning(false), 100);
+-----              });
+----+              setActiveTab('trains');
+----             }
+----           }}
+----         >
+----@@ -2954,13 +2946,9 @@ export default function TransportMeter() {
+----         <TouchableOpacity
+----           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
+----           onPress={() => {
+-----            if (activeTab !== 'flights' && !isTabTransitioning) {
+-----              setIsTabTransitioning(true);
+----+            if (activeTab !== 'flights') {
+----               setLoading(true);
+-----              requestAnimationFrame(() => {
+-----                setActiveTab('flights');
+-----                setTimeout(() => setIsTabTransitioning(false), 100);
+-----              });
+----+              setActiveTab('flights');
+----             }
+----           }}
+----         >
+----@@ -2981,13 +2969,9 @@ export default function TransportMeter() {
+----         <TouchableOpacity
+----           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
+----           onPress={() => {
+-----            if (activeTab !== 'street' && !isTabTransitioning) {
+-----              setIsTabTransitioning(true);
+----+            if (activeTab !== 'street') {
+----               setLoading(true);
+-----              requestAnimationFrame(() => {
+-----                setActiveTab('street');
+-----                setTimeout(() => setIsTabTransitioning(false), 100);
+-----              });
+----+              setActiveTab('street');
+----             }
+----           }}
+----         >
+----@@ -3145,7 +3129,7 @@ export default function TransportMeter() {
+----           />
+----         }
+----       >
+-----        {loading || isTabTransitioning ? (
+----+        {loading ? (
+----           <View style={styles.loadingContainer}>
+----             <ActivityIndicator size="large" color="#6366F1" />
+----             <Text style={styles.loadingText}>Cargando datos...</Text>
 ----diff --git a/model.patch b/model.patch
-----index feaafc6..e69de29 100644
+----index 5daf285..e69de29 100644
 ------- a/model.patch
 ----+++ b/model.patch
-----@@ -1,309 +0,0 @@
+----@@ -1,314 +0,0 @@
 -----diff --git a/model.patch b/model.patch
------index f8011ab..e69de29 100644
+-----index feaafc6..e69de29 100644
 -------- a/model.patch
 -----+++ b/model.patch
------@@ -1,304 +0,0 @@
-------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
-------index 7040302..9dd3d8c 100644
---------- a/frontend/app/index.tsx
-------+++ b/frontend/app/index.tsx
-------@@ -243,6 +243,7 @@ export default function TransportMeter() {
-------   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-------   const [pushToken, setPushToken] = useState<string | null>(null);
-------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
-------+  const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
------- 
-------   // Auth states
-------   const [currentUser, setCurrentUser] = useState<User | null>(null);
+-----@@ -1,309 +0,0 @@
 ------diff --git a/model.patch b/model.patch
-------index 933fc40..e69de29 100644
+------index f8011ab..e69de29 100644
 --------- a/model.patch
 ------+++ b/model.patch
-------@@ -1,287 +0,0 @@
+------@@ -1,304 +0,0 @@
+-------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+-------index 7040302..9dd3d8c 100644
+---------- a/frontend/app/index.tsx
+-------+++ b/frontend/app/index.tsx
+-------@@ -243,6 +243,7 @@ export default function TransportMeter() {
+-------   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+-------   const [pushToken, setPushToken] = useState<string | null>(null);
+-------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
+-------+  const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+------- 
+-------   // Auth states
+-------   const [currentUser, setCurrentUser] = useState<User | null>(null);
 -------diff --git a/model.patch b/model.patch
--------index d74e649..e69de29 100644
+-------index 933fc40..e69de29 100644
 ---------- a/model.patch
 -------+++ b/model.patch
--------@@ -1,282 +0,0 @@
---------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
---------index ac96cb6..45873bf 100644
------------ a/frontend/app/index.tsx
---------+++ b/frontend/app/index.tsx
---------@@ -1025,7 +1025,7 @@ export default function TransportMeter() {
---------                      taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
---------             </Text>
---------             <Text style={styles.taxiTimeText}>
----------              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
---------+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)} por {taxiStatus[`station_${stationShortName}`].reported_by})
---------             </Text>
---------           </View>
---------         )}
---------@@ -1140,7 +1140,7 @@ export default function TransportMeter() {
---------                taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
---------             </Text>
---------             <Text style={styles.taxiTimeTextSmall}>
----------              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
---------+              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
---------             </Text>
---------           </View>
---------         )}
---------@@ -1478,6 +1478,20 @@ export default function TransportMeter() {
---------             </View>
---------           )}
---------           
---------+          {/* Taxi status display for hot station */}
---------+          {streetData?.hottest_station_taxi_status && streetData?.hottest_station_taxi_time && (
---------+            <View style={styles.taxiStatusContainerSmall}>
---------+              <Ionicons name="car" size={14} color="#F59E0B" />
---------+              <Text style={styles.taxiStatusTextSmall}>
---------+                {streetData.hottest_station_taxi_status === 'poco' ? '🟢 Pocos' : 
---------+                 streetData.hottest_station_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
---------+              </Text>
---------+              <Text style={styles.taxiTimeTextSmall}>
---------+                {formatTime(streetData.hottest_station_taxi_time)}
---------+              </Text>
---------+            </View>
---------+          )}
---------+          
---------           {streetData?.hottest_station && (
---------             <TouchableOpacity
---------               style={[styles.navigateButton, styles.navigateButtonStation]}
---------@@ -1536,6 +1550,20 @@ export default function TransportMeter() {
---------             </View>
---------           )}
---------           
---------+          {/* Taxi status display for hot terminal */}
---------+          {streetData?.hottest_terminal_taxi_status && streetData?.hottest_terminal_taxi_time && (
---------+            <View style={styles.taxiStatusContainerSmall}>
---------+              <Ionicons name="car" size={14} color="#F59E0B" />
---------+              <Text style={styles.taxiStatusTextSmall}>
---------+                {streetData.hottest_terminal_taxi_status === 'poco' ? '🟢 Pocos' : 
---------+                 streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
---------+              </Text>
---------+              <Text style={styles.taxiTimeTextSmall}>
---------+                {formatTime(streetData.hottest_terminal_taxi_time)}
---------+              </Text>
---------+            </View>
---------+          )}
---------+          
---------           {streetData?.hottest_terminal && (
---------             <TouchableOpacity
---------               style={[styles.navigateButton, styles.navigateButtonTerminal]}
+-------@@ -1,287 +0,0 @@
 --------diff --git a/model.patch b/model.patch
---------index 773ccd4..e69de29 100644
+--------index d74e649..e69de29 100644
 ----------- a/model.patch
 --------+++ b/model.patch
---------@@ -1,213 +0,0 @@
+--------@@ -1,282 +0,0 @@
 ---------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
----------index 22a15bf..96c1b64 100644
+---------index ac96cb6..45873bf 100644
 ------------ a/frontend/app/index.tsx
 ---------+++ b/frontend/app/index.tsx
----------@@ -3436,4 +3436,69 @@ const styles = StyleSheet.create({
----------     color: '#64748B',
----------     fontSize: 11,
----------   },
----------+  taxiQuestionModal: {
----------+    backgroundColor: '#1E293B',
----------+    borderRadius: 20,
----------+    padding: 24,
----------+    width: '90%',
----------+    maxWidth: 400,
----------+    alignItems: 'center',
----------+  },
----------+  taxiQuestionHeader: {
----------+    alignItems: 'center',
----------+    marginBottom: 24,
----------+  },
----------+  taxiQuestionTitle: {
----------+    color: '#FFFFFF',
----------+    fontSize: 22,
----------+    fontWeight: '700',
----------+    marginTop: 12,
----------+  },
----------+  taxiQuestionSubtitle: {
----------+    color: '#94A3B8',
----------+    fontSize: 14,
----------+    marginTop: 4,
----------+  },
----------+  taxiOptions: {
----------+    flexDirection: 'row',
----------+    justifyContent: 'space-between',
----------+    gap: 12,
----------+    width: '100%',
----------+  },
----------+  taxiOption: {
----------+    flex: 1,
----------+    alignItems: 'center',
----------+    padding: 16,
----------+    borderRadius: 12,
----------+    backgroundColor: '#374151',
----------+  },
----------+  taxiOptionPoco: {
----------+    borderWidth: 2,
----------+    borderColor: '#EF4444',
----------+  },
----------+  taxiOptionNormal: {
----------+    borderWidth: 2,
----------+    borderColor: '#F59E0B',
----------+  },
----------+  taxiOptionMucho: {
----------+    borderWidth: 2,
----------+    borderColor: '#10B981',
----------+  },
----------+  taxiOptionEmoji: {
----------+    fontSize: 32,
----------+    marginBottom: 8,
----------+  },
----------+  taxiOptionText: {
----------+    color: '#FFFFFF',
----------+    fontSize: 14,
----------+    fontWeight: '600',
----------+  },
----------+  taxiSkipButton: {
----------+    marginTop: 20,
----------+    padding: 12,
----------+  },
----------+  taxiSkipButtonText: {
----------+    color: '#94A3B8',
----------+    fontSize: 14,
----------+  },
---------- });
+---------@@ -1025,7 +1025,7 @@ export default function TransportMeter() {
+---------                      taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+---------             </Text>
+---------             <Text style={styles.taxiTimeText}>
+----------              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
+---------+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)} por {taxiStatus[`station_${stationShortName}`].reported_by})
+---------             </Text>
+---------           </View>
+---------         )}
+---------@@ -1140,7 +1140,7 @@ export default function TransportMeter() {
+---------                taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
+---------             </Text>
+---------             <Text style={styles.taxiTimeTextSmall}>
+----------              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
+---------+              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
+---------             </Text>
+---------           </View>
+---------         )}
+---------@@ -1478,6 +1478,20 @@ export default function TransportMeter() {
+---------             </View>
+---------           )}
+---------           
+---------+          {/* Taxi status display for hot station */}
+---------+          {streetData?.hottest_station_taxi_status && streetData?.hottest_station_taxi_time && (
+---------+            <View style={styles.taxiStatusContainerSmall}>
+---------+              <Ionicons name="car" size={14} color="#F59E0B" />
+---------+              <Text style={styles.taxiStatusTextSmall}>
+---------+                {streetData.hottest_station_taxi_status === 'poco' ? '🟢 Pocos' : 
+---------+                 streetData.hottest_station_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+---------+              </Text>
+---------+              <Text style={styles.taxiTimeTextSmall}>
+---------+                {formatTime(streetData.hottest_station_taxi_time)}
+---------+              </Text>
+---------+            </View>
+---------+          )}
+---------+          
+---------           {streetData?.hottest_station && (
+---------             <TouchableOpacity
+---------               style={[styles.navigateButton, styles.navigateButtonStation]}
+---------@@ -1536,6 +1550,20 @@ export default function TransportMeter() {
+---------             </View>
+---------           )}
+---------           
+---------+          {/* Taxi status display for hot terminal */}
+---------+          {streetData?.hottest_terminal_taxi_status && streetData?.hottest_terminal_taxi_time && (
+---------+            <View style={styles.taxiStatusContainerSmall}>
+---------+              <Ionicons name="car" size={14} color="#F59E0B" />
+---------+              <Text style={styles.taxiStatusTextSmall}>
+---------+                {streetData.hottest_terminal_taxi_status === 'poco' ? '🟢 Pocos' : 
+---------+                 streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+---------+              </Text>
+---------+              <Text style={styles.taxiTimeTextSmall}>
+---------+                {formatTime(streetData.hottest_terminal_taxi_time)}
+---------+              </Text>
+---------+            </View>
+---------+          )}
+---------+          
+---------           {streetData?.hottest_terminal && (
+---------             <TouchableOpacity
+---------               style={[styles.navigateButton, styles.navigateButtonTerminal]}
 ---------diff --git a/model.patch b/model.patch
----------index 13161a9..e69de29 100644
+---------index 773ccd4..e69de29 100644
 ------------ a/model.patch
 ---------+++ b/model.patch
----------@@ -1,134 +0,0 @@
+---------@@ -1,213 +0,0 @@
 ----------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
-----------index a29aba7..a8dce98 100644
+----------index 22a15bf..96c1b64 100644
 ------------- a/frontend/app/index.tsx
 ----------+++ b/frontend/app/index.tsx
-----------@@ -2927,6 +2927,21 @@ const styles = StyleSheet.create({
-----------     fontSize: 13,
-----------     fontWeight: '600',
+----------@@ -3436,4 +3436,69 @@ const styles = StyleSheet.create({
+----------     color: '#64748B',
+----------     fontSize: 11,
 ----------   },
-----------+  rangeIndicator: {
-----------+    flexDirection: 'row',
+----------+  taxiQuestionModal: {
+----------+    backgroundColor: '#1E293B',
+----------+    borderRadius: 20,
+----------+    padding: 24,
+----------+    width: '90%',
+----------+    maxWidth: 400,
 ----------+    alignItems: 'center',
+----------+  },
+----------+  taxiQuestionHeader: {
+----------+    alignItems: 'center',
+----------+    marginBottom: 24,
+----------+  },
+----------+  taxiQuestionTitle: {
+----------+    color: '#FFFFFF',
+----------+    fontSize: 22,
+----------+    fontWeight: '700',
+----------+    marginTop: 12,
+----------+  },
+----------+  taxiQuestionSubtitle: {
+----------+    color: '#94A3B8',
+----------+    fontSize: 14,
+----------+    marginTop: 4,
+----------+  },
+----------+  taxiOptions: {
+----------+    flexDirection: 'row',
+----------+    justifyContent: 'space-between',
+----------+    gap: 12,
+----------+    width: '100%',
+----------+  },
+----------+  taxiOption: {
+----------+    flex: 1,
+----------+    alignItems: 'center',
+----------+    padding: 16,
+----------+    borderRadius: 12,
 ----------+    backgroundColor: '#374151',
-----------+    paddingHorizontal: 10,
-----------+    paddingVertical: 6,
-----------+    borderRadius: 6,
-----------+    marginTop: 8,
-----------+    gap: 6,
 ----------+  },
-----------+  rangeText: {
-----------+    color: '#9CA3AF',
-----------+    fontSize: 11,
-----------+    fontWeight: '500',
+----------+  taxiOptionPoco: {
+----------+    borderWidth: 2,
+----------+    borderColor: '#EF4444',
 ----------+  },
-----------   navigateButton: {
-----------     flexDirection: 'row',
-----------     alignItems: 'center',
+----------+  taxiOptionNormal: {
+----------+    borderWidth: 2,
+----------+    borderColor: '#F59E0B',
+----------+  },
+----------+  taxiOptionMucho: {
+----------+    borderWidth: 2,
+----------+    borderColor: '#10B981',
+----------+  },
+----------+  taxiOptionEmoji: {
+----------+    fontSize: 32,
+----------+    marginBottom: 8,
+----------+  },
+----------+  taxiOptionText: {
+----------+    color: '#FFFFFF',
+----------+    fontSize: 14,
+----------+    fontWeight: '600',
+----------+  },
+----------+  taxiSkipButton: {
+----------+    marginTop: 20,
+----------+    padding: 12,
+----------+  },
+----------+  taxiSkipButtonText: {
+----------+    color: '#94A3B8',
+----------+    fontSize: 14,
+----------+  },
+---------- });
 ----------diff --git a/model.patch b/model.patch
-----------index 9ee087b..e69de29 100644
+----------index 13161a9..e69de29 100644
 ------------- a/model.patch
 ----------+++ b/model.patch
-----------@@ -1,103 +0,0 @@
------------diff --git a/backend/server.py b/backend/server.py
------------index 4c2a871..68871cc 100644
--------------- a/backend/server.py
------------+++ b/backend/server.py
------------@@ -189,36 +189,60 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
------------                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
------------                     }
------------                     
-------------                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
-------------                        if api_response.status == 200:
-------------                            result = await api_response.json()
-------------                            
-------------                            if result.get("error"):
-------------                                logger.warning(f"API error for station {station_id}, falling back to scrape")
-------------                                return await fetch_adif_arrivals_scrape(station_id)
-------------                            
-------------                            horarios = result.get("horarios", [])
-------------                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
-------------                            
-------------                            for h in horarios:
-------------                                train_type = h.get("tren", "AVE")
-------------                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
-------------                                type_match = re.search(r'([A-Z]+)', train_type)
-------------                                if type_match:
-------------                                    clean_type = type_match.group(1)
-------------                                else:
-------------                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
------------+                    # Load multiple pages to get more results
------------+                    page = 0
------------+                    max_pages = 3  # Limit to avoid infinite loops
------------+                    
------------+                    while page < max_pages:
------------+                        # Update page number in data
------------+                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
------------+                        
------------+                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
------------+                            if api_response.status == 200:
------------+                                result = await api_response.json()
------------                                 
-------------                                # Only include valid media/larga distancia
-------------                                if is_valid_media_larga_distancia(clean_type):
-------------                                    arrivals.append({
-------------                                        "time": h.get("hora", "00:00"),
-------------                                        "origin": h.get("estacion", "Unknown"),
-------------                                        "train_type": clean_type.upper(),
-------------                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
-------------                                        "platform": h.get("via", "-") or "-",
-------------                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
-------------                                    })
------------+                                if result.get("error"):
------------+                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
------------+                                    return await fetch_adif_arrivals_scrape(station_id)
------------+                                
------------+                                horarios = result.get("horarios", [])
------------+                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
------------+                                
------------+                                # If no results on this page, stop pagination
------------+                                if not horarios:
------------+                                    break
------------+                                
------------+                                page_arrivals = 0
------------+                                for h in horarios:
------------+                                    train_type = h.get("tren", "AVE")
------------+                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
------------+                                    type_match = re.search(r'([A-Z]+)', train_type)
------------+                                    if type_match:
------------+                                        clean_type = type_match.group(1)
------------+                                    else:
------------+                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
------------+                                    
------------+                                    # Only include valid media/larga distancia
------------+                                    if is_valid_media_larga_distancia(clean_type):
------------+                                        arrivals.append({
------------+                                            "time": h.get("hora", "00:00"),
------------+                                            "origin": h.get("estacion", "Unknown"),
------------+                                            "train_type": clean_type.upper(),
------------+                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
------------+                                            "platform": h.get("via", "-") or "-",
------------+                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
------------+                                        })
------------+                                        page_arrivals += 1
------------+                                
------------+                                # If we got fewer than expected results, likely no more pages
------------+                                if page_arrivals < 10:  # Assuming typical page size
------------+                                    break
------------+                                    
------------+                            else:
------------+                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
------------+                                break
------------+                        
------------+                        page += 1
------------                                     
------------     except Exception as e:
------------         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
------------@@ -446,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
------------                 hour = int(time_str.split(":")[0])
------------                 if 6 <= hour <= 10:
------------                     morning_count += 1
-------------            except:
------------+            except Exception:
------------                 pass
------------         return count, morning_count
------------     
+----------@@ -1,134 +0,0 @@
+-----------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+-----------index a29aba7..a8dce98 100644
+-------------- a/frontend/app/index.tsx
+-----------+++ b/frontend/app/index.tsx
+-----------@@ -2927,6 +2927,21 @@ const styles = StyleSheet.create({
+-----------     fontSize: 13,
+-----------     fontWeight: '600',
+-----------   },
+-----------+  rangeIndicator: {
+-----------+    flexDirection: 'row',
+-----------+    alignItems: 'center',
+-----------+    backgroundColor: '#374151',
+-----------+    paddingHorizontal: 10,
+-----------+    paddingVertical: 6,
+-----------+    borderRadius: 6,
+-----------+    marginTop: 8,
+-----------+    gap: 6,
+-----------+  },
+-----------+  rangeText: {
+-----------+    color: '#9CA3AF',
+-----------+    fontSize: 11,
+-----------+    fontWeight: '500',
+-----------+  },
+-----------   navigateButton: {
+-----------     flexDirection: 'row',
+-----------     alignItems: 'center',
+-----------diff --git a/model.patch b/model.patch
+-----------index 9ee087b..e69de29 100644
+-------------- a/model.patch
+-----------+++ b/model.patch
+-----------@@ -1,103 +0,0 @@
+------------diff --git a/backend/server.py b/backend/server.py
+------------index 4c2a871..68871cc 100644
+--------------- a/backend/server.py
+------------+++ b/backend/server.py
+------------@@ -189,36 +189,60 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
+------------                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
+------------                     }
+------------                     
+-------------                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+-------------                        if api_response.status == 200:
+-------------                            result = await api_response.json()
+-------------                            
+-------------                            if result.get("error"):
+-------------                                logger.warning(f"API error for station {station_id}, falling back to scrape")
+-------------                                return await fetch_adif_arrivals_scrape(station_id)
+-------------                            
+-------------                            horarios = result.get("horarios", [])
+-------------                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
+-------------                            
+-------------                            for h in horarios:
+-------------                                train_type = h.get("tren", "AVE")
+-------------                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+-------------                                type_match = re.search(r'([A-Z]+)', train_type)
+-------------                                if type_match:
+-------------                                    clean_type = type_match.group(1)
+-------------                                else:
+-------------                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
+------------+                    # Load multiple pages to get more results
+------------+                    page = 0
+------------+                    max_pages = 3  # Limit to avoid infinite loops
+------------+                    
+------------+                    while page < max_pages:
+------------+                        # Update page number in data
+------------+                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
+------------+                        
+------------+                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+------------+                            if api_response.status == 200:
+------------+                                result = await api_response.json()
+------------                                 
+-------------                                # Only include valid media/larga distancia
+-------------                                if is_valid_media_larga_distancia(clean_type):
+-------------                                    arrivals.append({
+-------------                                        "time": h.get("hora", "00:00"),
+-------------                                        "origin": h.get("estacion", "Unknown"),
+-------------                                        "train_type": clean_type.upper(),
+-------------                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+-------------                                        "platform": h.get("via", "-") or "-",
+-------------                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+-------------                                    })
+------------+                                if result.get("error"):
+------------+                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
+------------+                                    return await fetch_adif_arrivals_scrape(station_id)
+------------+                                
+------------+                                horarios = result.get("horarios", [])
+------------+                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
+------------+                                
+------------+                                # If no results on this page, stop pagination
+------------+                                if not horarios:
+------------+                                    break
+------------+                                
+------------+                                page_arrivals = 0
+------------+                                for h in horarios:
+------------+                                    train_type = h.get("tren", "AVE")
+------------+                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+------------+                                    type_match = re.search(r'([A-Z]+)', train_type)
+------------+                                    if type_match:
+------------+                                        clean_type = type_match.group(1)
+------------+                                    else:
+------------+                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
+------------+                                    
+------------+                                    # Only include valid media/larga distancia
+------------+                                    if is_valid_media_larga_distancia(clean_type):
+------------+                                        arrivals.append({
+------------+                                            "time": h.get("hora", "00:00"),
+------------+                                            "origin": h.get("estacion", "Unknown"),
+------------+                                            "train_type": clean_type.upper(),
+------------+                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+------------+                                            "platform": h.get("via", "-") or "-",
+------------+                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+------------+                                        })
+------------+                                        page_arrivals += 1
+------------+                                
+------------+                                # If we got fewer than expected results, likely no more pages
+------------+                                if page_arrivals < 10:  # Assuming typical page size
+------------+                                    break
+------------+                                    
+------------+                            else:
+------------+                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
+------------+                                break
+------------+                        
+------------+                        page += 1
+------------                                     
+------------     except Exception as e:
+------------         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
+------------@@ -446,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
+------------                 hour = int(time_str.split(":")[0])
+------------                 if 6 <= hour <= 10:
+------------                     morning_count += 1
+-------------            except:
+------------+            except Exception:
+------------                 pass
+------------         return count, morning_count
+------------     
