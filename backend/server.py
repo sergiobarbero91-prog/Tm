@@ -1,8 +1,12 @@
-from fastapi import FastAPI, APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import FastAPI, APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 import logging
 from pathlib import Path
@@ -19,6 +23,11 @@ import json
 import pytz
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+# =============================================================================
+# RATE LIMITING CONFIGURATION
+# =============================================================================
+limiter = Limiter(key_func=get_remote_address)
 
 # =============================================================================
 # SENTRY ERROR MONITORING
