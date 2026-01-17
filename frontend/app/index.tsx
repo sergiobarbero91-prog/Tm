@@ -439,7 +439,7 @@ export default function TransportMeter() {
   const [currentGame, setCurrentGame] = useState<string | null>(null);
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
   const [isSearchingMatch, setIsSearchingMatch] = useState(false);
-  const [matchmakingInterval, setMatchmakingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [matchmakingInterval, setMatchmakingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [gameWs, setGameWs] = useState<WebSocket | null>(null);
   const [gamePlayers, setGamePlayers] = useState<Array<{
     user_id: string;
