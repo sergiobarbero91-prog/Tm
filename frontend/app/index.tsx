@@ -7903,8 +7903,32 @@ export default function TransportMeter() {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6366F1" />
-            <Text style={styles.loadingText}>Cargando datos...</Text>
+            {/* Skeleton Loader */}
+            <View style={styles.skeletonCard}>
+              <View style={styles.skeletonHeader}>
+                <View style={[styles.skeletonBox, { width: 40, height: 40, borderRadius: 20 }]} />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <View style={[styles.skeletonBox, { width: '60%', height: 16, marginBottom: 8 }]} />
+                  <View style={[styles.skeletonBox, { width: '40%', height: 12 }]} />
+                </View>
+              </View>
+              <View style={styles.skeletonContent}>
+                <View style={[styles.skeletonBox, { width: '100%', height: 60, marginBottom: 12 }]} />
+                <View style={[styles.skeletonBox, { width: '80%', height: 14, marginBottom: 8 }]} />
+                <View style={[styles.skeletonBox, { width: '60%', height: 14 }]} />
+              </View>
+            </View>
+            <View style={styles.skeletonCard}>
+              <View style={styles.skeletonHeader}>
+                <View style={[styles.skeletonBox, { width: 40, height: 40, borderRadius: 20 }]} />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <View style={[styles.skeletonBox, { width: '50%', height: 16, marginBottom: 8 }]} />
+                  <View style={[styles.skeletonBox, { width: '30%', height: 12 }]} />
+                </View>
+              </View>
+            </View>
+            <ActivityIndicator size="small" color="#6366F1" style={{ marginTop: 20 }} />
+            <Text style={styles.loadingText}>Cargando datos en tiempo real...</Text>
           </View>
         ) : activeTab === 'trains' && trainData ? (
           <>
