@@ -76,7 +76,13 @@ from routers import radio as radio_router
 from routers import games as games_router
 
 # Import history collections from shared
-from shared import trains_history_collection, flights_history_collection
+from shared import (
+    trains_history_collection, 
+    flights_history_collection,
+    station_alerts_collection,
+    checkins_collection,
+    chat_messages_collection
+)
 
 # Madrid timezone
 MADRID_TZ = pytz.timezone('Europe/Madrid')
