@@ -293,9 +293,6 @@ async def cancel_alert(
             detail="Alerta no encontrada"
         )
     
-    now = datetime.utcnow()
-    seconds_since_created = int((now - alert["created_at"]).total_seconds())
-    
     # No blocking - anyone can cancel at any time
     # The fraud detection system will handle penalties if needed
     
@@ -354,7 +351,6 @@ async def cancel_alert_by_location(
         fraud_detected = True
         penalty_info = await apply_fraud_penalty(reporter_user_id)
         
-        fraud_count = penalty_info["fraud_count"]
         penalty_hours = penalty_info["penalty_hours"]
         is_permanent = penalty_info["is_permanent"]
         
