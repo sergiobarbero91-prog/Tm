@@ -5462,9 +5462,9 @@ export default function TransportMeter() {
             <TouchableOpacity
               style={styles.navigateButton}
               onPress={() => openGpsNavigation(
-                streetData.hottest_street_lat,
-                streetData.hottest_street_lng,
-                streetData.hottest_street
+                streetData.hottest_street_lat!,
+                streetData.hottest_street_lng!,
+                streetData.hottest_street!
               )}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
@@ -5672,13 +5672,13 @@ export default function TransportMeter() {
           })()}
           <View style={styles.hottestStreetHeader}>
             <Ionicons name="airplane" size={24} color={
-              streetData?.hottest_terminal && (() => {
+              streetData?.hottest_terminal ? (() => {
                 const terminalName = streetData.hottest_terminal;
                 const terminalKeys = terminalName.includes('-') 
                   ? terminalName.split('-').map((t: string) => t.trim())
                   : [terminalName];
                 return terminalKeys.some((t: string) => getLocationAlerts('terminal', t).length > 0) ? '#EF4444' : '#8B5CF6';
-              })()
+              })() : '#8B5CF6'
             } />
             <Text style={[styles.hottestStreetTitle,
               streetData?.hottest_terminal && (() => {
