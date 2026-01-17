@@ -80,8 +80,7 @@ from shared import (
     trains_history_collection, 
     flights_history_collection,
     station_alerts_collection,
-    checkins_collection,
-    chat_messages_collection
+    checkins_collection
 )
 
 # Madrid timezone
