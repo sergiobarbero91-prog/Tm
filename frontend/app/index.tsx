@@ -650,7 +650,7 @@ export default function TransportMeter() {
   } | null>(null);
   const [streetSearchingAddresses, setStreetSearchingAddresses] = useState(false);
   const [streetCalculatingFare, setStreetCalculatingFare] = useState(false);
-  const streetSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const streetSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streetDestinationInputRef = useRef<any>(null);
 
   // Street work states
