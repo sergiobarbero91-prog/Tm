@@ -4986,7 +4986,7 @@ export default function TransportMeter() {
                   <Text style={styles.trainType}>{flight.flight_number}</Text>
                   {flight.delay_minutes && flight.delay_minutes > 0 && (
                     <View style={styles.delayBadge}>
-                      <Text style={styles.delayText}>+{flight.delay_minutes}'</Text>
+                      <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
                     </View>
                   )}
                 </View>
