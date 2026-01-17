@@ -4162,7 +4162,7 @@ export default function TransportMeter() {
   // Request location permission and track location - ALWAYS (for emergency alerts)
   useEffect(() => {
     let isMounted = true;
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     
     const updateLocation = async () => {
       try {
