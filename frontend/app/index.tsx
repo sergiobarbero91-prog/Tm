@@ -244,7 +244,6 @@ interface CheckInStatus {
 type GpsApp = 'google' | 'waze';
 
 export default function TransportMeter() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
