@@ -7648,7 +7648,7 @@ export default function TransportMeter() {
           onPress={() => setGamesMinimized(false)}
         >
           <Ionicons name="game-controller" size={20} color="#FFFFFF" />
-          <Text style={styles.gamesMinimizedText}>Juegos</Text>
+          <Text style={styles.gamesMinimizedBadgeText}>Juegos</Text>
         </TouchableOpacity>
       )}
 
