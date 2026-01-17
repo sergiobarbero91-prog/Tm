@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "TaxiMeter Madrid",
+    "slug": "taximeter-madrid",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "taximeter",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -15,20 +15,33 @@
           "waze",
           "comgooglemaps",
           "maps"
-        ]
+        ],
+        "NSLocationWhenInUseUsageDescription": "Para mostrarte las estaciones y terminales más cercanas",
+        "NSMicrophoneUsageDescription": "Para usar la radio PTT con otros taxistas"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#1F2937"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "TaxiMeter Madrid",
+      "shortName": "TaxiMeter",
+      "description": "Monitor de llegadas a estaciones de tren y terminales de aeropuerto para taxistas de Madrid",
+      "lang": "es",
+      "themeColor": "#1F2937",
+      "backgroundColor": "#111827"
     },
     "plugins": [
       "expo-router",
@@ -38,7 +51,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#1F2937"
         }
       ],
       "expo-font",
