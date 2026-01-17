@@ -28,6 +28,42 @@ import { Audio } from 'expo-av';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+// Create axios instance with interceptors for automatic token handling
+const api = axios.create({
+  baseURL: API_BASE,
+});
+
+// Flag to prevent multiple logout triggers
+let isLoggingOut = false;
+
+// Function to handle session expiration (will be set by the component)
+let handleSessionExpired: (() => void) | null = null;
+
+// Response interceptor to handle 401 errors globally
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401 && !isLoggingOut) {
+      console.log('[Auth] Token expired or invalid, logging out...');
+      isLoggingOut = true;
+      
+      // Clear stored credentials
+      await AsyncStorage.multiRemove(['token', 'user']);
+      
+      // Trigger logout in component
+      if (handleSessionExpired) {
+        handleSessionExpired();
+      }
+      
+      // Reset flag after a delay to allow re-login
+      setTimeout(() => {
+        isLoggingOut = false;
+      }, 1000);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Configure notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
