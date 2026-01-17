@@ -6255,31 +6255,33 @@ export default function TransportMeter() {
                   stopRadioTransmission();
                 }
               }}
-              // Mouse events for desktop
-              onMouseDown={(e) => {
-                e.preventDefault();
-                console.log('Radio PTT: onMouseDown');
-                if (radioConnected && !radioChannelBusy && !radioTransmitting) {
-                  startRadioTransmission();
+              // Mouse events for desktop (with type assertions for web compatibility)
+              {...({
+                onMouseDown: (e: any) => {
+                  e.preventDefault();
+                  console.log('Radio PTT: onMouseDown');
+                  if (radioConnected && !radioChannelBusy && !radioTransmitting) {
+                    startRadioTransmission();
+                  }
+                },
+                onMouseUp: (e: any) => {
+                  e.preventDefault();
+                  console.log('Radio PTT: onMouseUp');
+                  if (radioConnected) {
+                    stopRadioTransmission();
+                  }
+                },
+                onMouseLeave: () => {
+                  if (radioTransmitting) {
+                    console.log('Radio PTT: onMouseLeave while transmitting');
+                    stopRadioTransmission();
+                  }
+                },
+                onContextMenu: (e: any) => {
+                  e.preventDefault();
+                  return false;
                 }
-              }}
-              onMouseUp={(e) => {
-                e.preventDefault();
-                console.log('Radio PTT: onMouseUp');
-                if (radioConnected) {
-                  stopRadioTransmission();
-                }
-              }}
-              onMouseLeave={() => {
-                if (radioTransmitting) {
-                  console.log('Radio PTT: onMouseLeave while transmitting');
-                  stopRadioTransmission();
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                return false;
-              }}
+              } as any)}
             >
               <Ionicons 
                 name="mic" 
