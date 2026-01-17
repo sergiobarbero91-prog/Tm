@@ -6379,6 +6379,34 @@ export default function TransportMeter() {
               </View>
             </View>
 
+            {/* Game Toast Notification */}
+            {gameToast && (
+              <View style={{
+                position: 'absolute',
+                top: 80,
+                left: 20,
+                right: 20,
+                backgroundColor: '#1E293B',
+                padding: 16,
+                borderRadius: 12,
+                borderLeftWidth: 4,
+                borderLeftColor: gameToast.title.includes('Error') ? '#EF4444' : '#10B981',
+                zIndex: 1000,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                  {gameToast.title}
+                </Text>
+                <Text style={{ color: '#94A3B8', fontSize: 14 }}>
+                  {gameToast.message}
+                </Text>
+              </View>
+            )}
+
             {/* Games Content */}
             <ScrollView 
               style={{ flex: 1 }} 
