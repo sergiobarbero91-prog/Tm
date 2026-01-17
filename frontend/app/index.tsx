@@ -4971,7 +4971,7 @@ export default function TransportMeter() {
               <View style={styles.arrivalTime}>
                 <Text style={[
                   styles.timeText,
-                  flight.delay_minutes && flight.delay_minutes > 0 && styles.delayedTimeText
+                  flight.delay_minutes !== undefined && flight.delay_minutes > 0 ? styles.delayedTimeText : undefined
                 ]}>
                   {flight.time}
                 </Text>
