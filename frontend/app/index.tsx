@@ -447,7 +447,7 @@ export default function TransportMeter() {
     score: number;
   }>>([]);
   const [gameState, setGameState] = useState<any>(null);
-  const [gamePollingInterval, setGamePollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [gamePollingInterval, setGamePollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [hangmanWord, setHangmanWord] = useState('');  // For hangman word input
   const [gameToast, setGameToast] = useState<{title: string, message: string} | null>(null);  // Toast for game notifications
   
