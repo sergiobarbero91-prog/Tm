@@ -11274,12 +11274,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 100,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
   loadingText: {
     color: '#94A3B8',
     marginTop: 15,
-    fontSize: 16,
+    fontSize: 14,
+  },
+  // Skeleton Loader Styles
+  skeletonCard: {
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    width: '100%',
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  skeletonContent: {
+    paddingTop: 8,
+  },
+  skeletonBox: {
+    backgroundColor: '#374151',
+    borderRadius: 6,
+    opacity: 0.6,
   },
   errorContainer: {
     flex: 1,
