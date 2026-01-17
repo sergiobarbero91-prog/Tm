@@ -1350,7 +1350,7 @@ async def get_train_comparison(
     
     # If past window, also fetch historical data and merge
     if is_past_window and time_start and time_end:
-        logger.info(f"[Trains] Fetching historical data for past window")
+        logger.info("[Trains] Fetching historical data for past window")
         atocha_history = await trains_history_collection.find({
             "station": "atocha",
             "fetched_at": {"$gte": time_start, "$lte": time_end}
@@ -1468,11 +1468,11 @@ async def get_train_comparison(
     message = None
     if custom_time_window:
         if is_future_window:
-            message = f"Trenes previstos para la franja horaria seleccionada"
+            message = "Trenes previstos para la franja horaria seleccionada"
         elif is_past_window:
-            message = f"Datos históricos del período seleccionado"
+            message = "Datos históricos del período seleccionado"
         else:
-            message = f"Trenes para la franja horaria seleccionada"
+            message = "Trenes para la franja horaria seleccionada"
     elif is_night_time and atocha_30 == 0 and chamartin_30 == 0:
         message = "Horario nocturno - Sin trenes en los próximos minutos. Próximas llegadas listadas abajo."
     
