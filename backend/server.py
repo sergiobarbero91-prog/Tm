@@ -692,7 +692,7 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
                                             if delay < -120:
                                                 delay += 24 * 60
                                             status = f"Retraso {delay} min" if delay > 0 else "Adelantado"
-                                        except:
+                                        except (ValueError, TypeError):
                                             delay = None
                                             status = "Retrasado"
                                     else:
@@ -953,7 +953,7 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                         if delay < -120:
                                             delay += 24 * 60
                                         delay_minutes = delay if delay > 0 else delay  # Negative for early
-                                    except:
+                                    except (ValueError, TypeError):
                                         pass
                                 
                                 # Avoid duplicates and filter out cancelled/landed flights
@@ -1119,7 +1119,7 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
             time_diff = (arrival_time - now).total_seconds() / 60
             if time_diff >= -30:  # Allow 30 min buffer for recently arrived
                 filtered.append(arrival)
-        except:
+        except (ValueError, TypeError, KeyError):
             pass
     
     return filtered
@@ -1157,7 +1157,7 @@ def filter_arrivals_by_shift(arrivals: List[Dict], shift: str) -> List[Dict]:
             hour = int(time_str.split(":")[0])
             if is_hour_in_shift(hour, shift):
                 filtered.append(arrival)
-        except:
+        except (ValueError, TypeError, KeyError):
             pass
     return filtered
 
@@ -1228,7 +1228,7 @@ def calculate_peak_hour(arrivals: List[Dict], shift: str = "all") -> Optional[Di
             # Only count hours within the selected shift
             if is_hour_in_shift(hour, shift):
                 hour_counts[hour] = hour_counts.get(hour, 0) + 1
-        except:
+        except (ValueError, TypeError, KeyError):
             pass
     
     if not hour_counts:
