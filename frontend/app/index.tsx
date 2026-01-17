@@ -6887,7 +6887,7 @@ export default function TransportMeter() {
                                         showGameToast('¡Partida terminada!', response.data.message);
                                       }
                                     } catch (error: any) {
-                                      Alert.alert('Error', error.response?.data?.detail || 'Error al hacer movimiento');
+                                      showGameToast('Error', error.response?.data?.detail || 'Error al hacer movimiento');
                                     }
                                   }}
                                   disabled={!gameState.is_my_turn || !!cell}
