@@ -2936,7 +2936,7 @@ export default function TransportMeter() {
       const ws = new WebSocket(wsUrl);
       
       // Ping interval to keep connection alive
-      let pingInterval: NodeJS.Timeout | null = null;
+      let pingInterval: ReturnType<typeof setInterval> | null = null;
 
       ws.onopen = () => {
         console.log(`Radio: Connected to channel ${channel}`);
