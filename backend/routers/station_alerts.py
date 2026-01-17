@@ -240,6 +240,12 @@ async def get_active_alerts():
     """Get all active station/terminal alerts (not expired)."""
     now = datetime.utcnow()
     
+    # First, cleanup expired alerts (older than 10 minutes to be safe)
+    cleanup_threshold = now - timedelta(minutes=10)
+    await station_alerts_collection.delete_many({
+        "expires_at": {"$lt": cleanup_threshold}
+    })
+    
     # Get all non-expired alerts
     alerts_cursor = station_alerts_collection.find({
         "expires_at": {"$gt": now}
