@@ -4,7 +4,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { TabType } from '../types';
+import { TabType } from '../_types';
 
 interface Tab {
   id: TabType;
