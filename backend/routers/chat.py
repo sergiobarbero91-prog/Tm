@@ -2,11 +2,14 @@
 Chat router for multi-channel messaging system.
 Includes chat abuse blocking system.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 import uuid
+import bleach
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from shared import (
     chat_messages_collection,
@@ -16,6 +19,7 @@ from shared import (
 )
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+limiter = Limiter(key_func=get_remote_address)
 
 # Blocking configuration - same pattern as alert fraud
 CHAT_ABUSE_THRESHOLD = 60  # Seconds - not used for chat, immediate block
@@ -25,6 +29,12 @@ CHAT_PENALTIES = {
     20: 48,    # 11-20 abuses: 48 hours
     float('inf'): None  # 21+ abuses: permanent ban
 }
+
+# XSS prevention - sanitize all user input
+def sanitize_message(text: str) -> str:
+    """Sanitize user input to prevent XSS attacks."""
+    # Allow no HTML tags - strip everything
+    return bleach.clean(text, tags=[], strip=True)
 
 
 def get_chat_penalty_hours(abuse_count: int) -> Optional[int]:
