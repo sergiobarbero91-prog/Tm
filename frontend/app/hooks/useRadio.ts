@@ -62,7 +62,7 @@ export const useRadio = (): UseRadioReturn => {
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const webAudioUnlockedRef = useRef(false);
   const radioMutedRef = useRef(false);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Keep ref in sync with state
   useEffect(() => {
