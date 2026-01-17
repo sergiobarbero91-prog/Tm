@@ -1741,7 +1741,7 @@ async def sentry_test():
     
     try:
         # This will trigger an error that Sentry will capture
-        division_by_zero = 1 / 0
+        _ = 1 / 0  # noqa: F841 - intentional division by zero for testing
     except Exception as e:
         sentry_sdk.capture_exception(e)
         return {"message": "Test error sent to Sentry!", "error": str(e)}
