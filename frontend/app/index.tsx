@@ -7606,7 +7606,7 @@ export default function TransportMeter() {
                                                 showGameToast('¡Partida terminada!', response.data.message);
                                               }
                                             } catch (error: any) {
-                                              Alert.alert('Error', error.response?.data?.detail || 'No se pudo disparar');
+                                              showGameToast('Error', error.response?.data?.detail || 'No se pudo disparar');
                                             }
                                           }}
                                         >
