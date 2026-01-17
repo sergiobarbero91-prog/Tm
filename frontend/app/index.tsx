@@ -7632,6 +7632,7 @@ export default function TransportMeter() {
                       </View>
                     )}
                   </View>
+                      </>
                 )}
               </View>
             )}
