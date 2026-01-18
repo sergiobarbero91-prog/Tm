@@ -424,6 +424,7 @@ export default function TransportMeter() {
   
   // Registration states
   const [showRegister, setShowRegister] = useState(false);
+  const [registerStep, setRegisterStep] = useState<1 | 2>(1);
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
