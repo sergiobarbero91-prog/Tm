@@ -8859,6 +8859,203 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Support Chat Modal */}
+      {showSupportModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.supportModal}>
+            <View style={styles.supportModalHeader}>
+              <View style={styles.supportHeaderLeft}>
+                <Ionicons name="headset" size={24} color="#6366F1" />
+                <Text style={styles.supportModalTitle}>Centro de Ayuda</Text>
+              </View>
+              <TouchableOpacity onPress={() => {
+                setShowSupportModal(false);
+                setSelectedTicket(null);
+                setTicketMessages([]);
+              }}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {!selectedTicket ? (
+              // Ticket list view
+              <ScrollView style={styles.supportContent}>
+                {/* New Ticket Form */}
+                <View style={styles.supportNewTicketSection}>
+                  <Text style={styles.supportSectionTitle}>Crear nuevo ticket</Text>
+                  <TextInput
+                    style={styles.supportInput}
+                    placeholder="Asunto del problema..."
+                    placeholderTextColor="#6B7280"
+                    value={newTicketSubject}
+                    onChangeText={setNewTicketSubject}
+                    maxLength={100}
+                  />
+                  <TextInput
+                    style={[styles.supportInput, styles.supportTextArea]}
+                    placeholder="Describe tu problema o pregunta..."
+                    placeholderTextColor="#6B7280"
+                    value={newTicketMessage}
+                    onChangeText={setNewTicketMessage}
+                    multiline
+                    numberOfLines={4}
+                    maxLength={2000}
+                  />
+                  <TouchableOpacity
+                    style={[styles.supportSubmitButton, supportLoading && styles.supportButtonDisabled]}
+                    onPress={createSupportTicket}
+                    disabled={supportLoading}
+                  >
+                    {supportLoading ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="send" size={18} color="#FFFFFF" />
+                        <Text style={styles.supportSubmitText}>Enviar Ticket</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Existing Tickets */}
+                <View style={styles.supportTicketsSection}>
+                  <Text style={styles.supportSectionTitle}>Mis tickets</Text>
+                  {supportTickets.length === 0 ? (
+                    <View style={styles.supportEmptyState}>
+                      <Ionicons name="chatbubbles-outline" size={40} color="#4B5563" />
+                      <Text style={styles.supportEmptyText}>No tienes tickets de soporte</Text>
+                    </View>
+                  ) : (
+                    supportTickets.map((ticket) => (
+                      <TouchableOpacity
+                        key={ticket.id}
+                        style={[
+                          styles.supportTicketCard,
+                          ticket.unread_by_user && styles.supportTicketUnread
+                        ]}
+                        onPress={() => {
+                          setSelectedTicket(ticket.id);
+                          fetchTicketMessages(ticket.id);
+                        }}
+                      >
+                        <View style={styles.supportTicketHeader}>
+                          <View style={[
+                            styles.supportStatusBadge,
+                            ticket.status === 'open' ? styles.supportStatusOpen : styles.supportStatusClosed
+                          ]}>
+                            <Text style={styles.supportStatusText}>
+                              {ticket.status === 'open' ? 'Abierto' : 'Cerrado'}
+                            </Text>
+                          </View>
+                          {ticket.unread_by_user && (
+                            <View style={styles.supportUnreadDot} />
+                          )}
+                        </View>
+                        <Text style={styles.supportTicketSubject}>{ticket.subject}</Text>
+                        {ticket.last_message && (
+                          <Text style={styles.supportTicketPreview} numberOfLines={1}>
+                            {ticket.last_message}
+                          </Text>
+                        )}
+                        <Text style={styles.supportTicketDate}>
+                          {new Date(ticket.updated_at).toLocaleDateString('es-ES', {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              </ScrollView>
+            ) : (
+              // Chat view
+              <View style={styles.supportChatContainer}>
+                <TouchableOpacity
+                  style={styles.supportBackButton}
+                  onPress={() => {
+                    setSelectedTicket(null);
+                    setTicketMessages([]);
+                  }}
+                >
+                  <Ionicons name="arrow-back" size={20} color="#60A5FA" />
+                  <Text style={styles.supportBackText}>Volver a tickets</Text>
+                </TouchableOpacity>
+
+                {/* Chat messages */}
+                <ScrollView style={styles.supportMessagesContainer}>
+                  {ticketMessages.map((msg) => (
+                    <View
+                      key={msg.id}
+                      style={[
+                        styles.supportMessage,
+                        msg.sender_role === 'admin' || msg.sender_role === 'system'
+                          ? styles.supportMessageAdmin
+                          : styles.supportMessageUser
+                      ]}
+                    >
+                      <View style={styles.supportMessageHeader}>
+                        <Text style={[
+                          styles.supportMessageSender,
+                          msg.sender_role === 'system' && styles.supportMessageSystem
+                        ]}>
+                          {msg.sender_role === 'system' ? '🤖 Sistema' : 
+                           msg.sender_role === 'admin' ? '👤 Soporte' : 'Tú'}
+                        </Text>
+                        <Text style={styles.supportMessageTime}>
+                          {new Date(msg.created_at).toLocaleTimeString('es-ES', {
+                            hour: '2-digit', minute: '2-digit'
+                          })}
+                        </Text>
+                      </View>
+                      <Text style={styles.supportMessageText}>{msg.message}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Message input */}
+                {supportTickets.find(t => t.id === selectedTicket)?.status === 'open' && (
+                  <View style={styles.supportInputContainer}>
+                    <TextInput
+                      style={styles.supportChatInput}
+                      placeholder="Escribe un mensaje..."
+                      placeholderTextColor="#6B7280"
+                      value={supportChatMessage}
+                      onChangeText={setSupportChatMessage}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={styles.supportSendButton}
+                      onPress={sendSupportMessage}
+                      disabled={!supportChatMessage.trim() || supportLoading}
+                    >
+                      <Ionicons name="send" size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {supportTickets.find(t => t.id === selectedTicket)?.status === 'closed' && (
+                  <View style={styles.supportClosedBanner}>
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    <Text style={styles.supportClosedText}>Este ticket está cerrado</Text>
+                  </View>
+                )}
+
+                {/* Admin close button */}
+                {currentUser?.role === 'admin' && supportTickets.find(t => t.id === selectedTicket)?.status === 'open' && (
+                  <TouchableOpacity
+                    style={styles.supportCloseTicketButton}
+                    onPress={() => closeSupportTicket(selectedTicket)}
+                  >
+                    <Ionicons name="checkmark-done" size={18} color="#FFFFFF" />
+                    <Text style={styles.supportCloseTicketText}>Cerrar Ticket</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* Profile Edit Modal */}
       {showProfileModal && (
         <View style={styles.modalOverlay}>
