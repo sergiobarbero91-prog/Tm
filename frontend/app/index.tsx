@@ -8032,6 +8032,7 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={styles.chatButtonCompact}
           onPress={openChatModal}
+          testID="chat-button"
         >
           <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
         </TouchableOpacity>
