@@ -3298,10 +3298,40 @@ export default function TransportMeter() {
       
       console.log('Radio: Creating recording...');
       
-      // Use LOW_QUALITY preset which produces smaller, more compatible files
-      // This uses AAC on iOS and lower bitrate on Android
+      // Use custom recording options optimized for voice with low latency
+      const recordingOptions = Platform.select({
+        ios: {
+          android: {},
+          ios: {
+            extension: '.m4a',
+            outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+            audioQuality: Audio.IOSAudioQuality.LOW,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 32000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: {},
+        },
+        android: {
+          android: {
+            extension: '.m4a',
+            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+            audioEncoder: Audio.AndroidAudioEncoder.AAC,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 32000,
+          },
+          ios: {},
+          web: {},
+        },
+        default: Audio.RecordingOptionsPresets.LOW_QUALITY,
+      });
+      
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.LOW_QUALITY
+        recordingOptions || Audio.RecordingOptionsPresets.LOW_QUALITY
       );
       
       recordingRef.current = recording;
