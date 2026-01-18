@@ -6016,6 +6016,8 @@ export default function TransportMeter() {
             <TouchableOpacity 
               style={styles.settingsButton}
               onPress={() => setShowSettings(true)}
+              testID="settings-button"
+              accessibilityLabel="Ajustes"
             >
               <Ionicons name="settings-outline" size={20} color="#94A3B8" />
             </TouchableOpacity>
