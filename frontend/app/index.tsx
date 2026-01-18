@@ -10572,6 +10572,10 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     maxHeight: '85%',
   },
+  settingsScrollContent: {
+    flexGrow: 0,
+    marginBottom: 10,
+  },
   settingsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
