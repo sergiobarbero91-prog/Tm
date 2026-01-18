@@ -24,6 +24,10 @@ limiter = Limiter(key_func=get_remote_address)
 async def login(request: Request, login_data: UserLogin):
     """Login with username and password."""
     user = await users_collection.find_one({"username": login_data.username})
+    logger.info(f"Login attempt for user: {login_data.username}, found: {user is not None}")
+    if user:
+        pwd_check = verify_password(login_data.password, user["hashed_password"])
+        logger.info(f"Password check result: {pwd_check}")
     if not user or not verify_password(login_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
