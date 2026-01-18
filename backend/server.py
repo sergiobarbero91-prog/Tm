@@ -1377,17 +1377,15 @@ async def get_train_comparison(
             logger.error(f"[Trains] Error parsing time range: {e}")
             custom_time_window = False
     
-    # Always fetch fresh data from API
-    atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-    chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+    # Initialize arrivals
+    atocha_arrivals_raw = []
+    chamartin_arrivals_raw = []
     
-    # Save to history for future queries (non-blocking)
-    asyncio.create_task(save_train_history("atocha", atocha_arrivals_raw))
-    asyncio.create_task(save_train_history("chamartin", chamartin_arrivals_raw))
-    
-    # If past window, also fetch historical data and merge
+    # OPTIMIZATION: For past windows, only fetch from history (no API call needed)
     if is_past_window and time_start and time_end:
-        logger.info("[Trains] Fetching historical data for past window")
+        logger.info("[Trains] PAST WINDOW: Fetching only from history (fast)")
+        
+        # Fetch historical data from MongoDB
         atocha_history = await trains_history_collection.find({
             "station": "atocha",
             "fetched_at": {"$gte": time_start, "$lte": time_end}
@@ -1398,10 +1396,9 @@ async def get_train_comparison(
             "fetched_at": {"$gte": time_start, "$lte": time_end}
         }).sort("fetched_at", -1).to_list(100)
         
-        # Use historical data if available
+        # Deduplicate historical arrivals
         if atocha_history:
             seen = set()
-            atocha_arrivals_raw = []
             for record in atocha_history:
                 for arr in record.get("arrivals", []):
                     key = f"{arr.get('train_number', '')}-{arr.get('time', '')}"
@@ -1411,13 +1408,24 @@ async def get_train_comparison(
         
         if chamartin_history:
             seen = set()
-            chamartin_arrivals_raw = []
             for record in chamartin_history:
                 for arr in record.get("arrivals", []):
                     key = f"{arr.get('train_number', '')}-{arr.get('time', '')}"
                     if key not in seen:
                         seen.add(key)
                         chamartin_arrivals_raw.append(arr)
+        
+        logger.info(f"[Trains] PAST: Retrieved {len(atocha_arrivals_raw)} Atocha, {len(chamartin_arrivals_raw)} Chamartín from history")
+    else:
+        # CURRENT or FUTURE: Fetch fresh data from API
+        logger.info("[Trains] CURRENT/FUTURE: Fetching from API")
+        atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+        chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+        
+        # Save to history for future queries (non-blocking) - ALWAYS save current data
+        asyncio.create_task(save_train_history("atocha", atocha_arrivals_raw))
+        asyncio.create_task(save_train_history("chamartin", chamartin_arrivals_raw))
+        logger.info(f"[Trains] API: Retrieved {len(atocha_arrivals_raw)} Atocha, {len(chamartin_arrivals_raw)} Chamartín, saving to history")
     
     # Filter arrivals by shift
     atocha_arrivals_shift = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
