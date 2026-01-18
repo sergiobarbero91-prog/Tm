@@ -318,7 +318,7 @@ async def cancel_alert_by_location(
     data: CancelAlertByLocationRequest,
     current_user: dict = Depends(get_current_user_required)
 ):
-    """Cancel an alert by location. Detects fraud if another user cancels within 1 minute."""
+    """Cancel an alert by location. Detects fraud if cancelled within 1 minute (by anyone)."""
     now = datetime.utcnow()
     
     location_name = data.location_name.lower() if data.location_type == "station" else data.location_name
@@ -342,34 +342,39 @@ async def cancel_alert_by_location(
     reporter_name = alert.get("reported_by_name", "Usuario")
     is_self_cancel = alert["reported_by"] == current_user["id"]
     
-    # No blocking - anyone can cancel at any time
-    # The fraud detection system will handle penalties if needed
-    
     # Delete the alert
     await station_alerts_collection.delete_one({"_id": alert["_id"]})
     
-    # FRAUD DETECTION: If another user cancels within 1 minute, it's considered fraud
+    # FRAUD DETECTION: If cancelled within 1 minute, it's considered fraud
+    # This applies both when reporter cancels their own alert AND when another user cancels it
     fraud_detected = False
     fraud_message = None
     
-    if not is_self_cancel and seconds_since_created < FRAUD_THRESHOLD_SECONDS:
-        # This is fraud - another user cancelled the alert within 1 minute
+    if seconds_since_created < FRAUD_THRESHOLD_SECONDS:
+        # This is fraud - alert was cancelled within 1 minute
         fraud_detected = True
         penalty_info = await apply_fraud_penalty(reporter_user_id)
         
         penalty_hours = penalty_info["penalty_hours"]
         is_permanent = penalty_info["is_permanent"]
         
-        # Build fraud message
-        if is_permanent:
-            fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario ha sido bloqueado permanentemente para enviar avisos."
+        # Build fraud message based on who cancelled
+        if is_self_cancel:
+            if is_permanent:
+                fraud_message = f"Has cancelado tu propio aviso antes de 1 minuto. Has sido bloqueado permanentemente para enviar avisos."
+            else:
+                fraud_message = f"Has cancelado tu propio aviso antes de 1 minuto. No podrás enviar avisos durante {penalty_hours} horas."
         else:
-            fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario no podrá enviar avisos durante {penalty_hours} horas."
+            if is_permanent:
+                fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario ha sido bloqueado permanentemente para enviar avisos."
+            else:
+                fraud_message = f"El aviso de {reporter_name} ha sido marcado como incorrecto. Este usuario no podrá enviar avisos durante {penalty_hours} horas."
     
     return {
         "message": "Alerta cancelada correctamente",
         "fraud_detected": fraud_detected,
         "fraud_message": fraud_message,
+        "self_cancel": is_self_cancel,
         "reporter_notified": fraud_detected,
         "notify_reporter_id": reporter_user_id if fraud_detected else None
     }
