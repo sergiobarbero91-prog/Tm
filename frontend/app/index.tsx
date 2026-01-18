@@ -3596,33 +3596,30 @@ export default function TransportMeter() {
   };
 
   // Delete a chat message (mods and admins only)
-  const deleteChatMessage = async (messageId: string) => {
-    Alert.alert(
-      'Eliminar mensaje',
-      '¿Estás seguro de que quieres eliminar este mensaje?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem('token');
-              await axios.delete(
-                `${API_BASE}/api/chat/${activeChannel}/messages/${messageId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              
-              // Remove from local state
-              setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
-            } catch (error: any) {
-              console.error('Error deleting message:', error);
-              Alert.alert('Error', error.response?.data?.detail || 'No se pudo eliminar el mensaje');
-            }
-          }
-        }
-      ]
-    );
+  const deleteChatMessage = async (messageId: string, username: string) => {
+    // Show confirmation modal
+    setDeleteMessageTarget({ messageId, username });
+    setShowDeleteMessageModal(true);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!deleteMessageTarget) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(
+        `${API_BASE}/api/chat/${activeChannel}/messages/${deleteMessageTarget.messageId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Remove from local state
+      setChatMessages(prev => prev.filter(msg => msg.id !== deleteMessageTarget.messageId));
+      setShowDeleteMessageModal(false);
+      setDeleteMessageTarget(null);
+    } catch (error: any) {
+      console.error('Error deleting message:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo eliminar el mensaje');
+    }
   };
 
   // Check if user can delete messages (mods and admins)
