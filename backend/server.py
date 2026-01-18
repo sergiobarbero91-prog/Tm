@@ -1592,12 +1592,41 @@ async def get_flight_comparison(
             logger.error(f"[Flights] Error parsing time range: {e}")
             custom_time_window = False
     
-    # Always fetch fresh data first
-    all_arrivals = await fetch_aena_arrivals()
+    # Initialize arrivals dict
+    all_arrivals = {t: [] for t in TERMINALS}
     
-    # Save to history for future queries (non-blocking)
-    for terminal in TERMINALS:
-        asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
+    # OPTIMIZATION: For past windows, only fetch from history (no API call needed)
+    if is_past_window and time_start and time_end:
+        logger.info("[Flights] PAST WINDOW: Fetching only from history (fast)")
+        
+        for terminal in TERMINALS:
+            terminal_history = await flights_history_collection.find({
+                "terminal": terminal,
+                "fetched_at": {"$gte": time_start - timedelta(hours=2), "$lte": time_end + timedelta(hours=2)}
+            }).sort("fetched_at", -1).to_list(50)
+            
+            if terminal_history:
+                seen = set()
+                for record in terminal_history:
+                    for arr in record.get("arrivals", []):
+                        key = f"{arr.get('flight_number', '')}-{arr.get('time', '')}"
+                        if key not in seen:
+                            seen.add(key)
+                            all_arrivals[terminal].append(arr)
+        
+        total_historical = sum(len(v) for v in all_arrivals.values())
+        logger.info(f"[Flights] PAST: Retrieved {total_historical} total from history")
+    else:
+        # CURRENT or FUTURE: Fetch fresh data from API
+        logger.info("[Flights] CURRENT/FUTURE: Fetching from API")
+        all_arrivals = await fetch_aena_arrivals()
+        
+        # Save to history for future queries (non-blocking) - ALWAYS save current data
+        for terminal in TERMINALS:
+            asyncio.create_task(save_flight_history(terminal, all_arrivals.get(terminal, [])))
+        
+        total_fresh = sum(len(v) for v in all_arrivals.values())
+        logger.info(f"[Flights] API: Retrieved {total_fresh} total, saving to history")
     
     terminal_data = {}
     max_score_30 = 0.0
