@@ -10573,7 +10573,7 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   settingsScrollContent: {
-    flexGrow: 0,
+    flex: 1,
     marginBottom: 10,
   },
   settingsHeader: {
