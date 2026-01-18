@@ -1645,28 +1645,7 @@ async def get_flight_comparison(
         if custom_time_window and time_start and time_end:
             # Filter arrivals to only those within the specified hour window
             arrivals = filter_arrivals_by_hour_window(raw_arrivals, time_start, time_end)
-            
-            # If no arrivals from fresh data and this is a past window, try historical data
-            if len(arrivals) == 0 and is_past_window:
-                logger.info(f"[Flights] No fresh data for {terminal} in time window, checking history...")
-                terminal_history = await flights_history_collection.find({
-                    "terminal": terminal,
-                    "fetched_at": {"$gte": time_start - timedelta(hours=2), "$lte": time_end + timedelta(hours=2)}
-                }).sort("fetched_at", -1).to_list(50)
-                
-                if terminal_history:
-                    historical_arrivals = []
-                    seen = set()
-                    for record in terminal_history:
-                        for arr in record.get("arrivals", []):
-                            key = f"{arr.get('flight_number', '')}-{arr.get('time', '')}"
-                            if key not in seen:
-                                seen.add(key)
-                                historical_arrivals.append(arr)
-                    
-                    # Filter historical data by hour window
-                    arrivals = filter_arrivals_by_hour_window(historical_arrivals, time_start, time_end)
-                    logger.info(f"[Flights] Found {len(arrivals)} historical arrivals for {terminal}")
+            logger.info(f"[Flights] {terminal}: {len(arrivals)} arrivals in time window")
         else:
             # No time window - filter out arrived flights
             arrivals = filter_future_flights(raw_arrivals)
