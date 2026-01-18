@@ -191,11 +191,18 @@ export default function HelpPage() {
 
         {/* Soporte */}
         <View style={styles.supportBox}>
-          <Ionicons name="help-circle" size={32} color="#60A5FA" />
+          <Ionicons name="chatbubbles" size={32} color="#60A5FA" />
           <Text style={styles.supportTitle}>¿Necesitas ayuda?</Text>
           <Text style={styles.supportText}>
-            Contacta con el administrador de la plataforma para cualquier problema técnico.
+            Abre un ticket de soporte y nuestro equipo te ayudará lo antes posible.
           </Text>
+          <TouchableOpacity 
+            style={styles.supportButton}
+            onPress={() => router.push('/?openSupport=true')}
+          >
+            <Ionicons name="headset" size={20} color="#FFFFFF" />
+            <Text style={styles.supportButtonText}>Centro de Ayuda</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
