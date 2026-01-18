@@ -8681,6 +8681,7 @@ export default function TransportMeter() {
                 </TouchableOpacity>
               </View>
             </View>
+            </ScrollView>
             
             <TouchableOpacity 
               style={styles.settingsCloseButton}
