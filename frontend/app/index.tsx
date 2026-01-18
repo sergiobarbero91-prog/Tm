@@ -852,8 +852,8 @@ export default function TransportMeter() {
     setCurrentUser(null);
   };
 
-  // Handle registration
-  const handleRegister = async () => {
+  // Handle registration step 1 - Validate fields and check username availability
+  const handleRegisterContinue = async () => {
     if (!registerUsername || !registerPassword || !registerFullName || !registerLicenseNumber) {
       Alert.alert('Error', 'Por favor completa los campos obligatorios: usuario, contraseña, nombre y licencia');
       return;
@@ -874,6 +874,26 @@ export default function TransportMeter() {
       return;
     }
 
+    setRegisterLoading(true);
+    try {
+      // Check if username is available
+      const response = await axios.get(`${API_BASE}/api/auth/check-username/${registerUsername}`);
+      if (!response.data.available) {
+        Alert.alert('Error', 'Este nombre de usuario ya está en uso. Por favor, elige otro.');
+        return;
+      }
+      
+      // Proceed to step 2
+      setRegisterStep(2);
+    } catch (error: any) {
+      Alert.alert('Error', 'Error al verificar disponibilidad del usuario');
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  // Handle registration step 2 - Create account
+  const handleRegister = async () => {
     if (!acceptPrivacyPolicy) {
       Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
       return;
@@ -911,6 +931,7 @@ export default function TransportMeter() {
       setRegisterPreferredShift('all');
       setAcceptPrivacyPolicy(false);
       setAcceptGoodUse(false);
+      setRegisterStep(1);
       setShowRegister(false);
       
       Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
