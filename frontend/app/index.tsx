@@ -329,6 +329,9 @@ export default function TransportMeter() {
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
   
+  // Router for navigation
+  const router = useRouter();
+  
   // Station alerts states (sin taxis / barandilla)
   const [stationAlerts, setStationAlerts] = useState<{
     alerts: any[];
