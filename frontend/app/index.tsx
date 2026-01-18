@@ -3389,15 +3389,6 @@ export default function TransportMeter() {
             mime_type: blob.type || 'audio/mp4'
           }));
           console.log('Radio: Audio sent successfully, size:', base64Audio.length);
-              audio_data: base64Audio,
-              mime_type: blob.type || 'audio/mp4'
-            }));
-            console.log('Radio: Audio sent successfully, size:', base64Audio.length);
-          };
-          reader.onerror = (err) => {
-            console.error('Radio: FileReader error:', err);
-          };
-          reader.readAsDataURL(blob);
         } else {
           console.log('Radio: Audio too short, not sending. Size:', blob.size);
         }
