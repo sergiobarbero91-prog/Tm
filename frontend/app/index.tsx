@@ -4203,6 +4203,11 @@ export default function TransportMeter() {
     }
   }, [activeTab, shift, currentUser, timeWindow, selectedTimeRange, getTimeRangeParams, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData, fetchAdminUsers, fetchAdminStats]);
 
+  // Keep fetchDataRef updated with the latest fetchData function
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchData();
