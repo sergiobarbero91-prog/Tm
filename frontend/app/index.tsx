@@ -14366,6 +14366,57 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     opacity: 0.7,
   },
+  registerContinueButton: {
+    backgroundColor: '#6366F1',
+  },
+  registerStepIndicator: {
+    color: '#64748B',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  registerBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  registerBackText: {
+    color: '#60A5FA',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  registerPolicyBox: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 16,
+    maxHeight: 200,
+  },
+  registerPolicyScroll: {
+    padding: 14,
+  },
+  registerPolicyTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  registerPolicySectionTitle: {
+    color: '#60A5FA',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  registerPolicyText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    lineHeight: 18,
+  },
   registerCheckboxSection: {
     marginTop: 16,
     marginBottom: 16,
