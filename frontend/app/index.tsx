@@ -9686,7 +9686,7 @@ export default function TransportMeter() {
       )}
 
       {/* Create Alert Modal */}
-      {showCreateAlertModal && (
+      {showCreateLicenseAlertModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.createAlertModal}>
             <View style={styles.createAlertHeader}>
@@ -9816,7 +9816,7 @@ export default function TransportMeter() {
               <TouchableOpacity
                 style={styles.createAlertCancelButton}
                 onPress={() => {
-                  setShowCreateAlertModal(false);
+                  setShowCreateLicenseAlertModal(false);
                   setAlertTargetLicense('');
                   setAlertMessage('');
                   setAlertType('lost_item');
