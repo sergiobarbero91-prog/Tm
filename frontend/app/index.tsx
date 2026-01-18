@@ -14271,6 +14271,46 @@ const styles = StyleSheet.create({
   registerButton: {
     backgroundColor: '#10B981',
   },
+  registerButtonDisabled: {
+    backgroundColor: '#374151',
+    opacity: 0.7,
+  },
+  registerCheckboxSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  registerCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  registerCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#4B5563',
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  registerCheckboxChecked: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  registerCheckboxText: {
+    flex: 1,
+    color: '#9CA3AF',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  registerCheckboxLink: {
+    color: '#60A5FA',
+    textDecorationLine: 'underline',
+  },
   registerShiftSection: {
     marginTop: 8,
     marginBottom: 8,
