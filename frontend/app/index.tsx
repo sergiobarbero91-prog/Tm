@@ -3647,6 +3647,114 @@ export default function TransportMeter() {
     }
   }, []);
 
+  // ===== SUPPORT TICKET FUNCTIONS =====
+  const fetchSupportTickets = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/support/tickets`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSupportTickets(response.data);
+    } catch (error) {
+      console.error('Error fetching support tickets:', error);
+    }
+  }, []);
+
+  const fetchSupportUnreadCount = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/support/tickets/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSupportUnreadCount(response.data.unread_count);
+    } catch (error) {
+      console.error('Error fetching support unread count:', error);
+    }
+  }, []);
+
+  const fetchTicketMessages = useCallback(async (ticketId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/support/tickets/${ticketId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTicketMessages(response.data);
+      // Also refresh tickets to update unread status
+      fetchSupportTickets();
+      fetchSupportUnreadCount();
+    } catch (error) {
+      console.error('Error fetching ticket messages:', error);
+    }
+  }, [fetchSupportTickets, fetchSupportUnreadCount]);
+
+  const createSupportTicket = async () => {
+    if (!newTicketSubject.trim() || !newTicketMessage.trim()) {
+      Alert.alert('Error', 'Por favor, completa el asunto y el mensaje');
+      return;
+    }
+    
+    setSupportLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/support/tickets`, {
+        subject: newTicketSubject.trim(),
+        message: newTicketMessage.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Clear form and select the new ticket
+      setNewTicketSubject('');
+      setNewTicketMessage('');
+      setSelectedTicket(response.data.id);
+      fetchSupportTickets();
+      fetchTicketMessages(response.data.id);
+      Alert.alert('Éxito', 'Tu ticket de soporte ha sido creado');
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al crear el ticket';
+      Alert.alert('Error', message);
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
+  const sendSupportMessage = async () => {
+    if (!supportChatMessage.trim() || !selectedTicket) return;
+    
+    setSupportLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/support/tickets/${selectedTicket}/messages`, {
+        message: supportChatMessage.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSupportChatMessage('');
+      fetchTicketMessages(selectedTicket);
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al enviar el mensaje';
+      Alert.alert('Error', message);
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
+  const closeSupportTicket = async (ticketId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/support/tickets/${ticketId}/close`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchSupportTickets();
+      fetchTicketMessages(ticketId);
+      Alert.alert('Éxito', 'Ticket cerrado correctamente');
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al cerrar el ticket';
+      Alert.alert('Error', message);
+    }
+  };
+
   // Search for licenses (autocomplete)
   const searchLicenses = async (query: string) => {
     if (!query || query.length < 1) {
