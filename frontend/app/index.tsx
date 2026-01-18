@@ -2484,17 +2484,26 @@ export default function TransportMeter() {
     }
   }, []);
 
-  // Report station alert
+  // Report station alert - show confirmation modal first
   const reportStationAlert = async (locationType: string, locationName: string, alertType: 'sin_taxis' | 'barandilla') => {
-    if (reportingAlert) return;
+    // Show confirmation modal
+    setCreateAlertData({ locationType, locationName, alertType });
+    setShowCreateAlertModal(true);
+  };
+
+  // Confirm and create the alert
+  const confirmCreateAlert = async () => {
+    if (!createAlertData || reportingAlert) return;
     
     setReportingAlert(true);
+    setShowCreateAlertModal(false);
+    
     try {
       const token = await AsyncStorage.getItem('token');
       await axios.post(`${API_BASE}/api/station-alerts/report`, {
-        location_type: locationType,
-        location_name: locationName,
-        alert_type: alertType
+        location_type: createAlertData.locationType,
+        location_name: createAlertData.locationName,
+        alert_type: createAlertData.alertType
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -2502,12 +2511,13 @@ export default function TransportMeter() {
       // Refresh alerts
       await fetchStationAlerts();
       
-      const alertLabel = alertType === 'sin_taxis' ? 'Sin taxis' : 'Barandilla';
-      Alert.alert('Aviso enviado', `${alertLabel} reportado para ${locationName}. Durará 5 minutos.`);
+      const alertLabel = createAlertData.alertType === 'sin_taxis' ? 'Sin taxis' : 'Barandilla';
+      Alert.alert('Aviso enviado', `${alertLabel} reportado para ${createAlertData.locationName}. Durará 5 minutos.`);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Error al enviar el aviso');
     } finally {
       setReportingAlert(false);
+      setCreateAlertData(null);
     }
   };
 
