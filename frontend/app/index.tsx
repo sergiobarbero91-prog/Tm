@@ -432,6 +432,8 @@ export default function TransportMeter() {
   const [registerPhone, setRegisterPhone] = useState('');
   const [registerPreferredShift, setRegisterPreferredShift] = useState<'all' | 'day' | 'night'>('all');
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+  const [acceptGoodUse, setAcceptGoodUse] = useState(false);
   
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
