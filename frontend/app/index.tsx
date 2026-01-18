@@ -2915,34 +2915,31 @@ export default function TransportMeter() {
 
   // Delete user (admin only)
   const deleteUser = async (userId: string, username: string) => {
-    Alert.alert(
-      'Eliminar Usuario',
-      `¿Estás seguro de que quieres eliminar a "${username}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            setAdminLoading(true);
-            try {
-              const token = await AsyncStorage.getItem('token');
-              await axios.delete(`${API_BASE}/api/admin/users/${userId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
+    // Show confirmation modal instead of Alert (works better on web)
+    setDeleteUserTarget({ id: userId, username });
+    setShowDeleteUserModal(true);
+  };
 
-              Alert.alert('Éxito', 'Usuario eliminado');
-              fetchAdminUsers();
-            } catch (error: any) {
-              console.error('Error deleting user:', error);
-              Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar usuario');
-            } finally {
-              setAdminLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const confirmDeleteUser = async () => {
+    if (!deleteUserTarget) return;
+    
+    setAdminLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/admin/users/${deleteUserTarget.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      Alert.alert('Éxito', 'Usuario eliminado');
+      setShowDeleteUserModal(false);
+      setDeleteUserTarget(null);
+      fetchAdminUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar usuario');
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   // Get role badge color
