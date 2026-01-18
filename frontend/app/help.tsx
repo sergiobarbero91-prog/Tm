@@ -429,5 +429,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#93C5FD',
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  supportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F1',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 8,
+  },
+  supportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
