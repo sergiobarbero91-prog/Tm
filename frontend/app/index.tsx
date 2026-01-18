@@ -10374,6 +10374,106 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Create Alert Confirmation Modal */}
+      {showCreateAlertModal && createAlertData && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertConfirmModal}>
+            <View style={[styles.deleteConfirmIcon, { backgroundColor: createAlertData.alertType === 'sin_taxis' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)' }]}>
+              <Ionicons 
+                name={createAlertData.alertType === 'sin_taxis' ? 'car-outline' : 'people-outline'} 
+                size={48} 
+                color={createAlertData.alertType === 'sin_taxis' ? '#EF4444' : '#F59E0B'} 
+              />
+            </View>
+            <Text style={styles.deleteConfirmTitle}>
+              {createAlertData.alertType === 'sin_taxis' ? '¿Sin Taxis?' : '¿Hay Barandilla?'}
+            </Text>
+            <Text style={styles.deleteConfirmText}>
+              {createAlertData.alertType === 'sin_taxis' 
+                ? `¿Confirmas que NO hay taxis disponibles en ${createAlertData.locationName}?`
+                : `¿Confirmas que HAY barandilla (cola de personas) en ${createAlertData.locationName}?`
+              }
+            </Text>
+            <Text style={[styles.deleteConfirmWarning, { color: '#F59E0B' }]}>
+              ⚠️ Los avisos falsos pueden resultar en penalizaciones.
+            </Text>
+            <View style={styles.deleteConfirmButtons}>
+              <TouchableOpacity 
+                style={styles.deleteConfirmCancelBtn}
+                onPress={() => {
+                  setShowCreateAlertModal(false);
+                  setCreateAlertData(null);
+                }}
+              >
+                <Text style={styles.deleteConfirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.deleteConfirmDeleteBtn, { backgroundColor: createAlertData.alertType === 'sin_taxis' ? '#EF4444' : '#F59E0B' }]}
+                onPress={confirmCreateAlert}
+                disabled={reportingAlert}
+              >
+                {reportingAlert ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="megaphone" size={18} color="#FFFFFF" />
+                    <Text style={styles.deleteConfirmDeleteText}>Confirmar Aviso</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Cancel Alert Confirmation Modal */}
+      {showCancelAlertModal && cancelAlertData && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertConfirmModal}>
+            <View style={[styles.deleteConfirmIcon, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+            </View>
+            <Text style={styles.deleteConfirmTitle}>
+              {cancelAlertData.alertType === 'sin_taxis' ? '¿Ya Hay Taxis?' : '¿Ya No Hay Barandilla?'}
+            </Text>
+            <Text style={styles.deleteConfirmText}>
+              {cancelAlertData.alertType === 'sin_taxis' 
+                ? `¿Confirmas que YA hay taxis disponibles en ${cancelAlertData.displayName}?`
+                : `¿Confirmas que ya NO hay barandilla en ${cancelAlertData.displayName}?`
+              }
+            </Text>
+            <Text style={[styles.deleteConfirmWarning, { color: '#6B7280' }]}>
+              El aviso será cerrado para todos los usuarios.
+            </Text>
+            <View style={styles.deleteConfirmButtons}>
+              <TouchableOpacity 
+                style={styles.deleteConfirmCancelBtn}
+                onPress={() => {
+                  setShowCancelAlertModal(false);
+                  setCancelAlertData(null);
+                }}
+              >
+                <Text style={styles.deleteConfirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.deleteConfirmDeleteBtn, { backgroundColor: '#10B981' }]}
+                onPress={confirmCancelAlert}
+                disabled={reportingAlert}
+              >
+                {reportingAlert ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                    <Text style={styles.deleteConfirmDeleteText}>Cerrar Aviso</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Block Chat User Confirmation Modal */}
       {showBlockChatUserModal && blockChatUserTarget && (
         <View style={styles.modalOverlay}>
