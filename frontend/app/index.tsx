@@ -3368,21 +3368,27 @@ export default function TransportMeter() {
       console.log('Radio: Recording URI:', uri);
       
       if (uri && radioWs && radioWs.readyState === WebSocket.OPEN) {
-        // Read the audio file and convert to base64
+        // Read the audio file and convert to base64 - optimized for speed
         const response = await fetch(uri);
         const blob = await response.blob();
         
         console.log('Radio: Blob size:', blob.size, 'type:', blob.type);
         
-        // Only send if we have actual audio data
-        if (blob.size > 500) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = reader.result as string;
-            
-            // Send audio data through WebSocket
-            radioWs.send(JSON.stringify({
-              type: 'audio',
+        // Only send if we have actual audio data (lowered threshold for faster response)
+        if (blob.size > 200) {
+          // Use ArrayBuffer for faster conversion
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64Audio = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          
+          // Send audio data through WebSocket immediately
+          radioWs.send(JSON.stringify({
+            type: 'audio',
+            audio_data: base64Audio,
+            mime_type: blob.type || 'audio/mp4'
+          }));
+          console.log('Radio: Audio sent successfully, size:', base64Audio.length);
               audio_data: base64Audio,
               mime_type: blob.type || 'audio/mp4'
             }));
