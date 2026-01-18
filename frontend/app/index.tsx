@@ -663,7 +663,7 @@ export default function TransportMeter() {
 
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
-  const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
+  const [showCreateLicenseAlertModal, setShowCreateLicenseAlertModal] = useState(false);
   const [licenseAlerts, setLicenseAlerts] = useState<Array<{
     id: string;
     sender_full_name: string;
