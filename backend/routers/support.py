@@ -47,7 +47,7 @@ class MessageResponse(BaseModel):
 
 
 # Helper to check if user is admin
-async def require_admin(current_user: dict = Depends(get_current_user)):
+async def require_admin(current_user: dict = Depends(get_current_user_required)):
     if current_user.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -59,8 +59,7 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
 @router.post("/tickets", response_model=TicketResponse)
 async def create_ticket(
     request: CreateTicketRequest,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Create a new support ticket with initial message"""
     # Check if user already has an open ticket
@@ -113,8 +112,7 @@ async def create_ticket(
 @router.get("/tickets", response_model=List[TicketResponse])
 async def get_tickets(
     status_filter: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Get tickets - admins see all, users see only their own"""
     query = {}
@@ -135,8 +133,7 @@ async def get_tickets(
 
 @router.get("/tickets/unread-count")
 async def get_unread_count(
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Get count of unread tickets for admin or unread responses for user"""
     if current_user.get("role") == "admin":
@@ -158,8 +155,7 @@ async def get_unread_count(
 @router.get("/tickets/{ticket_id}", response_model=TicketResponse)
 async def get_ticket(
     ticket_id: str,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Get a specific ticket"""
     ticket = await db.support_tickets.find_one({"id": ticket_id})
@@ -183,8 +179,7 @@ async def get_ticket(
 @router.get("/tickets/{ticket_id}/messages", response_model=List[MessageResponse])
 async def get_messages(
     ticket_id: str,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Get all messages for a ticket"""
     # First check ticket exists and user has access
@@ -226,8 +221,7 @@ async def get_messages(
 async def send_message(
     ticket_id: str,
     request: SendMessageRequest,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: dict = Depends(get_current_user_required)
 ):
     """Send a message to a ticket"""
     # Check ticket exists and is open
@@ -293,8 +287,7 @@ async def send_message(
 @router.put("/tickets/{ticket_id}/close")
 async def close_ticket(
     ticket_id: str,
-    current_user: dict = Depends(require_admin),
-    db=Depends(get_db)
+    current_user: dict = Depends(require_admin)
 ):
     """Close a ticket (admin only)"""
     ticket = await db.support_tickets.find_one({"id": ticket_id})
@@ -342,8 +335,7 @@ async def close_ticket(
 @router.put("/tickets/{ticket_id}/reopen")
 async def reopen_ticket(
     ticket_id: str,
-    current_user: dict = Depends(require_admin),
-    db=Depends(get_db)
+    current_user: dict = Depends(require_admin)
 ):
     """Reopen a closed ticket (admin only)"""
     ticket = await db.support_tickets.find_one({"id": ticket_id})
