@@ -2522,22 +2522,33 @@ export default function TransportMeter() {
   };
 
   // Cancel an alert by location
-  const cancelStationAlert = async (locationType: string, locationName: string, alertType: string) => {
-    if (reportingAlert) return;
+  // Cancel station alert - show confirmation modal first
+  const cancelStationAlert = async (locationType: string, locationName: string, alertType: string, displayName?: string) => {
+    // Show confirmation modal
+    setCancelAlertData({ locationType, locationName, alertType, displayName: displayName || locationName });
+    setShowCancelAlertModal(true);
+  };
+
+  // Confirm and cancel the alert
+  const confirmCancelAlert = async () => {
+    if (!cancelAlertData || reportingAlert) return;
     
     setReportingAlert(true);
+    setShowCancelAlertModal(false);
+    
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'Debes iniciar sesión');
         setReportingAlert(false);
+        setCancelAlertData(null);
         return;
       }
       
       const response = await axios.post(`${API_BASE}/api/station-alerts/cancel-by-location`, {
-        location_type: locationType,
-        location_name: locationName,
-        alert_type: alertType
+        location_type: cancelAlertData.locationType,
+        location_name: cancelAlertData.locationName,
+        alert_type: cancelAlertData.alertType
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -2569,6 +2580,7 @@ export default function TransportMeter() {
       Alert.alert('Error', error.response?.data?.detail || 'Error al cerrar la alerta');
     } finally {
       setReportingAlert(false);
+      setCancelAlertData(null);
     }
   };
 
