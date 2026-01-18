@@ -75,6 +75,7 @@ from routers import station_alerts as station_alerts_router
 from routers import radio as radio_router
 from routers import games as games_router
 from routers import analytics as analytics_router
+from routers import support as support_router
 
 # Import history collections from shared
 from shared import (
