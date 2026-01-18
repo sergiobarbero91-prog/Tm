@@ -8553,6 +8553,7 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
             
+            <ScrollView style={styles.settingsScrollContent} showsVerticalScrollIndicator={true}>
             {/* Profile Section */}
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>Mi Perfil</Text>
