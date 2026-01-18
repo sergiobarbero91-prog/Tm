@@ -908,6 +908,8 @@ export default function TransportMeter() {
       setRegisterLicenseNumber('');
       setRegisterPhone('');
       setRegisterPreferredShift('all');
+      setAcceptPrivacyPolicy(false);
+      setAcceptGoodUse(false);
       setShowRegister(false);
       
       Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
