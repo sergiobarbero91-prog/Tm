@@ -873,6 +873,16 @@ export default function TransportMeter() {
       return;
     }
 
+    if (!acceptPrivacyPolicy) {
+      Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
+      return;
+    }
+
+    if (!acceptGoodUse) {
+      Alert.alert('Error', 'Debes aceptar el compromiso de buen uso de la aplicación');
+      return;
+    }
+
     setRegisterLoading(true);
     try {
       const response = await axios.post(`${API_BASE}/api/auth/register`, {
