@@ -9933,7 +9933,7 @@ export default function TransportMeter() {
                         {canDeleteMessages() && (
                           <TouchableOpacity
                             style={styles.chatDeleteButton}
-                            onPress={() => deleteChatMessage(msg.id)}
+                            onPress={() => deleteChatMessage(msg.id, msg.username)}
                           >
                             <Ionicons name="trash-outline" size={14} color="#EF4444" />
                           </TouchableOpacity>
