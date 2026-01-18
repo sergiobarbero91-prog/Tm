@@ -3598,43 +3598,40 @@ export default function TransportMeter() {
 
   // Block user for inappropriate message (mods and admins)
   const blockUserForMessage = async (messageId: string, username: string) => {
-    Alert.alert(
-      '🚫 Bloquear Usuario',
-      `¿Estás seguro de que quieres bloquear a @${username} por mensaje indebido?\n\nEl mensaje será eliminado y el usuario recibirá una penalización según su historial.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Bloquear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem('token');
-              const response = await axios.post(
-                `${API_BASE}/api/chat/${activeChannel}/messages/${messageId}/block-user`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              
-              // Remove message from local state
-              setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
-              
-              // Show penalty info
-              const penaltyInfo = response.data.penalty_info;
-              Alert.alert(
-                '✅ Usuario Bloqueado',
-                `@${penaltyInfo.username} ha sido bloqueado.\n\n` +
-                `📊 Avisos acumulados: ${penaltyInfo.abuse_count}\n` +
-                `⏱️ ${penaltyInfo.penalty_message}`,
-                [{ text: 'Entendido' }]
-              );
-            } catch (error: any) {
-              console.error('Error blocking user:', error);
-              Alert.alert('Error', error.response?.data?.detail || 'No se pudo bloquear al usuario');
-            }
-          }
-        }
-      ]
-    );
+    // Show confirmation modal instead of Alert (works better on web)
+    setBlockChatUserTarget({ messageId, username });
+    setShowBlockChatUserModal(true);
+  };
+
+  const confirmBlockChatUser = async () => {
+    if (!blockChatUserTarget) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(
+        `${API_BASE}/api/chat/${activeChannel}/messages/${blockChatUserTarget.messageId}/block-user`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Remove message from local state
+      setChatMessages(prev => prev.filter(msg => msg.id !== blockChatUserTarget.messageId));
+      
+      // Show penalty info
+      const penaltyInfo = response.data.penalty_info;
+      setShowBlockChatUserModal(false);
+      setBlockChatUserTarget(null);
+      
+      Alert.alert(
+        '✅ Usuario Bloqueado',
+        `@${penaltyInfo.username} ha sido bloqueado.\n\n` +
+        `📊 Avisos acumulados: ${penaltyInfo.abuse_count}\n` +
+        `⏱️ ${penaltyInfo.penalty_message}`
+      );
+    } catch (error: any) {
+      console.error('Error blocking user:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo bloquear al usuario');
+    }
   };
 
   // Switch chat channel
