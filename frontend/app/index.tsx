@@ -407,6 +407,10 @@ export default function TransportMeter() {
   } | null>(null);
   const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
 
+  // Admin Panel - Support Tickets
+  const [showAdminSupport, setShowAdminSupport] = useState(false);
+  const [adminSupportFilter, setAdminSupportFilter] = useState<'all' | 'open' | 'closed'>('open');
+
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
