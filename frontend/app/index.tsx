@@ -2542,21 +2542,13 @@ export default function TransportMeter() {
     }
   };
 
-  // Check if user can close an alert (not the reporter within first minute)
+  // Check if user can close an alert - always allowed now, backend handles fraud detection
   const canUserCloseAlert = (alert: any) => {
     if (!currentUser) return false;
-    
-    // If user is NOT the reporter, they can always close
-    if (alert.reported_by !== currentUser.id) return true;
-    
-    // If user IS the reporter, check if 1 minute has passed
-    const elapsedSinceFetch = Math.floor((Date.now() - alertsFetchedAt) / 1000);
-    const actualSecondsAgo = alert.seconds_ago + elapsedSinceFetch;
-    
-    return actualSecondsAgo >= 60;
+    return true; // Anyone can close alerts at any time
   };
 
-  // Get remaining seconds before user can close their own alert
+  // Get remaining seconds - not used anymore but kept for compatibility
   const getSecondsUntilCanClose = (alert: any) => {
     if (!currentUser || alert.reported_by !== currentUser.id) return 0;
     
