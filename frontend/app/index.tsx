@@ -8573,6 +8573,128 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* Support Tickets Button */}
+            <TouchableOpacity 
+              style={[styles.adminSupportButton, showAdminSupport && styles.adminSupportButtonActive]}
+              onPress={() => {
+                setShowAdminSupport(!showAdminSupport);
+                if (!showAdminSupport) {
+                  fetchSupportTickets();
+                }
+              }}
+            >
+              <View style={styles.adminSupportButtonContent}>
+                <Ionicons name="headset" size={22} color={showAdminSupport ? '#FFFFFF' : '#6366F1'} />
+                <Text style={[styles.adminSupportButtonText, showAdminSupport && { color: '#FFFFFF' }]}>
+                  Centro de Soporte
+                </Text>
+                {supportUnreadCount > 0 && (
+                  <View style={styles.adminSupportBadge}>
+                    <Text style={styles.adminSupportBadgeText}>{supportUnreadCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name={showAdminSupport ? "chevron-up" : "chevron-down"} size={20} color={showAdminSupport ? '#FFFFFF' : '#6366F1'} />
+            </TouchableOpacity>
+
+            {/* Support Tickets Section */}
+            {showAdminSupport && (
+              <View style={styles.adminSupportSection}>
+                {/* Filter Tabs */}
+                <View style={styles.adminSupportFilterRow}>
+                  <TouchableOpacity
+                    style={[styles.adminSupportFilterTab, adminSupportFilter === 'open' && styles.adminSupportFilterTabActive]}
+                    onPress={() => setAdminSupportFilter('open')}
+                  >
+                    <Text style={[styles.adminSupportFilterText, adminSupportFilter === 'open' && styles.adminSupportFilterTextActive]}>
+                      Abiertos
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.adminSupportFilterTab, adminSupportFilter === 'closed' && styles.adminSupportFilterTabActive]}
+                    onPress={() => setAdminSupportFilter('closed')}
+                  >
+                    <Text style={[styles.adminSupportFilterText, adminSupportFilter === 'closed' && styles.adminSupportFilterTextActive]}>
+                      Cerrados
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.adminSupportFilterTab, adminSupportFilter === 'all' && styles.adminSupportFilterTabActive]}
+                    onPress={() => setAdminSupportFilter('all')}
+                  >
+                    <Text style={[styles.adminSupportFilterText, adminSupportFilter === 'all' && styles.adminSupportFilterTextActive]}>
+                      Todos
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Tickets List */}
+                <ScrollView style={styles.adminSupportTicketsList} nestedScrollEnabled>
+                  {supportTickets.filter(t => 
+                    adminSupportFilter === 'all' || t.status === adminSupportFilter
+                  ).length === 0 ? (
+                    <View style={styles.adminSupportEmpty}>
+                      <Ionicons name="checkmark-circle" size={40} color="#10B981" />
+                      <Text style={styles.adminSupportEmptyText}>
+                        {adminSupportFilter === 'open' ? 'No hay tickets pendientes' : 'No hay tickets'}
+                      </Text>
+                    </View>
+                  ) : (
+                    supportTickets
+                      .filter(t => adminSupportFilter === 'all' || t.status === adminSupportFilter)
+                      .map((ticket) => (
+                        <TouchableOpacity
+                          key={ticket.id}
+                          style={[
+                            styles.adminSupportTicketCard,
+                            ticket.unread_by_admin && styles.adminSupportTicketUnread
+                          ]}
+                          onPress={() => {
+                            setSelectedTicket(ticket.id);
+                            fetchTicketMessages(ticket.id);
+                            setShowSupportModal(true);
+                          }}
+                        >
+                          <View style={styles.adminSupportTicketHeader}>
+                            <View style={styles.adminSupportTicketUser}>
+                              <Ionicons name="person-circle" size={32} color="#6B7280" />
+                              <View>
+                                <Text style={styles.adminSupportTicketUsername}>{ticket.username}</Text>
+                                <Text style={styles.adminSupportTicketDate}>
+                                  {new Date(ticket.updated_at).toLocaleDateString('es-ES', {
+                                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                                  })}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={[
+                              styles.adminSupportStatusBadge,
+                              ticket.status === 'open' ? styles.adminSupportStatusOpen : styles.adminSupportStatusClosed
+                            ]}>
+                              <Text style={styles.adminSupportStatusText}>
+                                {ticket.status === 'open' ? 'Abierto' : 'Cerrado'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.adminSupportTicketSubject}>{ticket.subject}</Text>
+                          {ticket.last_message && (
+                            <Text style={styles.adminSupportTicketPreview} numberOfLines={2}>
+                              {ticket.last_message}
+                            </Text>
+                          )}
+                          {ticket.unread_by_admin && (
+                            <View style={styles.adminSupportUnreadIndicator}>
+                              <Ionicons name="mail-unread" size={14} color="#6366F1" />
+                              <Text style={styles.adminSupportUnreadText}>Mensaje nuevo</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))
+                  )}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Search Results */}
             {adminSearchQuery.length > 0 && (
               <View style={styles.adminSearchResults}>
