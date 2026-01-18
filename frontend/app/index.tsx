@@ -4716,10 +4716,48 @@ export default function TransportMeter() {
                   </View>
                 </View>
 
+                {/* Checkboxes de aceptación */}
+                <View style={styles.registerCheckboxSection}>
+                  <TouchableOpacity 
+                    style={styles.registerCheckboxRow}
+                    onPress={() => setAcceptPrivacyPolicy(!acceptPrivacyPolicy)}
+                  >
+                    <View style={[styles.registerCheckbox, acceptPrivacyPolicy && styles.registerCheckboxChecked]}>
+                      {acceptPrivacyPolicy && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    </View>
+                    <Text style={styles.registerCheckboxText}>
+                      He leído y acepto la{' '}
+                      <Text 
+                        style={styles.registerCheckboxLink}
+                        onPress={() => router.push('/legal')}
+                      >
+                        política de privacidad
+                      </Text>
+                      . Entiendo que esta aplicación es únicamente una fuente de datos y no se hace responsable de fallos producidos por las páginas de AENA, Adif o de usuarios malintencionados.
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.registerCheckboxRow}
+                    onPress={() => setAcceptGoodUse(!acceptGoodUse)}
+                  >
+                    <View style={[styles.registerCheckbox, acceptGoodUse && styles.registerCheckboxChecked]}>
+                      {acceptGoodUse && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    </View>
+                    <Text style={styles.registerCheckboxText}>
+                      Me comprometo a usar esta aplicación de manera responsable y ética, sin intentar manipular datos, crear alertas falsas o perjudicar a otros usuarios.
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity 
-                  style={[styles.loginScreenButton, styles.registerButton]}
+                  style={[
+                    styles.loginScreenButton, 
+                    styles.registerButton,
+                    (!acceptPrivacyPolicy || !acceptGoodUse) && styles.registerButtonDisabled
+                  ]}
                   onPress={handleRegister}
-                  disabled={registerLoading}
+                  disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse}
                 >
                   {registerLoading ? (
                     <ActivityIndicator color="#FFFFFF" />
