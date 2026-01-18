@@ -6500,6 +6500,7 @@ export default function TransportMeter() {
                   radioConnected ? styles.radioControlButtonDisconnect : styles.radioControlButtonConnect
                 ]}
                 onPress={toggleRadioConnection}
+                testID="radio-connect-button"
               >
                 <Ionicons 
                   name={radioConnected ? "power" : "power-outline"} 
