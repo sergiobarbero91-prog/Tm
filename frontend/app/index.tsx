@@ -8647,6 +8647,36 @@ export default function TransportMeter() {
               </View>
             </View>
             
+            {/* Help and Legal Links */}
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Información</Text>
+              <View style={styles.settingsLinks}>
+                <TouchableOpacity 
+                  style={styles.settingsLinkButton}
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/help');
+                  }}
+                >
+                  <Ionicons name="help-circle-outline" size={22} color="#60A5FA" />
+                  <Text style={styles.settingsLinkText}>Manual de Usuario</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.settingsLinkButton}
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/legal');
+                  }}
+                >
+                  <Ionicons name="document-text-outline" size={22} color="#60A5FA" />
+                  <Text style={styles.settingsLinkText}>Política de Privacidad</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
             <TouchableOpacity 
               style={styles.settingsCloseButton}
               onPress={() => setShowSettings(false)}
