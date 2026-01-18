@@ -717,6 +717,36 @@ export default function TransportMeter() {
   const [streetLoading, setStreetLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
 
+  // Support ticket system
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportTickets, setSupportTickets] = useState<Array<{
+    id: string;
+    user_id: string;
+    username: string;
+    subject: string;
+    status: 'open' | 'closed';
+    created_at: string;
+    updated_at: string;
+    last_message?: string;
+    unread_by_user: boolean;
+    unread_by_admin: boolean;
+  }>>([]);
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<Array<{
+    id: string;
+    ticket_id: string;
+    sender_id: string;
+    sender_username: string;
+    sender_role: string;
+    message: string;
+    created_at: string;
+  }>>([]);
+  const [newTicketSubject, setNewTicketSubject] = useState('');
+  const [newTicketMessage, setNewTicketMessage] = useState('');
+  const [supportChatMessage, setSupportChatMessage] = useState('');
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+
   // Define all functions first
   const checkExistingSession = async () => {
     try {
