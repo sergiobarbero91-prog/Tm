@@ -100,7 +100,7 @@ export default function HelpPage() {
         {/* Alertas */}
         <Section icon="notifications" title="Sistema de Alertas">
           <Text style={styles.paragraph}>
-            Puedes crear alertas para informar a otros taxistas:
+            Puedes crear alertas para informar a otros taxistas sobre la situación en estaciones y terminales:
           </Text>
           <View style={styles.alertTypes}>
             <View style={styles.alertItem}>
@@ -109,7 +109,7 @@ export default function HelpPage() {
               </View>
               <View style={styles.alertInfo}>
                 <Text style={styles.alertTitle}>Sin Taxis</Text>
-                <Text style={styles.alertDesc}>Hay demanda pero no hay taxis disponibles</Text>
+                <Text style={styles.alertDesc}>No hay taxis disponibles en la ubicación</Text>
               </View>
             </View>
             <View style={styles.alertItem}>
@@ -118,13 +118,27 @@ export default function HelpPage() {
               </View>
               <View style={styles.alertInfo}>
                 <Text style={styles.alertTitle}>Barandilla</Text>
-                <Text style={styles.alertDesc}>Hay muchos taxis esperando, poca demanda</Text>
+                <Text style={styles.alertDesc}>Hay mucha gente esperando taxi</Text>
               </View>
             </View>
           </View>
-          <Text style={[styles.paragraph, { marginTop: 12 }]}>
-            ⚠️ Las alertas falsas repetidas resultan en penalizaciones temporales.
-          </Text>
+          
+          <View style={styles.warningBox}>
+            <Ionicons name="warning" size={24} color="#EF4444" />
+            <View style={styles.warningContent}>
+              <Text style={styles.warningTitle}>⚠️ IMPORTANTE</Text>
+              <Text style={styles.warningText}>
+                Utiliza las alertas SOLO cuando la información sea real y verificada.
+              </Text>
+              <Text style={styles.warningText}>
+                Si creas alertas falsas y son detectadas por otros usuarios o el sistema, 
+                puedes ser <Text style={styles.warningBold}>BANEADO temporalmente o permanentemente</Text> de la plataforma.
+              </Text>
+              <Text style={styles.warningSubtext}>
+                Las penalizaciones van desde 6 horas hasta baneo permanente según la reincidencia.
+              </Text>
+            </View>
+          </View>
         </Section>
 
         {/* Check-in */}
