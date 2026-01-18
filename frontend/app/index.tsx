@@ -10570,7 +10570,8 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 400,
-    maxHeight: '85%',
+    maxHeight: '80%',
+    flexDirection: 'column',
   },
   settingsScrollContent: {
     flex: 1,
