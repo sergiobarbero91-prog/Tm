@@ -3895,7 +3895,7 @@ export default function TransportMeter() {
       });
 
       Alert.alert('✓ Alerta enviada', `Tu alerta ha sido enviada a ${selectedRecipient.full_name}`);
-      setShowCreateAlertModal(false);
+      setShowCreateLicenseAlertModal(false);
       setAlertTargetLicense('');
       setAlertMessage('');
       setAlertType('lost_item');
@@ -9612,7 +9612,7 @@ export default function TransportMeter() {
             {/* Create Alert Button */}
             <TouchableOpacity
               style={styles.createAlertButton}
-              onPress={() => setShowCreateAlertModal(true)}
+              onPress={() => setShowCreateLicenseAlertModal(true)}
             >
               <Ionicons name="add-circle" size={20} color="#FFFFFF" />
               <Text style={styles.createAlertButtonText}>Enviar Alerta</Text>
