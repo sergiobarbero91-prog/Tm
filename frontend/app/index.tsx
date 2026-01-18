@@ -346,6 +346,9 @@ export default function TransportMeter() {
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('now');
   const [showTimeRangeDropdown, setShowTimeRangeDropdown] = useState(false);
   
+  // Ref to hold the latest fetchData function for intervals
+  const fetchDataRef = useRef<() => Promise<void>>();
+  
   // Dropdown selector states
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [showShiftDropdown, setShowShiftDropdown] = useState(false);
