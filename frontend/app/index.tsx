@@ -4615,190 +4615,259 @@ export default function TransportMeter() {
                 </TouchableOpacity>
               </View>
             ) : (
-              /* Registration Form */
+              /* Registration Form - Two Steps */
               <View style={styles.loginFormContainer}>
-                <Text style={styles.loginFormTitle}>Crear Cuenta</Text>
-                
-                <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Nombre de usuario *"
-                    placeholderTextColor="#64748B"
-                    value={registerUsername}
-                    onChangeText={setRegisterUsername}
-                    autoCapitalize="none"
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Contraseña *"
-                    placeholderTextColor="#64748B"
-                    value={registerPassword}
-                    onChangeText={setRegisterPassword}
-                    secureTextEntry
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Ionicons name="lock-closed" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Confirmar contraseña *"
-                    placeholderTextColor="#64748B"
-                    value={registerPasswordConfirm}
-                    onChangeText={setRegisterPasswordConfirm}
-                    secureTextEntry
-                  />
-                </View>
-                {registerPassword && registerPasswordConfirm && registerPassword !== registerPasswordConfirm && (
-                  <Text style={styles.passwordMismatchText}>Las contraseñas no coinciden</Text>
-                )}
-
-                <View style={styles.inputContainer}>
-                  <Ionicons name="id-card-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Nombre completo *"
-                    placeholderTextColor="#64748B"
-                    value={registerFullName}
-                    onChangeText={setRegisterFullName}
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Número de licencia *"
-                    placeholderTextColor="#64748B"
-                    value={registerLicenseNumber}
-                    onChangeText={setRegisterLicenseNumber}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.loginScreenInput}
-                    placeholder="Teléfono (opcional)"
-                    placeholderTextColor="#64748B"
-                    value={registerPhone}
-                    onChangeText={setRegisterPhone}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-
-                <View style={styles.registerShiftSection}>
-                  <Text style={styles.registerShiftLabel}>Turno de preferencia</Text>
-                  <View style={styles.registerShiftButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.registerShiftButton,
-                        registerPreferredShift === 'day' && styles.registerShiftButtonActiveDay
-                      ]}
-                      onPress={() => setRegisterPreferredShift('day')}
-                    >
-                      <Ionicons name="sunny" size={18} color={registerPreferredShift === 'day' ? '#FFFFFF' : '#F59E0B'} />
-                      <Text style={[
-                        styles.registerShiftButtonText,
-                        registerPreferredShift === 'day' && styles.registerShiftButtonTextActive
-                      ]}>Día</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.registerShiftButton,
-                        registerPreferredShift === 'all' && styles.registerShiftButtonActiveAll
-                      ]}
-                      onPress={() => setRegisterPreferredShift('all')}
-                    >
-                      <Ionicons name="time" size={18} color={registerPreferredShift === 'all' ? '#FFFFFF' : '#6366F1'} />
-                      <Text style={[
-                        styles.registerShiftButtonText,
-                        registerPreferredShift === 'all' && styles.registerShiftButtonTextActive
-                      ]}>Todo</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.registerShiftButton,
-                        registerPreferredShift === 'night' && styles.registerShiftButtonActiveNight
-                      ]}
-                      onPress={() => setRegisterPreferredShift('night')}
-                    >
-                      <Ionicons name="moon" size={18} color={registerPreferredShift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
-                      <Text style={[
-                        styles.registerShiftButtonText,
-                        registerPreferredShift === 'night' && styles.registerShiftButtonTextActive
-                      ]}>Noche</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Checkboxes de aceptación */}
-                <View style={styles.registerCheckboxSection}>
-                  <TouchableOpacity 
-                    style={styles.registerCheckboxRow}
-                    onPress={() => setAcceptPrivacyPolicy(!acceptPrivacyPolicy)}
-                  >
-                    <View style={[styles.registerCheckbox, acceptPrivacyPolicy && styles.registerCheckboxChecked]}>
-                      {acceptPrivacyPolicy && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                {registerStep === 1 ? (
+                  /* Step 1: User Data */
+                  <>
+                    <Text style={styles.loginFormTitle}>Crear Cuenta</Text>
+                    <Text style={styles.registerStepIndicator}>Paso 1 de 2 - Datos personales</Text>
+                    
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Nombre de usuario *"
+                        placeholderTextColor="#64748B"
+                        value={registerUsername}
+                        onChangeText={setRegisterUsername}
+                        autoCapitalize="none"
+                      />
                     </View>
-                    <Text style={styles.registerCheckboxText}>
-                      He leído y acepto la{' '}
-                      <Text 
-                        style={styles.registerCheckboxLink}
-                        onPress={() => router.push('/legal')}
-                      >
-                        política de privacidad
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Contraseña *"
+                        placeholderTextColor="#64748B"
+                        value={registerPassword}
+                        onChangeText={setRegisterPassword}
+                        secureTextEntry
+                      />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="lock-closed" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Confirmar contraseña *"
+                        placeholderTextColor="#64748B"
+                        value={registerPasswordConfirm}
+                        onChangeText={setRegisterPasswordConfirm}
+                        secureTextEntry
+                      />
+                    </View>
+                    {registerPassword && registerPasswordConfirm && registerPassword !== registerPasswordConfirm && (
+                      <Text style={styles.passwordMismatchText}>Las contraseñas no coinciden</Text>
+                    )}
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="id-card-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Nombre completo *"
+                        placeholderTextColor="#64748B"
+                        value={registerFullName}
+                        onChangeText={setRegisterFullName}
+                      />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Número de licencia *"
+                        placeholderTextColor="#64748B"
+                        value={registerLicenseNumber}
+                        onChangeText={setRegisterLicenseNumber}
+                        keyboardType="numeric"
+                      />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Teléfono (opcional)"
+                        placeholderTextColor="#64748B"
+                        value={registerPhone}
+                        onChangeText={setRegisterPhone}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+
+                    <View style={styles.registerShiftSection}>
+                      <Text style={styles.registerShiftLabel}>Turno de preferencia</Text>
+                      <View style={styles.registerShiftButtons}>
+                        <TouchableOpacity
+                          style={[
+                            styles.registerShiftButton,
+                            registerPreferredShift === 'day' && styles.registerShiftButtonActiveDay
+                          ]}
+                          onPress={() => setRegisterPreferredShift('day')}
+                        >
+                          <Ionicons name="sunny" size={18} color={registerPreferredShift === 'day' ? '#FFFFFF' : '#F59E0B'} />
+                          <Text style={[
+                            styles.registerShiftButtonText,
+                            registerPreferredShift === 'day' && styles.registerShiftButtonTextActive
+                          ]}>Día</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.registerShiftButton,
+                            registerPreferredShift === 'all' && styles.registerShiftButtonActiveAll
+                          ]}
+                          onPress={() => setRegisterPreferredShift('all')}
+                        >
+                          <Ionicons name="time" size={18} color={registerPreferredShift === 'all' ? '#FFFFFF' : '#6366F1'} />
+                          <Text style={[
+                            styles.registerShiftButtonText,
+                            registerPreferredShift === 'all' && styles.registerShiftButtonTextActive
+                          ]}>Todo</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.registerShiftButton,
+                            registerPreferredShift === 'night' && styles.registerShiftButtonActiveNight
+                          ]}
+                          onPress={() => setRegisterPreferredShift('night')}
+                        >
+                          <Ionicons name="moon" size={18} color={registerPreferredShift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
+                          <Text style={[
+                            styles.registerShiftButtonText,
+                            registerPreferredShift === 'night' && styles.registerShiftButtonTextActive
+                          ]}>Noche</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity 
+                      style={[styles.loginScreenButton, styles.registerContinueButton]}
+                      onPress={handleRegisterContinue}
+                      disabled={registerLoading}
+                    >
+                      {registerLoading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Text style={styles.loginScreenButtonText}>Continuar</Text>
+                          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.switchAuthButton}
+                      onPress={() => setShowRegister(false)}
+                    >
+                      <Text style={styles.switchAuthText}>
+                        ¿Ya tienes cuenta? <Text style={styles.switchAuthLink}>Inicia sesión</Text>
                       </Text>
-                      . Entiendo que esta aplicación es únicamente una fuente de datos y no se hace responsable de fallos producidos por las páginas de AENA, Adif o de usuarios malintencionados.
-                    </Text>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  /* Step 2: Privacy Policy and Terms */
+                  <>
+                    <TouchableOpacity 
+                      style={styles.registerBackButton}
+                      onPress={() => setRegisterStep(1)}
+                    >
+                      <Ionicons name="arrow-back" size={20} color="#60A5FA" />
+                      <Text style={styles.registerBackText}>Volver</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.registerCheckboxRow}
-                    onPress={() => setAcceptGoodUse(!acceptGoodUse)}
-                  >
-                    <View style={[styles.registerCheckbox, acceptGoodUse && styles.registerCheckboxChecked]}>
-                      {acceptGoodUse && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    <Text style={styles.loginFormTitle}>Términos y Condiciones</Text>
+                    <Text style={styles.registerStepIndicator}>Paso 2 de 2 - Aceptación de términos</Text>
+
+                    {/* Privacy Policy Content */}
+                    <View style={styles.registerPolicyBox}>
+                      <ScrollView style={styles.registerPolicyScroll} nestedScrollEnabled>
+                        <Text style={styles.registerPolicyTitle}>Política de Privacidad y Aviso Legal</Text>
+                        
+                        <Text style={styles.registerPolicySectionTitle}>1. Naturaleza del Servicio</Text>
+                        <Text style={styles.registerPolicyText}>
+                          Esta aplicación es una herramienta de información que recopila y muestra datos de fuentes públicas 
+                          como AENA (aeropuertos) y Adif (estaciones de tren). La información mostrada es orientativa y puede 
+                          contener retrasos o inexactitudes.
+                        </Text>
+
+                        <Text style={styles.registerPolicySectionTitle}>2. Exención de Responsabilidad</Text>
+                        <Text style={styles.registerPolicyText}>
+                          • La aplicación NO se hace responsable de fallos o errores en los datos proporcionados por AENA, Adif 
+                          u otras fuentes externas.{'\n'}
+                          • La aplicación NO se hace responsable de decisiones tomadas basándose en la información mostrada.{'\n'}
+                          • La aplicación NO se hace responsable de acciones de usuarios malintencionados que puedan crear 
+                          alertas falsas o manipular datos.{'\n'}
+                          • Los usuarios son responsables de verificar la información antes de tomar decisiones importantes.
+                        </Text>
+
+                        <Text style={styles.registerPolicySectionTitle}>3. Datos Personales</Text>
+                        <Text style={styles.registerPolicyText}>
+                          • Se recopilan datos mínimos necesarios: nombre de usuario, contraseña cifrada, nombre, número de 
+                          licencia y teléfono opcional.{'\n'}
+                          • Los datos no se comparten con terceros.{'\n'}
+                          • Puedes solicitar la eliminación de tu cuenta contactando con el administrador.
+                        </Text>
+
+                        <Text style={styles.registerPolicySectionTitle}>4. Uso Responsable</Text>
+                        <Text style={styles.registerPolicyText}>
+                          El mal uso de la aplicación (crear alertas falsas, manipular datos, perjudicar a otros usuarios) 
+                          puede resultar en bloqueo temporal o permanente de la cuenta, sin derecho a reclamación.
+                        </Text>
+                      </ScrollView>
                     </View>
-                    <Text style={styles.registerCheckboxText}>
-                      Me comprometo a usar esta aplicación de manera responsable y ética, sin intentar manipular datos, crear alertas falsas o perjudicar a otros usuarios.
-                    </Text>
-                  </TouchableOpacity>
-                </View>
 
-                <TouchableOpacity 
-                  style={[
-                    styles.loginScreenButton, 
-                    styles.registerButton,
-                    (!acceptPrivacyPolicy || !acceptGoodUse) && styles.registerButtonDisabled
-                  ]}
-                  onPress={handleRegister}
-                  disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse}
-                >
-                  {registerLoading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-                      <Text style={styles.loginScreenButtonText}>Crear Cuenta</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                    {/* Checkboxes de aceptación */}
+                    <View style={styles.registerCheckboxSection}>
+                      <TouchableOpacity 
+                        style={styles.registerCheckboxRow}
+                        onPress={() => setAcceptPrivacyPolicy(!acceptPrivacyPolicy)}
+                      >
+                        <View style={[styles.registerCheckbox, acceptPrivacyPolicy && styles.registerCheckboxChecked]}>
+                          {acceptPrivacyPolicy && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                        </View>
+                        <Text style={styles.registerCheckboxText}>
+                          He leído y acepto la política de privacidad. Entiendo que esta aplicación es únicamente una fuente 
+                          de datos y no se hace responsable de fallos producidos por las páginas de AENA, Adif o de usuarios 
+                          malintencionados.
+                        </Text>
+                      </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={styles.switchAuthButton}
-                  onPress={() => setShowRegister(false)}
-                >
-                  <Text style={styles.switchAuthText}>
-                    ¿Ya tienes cuenta? <Text style={styles.switchAuthLink}>Inicia sesión</Text>
-                  </Text>
-                </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.registerCheckboxRow}
+                        onPress={() => setAcceptGoodUse(!acceptGoodUse)}
+                      >
+                        <View style={[styles.registerCheckbox, acceptGoodUse && styles.registerCheckboxChecked]}>
+                          {acceptGoodUse && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                        </View>
+                        <Text style={styles.registerCheckboxText}>
+                          Me comprometo a usar esta aplicación de manera responsable y ética, sin intentar manipular datos, 
+                          crear alertas falsas o perjudicar a otros usuarios.
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity 
+                      style={[
+                        styles.loginScreenButton, 
+                        styles.registerButton,
+                        (!acceptPrivacyPolicy || !acceptGoodUse) && styles.registerButtonDisabled
+                      ]}
+                      onPress={handleRegister}
+                      disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse}
+                    >
+                      {registerLoading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+                          <Text style={styles.loginScreenButtonText}>Crear Cuenta</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             )}
 
