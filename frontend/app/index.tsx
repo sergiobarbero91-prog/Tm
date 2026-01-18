@@ -10509,6 +10509,42 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Delete Chat Message Confirmation Modal */}
+      {showDeleteMessageModal && deleteMessageTarget && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteConfirmModal}>
+            <View style={[styles.deleteConfirmIcon, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+              <Ionicons name="trash-outline" size={48} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteConfirmTitle}>Eliminar Mensaje</Text>
+            <Text style={styles.deleteConfirmText}>
+              ¿Estás seguro de que quieres eliminar este mensaje?
+            </Text>
+            <Text style={[styles.deleteConfirmWarning, { color: '#6B7280' }]}>
+              El mensaje será eliminado permanentemente.
+            </Text>
+            <View style={styles.deleteConfirmButtons}>
+              <TouchableOpacity 
+                style={styles.deleteConfirmCancelBtn}
+                onPress={() => {
+                  setShowDeleteMessageModal(false);
+                  setDeleteMessageTarget(null);
+                }}
+              >
+                <Text style={styles.deleteConfirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteConfirmDeleteBtn}
+                onPress={confirmDeleteMessage}
+              >
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmDeleteText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Delete User Confirmation Modal */}
       {showDeleteUserModal && deleteUserTarget && (
         <View style={styles.modalOverlay}>
