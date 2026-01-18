@@ -3444,8 +3444,6 @@ export default function TransportMeter() {
         audio.load();
         
         try {
-          // Wait a bit for the audio to load
-          await new Promise(resolve => setTimeout(resolve, 100));
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             await playPromise;
