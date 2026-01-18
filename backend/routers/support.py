@@ -10,7 +10,7 @@ import uuid
 
 from shared import get_current_user_required, db
 
-router = APIRouter(prefix="/api/support", tags=["support"])
+router = APIRouter(prefix="/support", tags=["support"])
 
 
 # Models
