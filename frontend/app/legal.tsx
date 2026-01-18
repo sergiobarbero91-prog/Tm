@@ -93,9 +93,16 @@ export default function LegalPage() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📧 Contacto</Text>
           <Text style={styles.paragraph}>
-            Para cualquier consulta sobre privacidad o términos de uso, 
-            contacta con el administrador de la plataforma.
+            Para cualquier consulta sobre privacidad, términos de uso o problemas técnicos, 
+            utiliza nuestro centro de ayuda.
           </Text>
+          <TouchableOpacity 
+            style={styles.supportButton}
+            onPress={() => router.push('/?openSupport=true')}
+          >
+            <Ionicons name="headset" size={20} color="#FFFFFF" />
+            <Text style={styles.supportButtonText}>Centro de Ayuda</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
