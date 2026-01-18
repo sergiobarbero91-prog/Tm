@@ -419,6 +419,16 @@ export default function TransportMeter() {
   const [showBlockChatUserModal, setShowBlockChatUserModal] = useState(false);
   const [blockChatUserTarget, setBlockChatUserTarget] = useState<{messageId: string, username: string} | null>(null);
 
+  // Delete chat message confirmation (without blocking)
+  const [showDeleteMessageModal, setShowDeleteMessageModal] = useState(false);
+  const [deleteMessageTarget, setDeleteMessageTarget] = useState<{messageId: string, username: string} | null>(null);
+
+  // Station alert confirmation modals
+  const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
+  const [createAlertData, setCreateAlertData] = useState<{locationType: string, locationName: string, alertType: 'sin_taxis' | 'barandilla'} | null>(null);
+  const [showCancelAlertModal, setShowCancelAlertModal] = useState(false);
+  const [cancelAlertData, setCancelAlertData] = useState<{locationType: string, locationName: string, alertType: string, displayName: string} | null>(null);
+
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
