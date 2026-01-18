@@ -13889,6 +13889,158 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Admin Support Section
+  adminSupportButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#6366F140',
+  },
+  adminSupportButtonActive: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  adminSupportButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminSupportButtonText: {
+    color: '#6366F1',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  adminSupportBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  adminSupportBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  adminSupportSection: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  adminSupportFilterRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  adminSupportFilterTab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  adminSupportFilterTabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#6366F1',
+  },
+  adminSupportFilterText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  adminSupportFilterTextActive: {
+    color: '#6366F1',
+  },
+  adminSupportTicketsList: {
+    maxHeight: 400,
+    padding: 12,
+  },
+  adminSupportEmpty: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  adminSupportEmptyText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  adminSupportTicketCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  adminSupportTicketUnread: {
+    borderColor: '#6366F1',
+    borderWidth: 2,
+    backgroundColor: '#6366F110',
+  },
+  adminSupportTicketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  adminSupportTicketUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  adminSupportTicketUsername: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  adminSupportTicketDate: {
+    color: '#6B7280',
+    fontSize: 11,
+  },
+  adminSupportStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  adminSupportStatusOpen: {
+    backgroundColor: '#166534',
+  },
+  adminSupportStatusClosed: {
+    backgroundColor: '#374151',
+  },
+  adminSupportStatusText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  adminSupportTicketSubject: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  adminSupportTicketPreview: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  adminSupportUnreadIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  adminSupportUnreadText: {
+    color: '#6366F1',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   // Admin Search Results
   adminSearchResults: {
     marginBottom: 16,
