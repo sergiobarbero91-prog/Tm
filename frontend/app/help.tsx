@@ -354,6 +354,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
   },
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#450A0A',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+  },
+  warningContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCA5A5',
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#FECACA',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  warningBold: {
+    fontWeight: '700',
+    color: '#FCA5A5',
+  },
+  warningSubtext: {
+    fontSize: 11,
+    color: '#F87171',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   tipBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
