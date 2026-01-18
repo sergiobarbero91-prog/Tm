@@ -2527,11 +2527,21 @@ export default function TransportMeter() {
       
       // Check if fraud was detected and show appropriate message
       if (response.data.fraud_detected) {
-        Alert.alert(
-          '⚠️ Aviso Incorrecto Detectado',
-          'El aviso ha sido cerrado. El usuario que lo reportó ha sido notificado.\n\nRecuerda: Los avisos deben reflejar la situación real para ayudar a todos los compañeros.',
-          [{ text: 'Entendido' }]
-        );
+        if (response.data.self_cancel) {
+          // User cancelled their own alert too early
+          Alert.alert(
+            '⚠️ Aviso Cancelado Prematuramente',
+            response.data.fraud_message || 'Has cancelado tu propio aviso antes de 1 minuto. Esto puede resultar en penalización.',
+            [{ text: 'Entendido' }]
+          );
+        } else {
+          // Another user cancelled a fraudulent alert
+          Alert.alert(
+            '⚠️ Aviso Incorrecto Detectado',
+            'El aviso ha sido cerrado. El usuario que lo reportó ha sido notificado.\n\nRecuerda: Los avisos deben reflejar la situación real para ayudar a todos los compañeros.',
+            [{ text: 'Entendido' }]
+          );
+        }
       } else {
         Alert.alert('Alerta cerrada', 'La alerta ha sido cerrada correctamente.');
       }
