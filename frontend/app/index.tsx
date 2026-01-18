@@ -4464,17 +4464,15 @@ export default function TransportMeter() {
       setLoading(true);
       fetchData();
 
-      // Auto-refresh every 30 seconds for real-time data ONLY when viewing "now"
-      // When viewing a specific time range, don't auto-refresh as it would be confusing
-      if (selectedTimeRange === 'now') {
-        const interval = setInterval(() => {
-          fetchData();
-        }, 30000);
-        return () => clearInterval(interval);
-      }
+      // Auto-refresh every 30 seconds - always refresh but maintain selected time range
+      const interval = setInterval(() => {
+        // fetchData will use the current selectedTimeRange from getTimeRangeParams
+        fetchData();
+      }, 30000);
+      return () => clearInterval(interval);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, currentUser, timeWindow, selectedTimeRange]); // fetchData excluded to prevent infinite loops
+  }, [activeTab, currentUser, timeWindow, selectedTimeRange, fetchData]); // Include fetchData to ensure latest version is used
 
   // Request location permission and track location - ALWAYS (for emergency alerts)
   useEffect(() => {
