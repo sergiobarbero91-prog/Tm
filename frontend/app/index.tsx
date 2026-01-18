@@ -4334,6 +4334,32 @@ export default function TransportMeter() {
     }
   }, [currentUser, fetchAlertsUnreadCount]);
 
+  // Fetch support unread count periodically
+  useEffect(() => {
+    if (currentUser) {
+      fetchSupportUnreadCount();
+      
+      // Refresh unread count every 30 seconds
+      const interval = setInterval(() => {
+        fetchSupportUnreadCount();
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser, fetchSupportUnreadCount]);
+
+  // Handle openSupport URL parameter (from help/legal pages)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('openSupport') === 'true') {
+        setShowSupportModal(true);
+        fetchSupportTickets();
+        // Clean up the URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [fetchSupportTickets]);
+
   // Fetch data when logged in or when time window changes
   useEffect(() => {
     if (currentUser) {
