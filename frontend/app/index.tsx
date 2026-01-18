@@ -5099,9 +5099,9 @@ export default function TransportMeter() {
           </View>
         )}
         
-        {/* Lista de llegadas - muestra filtradas o las primeras si es horario nocturno */}
+        {/* Lista de llegadas - muestra todas las llegadas filtradas */}
         <View style={styles.arrivalsList}>
-          {(filteredArrivals.length > 0 ? filteredArrivals : station.arrivals).slice(0, 5).map((arrival, index) => (
+          {(filteredArrivals.length > 0 ? filteredArrivals : station.arrivals).map((arrival, index) => (
             <View key={index} style={styles.arrivalItem}>
               <View style={styles.arrivalTime}>
                 <Text style={[
