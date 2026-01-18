@@ -10623,11 +10623,29 @@ const styles = StyleSheet.create({
   gpsOptionTextActive: {
     color: '#FFFFFF',
   },
+  settingsLinks: {
+    gap: 8,
+  },
+  settingsLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 10,
+    padding: 14,
+    gap: 12,
+  },
+  settingsLinkText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   settingsCloseButton: {
     backgroundColor: '#6366F1',
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
+    marginTop: 8,
   },
   settingsCloseButtonText: {
     color: '#FFFFFF',
