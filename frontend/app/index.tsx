@@ -5218,24 +5218,35 @@ export default function TransportMeter() {
     });
     
     // Filter arrivals to only show those within the selected time window
-    const now = new Date();
-    const filteredArrivals = allArrivals.filter(arrival => {
-      try {
-        const [hours, minutes] = arrival.time.split(':').map(Number);
-        const arrivalDate = new Date();
-        arrivalDate.setHours(hours, minutes, 0, 0);
-        
-        // Handle day rollover (if arrival time is before current time by more than 2 hours, it's tomorrow)
-        if (arrivalDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000) {
-          arrivalDate.setDate(arrivalDate.getDate() + 1);
+    // If a specific time range is selected (not "now"), the backend already filters, so we show all
+    const isCustomTimeRange = selectedTimeRange !== 'now';
+    
+    let filteredArrivals: typeof allArrivals = [];
+    
+    if (isCustomTimeRange) {
+      // Backend already filtered by the selected time range, show all arrivals
+      filteredArrivals = [...allArrivals];
+    } else {
+      // Real-time mode: filter arrivals based on current time and timeWindow
+      const now = new Date();
+      filteredArrivals = allArrivals.filter(arrival => {
+        try {
+          const [hours, minutes] = arrival.time.split(':').map(Number);
+          const arrivalDate = new Date();
+          arrivalDate.setHours(hours, minutes, 0, 0);
+          
+          // Handle day rollover (if arrival time is before current time by more than 2 hours, it's tomorrow)
+          if (arrivalDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000) {
+            arrivalDate.setDate(arrivalDate.getDate() + 1);
+          }
+          
+          const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
+          return diffMinutes >= 0 && diffMinutes <= timeWindow;
+        } catch {
+          return false;
         }
-        
-        const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-        return diffMinutes >= 0 && diffMinutes <= timeWindow;
-      } catch {
-        return false;
-      }
-    });
+      });
+    }
     
     // Sort filtered arrivals by time
     filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
