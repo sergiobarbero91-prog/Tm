@@ -411,6 +411,10 @@ export default function TransportMeter() {
   const [showAdminSupport, setShowAdminSupport] = useState(false);
   const [adminSupportFilter, setAdminSupportFilter] = useState<'all' | 'open' | 'closed'>('open');
 
+  // Delete user confirmation
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [deleteUserTarget, setDeleteUserTarget] = useState<{id: string, username: string} | null>(null);
+
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
