@@ -10339,6 +10339,50 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Delete User Confirmation Modal */}
+      {showDeleteUserModal && deleteUserTarget && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteConfirmModal}>
+            <View style={styles.deleteConfirmIcon}>
+              <Ionicons name="warning" size={48} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteConfirmTitle}>Eliminar Usuario</Text>
+            <Text style={styles.deleteConfirmText}>
+              ¿Estás seguro de que quieres eliminar al usuario{'\n'}
+              <Text style={styles.deleteConfirmUsername}>"{deleteUserTarget.username}"</Text>?
+            </Text>
+            <Text style={styles.deleteConfirmWarning}>
+              Esta acción no se puede deshacer.
+            </Text>
+            <View style={styles.deleteConfirmButtons}>
+              <TouchableOpacity 
+                style={styles.deleteConfirmCancelBtn}
+                onPress={() => {
+                  setShowDeleteUserModal(false);
+                  setDeleteUserTarget(null);
+                }}
+              >
+                <Text style={styles.deleteConfirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteConfirmDeleteBtn}
+                onPress={confirmDeleteUser}
+                disabled={adminLoading}
+              >
+                {adminLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="trash" size={18} color="#FFFFFF" />
+                    <Text style={styles.deleteConfirmDeleteText}>Eliminar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Create User Modal (Admin) */}
       {showCreateUserModal && (
         <View style={styles.modalOverlay}>
