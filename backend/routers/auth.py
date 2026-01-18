@@ -58,6 +58,13 @@ async def login(request: Request, login_data: UserLogin):
     )
 
 
+@router.get("/check-username/{username}")
+async def check_username(username: str):
+    """Check if a username is available."""
+    existing_user = await users_collection.find_one({"username": username})
+    return {"available": existing_user is None}
+
+
 @router.post("/register", response_model=TokenResponse)
 @limiter.limit("5/minute")  # Rate limit: 5 registrations per minute
 async def register(request: Request, register_data: UserRegister):
