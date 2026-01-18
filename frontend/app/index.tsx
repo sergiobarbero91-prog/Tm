@@ -10340,6 +10340,44 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Block Chat User Confirmation Modal */}
+      {showBlockChatUserModal && blockChatUserTarget && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteConfirmModal}>
+            <View style={[styles.deleteConfirmIcon, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+              <Ionicons name="ban" size={48} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteConfirmTitle}>Bloquear Usuario</Text>
+            <Text style={styles.deleteConfirmText}>
+              ¿Estás seguro de que quieres bloquear a{'\n'}
+              <Text style={styles.deleteConfirmUsername}>@{blockChatUserTarget.username}</Text>
+              {'\n'}por mensaje indebido?
+            </Text>
+            <Text style={[styles.deleteConfirmWarning, { color: '#F59E0B' }]}>
+              El mensaje será eliminado y el usuario recibirá una penalización.
+            </Text>
+            <View style={styles.deleteConfirmButtons}>
+              <TouchableOpacity 
+                style={styles.deleteConfirmCancelBtn}
+                onPress={() => {
+                  setShowBlockChatUserModal(false);
+                  setBlockChatUserTarget(null);
+                }}
+              >
+                <Text style={styles.deleteConfirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteConfirmDeleteBtn}
+                onPress={confirmBlockChatUser}
+              >
+                <Ionicons name="ban" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmDeleteText}>Bloquear</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Delete User Confirmation Modal */}
       {showDeleteUserModal && deleteUserTarget && (
         <View style={styles.modalOverlay}>
