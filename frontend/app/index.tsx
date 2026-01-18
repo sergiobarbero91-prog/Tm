@@ -8845,6 +8845,24 @@ export default function TransportMeter() {
                   <Text style={styles.settingsLinkText}>Política de Privacidad</Text>
                   <Ionicons name="chevron-forward" size={20} color="#6B7280" />
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.settingsLinkButton, { backgroundColor: '#4F46E5' }]}
+                  onPress={() => {
+                    setShowSettings(false);
+                    setShowSupportModal(true);
+                    fetchSupportTickets();
+                  }}
+                >
+                  <Ionicons name="headset" size={22} color="#FFFFFF" />
+                  <Text style={[styles.settingsLinkText, { color: '#FFFFFF' }]}>Centro de Ayuda</Text>
+                  {supportUnreadCount > 0 && (
+                    <View style={styles.settingsUnreadBadge}>
+                      <Text style={styles.settingsUnreadText}>{supportUnreadCount}</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
             </View>
             </ScrollView>
