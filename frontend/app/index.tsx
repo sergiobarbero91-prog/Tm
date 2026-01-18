@@ -4627,6 +4627,7 @@ export default function TransportMeter() {
                   style={styles.loginScreenButton}
                   onPress={handleLogin}
                   disabled={loginLoading}
+                  testID="login-button"
                 >
                   {loginLoading ? (
                     <ActivityIndicator color="#FFFFFF" />
