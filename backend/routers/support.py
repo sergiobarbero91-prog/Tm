@@ -8,7 +8,7 @@ from typing import Optional, List, Literal
 from datetime import datetime
 import uuid
 
-from .auth import get_current_user, get_db
+from shared import get_current_user_required, db
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 
