@@ -415,6 +415,10 @@ export default function TransportMeter() {
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [deleteUserTarget, setDeleteUserTarget] = useState<{id: string, username: string} | null>(null);
 
+  // Block user from chat confirmation
+  const [showBlockChatUserModal, setShowBlockChatUserModal] = useState(false);
+  const [blockChatUserTarget, setBlockChatUserTarget] = useState<{messageId: string, username: string} | null>(null);
+
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
