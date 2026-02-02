@@ -393,6 +393,7 @@ class PointsSystemTester:
             self.test_get_my_points,
             self.test_get_ranking,
             self.test_get_points_config,
+            self.test_invitation_points,
             self.test_event_like_points_different_user,
         ]
         
