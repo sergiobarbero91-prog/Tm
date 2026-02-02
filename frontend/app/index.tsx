@@ -1266,7 +1266,7 @@ export default function TransportMeter() {
       setProfileLicenseNumber(currentUser.license_number || '');
       setProfilePhone(currentUser.phone || '');
       setProfilePreferredShift((currentUser.preferred_shift as 'all' | 'day' | 'night') || 'all');
-      setShowProfileModal(true);
+      setShowEditProfileModal(true);
     }
   };
 
