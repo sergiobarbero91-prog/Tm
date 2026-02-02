@@ -13,7 +13,10 @@ import subprocess
 import tempfile
 import os
 
-from shared import users_collection, get_current_user_required, logger
+from shared import users_collection, get_current_user_required, logger, POINTS_CONFIG
+
+# Import points function
+from routers.points import add_points
 
 router = APIRouter(prefix="/radio", tags=["Radio"])
 
