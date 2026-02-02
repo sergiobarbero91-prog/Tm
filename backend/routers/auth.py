@@ -368,6 +368,14 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
         }}
     )
     
+    # Award points to the inviter for successful invitation
+    await add_points(
+        invitation["created_by_id"],
+        "invite_used",
+        POINTS_CONFIG["invite_used"],
+        f"Invitación usada por {new_user['username']}"
+    )
+    
     logger.info(f"User {register_data.username} registered via invitation from {invitation['created_by_username']}")
     
     # Generate token and login immediately
