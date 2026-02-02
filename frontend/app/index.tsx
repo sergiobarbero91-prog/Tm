@@ -15879,6 +15879,112 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // Profile View (Read-Only) styles
+  profileInfoSection: {
+    marginTop: 16,
+  },
+  profileInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  profileInfoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  profileInfoContent: {
+    flex: 1,
+  },
+  profileInfoLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  profileInfoValue: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  profileStatsSection: {
+    marginTop: 20,
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    padding: 16,
+  },
+  profileStatsSectionTitle: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  profileStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  profileStatBox: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  profileStatNumber: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  profileStatLabel: {
+    color: '#9CA3AF',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  profileActionButtons: {
+    marginTop: 16,
+  },
+  profileEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#6366F140',
+  },
+  profileEditButtonText: {
+    color: '#6366F1',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  profileBottomButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  profileCloseButton: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  profileCloseButtonText: {
+    color: '#9CA3AF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   // Chat styles
   chatButton: {
     backgroundColor: '#6366F1',
