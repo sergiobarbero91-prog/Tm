@@ -10057,6 +10057,18 @@ export default function TransportMeter() {
                   )}
                 </TouchableOpacity>
               </View>
+              
+              {/* Logout Button */}
+              <TouchableOpacity
+                style={styles.profileLogoutButton}
+                onPress={() => {
+                  setShowProfileModal(false);
+                  handleLogout();
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                <Text style={styles.profileLogoutButtonText}>Cerrar Sesión</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
