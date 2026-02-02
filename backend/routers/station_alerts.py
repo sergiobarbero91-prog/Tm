@@ -222,6 +222,14 @@ async def report_station_alert(
             "expires_at": expires_at
         }
         await station_alerts_collection.insert_one(new_alert)
+        
+        # Award points for creating a real alert
+        await add_points(
+            current_user["id"], 
+            "alert_real", 
+            POINTS_CONFIG["alert_real"], 
+            f"Alerta {alert_data.alert_type} en {alert_data.location_name}"
+        )
     
     return StationAlertResponse(
         id=alert_id,
