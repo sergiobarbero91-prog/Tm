@@ -62,17 +62,17 @@ points_history_collection = db['points_history']  # For tracking point transacti
 
 POINTS_CONFIG = {
     # Positive actions
-    "checkin": 5,
-    "checkout": 5,
-    "alert_real": 10,  # Real barandilla/sin taxis alert
-    "create_event": 5,
-    "receive_like": 2,
-    "radio_transmission": 3,
-    "invite_used": 20,  # When invitation code is used
-    "approve_registration": 15,
+    "checkin": 5,           # Check-in a estación/terminal
+    "checkout": 5,          # Check-out de estación/terminal
+    "alert_real": 10,       # Alerta real de barandilla/sin taxis
+    "create_event": 5,      # Crear un evento
+    "receive_like": 5,      # Recibir un like en evento (5 pts por like)
+    "radio_minute": 1,      # Por cada minuto de transmisión en radio
+    "invite_used": 50,      # Cuando se usa tu código de invitación
+    "approve_registration": 25,  # Aprobar un registro
     # Penalties
-    "alert_false": -10,  # False alert reported
-    "alert_cancel_early": -5,  # Cancel alert too soon
+    "alert_false": -10,     # Alerta falsa reportada
+    "alert_cancel_early": -5,  # Cancelar alerta muy pronto
 }
 
 LEVEL_THRESHOLDS = [
