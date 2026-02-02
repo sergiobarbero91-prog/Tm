@@ -446,6 +446,7 @@ export default function TransportMeter() {
   // Registration states
   const [showRegister, setShowRegister] = useState(false);
   const [registerStep, setRegisterStep] = useState<1 | 2>(1);
+  const [registerMethod, setRegisterMethod] = useState<'invitation' | 'license' | null>(null);
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
@@ -456,6 +457,9 @@ export default function TransportMeter() {
   const [registerLoading, setRegisterLoading] = useState(false);
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
   const [acceptGoodUse, setAcceptGoodUse] = useState(false);
+  const [invitationCode, setInvitationCode] = useState('');
+  const [sponsorLicense, setSponsorLicense] = useState('');
+  const [registrationRequestSent, setRegistrationRequestSent] = useState(false);
   
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
