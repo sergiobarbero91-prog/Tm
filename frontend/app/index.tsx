@@ -5046,17 +5046,23 @@ export default function TransportMeter() {
                       style={[
                         styles.loginScreenButton, 
                         styles.registerButton,
-                        (!acceptPrivacyPolicy || !acceptGoodUse) && styles.registerButtonDisabled
+                        (!acceptPrivacyPolicy || !acceptGoodUse || !registerMethod) && styles.registerButtonDisabled
                       ]}
                       onPress={handleRegister}
-                      disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse}
+                      disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse || !registerMethod}
                     >
                       {registerLoading ? (
                         <ActivityIndicator color="#FFFFFF" />
                       ) : (
                         <>
-                          <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-                          <Text style={styles.loginScreenButtonText}>Crear Cuenta</Text>
+                          <Ionicons 
+                            name={registerMethod === 'invitation' ? "checkmark-circle-outline" : "send-outline"} 
+                            size={20} 
+                            color="#FFFFFF" 
+                          />
+                          <Text style={styles.loginScreenButtonText}>
+                            {registerMethod === 'invitation' ? 'Crear Cuenta' : registerMethod === 'license' ? 'Enviar Solicitud' : 'Selecciona método'}
+                          </Text>
                         </>
                       )}
                     </TouchableOpacity>
