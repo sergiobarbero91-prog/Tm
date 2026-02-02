@@ -15871,6 +15871,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  profileLogoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#EF444440',
+  },
+  profileLogoutButtonText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   // Chat styles
   chatButton: {
     backgroundColor: '#6366F1',
