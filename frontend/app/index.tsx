@@ -9463,6 +9463,166 @@ export default function TransportMeter() {
                 <Ionicons name="chevron-forward" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
+
+            {/* Invitations & Referrals Section */}
+            <View style={styles.settingsSection}>
+              <TouchableOpacity
+                style={styles.invitationsSectionHeader}
+                onPress={() => {
+                  if (!showInvitationsSection) {
+                    loadInvitationsData();
+                  }
+                  setShowInvitationsSection(!showInvitationsSection);
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.settingsSectionTitle}>Invitaciones y Referidos</Text>
+                  {pendingRequestsCount > 0 && (
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>{pendingRequestsCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Ionicons 
+                  name={showInvitationsSection ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#64748B" 
+                />
+              </TouchableOpacity>
+
+              {showInvitationsSection && (
+                <View style={styles.invitationsContent}>
+                  {invitationsLoading ? (
+                    <ActivityIndicator color="#6366F1" style={{ marginVertical: 20 }} />
+                  ) : (
+                    <>
+                      {/* My Sponsor */}
+                      {mySponsor && (
+                        <View style={styles.sponsorBox}>
+                          <Text style={styles.invSubtitle}>Mi Padrino</Text>
+                          <View style={styles.sponsorInfo}>
+                            <Ionicons name="person-circle" size={36} color="#10B981" />
+                            <View style={{ marginLeft: 10, flex: 1 }}>
+                              <Text style={styles.sponsorName}>{mySponsor.full_name || mySponsor.username}</Text>
+                              <Text style={styles.sponsorLicense}>
+                                Licencia: {mySponsor.license_number} • {mySponsor.registration_method === 'invitation' ? 'Me invitó' : 'Aprobó mi registro'}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Pending Requests */}
+                      {pendingRequests.length > 0 && (
+                        <View style={styles.pendingRequestsBox}>
+                          <Text style={styles.invSubtitle}>
+                            <Ionicons name="time" size={16} color="#F59E0B" /> Solicitudes Pendientes ({pendingRequests.length})
+                          </Text>
+                          {pendingRequests.map((req) => (
+                            <View key={req.id} style={styles.pendingRequestItem}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.pendingRequestName}>{req.full_name}</Text>
+                                <Text style={styles.pendingRequestInfo}>
+                                  @{req.username} • Licencia: {req.license_number}
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', gap: 8 }}>
+                                <TouchableOpacity
+                                  style={styles.rejectBtn}
+                                  onPress={() => rejectRequest(req.id)}
+                                >
+                                  <Ionicons name="close" size={18} color="#EF4444" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.approveBtn}
+                                  onPress={() => approveRequest(req.id, req.username)}
+                                >
+                                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Create Invitation Button */}
+                      <TouchableOpacity
+                        style={styles.createInvitationBtn}
+                        onPress={() => createInvitation()}
+                      >
+                        <Ionicons name="add-circle" size={22} color="#FFFFFF" />
+                        <Text style={styles.createInvitationText}>Crear Código de Invitación</Text>
+                      </TouchableOpacity>
+
+                      {/* My Invitations */}
+                      {myInvitations.length > 0 && (
+                        <View style={styles.myInvitationsBox}>
+                          <Text style={styles.invSubtitle}>Mis Invitaciones</Text>
+                          {myInvitations.map((inv) => (
+                            <View key={inv.id} style={[styles.invitationItem, inv.used && styles.invitationItemUsed]}>
+                              <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                  <Text style={styles.invitationCode}>{inv.code}</Text>
+                                  {inv.used ? (
+                                    <View style={styles.invUsedBadge}>
+                                      <Text style={styles.invUsedBadgeText}>Usado</Text>
+                                    </View>
+                                  ) : (
+                                    <View style={styles.invActiveBadge}>
+                                      <Text style={styles.invActiveBadgeText}>Activo</Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <Text style={styles.invitationExpiry}>
+                                  {inv.used 
+                                    ? `Usado por: ${inv.used_by_username}`
+                                    : `Caduca: ${new Date(inv.expires_at).toLocaleDateString('es-ES')}`
+                                  }
+                                </Text>
+                              </View>
+                              {!inv.used && (
+                                <TouchableOpacity
+                                  style={styles.deleteInvBtn}
+                                  onPress={() => deleteInvitation(inv.id)}
+                                >
+                                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* My Referrals */}
+                      {myReferrals.length > 0 && (
+                        <View style={styles.myReferralsBox}>
+                          <Text style={styles.invSubtitle}>Mis Referidos ({myReferrals.length})</Text>
+                          {myReferrals.map((ref) => (
+                            <View key={ref.id} style={styles.referralItem}>
+                              <Ionicons name="person" size={20} color="#6366F1" />
+                              <View style={{ marginLeft: 10, flex: 1 }}>
+                                <Text style={styles.referralName}>{ref.full_name || ref.username}</Text>
+                                <Text style={styles.referralInfo}>
+                                  {ref.license_number && `Lic: ${ref.license_number} • `}
+                                  {ref.registration_method === 'invitation' ? 'Invitado' : 'Aprobado'}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Empty State */}
+                      {myInvitations.length === 0 && myReferrals.length === 0 && pendingRequests.length === 0 && !mySponsor && (
+                        <Text style={styles.emptyInvitationsText}>
+                          Crea tu primer código de invitación para invitar a otros taxistas a la aplicación.
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
             
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>GPS Externo</Text>
