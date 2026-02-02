@@ -10297,6 +10297,125 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Ranking Modal */}
+      {showRankingModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.rankingModal}>
+            <View style={styles.rankingHeader}>
+              <View style={styles.rankingTitleRow}>
+                <Ionicons name="trophy" size={32} color="#F59E0B" />
+                <Text style={styles.rankingTitle}>Ranking de Taxistas</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowRankingModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* My Position */}
+            {myPoints && (
+              <View style={styles.myRankingCard}>
+                <Text style={styles.myRankingBadge}>{myPoints.level_badge}</Text>
+                <View style={styles.myRankingInfo}>
+                  <Text style={styles.myRankingName}>Tu posición</Text>
+                  <Text style={styles.myRankingLevel}>{myPoints.level_name}</Text>
+                </View>
+                <View style={styles.myRankingPoints}>
+                  <Text style={styles.myRankingPointsNumber}>{myPoints.total_points}</Text>
+                  <Text style={styles.myRankingPointsLabel}>pts</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Ranking List */}
+            <ScrollView style={styles.rankingList} showsVerticalScrollIndicator={false}>
+              {rankingLoading ? (
+                <View style={styles.rankingLoading}>
+                  <ActivityIndicator size="large" color="#6366F1" />
+                  <Text style={styles.rankingLoadingText}>Cargando ranking...</Text>
+                </View>
+              ) : ranking.length === 0 ? (
+                <View style={styles.rankingEmpty}>
+                  <Ionicons name="podium-outline" size={48} color="#64748B" />
+                  <Text style={styles.rankingEmptyText}>No hay datos de ranking todavía</Text>
+                </View>
+              ) : (
+                ranking.map((user, index) => (
+                  <View 
+                    key={user.user_id} 
+                    style={[
+                      styles.rankingItem,
+                      user.is_me && styles.rankingItemHighlight,
+                      index < 3 && styles.rankingItemTop
+                    ]}
+                  >
+                    <View style={styles.rankingPosition}>
+                      {index === 0 ? (
+                        <Text style={styles.rankingMedal}>🥇</Text>
+                      ) : index === 1 ? (
+                        <Text style={styles.rankingMedal}>🥈</Text>
+                      ) : index === 2 ? (
+                        <Text style={styles.rankingMedal}>🥉</Text>
+                      ) : (
+                        <Text style={styles.rankingPositionNumber}>#{user.position}</Text>
+                      )}
+                    </View>
+                    <View style={styles.rankingUserInfo}>
+                      <Text style={[styles.rankingUserName, user.is_me && styles.rankingUserNameHighlight]}>
+                        {user.full_name || user.username} {user.is_me && '(Tú)'}
+                      </Text>
+                      <View style={styles.rankingLevelRow}>
+                        <Text style={styles.rankingUserBadge}>{user.level_badge}</Text>
+                        <Text style={styles.rankingUserLevel}>{user.level_name}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.rankingUserPoints}>
+                      <Text style={[styles.rankingUserPointsNumber, user.is_me && styles.rankingPointsHighlight]}>
+                        {user.total_points}
+                      </Text>
+                      <Text style={styles.rankingUserPointsLabel}>pts</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {/* How to earn points */}
+            <View style={styles.rankingHowTo}>
+              <Text style={styles.rankingHowToTitle}>¿Cómo ganar puntos?</Text>
+              <View style={styles.rankingHowToList}>
+                <View style={styles.rankingHowToItem}>
+                  <Ionicons name="location" size={16} color="#10B981" />
+                  <Text style={styles.rankingHowToText}>Check-in/out: 5 pts</Text>
+                </View>
+                <View style={styles.rankingHowToItem}>
+                  <Ionicons name="warning" size={16} color="#F59E0B" />
+                  <Text style={styles.rankingHowToText}>Alerta válida: 10 pts</Text>
+                </View>
+                <View style={styles.rankingHowToItem}>
+                  <Ionicons name="radio" size={16} color="#6366F1" />
+                  <Text style={styles.rankingHowToText}>Radio: 1 pt/min</Text>
+                </View>
+                <View style={styles.rankingHowToItem}>
+                  <Ionicons name="heart" size={16} color="#EF4444" />
+                  <Text style={styles.rankingHowToText}>Like en evento: 5 pts</Text>
+                </View>
+                <View style={styles.rankingHowToItem}>
+                  <Ionicons name="person-add" size={16} color="#8B5CF6" />
+                  <Text style={styles.rankingHowToText}>Invitar: 50 pts | Aprobar: 25 pts</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.rankingCloseButton}
+              onPress={() => setShowRankingModal(false)}
+            >
+              <Text style={styles.rankingCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Change Password Modal */}
       {showChangePasswordModal && (
         <View style={styles.modalOverlay}>
