@@ -155,6 +155,12 @@ async def register_checkin(
     
     await street_activities_collection.insert_one(new_activity)
     
+    # Add points for check-in/checkout
+    if checkin.action == "entry":
+        await add_points(user_id, "checkin", POINTS_CONFIG["checkin"], f"Entrada en {checkin.location_name}")
+    else:
+        await add_points(user_id, "checkout", POINTS_CONFIG["checkout"], f"Salida de {checkin.location_name}")
+    
     action_label = "Entrada" if checkin.action == "entry" else "Salida"
     location_label = "estación" if checkin.location_type == "station" else "terminal"
     
