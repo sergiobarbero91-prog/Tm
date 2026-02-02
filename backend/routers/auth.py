@@ -2,21 +2,35 @@
 Authentication router for login, registration, and profile management.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
+import secrets
+import string
+from typing import List
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from shared import (
-    users_collection,
+    users_collection, invitations_collection, registration_requests_collection,
     UserLogin, UserRegister, UserProfileUpdate, PasswordChange,
     UserResponse, TokenResponse,
+    InvitationCreate, InvitationResponse, 
+    RegistrationRequestCreate, RegistrationRequestResponse,
+    RegisterWithInvitation, SponsorInfo, ReferralInfo,
     verify_password, get_password_hash, create_access_token,
     get_current_user_required, logger
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
+
+# Invitation code expiration
+INVITATION_EXPIRY_DAYS = 7
+
+def generate_invitation_code(length=8):
+    """Generate a random invitation code"""
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 
 @router.post("/login", response_model=TokenResponse)
