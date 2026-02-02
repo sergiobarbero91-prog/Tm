@@ -82,69 +82,13 @@ async def check_username(username: str):
 @router.post("/register", response_model=TokenResponse)
 @limiter.limit("5/minute")  # Rate limit: 5 registrations per minute
 async def register(request: Request, register_data: UserRegister):
-    """Public registration endpoint for new users."""
-    # Check if username already exists
-    existing_user = await users_collection.find_one({"username": register_data.username})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El nombre de usuario ya existe"
-        )
-    
-    # Check if license number already exists
-    existing_license = await users_collection.find_one({"license_number": register_data.license_number})
-    if existing_license:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El número de licencia ya está registrado"
-        )
-    
-    # Validate license number is numeric
-    if not register_data.license_number.isdigit():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El número de licencia debe contener solo dígitos"
-        )
-    
-    # Validate preferred_shift
-    valid_shifts = ["all", "day", "night"]
-    if register_data.preferred_shift and register_data.preferred_shift not in valid_shifts:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Turno de preferencia inválido"
-        )
-    
-    # Create new user
-    new_user = {
-        "id": str(uuid.uuid4()),
-        "username": register_data.username,
-        "hashed_password": get_password_hash(register_data.password),
-        "full_name": register_data.full_name,
-        "license_number": register_data.license_number,
-        "phone": register_data.phone,
-        "role": "user",
-        "preferred_shift": register_data.preferred_shift or "all",
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-    
-    await users_collection.insert_one(new_user)
-    
-    # Generate token and login immediately
-    access_token = create_access_token(data={"sub": new_user["id"]})
-    
-    return TokenResponse(
-        access_token=access_token,
-        user=UserResponse(
-            id=new_user["id"],
-            username=new_user["username"],
-            full_name=new_user["full_name"],
-            license_number=new_user["license_number"],
-            phone=new_user.get("phone"),
-            role=new_user["role"],
-            preferred_shift=new_user["preferred_shift"],
-            created_at=new_user["created_at"]
-        )
+    """
+    Public registration endpoint - DISABLED.
+    Users must register via invitation code or license approval.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="El registro directo está deshabilitado. Debes usar un código de invitación o solicitar aprobación con la licencia de un taxista registrado."
     )
 
 
