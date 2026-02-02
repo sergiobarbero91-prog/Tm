@@ -4730,6 +4730,7 @@ export default function TransportMeter() {
                 <TouchableOpacity 
                   style={styles.switchAuthButton}
                   onPress={() => setShowRegister(true)}
+                  testID="show-register-button"
                 >
                   <Text style={styles.switchAuthText}>
                     ¿No tienes cuenta? <Text style={styles.switchAuthLink}>Regístrate aquí</Text>
