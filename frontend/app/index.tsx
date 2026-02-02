@@ -6833,6 +6833,7 @@ export default function TransportMeter() {
                 fetchMyReferrals();
                 fetchMyInvitations();
                 fetchPendingRequestsCount();
+                fetchMyPoints();
                 setShowProfileModal(true);
               }}
             >
