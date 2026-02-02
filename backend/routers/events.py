@@ -10,8 +10,12 @@ import pytz
 from shared import (
     events_collection,
     get_current_user_required,
-    logger
+    logger,
+    POINTS_CONFIG
 )
+
+# Import add_points function
+from routers.points import add_points
 
 router = APIRouter(prefix="/events", tags=["Events"])
 
