@@ -498,6 +498,27 @@ export default function TransportMeter() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showInvitationsSection, setShowInvitationsSection] = useState(false);
   
+  // Points system states
+  const [myPoints, setMyPoints] = useState<{
+    total_points: number;
+    level_name: string;
+    level_badge: string;
+    next_level_name: string | null;
+    points_to_next_level: number;
+  } | null>(null);
+  const [ranking, setRanking] = useState<Array<{
+    position: number;
+    user_id: string;
+    username: string;
+    full_name: string | null;
+    total_points: number;
+    level_name: string;
+    level_badge: string;
+    is_me: boolean;
+  }>>([]);
+  const [showRankingModal, setShowRankingModal] = useState(false);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
