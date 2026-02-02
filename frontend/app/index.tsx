@@ -1049,6 +1049,176 @@ export default function TransportMeter() {
     setShowRegister(false);
   };
 
+  // ============== INVITATIONS & REFERRALS FUNCTIONS ==============
+  
+  // Fetch my invitations
+  const fetchMyInvitations = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/auth/invitations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMyInvitations(response.data);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+    }
+  };
+
+  // Fetch pending registration requests
+  const fetchPendingRequests = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/auth/registration-requests/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPendingRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+    }
+  };
+
+  // Fetch pending requests count (for badge)
+  const fetchPendingRequestsCount = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/auth/registration-requests/pending/count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPendingRequestsCount(response.data.count || 0);
+    } catch (error) {
+      console.error('Error fetching pending count:', error);
+    }
+  };
+
+  // Fetch my referrals
+  const fetchMyReferrals = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/auth/my-referrals`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMyReferrals(response.data);
+    } catch (error) {
+      console.error('Error fetching referrals:', error);
+    }
+  };
+
+  // Fetch my sponsor
+  const fetchMySponsor = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/auth/my-sponsor`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMySponsor(response.data);
+    } catch (error) {
+      console.error('Error fetching sponsor:', error);
+    }
+  };
+
+  // Create new invitation
+  const createInvitation = async (note?: string) => {
+    try {
+      setInvitationsLoading(true);
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.post(`${API_BASE}/api/auth/invitations`, 
+        { note },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      Alert.alert('¡Invitación creada!', `Código: ${response.data.code}\n\nCaduca en 7 días. Comparte este código con el nuevo taxista.`);
+      fetchMyInvitations();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al crear invitación');
+    } finally {
+      setInvitationsLoading(false);
+    }
+  };
+
+  // Delete invitation
+  const deleteInvitation = async (invitationId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      await axios.delete(`${API_BASE}/api/auth/invitations/${invitationId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      fetchMyInvitations();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar invitación');
+    }
+  };
+
+  // Approve registration request
+  const approveRequest = async (requestId: string, username: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      await axios.post(`${API_BASE}/api/auth/registration-requests/${requestId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('¡Aprobado!', `El usuario ${username} ya puede iniciar sesión.`);
+      fetchPendingRequests();
+      fetchPendingRequestsCount();
+      fetchMyReferrals();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al aprobar solicitud');
+    }
+  };
+
+  // Reject registration request
+  const rejectRequest = async (requestId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      await axios.post(`${API_BASE}/api/auth/registration-requests/${requestId}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Rechazado', 'La solicitud ha sido rechazada.');
+      fetchPendingRequests();
+      fetchPendingRequestsCount();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al rechazar solicitud');
+    }
+  };
+
+  // Load all invitations data when section is opened
+  const loadInvitationsData = async () => {
+    setInvitationsLoading(true);
+    await Promise.all([
+      fetchMyInvitations(),
+      fetchPendingRequests(),
+      fetchMyReferrals(),
+      fetchMySponsor()
+    ]);
+    setInvitationsLoading(false);
+  };
+
+  // Fetch pending count on login
+  useEffect(() => {
+    if (currentUser) {
+      fetchPendingRequestsCount();
+    }
+  }, [currentUser]);
+
   // Change password function
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !newPasswordConfirm) {
