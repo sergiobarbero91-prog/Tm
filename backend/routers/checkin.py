@@ -14,8 +14,10 @@ from shared import (
     queue_status_collection,
     active_checkins_collection,
     get_current_user_required,
-    logger
+    logger,
+    POINTS_CONFIG
 )
+from routers.points import add_points
 
 router = APIRouter(tags=["Check-in"])
 
