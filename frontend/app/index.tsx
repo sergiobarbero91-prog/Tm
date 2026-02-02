@@ -9942,132 +9942,128 @@ export default function TransportMeter() {
         </View>
       )}
 
-      {/* Profile Edit Modal */}
+      {/* Profile View Modal (Read-Only) */}
       {showProfileModal && (
         <View style={styles.modalOverlay}>
           <ScrollView contentContainerStyle={styles.profileModalScrollContainer}>
             <View style={styles.profileModal}>
               <View style={styles.profileModalHeader}>
                 <Ionicons name="person-circle" size={60} color="#6366F1" />
-                <Text style={styles.profileModalTitle}>Mi Perfil</Text>
+                <Text style={styles.profileModalTitle}>{currentUser?.full_name || 'Mi Perfil'}</Text>
                 <Text style={styles.profileModalSubtitle}>@{currentUser?.username}</Text>
               </View>
               
-              <View style={styles.profileForm}>
-                <View style={styles.profileInputGroup}>
-                  <Text style={styles.profileInputLabel}>Nombre completo *</Text>
-                  <TextInput
-                    style={styles.profileInput}
-                    value={profileFullName}
-                    onChangeText={setProfileFullName}
-                    placeholder="Tu nombre completo"
-                    placeholderTextColor="#6B7280"
-                  />
+              {/* Profile Info (Read-Only) */}
+              <View style={styles.profileInfoSection}>
+                <View style={styles.profileInfoRow}>
+                  <View style={styles.profileInfoIcon}>
+                    <Ionicons name="card-outline" size={20} color="#6366F1" />
+                  </View>
+                  <View style={styles.profileInfoContent}>
+                    <Text style={styles.profileInfoLabel}>Número de Licencia</Text>
+                    <Text style={styles.profileInfoValue}>{currentUser?.license_number || 'No especificado'}</Text>
+                  </View>
                 </View>
-                
-                <View style={styles.profileInputGroup}>
-                  <Text style={styles.profileInputLabel}>Número de licencia *</Text>
-                  <TextInput
-                    style={styles.profileInput}
-                    value={profileLicenseNumber}
-                    onChangeText={setProfileLicenseNumber}
-                    placeholder="Solo números"
-                    placeholderTextColor="#6B7280"
-                    keyboardType="numeric"
-                  />
+
+                <View style={styles.profileInfoRow}>
+                  <View style={styles.profileInfoIcon}>
+                    <Ionicons name="call-outline" size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.profileInfoContent}>
+                    <Text style={styles.profileInfoLabel}>Teléfono</Text>
+                    <Text style={styles.profileInfoValue}>{currentUser?.phone || 'No especificado'}</Text>
+                  </View>
                 </View>
-                
-                <View style={styles.profileInputGroup}>
-                  <Text style={styles.profileInputLabel}>Teléfono</Text>
-                  <TextInput
-                    style={styles.profileInput}
-                    value={profilePhone}
-                    onChangeText={setProfilePhone}
-                    placeholder="Tu número de teléfono"
-                    placeholderTextColor="#6B7280"
-                    keyboardType="phone-pad"
-                  />
+
+                <View style={styles.profileInfoRow}>
+                  <View style={styles.profileInfoIcon}>
+                    <Ionicons 
+                      name={currentUser?.preferred_shift === 'day' ? 'sunny' : currentUser?.preferred_shift === 'night' ? 'moon' : 'time'} 
+                      size={20} 
+                      color={currentUser?.preferred_shift === 'day' ? '#F59E0B' : currentUser?.preferred_shift === 'night' ? '#8B5CF6' : '#6366F1'} 
+                    />
+                  </View>
+                  <View style={styles.profileInfoContent}>
+                    <Text style={styles.profileInfoLabel}>Turno de Preferencia</Text>
+                    <Text style={styles.profileInfoValue}>
+                      {currentUser?.preferred_shift === 'day' ? 'Día' : currentUser?.preferred_shift === 'night' ? 'Noche' : 'Todo el día'}
+                    </Text>
+                  </View>
                 </View>
-                
-                <View style={styles.profileInputGroup}>
-                  <Text style={styles.profileInputLabel}>Turno de preferencia</Text>
-                  <View style={styles.profileShiftSelector}>
-                    <TouchableOpacity
-                      style={[
-                        styles.profileShiftOption,
-                        profilePreferredShift === 'day' && styles.profileShiftOptionActiveDay
-                      ]}
-                      onPress={() => setProfilePreferredShift('day')}
-                    >
-                      <Ionicons name="sunny" size={20} color={profilePreferredShift === 'day' ? '#FFFFFF' : '#F59E0B'} />
-                      <Text style={[
-                        styles.profileShiftOptionText,
-                        profilePreferredShift === 'day' && styles.profileShiftOptionTextActive
-                      ]}>Día</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.profileShiftOption,
-                        profilePreferredShift === 'all' && styles.profileShiftOptionActiveAll
-                      ]}
-                      onPress={() => setProfilePreferredShift('all')}
-                    >
-                      <Ionicons name="time" size={20} color={profilePreferredShift === 'all' ? '#FFFFFF' : '#6366F1'} />
-                      <Text style={[
-                        styles.profileShiftOptionText,
-                        profilePreferredShift === 'all' && styles.profileShiftOptionTextActive
-                      ]}>Todo</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.profileShiftOption,
-                        profilePreferredShift === 'night' && styles.profileShiftOptionActiveNight
-                      ]}
-                      onPress={() => setProfilePreferredShift('night')}
-                    >
-                      <Ionicons name="moon" size={20} color={profilePreferredShift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
-                      <Text style={[
-                        styles.profileShiftOptionText,
-                        profilePreferredShift === 'night' && styles.profileShiftOptionTextActive
-                      ]}>Noche</Text>
-                    </TouchableOpacity>
+
+                <View style={styles.profileInfoRow}>
+                  <View style={styles.profileInfoIcon}>
+                    <Ionicons name="shield-checkmark-outline" size={20} color="#F59E0B" />
+                  </View>
+                  <View style={styles.profileInfoContent}>
+                    <Text style={styles.profileInfoLabel}>Rol</Text>
+                    <Text style={styles.profileInfoValue}>
+                      {currentUser?.role === 'admin' ? 'Administrador' : currentUser?.role === 'moderator' ? 'Moderador' : 'Usuario'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Invited Taxists Counter */}
+              <View style={styles.profileStatsSection}>
+                <Text style={styles.profileStatsSectionTitle}>Mis Estadísticas</Text>
+                <View style={styles.profileStatsRow}>
+                  <View style={styles.profileStatBox}>
+                    <Ionicons name="people" size={28} color="#6366F1" />
+                    <Text style={styles.profileStatNumber}>{myReferrals.length}</Text>
+                    <Text style={styles.profileStatLabel}>Taxistas Invitados</Text>
+                  </View>
+                  <View style={styles.profileStatBox}>
+                    <Ionicons name="ticket" size={28} color="#10B981" />
+                    <Text style={styles.profileStatNumber}>{myInvitations.filter(i => !i.used).length}</Text>
+                    <Text style={styles.profileStatLabel}>Invitaciones Activas</Text>
+                  </View>
+                  <View style={styles.profileStatBox}>
+                    <Ionicons name="time" size={28} color="#F59E0B" />
+                    <Text style={styles.profileStatNumber}>{pendingRequestsCount}</Text>
+                    <Text style={styles.profileStatLabel}>Solicitudes Pendientes</Text>
                   </View>
                 </View>
               </View>
               
-              <View style={styles.profileButtons}>
+              {/* Action Buttons */}
+              <View style={styles.profileActionButtons}>
                 <TouchableOpacity
-                  style={styles.profileCancelButton}
-                  onPress={() => setShowProfileModal(false)}
+                  style={styles.profileEditButton}
+                  onPress={() => {
+                    setShowProfileModal(false);
+                    setShowSettings(true);
+                  }}
                 >
-                  <Text style={styles.profileCancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.profileSaveButton}
-                  onPress={handleUpdateProfile}
-                  disabled={profileLoading}
-                >
-                  {profileLoading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                      <Text style={styles.profileSaveButtonText}>Guardar</Text>
-                    </>
-                  )}
+                  <Ionicons name="settings-outline" size={18} color="#6366F1" />
+                  <Text style={styles.profileEditButtonText}>Editar en Ajustes</Text>
                 </TouchableOpacity>
               </View>
               
-              {/* Logout Button */}
-              <TouchableOpacity
-                style={styles.profileLogoutButton}
-                onPress={() => {
-                  setShowProfileModal(false);
-                  handleLogout();
-                }}
-              >
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                <Text style={styles.profileLogoutButtonText}>Cerrar Sesión</Text>
+              {/* Close and Logout Buttons */}
+              <View style={styles.profileBottomButtons}>
+                <TouchableOpacity
+                  style={styles.profileCloseButton}
+                  onPress={() => setShowProfileModal(false)}
+                >
+                  <Text style={styles.profileCloseButtonText}>Cerrar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.profileLogoutButton}
+                  onPress={() => {
+                    setShowProfileModal(false);
+                    handleLogout();
+                  }}
+                >
+                  <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                  <Text style={styles.profileLogoutButtonText}>Cerrar Sesión</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      )}
               </TouchableOpacity>
             </View>
           </ScrollView>
