@@ -130,6 +130,8 @@ class RadioConnectionManager:
             return False  # Channel is busy
         
         self.transmitting[channel] = user_id
+        # Track transmission start time for points
+        self.transmission_start_times[user_id] = datetime.utcnow()
         await self.broadcast_status(channel)
         
         user_info = self.user_info.get(user_id, {})
@@ -137,9 +139,38 @@ class RadioConnectionManager:
         return True
     
     async def stop_transmission(self, channel: int, user_id: str):
-        """Stop audio transmission."""
+        """Stop audio transmission and award points for time spent."""
         if self.transmitting[channel] == user_id:
             self.transmitting[channel] = None
+            
+            # Calculate transmission duration and award points
+            if user_id in self.transmission_start_times:
+                start_time = self.transmission_start_times.pop(user_id)
+                duration_seconds = (datetime.utcnow() - start_time).total_seconds()
+                
+                # Add accumulated seconds from previous partial minutes
+                total_seconds = duration_seconds + self.accumulated_seconds.get(user_id, 0)
+                
+                # Award 1 point per full minute
+                full_minutes = int(total_seconds // 60)
+                remaining_seconds = int(total_seconds % 60)
+                
+                # Store remaining seconds for next transmission
+                self.accumulated_seconds[user_id] = remaining_seconds
+                
+                if full_minutes > 0:
+                    user_info = self.user_info.get(user_id, {})
+                    points_to_award = full_minutes * POINTS_CONFIG.get("radio_minute", 1)
+                    
+                    # Award points asynchronously
+                    asyncio.create_task(add_points(
+                        user_id,
+                        "radio_minute",
+                        points_to_award,
+                        f"Transmisión en radio: {full_minutes} min (Canal {channel})"
+                    ))
+                    logger.info(f"Radio: Awarded {points_to_award} points to {user_info.get('username')} for {full_minutes} min transmission")
+            
             await self.broadcast_status(channel)
             
             user_info = self.user_info.get(user_id, {})
