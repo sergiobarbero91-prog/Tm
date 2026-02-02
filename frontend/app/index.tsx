@@ -6762,14 +6762,21 @@ export default function TransportMeter() {
             >
               <Ionicons name="settings-outline" size={20} color="#94A3B8" />
             </TouchableOpacity>
-            {/* User Button */}
+            {/* User Button - Opens Profile */}
             <TouchableOpacity 
               style={styles.userButton}
-              onPress={handleLogout}
+              onPress={() => {
+                // Initialize profile fields with current user data
+                setProfileFullName(currentUser?.full_name || '');
+                setProfileLicenseNumber(currentUser?.license_number || '');
+                setProfilePhone(currentUser?.phone || '');
+                setProfilePreferredShift(currentUser?.preferred_shift || 'all');
+                setShowProfileModal(true);
+              }}
             >
               <Ionicons name="person" size={16} color="#6366F1" />
               <Text style={styles.usernameText}>{currentUser?.username}</Text>
-              <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+              <Ionicons name="chevron-down" size={14} color="#64748B" />
             </TouchableOpacity>
           </View>
         </View>
