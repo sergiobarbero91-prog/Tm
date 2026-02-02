@@ -1328,6 +1328,47 @@ export default function TransportMeter() {
     }
   };
 
+  // Fetch my points from the API
+  const fetchMyPoints = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/points/my-points`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setMyPoints(response.data);
+    } catch (error) {
+      console.log('Error fetching points:', error);
+    }
+  };
+
+  // Fetch ranking from the API
+  const fetchRanking = async () => {
+    setRankingLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await axios.get(`${API_BASE}/api/points/ranking`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setRanking(response.data.ranking || []);
+    } catch (error) {
+      console.log('Error fetching ranking:', error);
+    } finally {
+      setRankingLoading(false);
+    }
+  };
+
+  // Open ranking modal
+  const openRankingModal = () => {
+    setShowRankingModal(true);
+    fetchRanking();
+  };
+
   // Load GPS preference on mount
   const loadGpsPreference = async () => {
     try {
