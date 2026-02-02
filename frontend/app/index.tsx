@@ -14901,6 +14901,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  registerMethodSection: {
+    marginBottom: 16,
+  },
+  registerMethodTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  registerMethodSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  registerMethodOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 12,
+    marginBottom: 8,
+  },
+  registerMethodOptionSelected: {
+    borderColor: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  registerMethodRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#4B5563',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  registerMethodRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+  },
+  registerMethodOptionContent: {
+    flex: 1,
+  },
+  registerMethodOptionTitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  registerMethodOptionTitleSelected: {
+    color: '#FFFFFF',
+  },
+  registerMethodOptionDesc: {
+    color: '#64748B',
+    fontSize: 12,
+  },
   registerPolicyBox: {
     backgroundColor: '#0F172A',
     borderRadius: 12,
