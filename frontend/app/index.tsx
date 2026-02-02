@@ -4899,8 +4899,80 @@ export default function TransportMeter() {
                       <Text style={styles.registerBackText}>Volver</Text>
                     </TouchableOpacity>
 
-                    <Text style={styles.loginFormTitle}>Términos y Condiciones</Text>
-                    <Text style={styles.registerStepIndicator}>Paso 2 de 2 - Aceptación de términos</Text>
+                    <Text style={styles.loginFormTitle}>Términos y Verificación</Text>
+                    <Text style={styles.registerStepIndicator}>Paso 2 de 2 - Verificación y términos</Text>
+
+                    {/* Method Selection */}
+                    <View style={styles.registerMethodSection}>
+                      <Text style={styles.registerMethodTitle}>¿Cómo quieres verificar tu cuenta?</Text>
+                      <Text style={styles.registerMethodSubtitle}>Para garantizar que eres taxista, necesitas una invitación o aprobación de otro taxista registrado.</Text>
+                      
+                      <TouchableOpacity
+                        style={[
+                          styles.registerMethodOption,
+                          registerMethod === 'invitation' && styles.registerMethodOptionSelected
+                        ]}
+                        onPress={() => setRegisterMethod('invitation')}
+                      >
+                        <View style={styles.registerMethodRadio}>
+                          {registerMethod === 'invitation' && <View style={styles.registerMethodRadioInner} />}
+                        </View>
+                        <View style={styles.registerMethodOptionContent}>
+                          <Text style={[styles.registerMethodOptionTitle, registerMethod === 'invitation' && styles.registerMethodOptionTitleSelected]}>
+                            <Ionicons name="ticket-outline" size={16} color={registerMethod === 'invitation' ? '#10B981' : '#9CA3AF'} /> Tengo un código de invitación
+                          </Text>
+                          <Text style={styles.registerMethodOptionDesc}>Un taxista te ha dado un código para registrarte directamente</Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {registerMethod === 'invitation' && (
+                        <View style={[styles.inputContainer, { marginTop: 8, marginBottom: 8 }]}>
+                          <Ionicons name="key-outline" size={20} color="#10B981" style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.loginScreenInput}
+                            placeholder="Código de invitación *"
+                            placeholderTextColor="#64748B"
+                            value={invitationCode}
+                            onChangeText={(text) => setInvitationCode(text.toUpperCase())}
+                            autoCapitalize="characters"
+                            maxLength={10}
+                          />
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        style={[
+                          styles.registerMethodOption,
+                          registerMethod === 'license' && styles.registerMethodOptionSelected
+                        ]}
+                        onPress={() => setRegisterMethod('license')}
+                      >
+                        <View style={styles.registerMethodRadio}>
+                          {registerMethod === 'license' && <View style={styles.registerMethodRadioInner} />}
+                        </View>
+                        <View style={styles.registerMethodOptionContent}>
+                          <Text style={[styles.registerMethodOptionTitle, registerMethod === 'license' && styles.registerMethodOptionTitleSelected]}>
+                            <Ionicons name="person-add-outline" size={16} color={registerMethod === 'license' ? '#F59E0B' : '#9CA3AF'} /> Solicitar aprobación
+                          </Text>
+                          <Text style={styles.registerMethodOptionDesc}>Introduce la licencia de un taxista para que apruebe tu registro</Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {registerMethod === 'license' && (
+                        <View style={[styles.inputContainer, { marginTop: 8, marginBottom: 8 }]}>
+                          <Ionicons name="document-text-outline" size={20} color="#F59E0B" style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.loginScreenInput}
+                            placeholder="Licencia del taxista que te aprueba *"
+                            placeholderTextColor="#64748B"
+                            value={sponsorLicense}
+                            onChangeText={setSponsorLicense}
+                            keyboardType="numeric"
+                            maxLength={10}
+                          />
+                        </View>
+                      )}
+                    </View>
 
                     {/* Privacy Policy Content */}
                     <View style={styles.registerPolicyBox}>
