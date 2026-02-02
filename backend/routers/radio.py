@@ -51,6 +51,10 @@ class RadioConnectionManager:
         self.user_info: Dict[str, dict] = {}
         # channel_id -> currently transmitting user_id
         self.transmitting: Dict[int, Optional[str]] = {i: None for i in range(1, NUM_CHANNELS + 1)}
+        # user_id -> transmission start time (for tracking radio activity points)
+        self.transmission_start_times: Dict[str, datetime] = {}
+        # user_id -> accumulated seconds without points (for tracking partial minutes)
+        self.accumulated_seconds: Dict[str, int] = {}
     
     async def connect(self, websocket: WebSocket, channel: int, user_id: str, user_info: dict):
         """Connect a user to a radio channel."""
