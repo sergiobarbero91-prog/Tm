@@ -560,6 +560,14 @@ async def approve_registration_request(
         {"$set": {"status": "approved", "resolved_at": now, "created_user_id": new_user["id"]}}
     )
     
+    # Award points for approving registration
+    await add_points(
+        current_user["id"],
+        "approve_registration",
+        POINTS_CONFIG["approve_registration"],
+        f"Aprobó registro de {reg_request['username']}"
+    )
+    
     logger.info(f"User {reg_request['username']} approved by {current_user['username']}")
     
     return {"message": f"Usuario {reg_request['username']} aprobado correctamente", "user_id": new_user["id"]}
