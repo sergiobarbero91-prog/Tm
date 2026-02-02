@@ -158,10 +158,15 @@ async def vote_event(
             raise HTTPException(status_code=404, detail="Evento no encontrado")
         
         user_id = current_user["id"]
+        event_owner_id = event.get("user_id")
         liked_by = event.get("liked_by", [])
         disliked_by = event.get("disliked_by", [])
         likes = event.get("likes", 0)
         dislikes = event.get("dislikes", 0)
+        
+        # Track if this is a NEW like (not removing previous like or changing vote)
+        was_liked = user_id in liked_by
+        is_new_like = request.vote_type == "like" and not was_liked
         
         # Remove previous vote if exists
         if user_id in liked_by:
@@ -189,6 +194,15 @@ async def vote_event(
                 "dislikes": dislikes
             }}
         )
+        
+        # Award points to event owner for receiving a NEW like (not self-like)
+        if is_new_like and event_owner_id and event_owner_id != user_id:
+            await add_points(
+                event_owner_id,
+                "receive_like",
+                POINTS_CONFIG["receive_like"],
+                f"Like recibido en evento: {event.get('description', '')[:30]}"
+            )
         
         return {
             "success": True,
