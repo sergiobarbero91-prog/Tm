@@ -117,6 +117,77 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+# ============== INVITATION & REGISTRATION MODELS ==============
+
+class InvitationCreate(BaseModel):
+    """Model for creating an invitation code"""
+    note: Optional[str] = None  # Optional note about who the invitation is for
+
+class InvitationResponse(BaseModel):
+    """Response model for invitation"""
+    id: str
+    code: str
+    created_by_id: str
+    created_by_username: str
+    created_by_license: str
+    note: Optional[str] = None
+    used: bool = False
+    used_by_id: Optional[str] = None
+    used_by_username: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+
+class RegistrationRequestCreate(BaseModel):
+    """Model for creating a registration request"""
+    username: str
+    password: str
+    full_name: str
+    license_number: str
+    phone: Optional[str] = None
+    preferred_shift: Optional[str] = "all"
+    sponsor_license: str  # License of the user who will approve
+
+class RegistrationRequestResponse(BaseModel):
+    """Response model for registration request"""
+    id: str
+    username: str
+    full_name: str
+    license_number: str
+    phone: Optional[str] = None
+    sponsor_license: str
+    sponsor_username: Optional[str] = None
+    sponsor_full_name: Optional[str] = None
+    status: str  # pending, approved, rejected
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+
+class RegisterWithInvitation(BaseModel):
+    """Model for registering with an invitation code"""
+    invitation_code: str
+    username: str
+    password: str
+    full_name: str
+    license_number: str
+    phone: Optional[str] = None
+    preferred_shift: Optional[str] = "all"
+
+class SponsorInfo(BaseModel):
+    """Info about the user who invited/approved"""
+    id: str
+    username: str
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    registration_method: str  # 'invitation' or 'approval'
+
+class ReferralInfo(BaseModel):
+    """Info about users invited/approved by current user"""
+    id: str
+    username: str
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    registration_method: str  # 'invitation' or 'approval'
+    created_at: datetime
+
 # ============== AUTH HELPER FUNCTIONS ==============
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
