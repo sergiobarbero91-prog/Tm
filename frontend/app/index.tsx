@@ -461,6 +461,43 @@ export default function TransportMeter() {
   const [sponsorLicense, setSponsorLicense] = useState('');
   const [registrationRequestSent, setRegistrationRequestSent] = useState(false);
   
+  // Invitations & Referrals states
+  const [myInvitations, setMyInvitations] = useState<Array<{
+    id: string;
+    code: string;
+    note?: string;
+    used: boolean;
+    used_by_username?: string;
+    created_at: string;
+    expires_at: string;
+  }>>([]);
+  const [pendingRequests, setPendingRequests] = useState<Array<{
+    id: string;
+    username: string;
+    full_name: string;
+    license_number: string;
+    phone?: string;
+    created_at: string;
+  }>>([]);
+  const [myReferrals, setMyReferrals] = useState<Array<{
+    id: string;
+    username: string;
+    full_name?: string;
+    license_number?: string;
+    registration_method: string;
+    created_at: string;
+  }>>([]);
+  const [mySponsor, setMySponsor] = useState<{
+    id: string;
+    username: string;
+    full_name?: string;
+    license_number?: string;
+    registration_method: string;
+  } | null>(null);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [showInvitationsSection, setShowInvitationsSection] = useState(false);
+  
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileFullName, setProfileFullName] = useState('');
