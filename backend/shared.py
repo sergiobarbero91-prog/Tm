@@ -52,6 +52,10 @@ license_alerts_collection = db['license_alerts']
 trains_history_collection = db['trains_history']
 flights_history_collection = db['flights_history']
 station_alerts_collection = db['station_alerts']  # For "sin taxis" and "barandilla" alerts
+invitations_collection = db['invitations']  # For invitation codes
+registration_requests_collection = db['registration_requests']  # For pending registrations
+support_tickets_collection = db['support_tickets']
+support_messages_collection = db['support_messages']
 
 # ============== USER MODELS ==============
 
