@@ -4236,10 +4236,14 @@ export default function TransportMeter() {
         fetchStreetData();
       } else if (activeTab === 'trains' || activeTab === 'flights') {
         console.log(`[TimeRange] Selected time range changed to: ${selectedTimeRange} for ${activeTab}`);
-        fetchData();
+        // Use ref to avoid dependency on fetchData which changes frequently
+        if (fetchDataRef.current) {
+          fetchDataRef.current();
+        }
       }
     }
-  }, [selectedTimeRange, currentUser, activeTab, fetchStreetData, fetchData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTimeRange, currentUser, activeTab, fetchStreetData]); // fetchData excluded - using ref
 
   // Fetch station alerts periodically
   useEffect(() => {
