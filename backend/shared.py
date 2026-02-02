@@ -56,6 +56,41 @@ invitations_collection = db['invitations']  # For invitation codes
 registration_requests_collection = db['registration_requests']  # For pending registrations
 support_tickets_collection = db['support_tickets']
 support_messages_collection = db['support_messages']
+points_history_collection = db['points_history']  # For tracking point transactions
+
+# ============== POINTS SYSTEM CONSTANTS ==============
+
+POINTS_CONFIG = {
+    # Positive actions
+    "checkin": 5,
+    "checkout": 5,
+    "alert_real": 10,  # Real barandilla/sin taxis alert
+    "create_event": 5,
+    "receive_like": 2,
+    "radio_transmission": 3,
+    "invite_used": 20,  # When invitation code is used
+    "approve_registration": 15,
+    # Penalties
+    "alert_false": -10,  # False alert reported
+    "alert_cancel_early": -5,  # Cancel alert too soon
+}
+
+LEVEL_THRESHOLDS = [
+    (0, "Novato", "🥉"),
+    (101, "Activo", "🥈"),
+    (501, "Veterano", "🥇"),
+    (1001, "Leyenda", "💎"),
+]
+
+def get_user_level(points: int) -> tuple:
+    """Get user level name and badge based on points"""
+    level_name = "Novato"
+    level_badge = "🥉"
+    for threshold, name, badge in LEVEL_THRESHOLDS:
+        if points >= threshold:
+            level_name = name
+            level_badge = badge
+    return level_name, level_badge
 
 # ============== USER MODELS ==============
 
