@@ -500,6 +500,7 @@ export default function TransportMeter() {
   
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [profileFullName, setProfileFullName] = useState('');
   const [profileLicenseNumber, setProfileLicenseNumber] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
