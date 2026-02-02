@@ -230,18 +230,152 @@ class PointsSystemTester:
             self.log_result("Vote Event Points", False, f"Unexpected points change: {initial_points} -> {final_points}")
             return False
     
+    async def create_test_user(self) -> Optional[str]:
+        """Create a test user via invitation system"""
+        # First create an invitation as admin
+        invitation_data = {"note": "Test user for points testing"}
+        success, invite_response = await self.make_request("POST", "/auth/invitations", self.admin_token, invitation_data)
+        
+        if not success or "code" not in invite_response:
+            self.log_result("Create Test User", False, "Failed to create invitation", invite_response)
+            return None
+        
+        invitation_code = invite_response["code"]
+        
+        # Register new user with invitation
+        register_data = {
+            "invitation_code": invitation_code,
+            "username": "testuser123",
+            "password": "testpass123",
+            "full_name": "Test User",
+            "license_number": "12345",
+            "phone": "+34600123456",
+            "preferred_shift": "all"
+        }
+        
+        success, register_response = await self.make_request("POST", "/auth/register-with-invitation", data=register_data)
+        
+        if success and "access_token" in register_response:
+            self.test_user_token = register_response["access_token"]
+            self.log_result("Create Test User", True, f"Created test user: testuser123")
+            return self.test_user_token
+        else:
+            self.log_result("Create Test User", False, "Failed to register test user", register_response)
+            return None
+
     async def test_event_like_points_different_user(self) -> bool:
         """Test that points are awarded when different user likes an event"""
-        # This test would require creating a second user, which is complex
-        # For now, we'll just verify the vote endpoint works
-        
-        # Create an event first
-        event_id = await self.test_create_event()
-        if not event_id:
+        # Create a test user first
+        test_token = await self.create_test_user()
+        if not test_token:
             return False
         
-        # Test voting (this will be self-vote, so no points awarded)
-        return await self.test_vote_event_points(event_id)
+        # Admin creates an event
+        event_data = {
+            "location": "Aeropuerto T4",
+            "description": "Mucho tráfico en llegadas",
+            "event_time": "15:45"
+        }
+        
+        success, event_response = await self.make_request("POST", "/events", self.admin_token, event_data)
+        if not success or not event_response.get("success"):
+            self.log_result("Event Like Points Different User", False, "Failed to create event", event_response)
+            return False
+        
+        event_id = event_response["event_id"]
+        
+        # Get admin's points before the like
+        success, points_before = await self.make_request("GET", "/points/my-points", self.admin_token)
+        if not success:
+            self.log_result("Event Like Points Different User", False, "Failed to get admin points before", points_before)
+            return False
+        
+        initial_points = points_before["total_points"]
+        
+        # Test user likes the admin's event
+        vote_data = {"vote_type": "like"}
+        success, vote_response = await self.make_request("POST", f"/events/{event_id}/vote", test_token, vote_data)
+        
+        if not success:
+            self.log_result("Event Like Points Different User", False, "Failed to vote on event", vote_response)
+            return False
+        
+        # Wait for points to be processed
+        await asyncio.sleep(1)
+        
+        # Get admin's points after the like
+        success, points_after = await self.make_request("GET", "/points/my-points", self.admin_token)
+        if not success:
+            self.log_result("Event Like Points Different User", False, "Failed to get admin points after", points_after)
+            return False
+        
+        final_points = points_after["total_points"]
+        points_gained = final_points - initial_points
+        
+        # Admin should have received 5 points for the like
+        if points_gained == 5:
+            self.log_result("Event Like Points Different User", True, f"Admin correctly received 5 points for event like ({initial_points} -> {final_points})")
+            return True
+        else:
+            self.log_result("Event Like Points Different User", False, f"Expected 5 points, got {points_gained} points ({initial_points} -> {final_points})")
+            return False
+
+    async def test_invitation_points(self) -> bool:
+        """Test that points are awarded for successful invitations"""
+        # Get admin's points before creating invitation
+        success, points_before = await self.make_request("GET", "/points/my-points", self.admin_token)
+        if not success:
+            self.log_result("Invitation Points", False, "Failed to get admin points before", points_before)
+            return False
+        
+        initial_points = points_before["total_points"]
+        
+        # Create invitation
+        invitation_data = {"note": "Test invitation for points"}
+        success, invite_response = await self.make_request("POST", "/auth/invitations", self.admin_token, invitation_data)
+        
+        if not success or "code" not in invite_response:
+            self.log_result("Invitation Points", False, "Failed to create invitation", invite_response)
+            return False
+        
+        invitation_code = invite_response["code"]
+        
+        # Register new user with invitation
+        register_data = {
+            "invitation_code": invitation_code,
+            "username": "invitetest456",
+            "password": "testpass456",
+            "full_name": "Invite Test User",
+            "license_number": "67890",
+            "phone": "+34600456789",
+            "preferred_shift": "day"
+        }
+        
+        success, register_response = await self.make_request("POST", "/auth/register-with-invitation", data=register_data)
+        
+        if not success:
+            self.log_result("Invitation Points", False, "Failed to register with invitation", register_response)
+            return False
+        
+        # Wait for points to be processed
+        await asyncio.sleep(1)
+        
+        # Get admin's points after invitation is used
+        success, points_after = await self.make_request("GET", "/points/my-points", self.admin_token)
+        if not success:
+            self.log_result("Invitation Points", False, "Failed to get admin points after", points_after)
+            return False
+        
+        final_points = points_after["total_points"]
+        points_gained = final_points - initial_points
+        
+        # Admin should have received 50 points for successful invitation
+        if points_gained == 50:
+            self.log_result("Invitation Points", True, f"Admin correctly received 50 points for invitation ({initial_points} -> {final_points})")
+            return True
+        else:
+            self.log_result("Invitation Points", False, f"Expected 50 points, got {points_gained} points ({initial_points} -> {final_points})")
+            return False
     
     async def run_all_tests(self):
         """Run all tests in sequence"""
