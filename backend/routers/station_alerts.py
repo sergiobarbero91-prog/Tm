@@ -11,8 +11,10 @@ import pytz
 from shared import (
     station_alerts_collection,
     users_collection,
-    get_current_user_required
+    get_current_user_required,
+    POINTS_CONFIG
 )
+from routers.points import add_points
 
 router = APIRouter(prefix="/station-alerts", tags=["Station Alerts"])
 
