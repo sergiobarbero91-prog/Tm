@@ -917,7 +917,7 @@ export default function TransportMeter() {
     }
   };
 
-  // Handle registration step 2 - Create account
+  // Handle registration step 2 - Create account (with invitation or license request)
   const handleRegister = async () => {
     if (!acceptPrivacyPolicy) {
       Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
@@ -929,42 +929,87 @@ export default function TransportMeter() {
       return;
     }
 
+    if (!registerMethod) {
+      Alert.alert('Error', 'Debes seleccionar un método de registro');
+      return;
+    }
+
+    if (registerMethod === 'invitation' && !invitationCode.trim()) {
+      Alert.alert('Error', 'Debes introducir el código de invitación');
+      return;
+    }
+
+    if (registerMethod === 'license' && !sponsorLicense.trim()) {
+      Alert.alert('Error', 'Debes introducir la licencia del taxista que te aprueba');
+      return;
+    }
+
     setRegisterLoading(true);
     try {
-      const response = await axios.post(`${API_BASE}/api/auth/register`, {
-        username: registerUsername,
-        password: registerPassword,
-        full_name: registerFullName,
-        license_number: registerLicenseNumber,
-        phone: registerPhone || null,
-        preferred_shift: registerPreferredShift
-      });
+      if (registerMethod === 'invitation') {
+        // Register with invitation code - immediate account creation
+        const response = await axios.post(`${API_BASE}/api/auth/register-with-invitation`, {
+          invitation_code: invitationCode.trim().toUpperCase(),
+          username: registerUsername,
+          password: registerPassword,
+          full_name: registerFullName,
+          license_number: registerLicenseNumber,
+          phone: registerPhone || null,
+          preferred_shift: registerPreferredShift
+        });
 
-      const { access_token, user } = response.data;
-      await AsyncStorage.setItem('token', access_token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      
-      setCurrentUser(user);
-      
-      // Clear registration form
-      setRegisterUsername('');
-      setRegisterPassword('');
-      setRegisterPasswordConfirm('');
-      setRegisterFullName('');
-      setRegisterLicenseNumber('');
-      setRegisterPhone('');
-      setRegisterPreferredShift('all');
-      setAcceptPrivacyPolicy(false);
-      setAcceptGoodUse(false);
-      setRegisterStep(1);
-      setShowRegister(false);
-      
-      Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
+        const { access_token, user } = response.data;
+        await AsyncStorage.setItem('token', access_token);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        
+        setCurrentUser(user);
+        resetRegisterForm();
+        Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
+      } else {
+        // Register with license approval - request pending
+        await axios.post(`${API_BASE}/api/auth/registration-requests`, {
+          username: registerUsername,
+          password: registerPassword,
+          full_name: registerFullName,
+          license_number: registerLicenseNumber,
+          phone: registerPhone || null,
+          preferred_shift: registerPreferredShift,
+          sponsor_license: sponsorLicense.trim()
+        });
+
+        setRegistrationRequestSent(true);
+        Alert.alert(
+          'Solicitud Enviada', 
+          `Tu solicitud ha sido enviada al taxista con licencia ${sponsorLicense}. Cuando la apruebe, podrás iniciar sesión con tu usuario y contraseña.`,
+          [{ text: 'Entendido', onPress: () => {
+            resetRegisterForm();
+          }}]
+        );
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Error al registrar usuario');
+      Alert.alert('Error', error.response?.data?.detail || 'Error al procesar el registro');
     } finally {
       setRegisterLoading(false);
     }
+  };
+
+  // Reset registration form
+  const resetRegisterForm = () => {
+    setRegisterUsername('');
+    setRegisterPassword('');
+    setRegisterPasswordConfirm('');
+    setRegisterFullName('');
+    setRegisterLicenseNumber('');
+    setRegisterPhone('');
+    setRegisterPreferredShift('all');
+    setAcceptPrivacyPolicy(false);
+    setAcceptGoodUse(false);
+    setRegisterStep(1);
+    setRegisterMethod(null);
+    setInvitationCode('');
+    setSponsorLicense('');
+    setRegistrationRequestSent(false);
+    setShowRegister(false);
   };
 
   // Change password function
