@@ -10064,11 +10064,6 @@ export default function TransportMeter() {
           </ScrollView>
         </View>
       )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      )}
 
       {/* Change Password Modal */}
       {showChangePasswordModal && (
