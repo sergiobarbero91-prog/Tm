@@ -10067,6 +10067,48 @@ export default function TransportMeter() {
                 </View>
               </View>
 
+              {/* Points & Level Section */}
+              <View style={styles.profilePointsSection}>
+                <TouchableOpacity 
+                  style={styles.pointsCard}
+                  onPress={openRankingModal}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pointsHeader}>
+                    <Text style={styles.pointsBadge}>{myPoints?.level_badge || '🥉'}</Text>
+                    <Text style={styles.pointsLevel}>{myPoints?.level_name || 'Novato'}</Text>
+                  </View>
+                  <View style={styles.pointsBody}>
+                    <Text style={styles.pointsNumber}>{myPoints?.total_points || 0}</Text>
+                    <Text style={styles.pointsLabel}>puntos</Text>
+                  </View>
+                  {myPoints?.next_level_name && (
+                    <View style={styles.pointsProgress}>
+                      <Text style={styles.pointsProgressText}>
+                        {myPoints.points_to_next_level} pts para {myPoints.next_level_name}
+                      </Text>
+                      <View style={styles.pointsProgressBar}>
+                        <View 
+                          style={[
+                            styles.pointsProgressFill,
+                            { 
+                              width: `${Math.max(5, Math.min(95, 
+                                100 - (myPoints.points_to_next_level / (myPoints.total_points + myPoints.points_to_next_level) * 100)
+                              ))}%` 
+                            }
+                          ]} 
+                        />
+                      </View>
+                    </View>
+                  )}
+                  <View style={styles.pointsFooter}>
+                    <Ionicons name="trophy" size={14} color="#F59E0B" />
+                    <Text style={styles.pointsFooterText}>Ver Ranking</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#64748B" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+
               {/* Invited Taxists Counter */}
               <View style={styles.profileStatsSection}>
                 <Text style={styles.profileStatsSectionTitle}>Mis Estadísticas</Text>
