@@ -10032,11 +10032,15 @@ export default function TransportMeter() {
                   style={styles.profileEditButton}
                   onPress={() => {
                     setShowProfileModal(false);
-                    setShowSettings(true);
+                    setProfileFullName(currentUser?.full_name || '');
+                    setProfileLicenseNumber(currentUser?.license_number || '');
+                    setProfilePhone(currentUser?.phone || '');
+                    setProfilePreferredShift((currentUser?.preferred_shift as 'all' | 'day' | 'night') || 'all');
+                    setShowEditProfileModal(true);
                   }}
                 >
-                  <Ionicons name="settings-outline" size={18} color="#6366F1" />
-                  <Text style={styles.profileEditButtonText}>Editar en Ajustes</Text>
+                  <Ionicons name="create-outline" size={18} color="#6366F1" />
+                  <Text style={styles.profileEditButtonText}>Editar Perfil</Text>
                 </TouchableOpacity>
               </View>
               
