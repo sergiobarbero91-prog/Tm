@@ -18,8 +18,10 @@ from shared import (
     RegistrationRequestCreate, RegistrationRequestResponse,
     RegisterWithInvitation, SponsorInfo, ReferralInfo,
     verify_password, get_password_hash, create_access_token,
-    get_current_user_required, logger
+    get_current_user_required, logger,
+    POINTS_CONFIG
 )
+from routers.points import add_points
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
