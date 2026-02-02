@@ -16336,6 +16336,282 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // Points Section Styles
+  profilePointsSection: {
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  pointsCard: {
+    backgroundColor: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#6366F140',
+    backgroundColor: '#4F46E5',
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  pointsBadge: {
+    fontSize: 24,
+  },
+  pointsLevel: {
+    color: '#E0E7FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pointsBody: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  pointsNumber: {
+    color: '#FFFFFF',
+    fontSize: 42,
+    fontWeight: '700',
+  },
+  pointsLabel: {
+    color: '#E0E7FF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  pointsProgress: {
+    marginTop: 12,
+  },
+  pointsProgressText: {
+    color: '#C7D2FE',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  pointsProgressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  pointsProgressFill: {
+    height: '100%',
+    backgroundColor: '#34D399',
+    borderRadius: 3,
+  },
+  pointsFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  pointsFooterText: {
+    color: '#E0E7FF',
+    fontSize: 13,
+    flex: 1,
+  },
+  // Ranking Modal Styles
+  rankingModal: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    width: '95%',
+    maxWidth: 450,
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  rankingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  rankingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rankingTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  myRankingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4F46E5',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    gap: 12,
+  },
+  myRankingBadge: {
+    fontSize: 32,
+  },
+  myRankingInfo: {
+    flex: 1,
+  },
+  myRankingName: {
+    color: '#E0E7FF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  myRankingLevel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  myRankingPoints: {
+    alignItems: 'flex-end',
+  },
+  myRankingPointsNumber: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  myRankingPointsLabel: {
+    color: '#E0E7FF',
+    fontSize: 12,
+  },
+  rankingList: {
+    maxHeight: 280,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  rankingLoading: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  rankingLoadingText: {
+    color: '#9CA3AF',
+    marginTop: 10,
+    fontSize: 14,
+  },
+  rankingEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  rankingEmptyText: {
+    color: '#9CA3AF',
+    marginTop: 10,
+    fontSize: 14,
+  },
+  rankingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  rankingItemHighlight: {
+    backgroundColor: '#312E81',
+    borderWidth: 1,
+    borderColor: '#6366F1',
+  },
+  rankingItemTop: {
+    backgroundColor: '#1A1E2E',
+  },
+  rankingPosition: {
+    width: 36,
+    alignItems: 'center',
+  },
+  rankingMedal: {
+    fontSize: 24,
+  },
+  rankingPositionNumber: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rankingUserInfo: {
+    flex: 1,
+  },
+  rankingUserName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rankingUserNameHighlight: {
+    color: '#A5B4FC',
+  },
+  rankingLevelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  rankingUserBadge: {
+    fontSize: 12,
+  },
+  rankingUserLevel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  rankingUserPoints: {
+    alignItems: 'flex-end',
+  },
+  rankingUserPointsNumber: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  rankingPointsHighlight: {
+    color: '#A5B4FC',
+  },
+  rankingUserPointsLabel: {
+    color: '#9CA3AF',
+    fontSize: 10,
+  },
+  rankingHowTo: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
+  },
+  rankingHowToTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  rankingHowToList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rankingHowToItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  rankingHowToText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+  },
+  rankingCloseButton: {
+    marginHorizontal: 16,
+    marginVertical: 16,
+    backgroundColor: '#6366F1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  rankingCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   // Chat styles
   chatButton: {
     backgroundColor: '#6366F1',
