@@ -6766,11 +6766,10 @@ export default function TransportMeter() {
             <TouchableOpacity 
               style={styles.userButton}
               onPress={() => {
-                // Initialize profile fields with current user data
-                setProfileFullName(currentUser?.full_name || '');
-                setProfileLicenseNumber(currentUser?.license_number || '');
-                setProfilePhone(currentUser?.phone || '');
-                setProfilePreferredShift(currentUser?.preferred_shift || 'all');
+                // Load referrals data when opening profile
+                fetchMyReferrals();
+                fetchMyInvitations();
+                fetchPendingRequestsCount();
                 setShowProfileModal(true);
               }}
             >
