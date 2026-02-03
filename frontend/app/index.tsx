@@ -10245,6 +10245,95 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Report Modal */}
+      {showReportModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.reportModal}>
+            <View style={styles.reportModalHeader}>
+              <Ionicons name="flag" size={32} color="#DC2626" />
+              <Text style={styles.reportModalTitle}>Crear Reporte</Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {reportedUsername && (
+              <View style={styles.reportTargetInfo}>
+                <Ionicons name="person" size={18} color="#F59E0B" />
+                <Text style={styles.reportTargetText}>Reportando a: {reportedUsername}</Text>
+              </View>
+            )}
+
+            <Text style={styles.reportLabel}>Tipo de reporte *</Text>
+            <View style={styles.reportTypeContainer}>
+              {[
+                { id: 'inappropriate', label: 'Comportamiento inapropiado', icon: 'warning' },
+                { id: 'spam', label: 'Spam', icon: 'mail-unread' },
+                { id: 'false_info', label: 'Información falsa', icon: 'alert-circle' },
+                { id: 'harassment', label: 'Acoso', icon: 'hand-left' },
+                { id: 'other', label: 'Otro', icon: 'ellipsis-horizontal' },
+              ].map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[
+                    styles.reportTypeButton,
+                    reportType === type.id && styles.reportTypeButtonActive
+                  ]}
+                  onPress={() => setReportType(type.id)}
+                >
+                  <Ionicons 
+                    name={type.icon as any} 
+                    size={18} 
+                    color={reportType === type.id ? '#FFFFFF' : '#9CA3AF'} 
+                  />
+                  <Text style={[
+                    styles.reportTypeText,
+                    reportType === type.id && styles.reportTypeTextActive
+                  ]}>
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.reportLabel}>Descripción detallada *</Text>
+            <TextInput
+              style={styles.reportTextArea}
+              placeholder="Describe el problema con el mayor detalle posible (mínimo 10 caracteres)..."
+              placeholderTextColor="#6B7280"
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.reportButtons}>
+              <TouchableOpacity
+                style={styles.reportCancelButton}
+                onPress={() => setShowReportModal(false)}
+              >
+                <Text style={styles.reportCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reportSubmitButton, reportLoading && styles.reportButtonDisabled]}
+                onPress={createReport}
+                disabled={reportLoading}
+              >
+                {reportLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                    <Text style={styles.reportSubmitButtonText}>Enviar Reporte</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Profile View Modal (Read-Only) */}
       {showProfileModal && (
         <View style={styles.modalOverlay}>
