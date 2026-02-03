@@ -155,6 +155,157 @@ export default function HelpPage() {
           </View>
         </Section>
 
+        {/* Sistema de Puntos */}
+        <Section icon="trophy" title="Sistema de Puntos y Niveles">
+          <Text style={styles.paragraph}>
+            Gana puntos participando activamente en la comunidad. Los puntos te permiten subir de nivel 
+            y desbloquear privilegios especiales.
+          </Text>
+          
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>🎯 Cómo ganar puntos:</Text>
+          <View style={styles.pointsTable}>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#10B981' }]}>
+                <Text style={styles.pointsBadgeText}>+5</Text>
+              </View>
+              <Text style={styles.pointsAction}>Check-in / Check-out en estación o terminal</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.pointsBadgeText}>+10</Text>
+              </View>
+              <Text style={styles.pointsAction}>Crear una alerta válida (sin taxis / barandilla)</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#EF4444' }]}>
+                <Text style={styles.pointsBadgeText}>+5</Text>
+              </View>
+              <Text style={styles.pointsAction}>Recibir un "like" en un evento que creaste</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#6366F1' }]}>
+                <Text style={styles.pointsBadgeText}>+1</Text>
+              </View>
+              <Text style={styles.pointsAction}>Por cada minuto de transmisión en la radio</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#8B5CF6' }]}>
+                <Text style={styles.pointsBadgeText}>+50</Text>
+              </View>
+              <Text style={styles.pointsAction}>Invitar a un nuevo taxista que se registre</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#EC4899' }]}>
+                <Text style={styles.pointsBadgeText}>+25</Text>
+              </View>
+              <Text style={styles.pointsAction}>Aprobar la solicitud de registro de un nuevo usuario</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>🏅 Niveles:</Text>
+          <View style={styles.levelsTable}>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥉</Text>
+              <Text style={styles.levelName}>Novato</Text>
+              <Text style={styles.levelPoints}>0+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥈</Text>
+              <Text style={styles.levelName}>Activo</Text>
+              <Text style={styles.levelPoints}>101+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥇</Text>
+              <Text style={styles.levelName}>Veterano</Text>
+              <Text style={styles.levelPoints}>501+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>💎</Text>
+              <Text style={styles.levelName}>Leyenda</Text>
+              <Text style={styles.levelPoints}>1001+ puntos</Text>
+            </View>
+          </View>
+
+          <View style={styles.tipBox}>
+            <Ionicons name="star" size={20} color="#F59E0B" />
+            <Text style={styles.tipText}>
+              Al alcanzar 1500 puntos, recibirás automáticamente una petición para convertirte en Moderador.
+              Con 3000 puntos, podrás optar a ser Administrador.
+            </Text>
+          </View>
+        </Section>
+
+        {/* Sistema de Invitaciones */}
+        <Section icon="person-add" title="Sistema de Invitaciones">
+          <Text style={styles.paragraph}>
+            Para mantener una comunidad de taxistas verificados, el registro de nuevos usuarios 
+            requiere la aprobación de un taxista existente.
+          </Text>
+
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>📨 Cómo invitar a un nuevo taxista:</Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>Abre tu perfil tocando tu nombre de usuario</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca en "Invitaciones Activas" o el botón verde "Crear Código de Invitación"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Se generará un código único de 8 caracteres</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
+              <Text style={styles.stepText}>Comparte el código con el nuevo taxista (caduca en 7 días)</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>✅ Aprobar solicitudes:</Text>
+          <Text style={styles.paragraph}>
+            Si un nuevo usuario se registra usando tu número de licencia como referencia, 
+            recibirás una solicitud de aprobación en tu perfil.
+          </Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>El contador "Solicitudes Pendientes" mostrará un badge</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca para ver los detalles del solicitante</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Aprueba si conoces al taxista, rechaza si no</Text>
+            </View>
+          </View>
+
+          <View style={styles.warningBox}>
+            <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+            <View style={styles.warningContent}>
+              <Text style={[styles.warningTitle, { color: '#86EFAC' }]}>💡 IMPORTANTE</Text>
+              <Text style={[styles.warningText, { color: '#D1FAE5' }]}>
+                Solo invita o aprueba a taxistas que conozcas personalmente y que tengan licencia válida.
+                Eres responsable de los usuarios que invites a la plataforma.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.rewardsBox}>
+            <Ionicons name="gift" size={24} color="#F59E0B" />
+            <View style={styles.rewardsContent}>
+              <Text style={styles.rewardsTitle}>🎁 Recompensas por invitar</Text>
+              <Text style={styles.rewardsText}>
+                • +50 puntos cuando tu invitado se registre{'\n'}
+                • +25 puntos por aprobar una solicitud{'\n'}
+                • Ver tu contador de "Taxistas Invitados" crecer
+              </Text>
+            </View>
+          </View>
+        </Section>
+
         {/* Juegos */}
         <Section icon="game-controller" title="Juegos Online">
           <Text style={styles.paragraph}>
