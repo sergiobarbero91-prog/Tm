@@ -2738,6 +2738,7 @@ api_router.include_router(radio_router.router)
 api_router.include_router(games_router.router)
 api_router.include_router(support_router.router)
 api_router.include_router(points_router.router)
+api_router.include_router(moderation_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
