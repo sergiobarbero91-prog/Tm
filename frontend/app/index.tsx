@@ -17453,6 +17453,40 @@ const styles = StyleSheet.create({
   reportButtonDisabled: {
     opacity: 0.6,
   },
+  reportMediaContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  reportMediaButton: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderStyle: 'dashed',
+  },
+  reportMediaButtonText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  reportMediaPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#064E3B',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  reportMediaPreviewText: {
+    color: '#10B981',
+    fontSize: 13,
+    flex: 1,
+  },
   // Moderation Tab Styles
   moderationBadge: {
     backgroundColor: '#F59E0B',
