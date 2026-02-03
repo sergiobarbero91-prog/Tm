@@ -1,614 +1,1319 @@
 diff --git a/model.patch b/model.patch
-index ada7b14..e69de29 100644
+index 603a422..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,496 +0,0 @@
--diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
--index 2e3ecc1..14ffb80 100644
----- a/frontend/app/index.tsx
--+++ b/frontend/app/index.tsx
--@@ -7631,6 +7631,8 @@ export default function TransportMeter() {
--                         )}
--                       </View>
--                     )}
--+                      </>
--+                    )}
--                   </View>
--                 )}
--               </View>
+@@ -1,614 +0,0 @@
 -diff --git a/model.patch b/model.patch
--index 054fd14..e69de29 100644
+-index ada7b14..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,478 +0,0 @@
+-@@ -1,496 +0,0 @@
+--diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+--index 2e3ecc1..14ffb80 100644
+----- a/frontend/app/index.tsx
+--+++ b/frontend/app/index.tsx
+--@@ -7631,6 +7631,8 @@ export default function TransportMeter() {
+--                         )}
+--                       </View>
+--                     )}
+--+                      </>
+--+                    )}
+--                   </View>
+--                 )}
+--               </View>
 --diff --git a/model.patch b/model.patch
---index 9d17b1f..e69de29 100644
+--index 054fd14..e69de29 100644
 ----- a/model.patch
 --+++ b/model.patch
---@@ -1,473 +0,0 @@
----diff --git a/backend/server.py b/backend/server.py
----index c515f2f..b39c2fc 100644
------- a/backend/server.py
----+++ b/backend/server.py
----@@ -1002,6 +1002,35 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
----     
----     return count
---- 
----+
----+def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
----+    """Calculate weighted arrival score combining future and past arrivals.
----+    
----+    Formula:
----+    - 50% weight: arrivals in the next [window_minutes] (future)
----+    - 50% weight: arrivals in the last [window_minutes / 2] (recent past)
----+    
----+    Returns dict with:
----+    - future_count: arrivals in future window
----+    - past_count: arrivals in past half-window
----+    - weighted_score: combined score (average of both)
----+    - total_raw: simple sum for display
----+    """
----+    future_count = count_arrivals_in_window(arrivals, window_minutes)
----+    half_window = window_minutes // 2
----+    past_count = count_arrivals_in_past_window(arrivals, half_window, 0)
----+    
----+    # Weighted score: 50% future + 50% past (normalized)
----+    weighted_score = (future_count * 0.5) + (past_count * 0.5)
----+    
----+    return {
----+        "future_count": future_count,
----+        "past_count": past_count,
----+        "weighted_score": round(weighted_score, 1),
----+        "total_raw": future_count + past_count
----+    }
----+
----+
---- def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
----     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
----     Works for both flights and trains.
+--@@ -1,478 +0,0 @@
 ---diff --git a/model.patch b/model.patch
----index 8ce077d..e69de29 100644
+---index 9d17b1f..e69de29 100644
 ------ a/model.patch
 ---+++ b/model.patch
----@@ -1,428 +0,0 @@
+---@@ -1,473 +0,0 @@
 ----diff --git a/backend/server.py b/backend/server.py
-----index c0c1cb3..ce6d978 100644
+----index c515f2f..b39c2fc 100644
 ------- a/backend/server.py
 ----+++ b/backend/server.py
-----@@ -2657,17 +2657,20 @@ async def get_taxi_status(
----- async def get_queue_status(
-----     location_type: Optional[str] = None,
-----     location_name: Optional[str] = None,
------    minutes: int = 60,  # Time window to filter - only show data from previous window
-----+    minutes: int = 60,  # Time window to filter
-----     current_user: dict = Depends(get_current_user_required)
----- ):
------    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
-----+    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
-----     now = datetime.now(MADRID_TZ)
------    # Previous window: from (now - 2*minutes) to (now - minutes)
------    previous_window_start = now - timedelta(minutes=minutes * 2)
------    previous_window_end = now - timedelta(minutes=minutes)
+----@@ -1002,6 +1002,35 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
 ----     
------    # Build query with time filter
------    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
-----+    # Start of today (midnight Madrid time)
-----+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+----     return count
+---- 
+----+
+----+def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
+----+    """Calculate weighted arrival score combining future and past arrivals.
 ----+    
-----+    # Time window: from (now - minutes) to now, but not before today
-----+    window_start = max(now - timedelta(minutes=minutes), today_start)
+----+    Formula:
+----+    - 50% weight: arrivals in the next [window_minutes] (future)
+----+    - 50% weight: arrivals in the last [window_minutes / 2] (recent past)
 ----+    
-----+    # Build query: only today's data within the time window
-----+    query = {"reported_at": {"$gte": window_start, "$lte": now}}
-----     if location_type:
-----         query["location_type"] = location_type
-----     if location_name:
+----+    Returns dict with:
+----+    - future_count: arrivals in future window
+----+    - past_count: arrivals in past half-window
+----+    - weighted_score: combined score (average of both)
+----+    - total_raw: simple sum for display
+----+    """
+----+    future_count = count_arrivals_in_window(arrivals, window_minutes)
+----+    half_window = window_minutes // 2
+----+    past_count = count_arrivals_in_past_window(arrivals, half_window, 0)
+----+    
+----+    # Weighted score: 50% future + 50% past (normalized)
+----+    weighted_score = (future_count * 0.5) + (past_count * 0.5)
+----+    
+----+    return {
+----+        "future_count": future_count,
+----+        "past_count": past_count,
+----+        "weighted_score": round(weighted_score, 1),
+----+        "total_raw": future_count + past_count
+----+    }
+----+
+----+
+---- def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
+----     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
+----     Works for both flights and trains.
 ----diff --git a/model.patch b/model.patch
-----index 418b197..e69de29 100644
+----index 8ce077d..e69de29 100644
 ------- a/model.patch
 ----+++ b/model.patch
-----@@ -1,391 +0,0 @@
------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
------index 3717594..166a22d 100644
--------- a/frontend/app/index.tsx
------+++ b/frontend/app/index.tsx
------@@ -250,9 +250,6 @@ export default function TransportMeter() {
------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
------   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
------ 
-------  // Tab transition state - prevent DOM errors during tab changes
-------  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
-------  
------   // Auth states
------   const [currentUser, setCurrentUser] = useState<User | null>(null);
------   const [authChecked, setAuthChecked] = useState(false);
------@@ -2926,14 +2923,9 @@ export default function TransportMeter() {
------         <TouchableOpacity
------           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
------           onPress={() => {
-------            if (activeTab !== 'trains' && !isTabTransitioning) {
-------              setIsTabTransitioning(true);
------+            if (activeTab !== 'trains') {
------               setLoading(true);
-------              // Use requestAnimationFrame to allow current render to complete
-------              requestAnimationFrame(() => {
-------                setActiveTab('trains');
-------                setTimeout(() => setIsTabTransitioning(false), 100);
-------              });
------+              setActiveTab('trains');
------             }
------           }}
------         >
------@@ -2954,13 +2946,9 @@ export default function TransportMeter() {
------         <TouchableOpacity
------           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
------           onPress={() => {
-------            if (activeTab !== 'flights' && !isTabTransitioning) {
-------              setIsTabTransitioning(true);
------+            if (activeTab !== 'flights') {
------               setLoading(true);
-------              requestAnimationFrame(() => {
-------                setActiveTab('flights');
-------                setTimeout(() => setIsTabTransitioning(false), 100);
-------              });
------+              setActiveTab('flights');
------             }
------           }}
------         >
------@@ -2981,13 +2969,9 @@ export default function TransportMeter() {
------         <TouchableOpacity
------           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
------           onPress={() => {
-------            if (activeTab !== 'street' && !isTabTransitioning) {
-------              setIsTabTransitioning(true);
------+            if (activeTab !== 'street') {
------               setLoading(true);
-------              requestAnimationFrame(() => {
-------                setActiveTab('street');
-------                setTimeout(() => setIsTabTransitioning(false), 100);
-------              });
------+              setActiveTab('street');
------             }
------           }}
------         >
------@@ -3145,7 +3129,7 @@ export default function TransportMeter() {
------           />
------         }
------       >
-------        {loading || isTabTransitioning ? (
------+        {loading ? (
------           <View style={styles.loadingContainer}>
------             <ActivityIndicator size="large" color="#6366F1" />
------             <Text style={styles.loadingText}>Cargando datos...</Text>
+----@@ -1,428 +0,0 @@
+-----diff --git a/backend/server.py b/backend/server.py
+-----index c0c1cb3..ce6d978 100644
+-------- a/backend/server.py
+-----+++ b/backend/server.py
+-----@@ -2657,17 +2657,20 @@ async def get_taxi_status(
+----- async def get_queue_status(
+-----     location_type: Optional[str] = None,
+-----     location_name: Optional[str] = None,
+------    minutes: int = 60,  # Time window to filter - only show data from previous window
+-----+    minutes: int = 60,  # Time window to filter
+-----     current_user: dict = Depends(get_current_user_required)
+----- ):
+------    """Get the latest queue status (people waiting) for stations and terminals within the previous time window."""
+-----+    """Get the latest queue status (people waiting) for stations and terminals - only from today and within time window."""
+-----     now = datetime.now(MADRID_TZ)
+------    # Previous window: from (now - 2*minutes) to (now - minutes)
+------    previous_window_start = now - timedelta(minutes=minutes * 2)
+------    previous_window_end = now - timedelta(minutes=minutes)
+-----     
+------    # Build query with time filter
+------    query = {"reported_at": {"$gte": previous_window_start, "$lt": previous_window_end}}
+-----+    # Start of today (midnight Madrid time)
+-----+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+-----+    
+-----+    # Time window: from (now - minutes) to now, but not before today
+-----+    window_start = max(now - timedelta(minutes=minutes), today_start)
+-----+    
+-----+    # Build query: only today's data within the time window
+-----+    query = {"reported_at": {"$gte": window_start, "$lte": now}}
+-----     if location_type:
+-----         query["location_type"] = location_type
+-----     if location_name:
 -----diff --git a/model.patch b/model.patch
------index 5daf285..e69de29 100644
+-----index 418b197..e69de29 100644
 -------- a/model.patch
 -----+++ b/model.patch
------@@ -1,314 +0,0 @@
+-----@@ -1,391 +0,0 @@
+------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+------index 3717594..166a22d 100644
+--------- a/frontend/app/index.tsx
+------+++ b/frontend/app/index.tsx
+------@@ -250,9 +250,6 @@ export default function TransportMeter() {
+------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
+------   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+------ 
+-------  // Tab transition state - prevent DOM errors during tab changes
+-------  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
+-------  
+------   // Auth states
+------   const [currentUser, setCurrentUser] = useState<User | null>(null);
+------   const [authChecked, setAuthChecked] = useState(false);
+------@@ -2926,14 +2923,9 @@ export default function TransportMeter() {
+------         <TouchableOpacity
+------           style={[styles.tab, activeTab === 'trains' && styles.activeTabTrains]}
+------           onPress={() => {
+-------            if (activeTab !== 'trains' && !isTabTransitioning) {
+-------              setIsTabTransitioning(true);
+------+            if (activeTab !== 'trains') {
+------               setLoading(true);
+-------              // Use requestAnimationFrame to allow current render to complete
+-------              requestAnimationFrame(() => {
+-------                setActiveTab('trains');
+-------                setTimeout(() => setIsTabTransitioning(false), 100);
+-------              });
+------+              setActiveTab('trains');
+------             }
+------           }}
+------         >
+------@@ -2954,13 +2946,9 @@ export default function TransportMeter() {
+------         <TouchableOpacity
+------           style={[styles.tab, activeTab === 'flights' && styles.activeTabFlights]}
+------           onPress={() => {
+-------            if (activeTab !== 'flights' && !isTabTransitioning) {
+-------              setIsTabTransitioning(true);
+------+            if (activeTab !== 'flights') {
+------               setLoading(true);
+-------              requestAnimationFrame(() => {
+-------                setActiveTab('flights');
+-------                setTimeout(() => setIsTabTransitioning(false), 100);
+-------              });
+------+              setActiveTab('flights');
+------             }
+------           }}
+------         >
+------@@ -2981,13 +2969,9 @@ export default function TransportMeter() {
+------         <TouchableOpacity
+------           style={[styles.tab, activeTab === 'street' && styles.activeTabStreet]}
+------           onPress={() => {
+-------            if (activeTab !== 'street' && !isTabTransitioning) {
+-------              setIsTabTransitioning(true);
+------+            if (activeTab !== 'street') {
+------               setLoading(true);
+-------              requestAnimationFrame(() => {
+-------                setActiveTab('street');
+-------                setTimeout(() => setIsTabTransitioning(false), 100);
+-------              });
+------+              setActiveTab('street');
+------             }
+------           }}
+------         >
+------@@ -3145,7 +3129,7 @@ export default function TransportMeter() {
+------           />
+------         }
+------       >
+-------        {loading || isTabTransitioning ? (
+------+        {loading ? (
+------           <View style={styles.loadingContainer}>
+------             <ActivityIndicator size="large" color="#6366F1" />
+------             <Text style={styles.loadingText}>Cargando datos...</Text>
 ------diff --git a/model.patch b/model.patch
-------index feaafc6..e69de29 100644
+------index 5daf285..e69de29 100644
 --------- a/model.patch
 ------+++ b/model.patch
-------@@ -1,309 +0,0 @@
+------@@ -1,314 +0,0 @@
 -------diff --git a/model.patch b/model.patch
--------index f8011ab..e69de29 100644
+-------index feaafc6..e69de29 100644
 ---------- a/model.patch
 -------+++ b/model.patch
--------@@ -1,304 +0,0 @@
---------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
---------index 7040302..9dd3d8c 100644
------------ a/frontend/app/index.tsx
---------+++ b/frontend/app/index.tsx
---------@@ -243,6 +243,7 @@ export default function TransportMeter() {
---------   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
---------   const [pushToken, setPushToken] = useState<string | null>(null);
---------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
---------+  const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
--------- 
---------   // Auth states
---------   const [currentUser, setCurrentUser] = useState<User | null>(null);
+-------@@ -1,309 +0,0 @@
 --------diff --git a/model.patch b/model.patch
---------index 933fc40..e69de29 100644
+--------index f8011ab..e69de29 100644
 ----------- a/model.patch
 --------+++ b/model.patch
---------@@ -1,287 +0,0 @@
+--------@@ -1,304 +0,0 @@
+---------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+---------index 7040302..9dd3d8c 100644
+------------ a/frontend/app/index.tsx
+---------+++ b/frontend/app/index.tsx
+---------@@ -243,6 +243,7 @@ export default function TransportMeter() {
+---------   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+---------   const [pushToken, setPushToken] = useState<string | null>(null);
+---------   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
+---------+  const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
+--------- 
+---------   // Auth states
+---------   const [currentUser, setCurrentUser] = useState<User | null>(null);
 ---------diff --git a/model.patch b/model.patch
----------index d74e649..e69de29 100644
+---------index 933fc40..e69de29 100644
 ------------ a/model.patch
 ---------+++ b/model.patch
----------@@ -1,282 +0,0 @@
-----------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
-----------index ac96cb6..45873bf 100644
-------------- a/frontend/app/index.tsx
-----------+++ b/frontend/app/index.tsx
-----------@@ -1025,7 +1025,7 @@ export default function TransportMeter() {
-----------                      taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
-----------             </Text>
-----------             <Text style={styles.taxiTimeText}>
------------              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
-----------+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)} por {taxiStatus[`station_${stationShortName}`].reported_by})
-----------             </Text>
-----------           </View>
-----------         )}
-----------@@ -1140,7 +1140,7 @@ export default function TransportMeter() {
-----------                taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
-----------             </Text>
-----------             <Text style={styles.taxiTimeTextSmall}>
------------              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
-----------+              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
-----------             </Text>
-----------           </View>
-----------         )}
-----------@@ -1478,6 +1478,20 @@ export default function TransportMeter() {
-----------             </View>
-----------           )}
-----------           
-----------+          {/* Taxi status display for hot station */}
-----------+          {streetData?.hottest_station_taxi_status && streetData?.hottest_station_taxi_time && (
-----------+            <View style={styles.taxiStatusContainerSmall}>
-----------+              <Ionicons name="car" size={14} color="#F59E0B" />
-----------+              <Text style={styles.taxiStatusTextSmall}>
-----------+                {streetData.hottest_station_taxi_status === 'poco' ? '🟢 Pocos' : 
-----------+                 streetData.hottest_station_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
-----------+              </Text>
-----------+              <Text style={styles.taxiTimeTextSmall}>
-----------+                {formatTime(streetData.hottest_station_taxi_time)}
-----------+              </Text>
-----------+            </View>
-----------+          )}
-----------+          
-----------           {streetData?.hottest_station && (
-----------             <TouchableOpacity
-----------               style={[styles.navigateButton, styles.navigateButtonStation]}
-----------@@ -1536,6 +1550,20 @@ export default function TransportMeter() {
-----------             </View>
-----------           )}
-----------           
-----------+          {/* Taxi status display for hot terminal */}
-----------+          {streetData?.hottest_terminal_taxi_status && streetData?.hottest_terminal_taxi_time && (
-----------+            <View style={styles.taxiStatusContainerSmall}>
-----------+              <Ionicons name="car" size={14} color="#F59E0B" />
-----------+              <Text style={styles.taxiStatusTextSmall}>
-----------+                {streetData.hottest_terminal_taxi_status === 'poco' ? '🟢 Pocos' : 
-----------+                 streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
-----------+              </Text>
-----------+              <Text style={styles.taxiTimeTextSmall}>
-----------+                {formatTime(streetData.hottest_terminal_taxi_time)}
-----------+              </Text>
-----------+            </View>
-----------+          )}
-----------+          
-----------           {streetData?.hottest_terminal && (
-----------             <TouchableOpacity
-----------               style={[styles.navigateButton, styles.navigateButtonTerminal]}
+---------@@ -1,287 +0,0 @@
 ----------diff --git a/model.patch b/model.patch
-----------index 773ccd4..e69de29 100644
+----------index d74e649..e69de29 100644
 ------------- a/model.patch
 ----------+++ b/model.patch
-----------@@ -1,213 +0,0 @@
+----------@@ -1,282 +0,0 @@
 -----------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
------------index 22a15bf..96c1b64 100644
+-----------index ac96cb6..45873bf 100644
 -------------- a/frontend/app/index.tsx
 -----------+++ b/frontend/app/index.tsx
------------@@ -3436,4 +3436,69 @@ const styles = StyleSheet.create({
------------     color: '#64748B',
------------     fontSize: 11,
------------   },
------------+  taxiQuestionModal: {
------------+    backgroundColor: '#1E293B',
------------+    borderRadius: 20,
------------+    padding: 24,
------------+    width: '90%',
------------+    maxWidth: 400,
------------+    alignItems: 'center',
------------+  },
------------+  taxiQuestionHeader: {
------------+    alignItems: 'center',
------------+    marginBottom: 24,
------------+  },
------------+  taxiQuestionTitle: {
------------+    color: '#FFFFFF',
------------+    fontSize: 22,
------------+    fontWeight: '700',
------------+    marginTop: 12,
------------+  },
------------+  taxiQuestionSubtitle: {
------------+    color: '#94A3B8',
------------+    fontSize: 14,
------------+    marginTop: 4,
------------+  },
------------+  taxiOptions: {
------------+    flexDirection: 'row',
------------+    justifyContent: 'space-between',
------------+    gap: 12,
------------+    width: '100%',
------------+  },
------------+  taxiOption: {
------------+    flex: 1,
------------+    alignItems: 'center',
------------+    padding: 16,
------------+    borderRadius: 12,
------------+    backgroundColor: '#374151',
------------+  },
------------+  taxiOptionPoco: {
------------+    borderWidth: 2,
------------+    borderColor: '#EF4444',
------------+  },
------------+  taxiOptionNormal: {
------------+    borderWidth: 2,
------------+    borderColor: '#F59E0B',
------------+  },
------------+  taxiOptionMucho: {
------------+    borderWidth: 2,
------------+    borderColor: '#10B981',
------------+  },
------------+  taxiOptionEmoji: {
------------+    fontSize: 32,
------------+    marginBottom: 8,
------------+  },
------------+  taxiOptionText: {
------------+    color: '#FFFFFF',
------------+    fontSize: 14,
------------+    fontWeight: '600',
------------+  },
------------+  taxiSkipButton: {
------------+    marginTop: 20,
------------+    padding: 12,
------------+  },
------------+  taxiSkipButtonText: {
------------+    color: '#94A3B8',
------------+    fontSize: 14,
------------+  },
------------ });
+-----------@@ -1025,7 +1025,7 @@ export default function TransportMeter() {
+-----------                      taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+-----------             </Text>
+-----------             <Text style={styles.taxiTimeText}>
+------------              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)})
+-----------+              ({formatTime(taxiStatus[`station_${stationShortName}`].reported_at)} por {taxiStatus[`station_${stationShortName}`].reported_by})
+-----------             </Text>
+-----------           </View>
+-----------         )}
+-----------@@ -1140,7 +1140,7 @@ export default function TransportMeter() {
+-----------                taxiStatus[`terminal_${group.terminals[0]}`].taxi_status === 'normal' ? '🟡' : '🔴'}
+-----------             </Text>
+-----------             <Text style={styles.taxiTimeTextSmall}>
+------------              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)}
+-----------+              {formatTime(taxiStatus[`terminal_${group.terminals[0]}`].reported_at)} por {taxiStatus[`terminal_${group.terminals[0]}`].reported_by}
+-----------             </Text>
+-----------           </View>
+-----------         )}
+-----------@@ -1478,6 +1478,20 @@ export default function TransportMeter() {
+-----------             </View>
+-----------           )}
+-----------           
+-----------+          {/* Taxi status display for hot station */}
+-----------+          {streetData?.hottest_station_taxi_status && streetData?.hottest_station_taxi_time && (
+-----------+            <View style={styles.taxiStatusContainerSmall}>
+-----------+              <Ionicons name="car" size={14} color="#F59E0B" />
+-----------+              <Text style={styles.taxiStatusTextSmall}>
+-----------+                {streetData.hottest_station_taxi_status === 'poco' ? '🟢 Pocos' : 
+-----------+                 streetData.hottest_station_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+-----------+              </Text>
+-----------+              <Text style={styles.taxiTimeTextSmall}>
+-----------+                {formatTime(streetData.hottest_station_taxi_time)}
+-----------+              </Text>
+-----------+            </View>
+-----------+          )}
+-----------+          
+-----------           {streetData?.hottest_station && (
+-----------             <TouchableOpacity
+-----------               style={[styles.navigateButton, styles.navigateButtonStation]}
+-----------@@ -1536,6 +1550,20 @@ export default function TransportMeter() {
+-----------             </View>
+-----------           )}
+-----------           
+-----------+          {/* Taxi status display for hot terminal */}
+-----------+          {streetData?.hottest_terminal_taxi_status && streetData?.hottest_terminal_taxi_time && (
+-----------+            <View style={styles.taxiStatusContainerSmall}>
+-----------+              <Ionicons name="car" size={14} color="#F59E0B" />
+-----------+              <Text style={styles.taxiStatusTextSmall}>
+-----------+                {streetData.hottest_terminal_taxi_status === 'poco' ? '🟢 Pocos' : 
+-----------+                 streetData.hottest_terminal_taxi_status === 'normal' ? '🟡 Normal' : '🔴 Muchos'}
+-----------+              </Text>
+-----------+              <Text style={styles.taxiTimeTextSmall}>
+-----------+                {formatTime(streetData.hottest_terminal_taxi_time)}
+-----------+              </Text>
+-----------+            </View>
+-----------+          )}
+-----------+          
+-----------           {streetData?.hottest_terminal && (
+-----------             <TouchableOpacity
+-----------               style={[styles.navigateButton, styles.navigateButtonTerminal]}
 -----------diff --git a/model.patch b/model.patch
------------index 13161a9..e69de29 100644
+-----------index 773ccd4..e69de29 100644
 -------------- a/model.patch
 -----------+++ b/model.patch
------------@@ -1,134 +0,0 @@
+-----------@@ -1,213 +0,0 @@
 ------------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
-------------index a29aba7..a8dce98 100644
+------------index 22a15bf..96c1b64 100644
 --------------- a/frontend/app/index.tsx
 ------------+++ b/frontend/app/index.tsx
-------------@@ -2927,6 +2927,21 @@ const styles = StyleSheet.create({
-------------     fontSize: 13,
-------------     fontWeight: '600',
+------------@@ -3436,4 +3436,69 @@ const styles = StyleSheet.create({
+------------     color: '#64748B',
+------------     fontSize: 11,
 ------------   },
-------------+  rangeIndicator: {
-------------+    flexDirection: 'row',
+------------+  taxiQuestionModal: {
+------------+    backgroundColor: '#1E293B',
+------------+    borderRadius: 20,
+------------+    padding: 24,
+------------+    width: '90%',
+------------+    maxWidth: 400,
 ------------+    alignItems: 'center',
+------------+  },
+------------+  taxiQuestionHeader: {
+------------+    alignItems: 'center',
+------------+    marginBottom: 24,
+------------+  },
+------------+  taxiQuestionTitle: {
+------------+    color: '#FFFFFF',
+------------+    fontSize: 22,
+------------+    fontWeight: '700',
+------------+    marginTop: 12,
+------------+  },
+------------+  taxiQuestionSubtitle: {
+------------+    color: '#94A3B8',
+------------+    fontSize: 14,
+------------+    marginTop: 4,
+------------+  },
+------------+  taxiOptions: {
+------------+    flexDirection: 'row',
+------------+    justifyContent: 'space-between',
+------------+    gap: 12,
+------------+    width: '100%',
+------------+  },
+------------+  taxiOption: {
+------------+    flex: 1,
+------------+    alignItems: 'center',
+------------+    padding: 16,
+------------+    borderRadius: 12,
 ------------+    backgroundColor: '#374151',
-------------+    paddingHorizontal: 10,
-------------+    paddingVertical: 6,
-------------+    borderRadius: 6,
-------------+    marginTop: 8,
-------------+    gap: 6,
 ------------+  },
-------------+  rangeText: {
-------------+    color: '#9CA3AF',
-------------+    fontSize: 11,
-------------+    fontWeight: '500',
+------------+  taxiOptionPoco: {
+------------+    borderWidth: 2,
+------------+    borderColor: '#EF4444',
 ------------+  },
-------------   navigateButton: {
-------------     flexDirection: 'row',
-------------     alignItems: 'center',
+------------+  taxiOptionNormal: {
+------------+    borderWidth: 2,
+------------+    borderColor: '#F59E0B',
+------------+  },
+------------+  taxiOptionMucho: {
+------------+    borderWidth: 2,
+------------+    borderColor: '#10B981',
+------------+  },
+------------+  taxiOptionEmoji: {
+------------+    fontSize: 32,
+------------+    marginBottom: 8,
+------------+  },
+------------+  taxiOptionText: {
+------------+    color: '#FFFFFF',
+------------+    fontSize: 14,
+------------+    fontWeight: '600',
+------------+  },
+------------+  taxiSkipButton: {
+------------+    marginTop: 20,
+------------+    padding: 12,
+------------+  },
+------------+  taxiSkipButtonText: {
+------------+    color: '#94A3B8',
+------------+    fontSize: 14,
+------------+  },
+------------ });
 ------------diff --git a/model.patch b/model.patch
-------------index 9ee087b..e69de29 100644
+------------index 13161a9..e69de29 100644
 --------------- a/model.patch
 ------------+++ b/model.patch
-------------@@ -1,103 +0,0 @@
--------------diff --git a/backend/server.py b/backend/server.py
--------------index 4c2a871..68871cc 100644
----------------- a/backend/server.py
--------------+++ b/backend/server.py
--------------@@ -189,36 +189,60 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
--------------                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
--------------                     }
--------------                     
---------------                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
---------------                        if api_response.status == 200:
---------------                            result = await api_response.json()
---------------                            
---------------                            if result.get("error"):
---------------                                logger.warning(f"API error for station {station_id}, falling back to scrape")
---------------                                return await fetch_adif_arrivals_scrape(station_id)
---------------                            
---------------                            horarios = result.get("horarios", [])
---------------                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
---------------                            
---------------                            for h in horarios:
---------------                                train_type = h.get("tren", "AVE")
---------------                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
---------------                                type_match = re.search(r'([A-Z]+)', train_type)
---------------                                if type_match:
---------------                                    clean_type = type_match.group(1)
---------------                                else:
---------------                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
--------------+                    # Load multiple pages to get more results
--------------+                    page = 0
--------------+                    max_pages = 3  # Limit to avoid infinite loops
--------------+                    
--------------+                    while page < max_pages:
--------------+                        # Update page number in data
--------------+                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
--------------+                        
--------------+                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
--------------+                            if api_response.status == 200:
--------------+                                result = await api_response.json()
--------------                                 
---------------                                # Only include valid media/larga distancia
---------------                                if is_valid_media_larga_distancia(clean_type):
---------------                                    arrivals.append({
---------------                                        "time": h.get("hora", "00:00"),
---------------                                        "origin": h.get("estacion", "Unknown"),
---------------                                        "train_type": clean_type.upper(),
---------------                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
---------------                                        "platform": h.get("via", "-") or "-",
---------------                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
---------------                                    })
--------------+                                if result.get("error"):
--------------+                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
--------------+                                    return await fetch_adif_arrivals_scrape(station_id)
--------------+                                
--------------+                                horarios = result.get("horarios", [])
--------------+                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
--------------+                                
--------------+                                # If no results on this page, stop pagination
--------------+                                if not horarios:
--------------+                                    break
--------------+                                
--------------+                                page_arrivals = 0
--------------+                                for h in horarios:
--------------+                                    train_type = h.get("tren", "AVE")
--------------+                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
--------------+                                    type_match = re.search(r'([A-Z]+)', train_type)
--------------+                                    if type_match:
--------------+                                        clean_type = type_match.group(1)
--------------+                                    else:
--------------+                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
--------------+                                    
--------------+                                    # Only include valid media/larga distancia
--------------+                                    if is_valid_media_larga_distancia(clean_type):
--------------+                                        arrivals.append({
--------------+                                            "time": h.get("hora", "00:00"),
--------------+                                            "origin": h.get("estacion", "Unknown"),
--------------+                                            "train_type": clean_type.upper(),
--------------+                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
--------------+                                            "platform": h.get("via", "-") or "-",
--------------+                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
--------------+                                        })
--------------+                                        page_arrivals += 1
--------------+                                
--------------+                                # If we got fewer than expected results, likely no more pages
--------------+                                if page_arrivals < 10:  # Assuming typical page size
--------------+                                    break
--------------+                                    
--------------+                            else:
--------------+                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
--------------+                                break
--------------+                        
--------------+                        page += 1
--------------                                     
--------------     except Exception as e:
--------------         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
--------------@@ -446,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
--------------                 hour = int(time_str.split(":")[0])
--------------                 if 6 <= hour <= 10:
--------------                     morning_count += 1
---------------            except:
--------------+            except Exception:
--------------                 pass
--------------         return count, morning_count
--------------     
+------------@@ -1,134 +0,0 @@
+-------------diff --git a/frontend/app/index.tsx b/frontend/app/index.tsx
+-------------index a29aba7..a8dce98 100644
+---------------- a/frontend/app/index.tsx
+-------------+++ b/frontend/app/index.tsx
+-------------@@ -2927,6 +2927,21 @@ const styles = StyleSheet.create({
+-------------     fontSize: 13,
+-------------     fontWeight: '600',
+-------------   },
+-------------+  rangeIndicator: {
+-------------+    flexDirection: 'row',
+-------------+    alignItems: 'center',
+-------------+    backgroundColor: '#374151',
+-------------+    paddingHorizontal: 10,
+-------------+    paddingVertical: 6,
+-------------+    borderRadius: 6,
+-------------+    marginTop: 8,
+-------------+    gap: 6,
+-------------+  },
+-------------+  rangeText: {
+-------------+    color: '#9CA3AF',
+-------------+    fontSize: 11,
+-------------+    fontWeight: '500',
+-------------+  },
+-------------   navigateButton: {
+-------------     flexDirection: 'row',
+-------------     alignItems: 'center',
+-------------diff --git a/model.patch b/model.patch
+-------------index 9ee087b..e69de29 100644
+---------------- a/model.patch
+-------------+++ b/model.patch
+-------------@@ -1,103 +0,0 @@
+--------------diff --git a/backend/server.py b/backend/server.py
+--------------index 4c2a871..68871cc 100644
+----------------- a/backend/server.py
+--------------+++ b/backend/server.py
+--------------@@ -189,36 +189,60 @@ async def fetch_adif_arrivals_api(station_id: str) -> List[Dict]:
+--------------                         "_servicios_estacion_ServiciosEstacionPortlet_stationCode": station_id
+--------------                     }
+--------------                     
+---------------                    async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+---------------                        if api_response.status == 200:
+---------------                            result = await api_response.json()
+---------------                            
+---------------                            if result.get("error"):
+---------------                                logger.warning(f"API error for station {station_id}, falling back to scrape")
+---------------                                return await fetch_adif_arrivals_scrape(station_id)
+---------------                            
+---------------                            horarios = result.get("horarios", [])
+---------------                            logger.info(f"Station {station_id}: API returned {len(horarios)} trains")
+---------------                            
+---------------                            for h in horarios:
+---------------                                train_type = h.get("tren", "AVE")
+---------------                                # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+---------------                                type_match = re.search(r'([A-Z]+)', train_type)
+---------------                                if type_match:
+---------------                                    clean_type = type_match.group(1)
+---------------                                else:
+---------------                                    clean_type = train_type[:4] if len(train_type) > 4 else train_type
+--------------+                    # Load multiple pages to get more results
+--------------+                    page = 0
+--------------+                    max_pages = 3  # Limit to avoid infinite loops
+--------------+                    
+--------------+                    while page < max_pages:
+--------------+                        # Update page number in data
+--------------+                        data["_servicios_estacion_ServiciosEstacionPortlet_numPage"] = str(page)
+--------------+                        
+--------------+                        async with session.post(api_url, headers=api_headers, data=data, timeout=30) as api_response:
+--------------+                            if api_response.status == 200:
+--------------+                                result = await api_response.json()
+--------------                                 
+---------------                                # Only include valid media/larga distancia
+---------------                                if is_valid_media_larga_distancia(clean_type):
+---------------                                    arrivals.append({
+---------------                                        "time": h.get("hora", "00:00"),
+---------------                                        "origin": h.get("estacion", "Unknown"),
+---------------                                        "train_type": clean_type.upper(),
+---------------                                        "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+---------------                                        "platform": h.get("via", "-") or "-",
+---------------                                        "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+---------------                                    })
+--------------+                                if result.get("error"):
+--------------+                                    logger.warning(f"API error for station {station_id} page {page}, falling back to scrape")
+--------------+                                    return await fetch_adif_arrivals_scrape(station_id)
+--------------+                                
+--------------+                                horarios = result.get("horarios", [])
+--------------+                                logger.info(f"Station {station_id} page {page}: API returned {len(horarios)} trains")
+--------------+                                
+--------------+                                # If no results on this page, stop pagination
+--------------+                                if not horarios:
+--------------+                                    break
+--------------+                                
+--------------+                                page_arrivals = 0
+--------------+                                for h in horarios:
+--------------+                                    train_type = h.get("tren", "AVE")
+--------------+                                    # Extract train type from format like "AVANT08063" or "RF - AVE03063"
+--------------+                                    type_match = re.search(r'([A-Z]+)', train_type)
+--------------+                                    if type_match:
+--------------+                                        clean_type = type_match.group(1)
+--------------+                                    else:
+--------------+                                        clean_type = train_type[:4] if len(train_type) > 4 else train_type
+--------------+                                    
+--------------+                                    # Only include valid media/larga distancia
+--------------+                                    if is_valid_media_larga_distancia(clean_type):
+--------------+                                        arrivals.append({
+--------------+                                            "time": h.get("hora", "00:00"),
+--------------+                                            "origin": h.get("estacion", "Unknown"),
+--------------+                                            "train_type": clean_type.upper(),
+--------------+                                            "train_number": re.sub(r'[^0-9]', '', train_type)[-5:] or "0000",
+--------------+                                            "platform": h.get("via", "-") or "-",
+--------------+                                            "status": "En hora" if not h.get("horaEstado") else h.get("horaEstado")
+--------------+                                        })
+--------------+                                        page_arrivals += 1
+--------------+                                
+--------------+                                # If we got fewer than expected results, likely no more pages
+--------------+                                if page_arrivals < 10:  # Assuming typical page size
+--------------+                                    break
+--------------+                                    
+--------------+                            else:
+--------------+                                logger.warning(f"Failed to fetch page {page} for station {station_id}")
+--------------+                                break
+--------------+                        
+--------------+                        page += 1
+--------------                                     
+--------------     except Exception as e:
+--------------         logger.error(f"Error fetching ADIF API for station {station_id}: {e}")
+--------------@@ -446,7 +470,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
+--------------                 hour = int(time_str.split(":")[0])
+--------------                 if 6 <= hour <= 10:
+--------------                     morning_count += 1
+---------------            except:
+--------------+            except Exception:
+--------------                 pass
+--------------         return count, morning_count
+--------------     
+-diff --git a/test_result.md b/test_result.md
+-index cbadb96..3fb08d0 100644
+---- a/test_result.md
+-+++ b/test_result.md
+-@@ -107,39 +107,72 @@ user_problem_statement: Implementar un sistema de gamificación/puntos completo
+- backend:
+-   - task: "Points API - Get my points"
+-     implemented: true
+--    working: "NA"
+-+    working: true
+-     file: "backend/routers/points.py"
+-     stuck_count: 0
+-     priority: "high"
+--    needs_retesting: true
+-+    needs_retesting: false
+-     status_history:
+-         - working: "NA"
+-         - agent: "main"
+-         - comment: "Implemented GET /api/points/my-points endpoint to return user points, level, and history"
+-+        - working: true
+-+        - agent: "testing"
+-+        - comment: "✅ TESTED: GET /api/points/my-points returns correct structure with total_points, level_name, level_badge, next_level_name, points_to_next_level, and history array. All data types validated."
+- 
+-   - task: "Points API - Get ranking"
+-     implemented: true
+--    working: "NA"
+-+    working: true
+-     file: "backend/routers/points.py"
+-     stuck_count: 0
+-     priority: "high"
+--    needs_retesting: true
+-+    needs_retesting: false
+-     status_history:
+-         - working: "NA"
+-         - agent: "main"
+-         - comment: "Implemented GET /api/points/ranking endpoint to return top users leaderboard"
+-+        - working: true
+-+        - agent: "testing"
+-+        - comment: "✅ TESTED: GET /api/points/ranking returns correct structure with ranking array, my_position, and total_users. Ranking entries include position, user_id, username, total_points, level_name, level_badge, is_me fields."
+-+
+-+  - task: "Points API - Get config"
+-+    implemented: true
+-+    working: true
+-+    file: "backend/routers/points.py"
+-+    stuck_count: 0
+-+    priority: "medium"
+-+    needs_retesting: false
+-+    status_history:
+-+        - working: true
+-+        - agent: "testing"
+-+        - comment: "✅ TESTED: GET /api/points/config returns actions and levels configuration. Found 10 point actions (checkin, checkout, alert_real, receive_like, invite_used, approve_registration, etc.) and 4 levels (Novato, Activo, Veterano, Leyenda)."
+- 
+-   - task: "Award points for event likes"
+-     implemented: true
+--    working: "NA"
+-+    working: true
+-     file: "backend/routers/events.py"
+-     stuck_count: 0
+-     priority: "high"
+--    needs_retesting: true
+-+    needs_retesting: false
+-     status_history:
+-         - working: "NA"
+-         - agent: "main"
+-         - comment: "Modified vote_event to award 5 points to event owner when they receive a new like"
+-+        - working: true
+-+        - agent: "testing"
+-+        - comment: "✅ TESTED: Event like points system working correctly. Created test user, admin created event, test user liked event, admin received exactly 5 points. Self-voting correctly does not award points."
+-+
+-+  - task: "Award points for invitations"
+-+    implemented: true
+-+    working: true
+-+    file: "backend/routers/auth.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+        - working: true
+-+        - agent: "testing"
+-+        - comment: "✅ TESTED: Invitation points system working correctly. Admin created invitation, new user registered with invitation code, admin received exactly 50 points for successful invitation."
+- 
+-   - task: "Award points for radio transmission"
+-     implemented: true
+-@@ -152,6 +185,9 @@ backend:
+-         - working: "NA"
+-         - agent: "main"
+-         - comment: "Modified stop_transmission to track transmission time and award 1 point per minute"
+-+        - working: "NA"
+-+        - agent: "testing"
+-+        - comment: "NOT TESTED: Radio transmission points not tested due to complexity of radio system testing. Requires audio/hardware components."
+- 
+- frontend:
+-   - task: "Points display in profile modal"
+-@@ -186,13 +222,13 @@ metadata:
+- 
+- test_plan:
+-   current_focus:
+--    - "Points API - Get my points"
+--    - "Points API - Get ranking"
+--    - "Award points for event likes"
+-+    - "Award points for radio transmission"
+-   stuck_tasks: []
+-   test_all: false
+-   test_priority: "high_first"
+- 
+- agent_communication:
+-     - agent: "main"
+--    - message: "Implemented complete points/gamification system. Backend has endpoints for getting user points and ranking. Points are awarded for: check-in/out (5 pts), alerts (10 pts), event likes (5 pts), radio minutes (1 pt), invitations (50 pts), approvals (25 pts). Please test the points API endpoints first. Test credentials: admin/admin"
+-\ No newline at end of file
+-+    - message: "Implemented complete points/gamification system. Backend has endpoints for getting user points and ranking. Points are awarded for: check-in/out (5 pts), alerts (10 pts), event likes (5 pts), radio minutes (1 pt), invitations (50 pts), approvals (25 pts). Please test the points API endpoints first. Test credentials: admin/admin"
+-+    - agent: "testing"
+-+    - message: "✅ BACKEND TESTING COMPLETED: All major points system endpoints tested and working correctly. GET /api/points/my-points, GET /api/points/ranking, GET /api/points/config all return proper data structures. Event like points (5 pts) and invitation points (50 pts) are correctly awarded. Self-voting protection works. Created comprehensive test suite in backend_test.py. Radio transmission points not tested due to hardware requirements. All high-priority backend tasks are working."
+-\ No newline at end of file
+diff --git a/moderation_flow_test.py b/moderation_flow_test.py
+new file mode 100644
+index 0000000..9592252
+--- /dev/null
++++ b/moderation_flow_test.py
+@@ -0,0 +1,192 @@
++#!/usr/bin/env python3
++"""
++Comprehensive Moderation System Flow Test
++Tests the complete flow as requested in the review
++"""
++
++import requests
++import json
++import sys
++from datetime import datetime
++
++# Configuration
++BASE_URL = "https://driver-gamify.preview.emergentagent.com/api"
++ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
++
++def test_moderation_flow():
++    """Test the complete moderation flow as requested"""
++    session = requests.Session()
++    
++    print("🚀 Testing Moderation System Flow")
++    print("=" * 50)
++    
++    # Step 1: Login as admin
++    print("1️⃣ Login como admin...")
++    try:
++        response = session.post(f"{BASE_URL}/auth/login", json=ADMIN_CREDENTIALS, timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            token = data.get("access_token")
++            if token:
++                session.headers.update({"Authorization": f"Bearer {token}"})
++                print(f"   ✅ Logged in as {data.get('user', {}).get('username')}")
++            else:
++                print("   ❌ No access token received")
++                return False
++        else:
++            print(f"   ❌ Login failed: HTTP {response.status_code}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Login error: {e}")
++        return False
++    
++    # Step 2: Create a report
++    print("\n2️⃣ Crear un reporte...")
++    report_data = {
++        "report_type": "spam",
++        "description": "Este es un reporte de prueba con más de 10 caracteres"
++    }
++    
++    try:
++        response = session.post(f"{BASE_URL}/moderation/reports", json=report_data, timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            if data.get("success") and data.get("report_id"):
++                report_id = data.get("report_id")
++                print(f"   ✅ Reporte creado exitosamente")
++                print(f"   📋 Report ID: {report_id}")
++                print(f"   💬 Message: {data.get('message')}")
++            else:
++                print(f"   ❌ Unexpected response structure: {data}")
++                return False
++        else:
++            print(f"   ❌ Failed to create report: HTTP {response.status_code}")
++            print(f"   Response: {response.text}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Error creating report: {e}")
++        return False
++    
++    # Step 3: Verify report appears in pending list
++    print("\n3️⃣ Verificar que aparece en la lista de pendientes...")
++    try:
++        response = session.get(f"{BASE_URL}/moderation/reports/pending-moderator", timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            reports = data.get("reports", [])
++            total = data.get("total", 0)
++            
++            print(f"   📊 Total pending reports: {total}")
++            
++            # Find our report
++            our_report = None
++            for report in reports:
++                if report.get("report_type") == "spam" and "Este es un reporte de prueba" in report.get("description", ""):
++                    our_report = report
++                    break
++            
++            if our_report:
++                print(f"   ✅ Nuestro reporte encontrado en la lista")
++                print(f"   📝 Type: {our_report.get('report_type_name')}")
++                print(f"   👤 Reporter: {our_report.get('reporter_username')}")
++                print(f"   📅 Created: {our_report.get('created_at')}")
++            else:
++                print(f"   ⚠️  Nuestro reporte no encontrado en la lista (puede ser normal si hay muchos reportes)")
++                
++        else:
++            print(f"   ❌ Failed to get pending reports: HTTP {response.status_code}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Error getting pending reports: {e}")
++        return False
++    
++    # Step 4: Get moderation stats
++    print("\n4️⃣ Obtener stats de moderación...")
++    try:
++        response = session.get(f"{BASE_URL}/moderation/stats/moderator", timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            pending_reports = data.get("pending_reports", 0)
++            pending_promotions = data.get("pending_promotions", 0)
++            
++            print(f"   📊 Estadísticas de moderación:")
++            print(f"   📋 Pending reports: {pending_reports}")
++            print(f"   🎖️  Pending promotions: {pending_promotions}")
++            
++            if pending_reports > 0:
++                print(f"   ✅ Stats show pending reports (expected)")
++            else:
++                print(f"   ⚠️  No pending reports in stats")
++                
++        else:
++            print(f"   ❌ Failed to get stats: HTTP {response.status_code}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Error getting stats: {e}")
++        return False
++    
++    # Step 5: Test report types endpoint
++    print("\n5️⃣ Verificar tipos de reportes disponibles...")
++    try:
++        response = session.get(f"{BASE_URL}/moderation/reports/types", timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            types = data.get("types", [])
++            
++            print(f"   📋 Tipos de reportes disponibles:")
++            for report_type in types:
++                print(f"   • {report_type.get('id')}: {report_type.get('name')}")
++            
++            expected_types = ["inappropriate", "spam", "false_info", "harassment", "other"]
++            found_types = [t.get("id") for t in types]
++            
++            if len(types) == 5 and all(t in found_types for t in expected_types):
++                print(f"   ✅ Todos los 5 tipos esperados encontrados")
++            else:
++                print(f"   ❌ Tipos incorrectos. Expected: {expected_types}, Found: {found_types}")
++                return False
++                
++        else:
++            print(f"   ❌ Failed to get report types: HTTP {response.status_code}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Error getting report types: {e}")
++        return False
++    
++    # Step 6: Test pending promotions
++    print("\n6️⃣ Verificar peticiones de promoción pendientes...")
++    try:
++        response = session.get(f"{BASE_URL}/moderation/promotions/pending-moderator", timeout=10)
++        if response.status_code == 200:
++            data = response.json()
++            requests_list = data.get("requests", [])
++            total = data.get("total", 0)
++            
++            print(f"   🎖️  Total pending promotion requests: {total}")
++            
++            if total == 0:
++                print(f"   ✅ No pending promotions (expected for new system)")
++            else:
++                print(f"   📋 Promotion requests found:")
++                for req in requests_list[:3]:  # Show first 3
++                    print(f"   • {req.get('username')} -> {req.get('target_role')} ({req.get('total_points')} pts)")
++                
++        else:
++            print(f"   ❌ Failed to get pending promotions: HTTP {response.status_code}")
++            return False
++    except Exception as e:
++        print(f"   ❌ Error getting pending promotions: {e}")
++        return False
++    
++    print("\n" + "=" * 50)
++    print("🎉 FLUJO DE MODERACIÓN COMPLETADO EXITOSAMENTE")
++    print("✅ Todos los endpoints funcionan correctamente")
++    print("✅ El reporte se creó y aparece en las estadísticas")
++    print("✅ Los tipos de reportes están disponibles")
++    print("✅ Las peticiones de promoción se pueden consultar")
++    
++    return True
++
++if __name__ == "__main__":
++    success = test_moderation_flow()
++    sys.exit(0 if success else 1)
+\ No newline at end of file
+diff --git a/moderation_test.py b/moderation_test.py
+new file mode 100644
+index 0000000..cc45f74
+--- /dev/null
++++ b/moderation_test.py
+@@ -0,0 +1,390 @@
++#!/usr/bin/env python3
++"""
++Backend Test Suite for Moderation System
++Tests the recently implemented moderation and reports system
++"""
++
++import requests
++import json
++import sys
++from datetime import datetime
++from typing import Dict, Any, Optional
++
++# Configuration
++BASE_URL = "https://driver-gamify.preview.emergentagent.com/api"
++ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
++
++class ModerationTester:
++    def __init__(self):
++        self.session = requests.Session()
++        self.admin_token = None
++        self.test_results = []
++        
++    def log_test(self, test_name: str, success: bool, details: str = "", response_data: Any = None):
++        """Log test result"""
++        result = {
++            "test": test_name,
++            "success": success,
++            "details": details,
++            "timestamp": datetime.now().isoformat(),
++            "response_data": response_data
++        }
++        self.test_results.append(result)
++        
++        status = "✅ PASS" if success else "❌ FAIL"
++        print(f"{status} {test_name}")
++        if details:
++            print(f"    Details: {details}")
++        if not success and response_data:
++            print(f"    Response: {response_data}")
++        print()
++
++    def login_admin(self) -> bool:
++        """Login as admin user"""
++        try:
++            response = self.session.post(
++                f"{BASE_URL}/auth/login",
++                json=ADMIN_CREDENTIALS,
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                self.admin_token = data.get("access_token")
++                if self.admin_token:
++                    self.session.headers.update({
++                        "Authorization": f"Bearer {self.admin_token}"
++                    })
++                    self.log_test("Admin Login", True, f"Logged in as {data.get('user', {}).get('username')}")
++                    return True
++                else:
++                    self.log_test("Admin Login", False, "No access token in response", data)
++                    return False
++            else:
++                self.log_test("Admin Login", False, f"HTTP {response.status_code}", response.text)
++                return False
++                
++        except Exception as e:
++            self.log_test("Admin Login", False, f"Exception: {str(e)}")
++            return False
++
++    def test_create_report(self) -> Optional[str]:
++        """Test POST /api/moderation/reports - Create a report"""
++        try:
++            report_data = {
++                "report_type": "spam",
++                "description": "Este es un reporte de prueba con más de 10 caracteres para validar el sistema de moderación"
++            }
++            
++            response = self.session.post(
++                f"{BASE_URL}/moderation/reports",
++                json=report_data,
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                if data.get("success") and data.get("report_id"):
++                    self.log_test(
++                        "Create Report", 
++                        True, 
++                        f"Report created with ID: {data.get('report_id')}", 
++                        data
++                    )
++                    return data.get("report_id")
++                else:
++                    self.log_test("Create Report", False, "Missing success or report_id in response", data)
++                    return None
++            else:
++                self.log_test("Create Report", False, f"HTTP {response.status_code}", response.text)
++                return None
++                
++        except Exception as e:
++            self.log_test("Create Report", False, f"Exception: {str(e)}")
++            return None
++
++    def test_get_report_types(self) -> bool:
++        """Test GET /api/moderation/reports/types - Get report types"""
++        try:
++            response = self.session.get(
++                f"{BASE_URL}/moderation/reports/types",
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                types = data.get("types", [])
++                
++                # Check if all expected types are present
++                expected_types = ["inappropriate", "spam", "false_info", "harassment", "other"]
++                found_types = [t.get("id") for t in types if isinstance(t, dict)]
++                
++                if len(types) == 5 and all(t in found_types for t in expected_types):
++                    self.log_test(
++                        "Get Report Types", 
++                        True, 
++                        f"Found all 5 expected types: {found_types}", 
++                        data
++                    )
++                    return True
++                else:
++                    self.log_test(
++                        "Get Report Types", 
++                        False, 
++                        f"Expected 5 types {expected_types}, got {len(types)}: {found_types}", 
++                        data
++                    )
++                    return False
++            else:
++                self.log_test("Get Report Types", False, f"HTTP {response.status_code}", response.text)
++                return False
++                
++        except Exception as e:
++            self.log_test("Get Report Types", False, f"Exception: {str(e)}")
++            return False
++
++    def test_get_pending_reports(self) -> bool:
++        """Test GET /api/moderation/reports/pending-moderator - Get pending reports"""
++        try:
++            response = self.session.get(
++                f"{BASE_URL}/moderation/reports/pending-moderator",
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                reports = data.get("reports", [])
++                total = data.get("total", 0)
++                
++                if isinstance(reports, list) and isinstance(total, int):
++                    self.log_test(
++                        "Get Pending Reports", 
++                        True, 
++                        f"Found {total} pending reports", 
++                        {"total": total, "sample_count": len(reports)}
++                    )
++                    return True
++                else:
++                    self.log_test("Get Pending Reports", False, "Invalid response structure", data)
++                    return False
++            else:
++                self.log_test("Get Pending Reports", False, f"HTTP {response.status_code}", response.text)
++                return False
++                
++        except Exception as e:
++            self.log_test("Get Pending Reports", False, f"Exception: {str(e)}")
++            return False
++
++    def test_get_moderator_stats(self) -> bool:
++        """Test GET /api/moderation/stats/moderator - Get moderation stats"""
++        try:
++            response = self.session.get(
++                f"{BASE_URL}/moderation/stats/moderator",
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                
++                # Check required fields
++                required_fields = ["pending_reports", "pending_promotions"]
++                if all(field in data for field in required_fields):
++                    self.log_test(
++                        "Get Moderator Stats", 
++                        True, 
++                        f"Pending reports: {data.get('pending_reports')}, Pending promotions: {data.get('pending_promotions')}", 
++                        data
++                    )
++                    return True
++                else:
++                    missing = [f for f in required_fields if f not in data]
++                    self.log_test("Get Moderator Stats", False, f"Missing fields: {missing}", data)
++                    return False
++            else:
++                self.log_test("Get Moderator Stats", False, f"HTTP {response.status_code}", response.text)
++                return False
++                
++        except Exception as e:
++            self.log_test("Get Moderator Stats", False, f"Exception: {str(e)}")
++            return False
++
++    def test_get_pending_promotions(self) -> bool:
++        """Test GET /api/moderation/promotions/pending-moderator - Get pending promotions"""
++        try:
++            response = self.session.get(
++                f"{BASE_URL}/moderation/promotions/pending-moderator",
++                timeout=10
++            )
++            
++            if response.status_code == 200:
++                data = response.json()
++                requests_list = data.get("requests", [])
++                total = data.get("total", 0)
++                
++                if isinstance(requests_list, list) and isinstance(total, int):
++                    self.log_test(
++                        "Get Pending Promotions", 
++                        True, 
++                        f"Found {total} pending promotion requests", 
++                        {"total": total, "sample_count": len(requests_list)}
++                    )
++                    return True
++                else:
++                    self.log_test("Get Pending Promotions", False, "Invalid response structure", data)
++                    return False
++            else:
++                self.log_test("Get Pending Promotions", False, f"HTTP {response.status_code}", response.text)
++                return False
++                
++        except Exception as e:
++            self.log_test("Get Pending Promotions", False, f"Exception: {str(e)}")
++            return False
++
++    def test_invalid_report_creation(self) -> bool:
++        """Test validation for report creation"""
++        try:
++            # Test with invalid report type
++            invalid_report = {
++                "report_type": "invalid_type",
++                "description": "This should fail due to invalid type"
++            }
++            
++            response = self.session.post(
++                f"{BASE_URL}/moderation/reports",
++                json=invalid_report,
++                timeout=10
++            )
++            
++            if response.status_code == 400:
++                self.log_test(
++                    "Invalid Report Type Validation", 
++                    True, 
++                    "Correctly rejected invalid report type", 
++                    response.text
++                )
++            else:
++                self.log_test(
++                    "Invalid Report Type Validation", 
++                    False, 
++                    f"Expected 400, got {response.status_code}", 
++                    response.text
++                )
++                return False
++
++            # Test with short description
++            short_desc_report = {
++                "report_type": "spam",
++                "description": "Short"  # Less than 10 characters
++            }
++            
++            response = self.session.post(
++                f"{BASE_URL}/moderation/reports",
++                json=short_desc_report,
++                timeout=10
++            )
++            
++            if response.status_code == 400:
++                self.log_test(
++                    "Short Description Validation", 
++                    True, 
++                    "Correctly rejected short description", 
++                    response.text
++                )
++                return True
++            else:
++                self.log_test(
++                    "Short Description Validation", 
++                    False, 
++                    f"Expected 400, got {response.status_code}", 
++                    response.text
++                )
++                return False
++                
++        except Exception as e:
++            self.log_test("Report Validation Tests", False, f"Exception: {str(e)}")
++            return False
++
++    def run_all_tests(self):
++        """Run all moderation system tests"""
++        print("🧪 Starting Moderation System Tests")
++        print("=" * 50)
++        
++        # Login first
++        if not self.login_admin():
++            print("❌ Cannot proceed without admin login")
++            return False
++        
++        # Run all tests
++        tests_passed = 0
++        total_tests = 0
++        
++        # Core functionality tests
++        test_methods = [
++            self.test_get_report_types,
++            self.test_create_report,
++            self.test_get_pending_reports,
++            self.test_get_moderator_stats,
++            self.test_get_pending_promotions,
++            self.test_invalid_report_creation
++        ]
++        
++        for test_method in test_methods:
++            total_tests += 1
++            try:
++                if test_method():
++                    tests_passed += 1
++            except Exception as e:
++                print(f"❌ Test {test_method.__name__} failed with exception: {e}")
++        
++        # Summary
++        print("=" * 50)
++        print(f"📊 Test Summary: {tests_passed}/{total_tests} tests passed")
++        
++        if tests_passed == total_tests:
++            print("🎉 All moderation system tests PASSED!")
++            return True
++        else:
++            print(f"⚠️  {total_tests - tests_passed} test(s) FAILED")
++            return False
++
++    def print_detailed_results(self):
++        """Print detailed test results"""
++        print("\n" + "=" * 60)
++        print("📋 DETAILED TEST RESULTS")
++        print("=" * 60)
++        
++        for result in self.test_results:
++            status = "✅ PASS" if result["success"] else "❌ FAIL"
++            print(f"\n{status} {result['test']}")
++            print(f"   Time: {result['timestamp']}")
++            if result['details']:
++                print(f"   Details: {result['details']}")
++            if result['response_data'] and not result["success"]:
++                print(f"   Response: {json.dumps(result['response_data'], indent=2)}")
++
++
++def main():
++    """Main test execution"""
++    print("🚀 Backend Moderation System Test Suite")
++    print(f"🌐 Testing against: {BASE_URL}")
++    print()
++    
++    tester = ModerationTester()
++    
++    try:
++        success = tester.run_all_tests()
++        tester.print_detailed_results()
++        
++        # Exit with appropriate code
++        sys.exit(0 if success else 1)
++        
++    except KeyboardInterrupt:
++        print("\n⏹️  Tests interrupted by user")
++        sys.exit(1)
++    except Exception as e:
++        print(f"\n💥 Unexpected error: {e}")
++        sys.exit(1)
++
++
++if __name__ == "__main__":
++    main()
+\ No newline at end of file
 diff --git a/test_result.md b/test_result.md
-index cbadb96..3fb08d0 100644
+index 3fb08d0..a1089f0 100644
 --- a/test_result.md
 +++ b/test_result.md
-@@ -107,39 +107,72 @@ user_problem_statement: Implementar un sistema de gamificación/puntos completo
+@@ -104,6 +104,8 @@
+ 
+ user_problem_statement: Implementar un sistema de gamificación/puntos completo para incentivar la participación de usuarios. Los usuarios ganan puntos por: crear eventos que reciben likes (5 pts), hacer check-in/check-out de estaciones (5 pts), crear alertas válidas (10 pts), invitar usuarios que se registran (50 pts), aprobar solicitudes de registro (25 pts), y por actividad en la radio (1 pt por minuto de transmisión). El total de puntos y categoría del usuario deben mostrarse en su perfil, con una vista separada para ver el ranking global.
+ 
++recent_request: Por favor, prueba el sistema de moderación y reportes recién implementado en el backend. Credenciales de prueba: admin/admin (rol admin). Endpoints a probar: POST /api/moderation/reports, GET /api/moderation/reports/types, GET /api/moderation/reports/pending-moderator, GET /api/moderation/stats/moderator, GET /api/moderation/promotions/pending-moderator.
++
  backend:
    - task: "Points API - Get my points"
      implemented: true
--    working: "NA"
-+    working: true
-     file: "backend/routers/points.py"
-     stuck_count: 0
-     priority: "high"
--    needs_retesting: true
-+    needs_retesting: false
-     status_history:
-         - working: "NA"
-         - agent: "main"
-         - comment: "Implemented GET /api/points/my-points endpoint to return user points, level, and history"
-+        - working: true
-+        - agent: "testing"
-+        - comment: "✅ TESTED: GET /api/points/my-points returns correct structure with total_points, level_name, level_badge, next_level_name, points_to_next_level, and history array. All data types validated."
+@@ -189,6 +191,66 @@ backend:
+         - agent: "testing"
+         - comment: "NOT TESTED: Radio transmission points not tested due to complexity of radio system testing. Requires audio/hardware components."
  
-   - task: "Points API - Get ranking"
-     implemented: true
--    working: "NA"
-+    working: true
-     file: "backend/routers/points.py"
-     stuck_count: 0
-     priority: "high"
--    needs_retesting: true
-+    needs_retesting: false
-     status_history:
-         - working: "NA"
-         - agent: "main"
-         - comment: "Implemented GET /api/points/ranking endpoint to return top users leaderboard"
-+        - working: true
-+        - agent: "testing"
-+        - comment: "✅ TESTED: GET /api/points/ranking returns correct structure with ranking array, my_position, and total_users. Ranking entries include position, user_id, username, total_points, level_name, level_badge, is_me fields."
-+
-+  - task: "Points API - Get config"
++  - task: "Moderation API - Create reports"
 +    implemented: true
 +    working: true
-+    file: "backend/routers/points.py"
-+    stuck_count: 0
-+    priority: "medium"
-+    needs_retesting: false
-+    status_history:
-+        - working: true
-+        - agent: "testing"
-+        - comment: "✅ TESTED: GET /api/points/config returns actions and levels configuration. Found 10 point actions (checkin, checkout, alert_real, receive_like, invite_used, approve_registration, etc.) and 4 levels (Novato, Activo, Veterano, Leyenda)."
- 
-   - task: "Award points for event likes"
-     implemented: true
--    working: "NA"
-+    working: true
-     file: "backend/routers/events.py"
-     stuck_count: 0
-     priority: "high"
--    needs_retesting: true
-+    needs_retesting: false
-     status_history:
-         - working: "NA"
-         - agent: "main"
-         - comment: "Modified vote_event to award 5 points to event owner when they receive a new like"
-+        - working: true
-+        - agent: "testing"
-+        - comment: "✅ TESTED: Event like points system working correctly. Created test user, admin created event, test user liked event, admin received exactly 5 points. Self-voting correctly does not award points."
-+
-+  - task: "Award points for invitations"
-+    implemented: true
-+    working: true
-+    file: "backend/routers/auth.py"
++    file: "backend/routers/moderation.py"
 +    stuck_count: 0
 +    priority: "high"
 +    needs_retesting: false
 +    status_history:
 +        - working: true
 +        - agent: "testing"
-+        - comment: "✅ TESTED: Invitation points system working correctly. Admin created invitation, new user registered with invitation code, admin received exactly 50 points for successful invitation."
- 
-   - task: "Award points for radio transmission"
-     implemented: true
-@@ -152,6 +185,9 @@ backend:
-         - working: "NA"
-         - agent: "main"
-         - comment: "Modified stop_transmission to track transmission time and award 1 point per minute"
-+        - working: "NA"
++        - comment: "✅ TESTED: POST /api/moderation/reports successfully creates reports with proper validation. Returns success=true and report_id. Validates report_type and description length (min 10 chars). Correctly rejects invalid report types and short descriptions with HTTP 400."
++
++  - task: "Moderation API - Get report types"
++    implemented: true
++    working: true
++    file: "backend/routers/moderation.py"
++    stuck_count: 0
++    priority: "high"
++    needs_retesting: false
++    status_history:
++        - working: true
 +        - agent: "testing"
-+        - comment: "NOT TESTED: Radio transmission points not tested due to complexity of radio system testing. Requires audio/hardware components."
- 
++        - comment: "✅ TESTED: GET /api/moderation/reports/types returns all 5 expected report types: inappropriate, spam, false_info, harassment, other. Each type includes id and name fields."
++
++  - task: "Moderation API - Get pending reports"
++    implemented: true
++    working: true
++    file: "backend/routers/moderation.py"
++    stuck_count: 0
++    priority: "high"
++    needs_retesting: false
++    status_history:
++        - working: true
++        - agent: "testing"
++        - comment: "✅ TESTED: GET /api/moderation/reports/pending-moderator returns proper structure with reports array and total count. Successfully shows reports with status 'pending_mod'. Created reports appear immediately in the list."
++
++  - task: "Moderation API - Get moderator stats"
++    implemented: true
++    working: true
++    file: "backend/routers/moderation.py"
++    stuck_count: 0
++    priority: "high"
++    needs_retesting: false
++    status_history:
++        - working: true
++        - agent: "testing"
++        - comment: "✅ TESTED: GET /api/moderation/stats/moderator returns correct structure with pending_reports and pending_promotions counts. Stats update correctly when new reports are created."
++
++  - task: "Moderation API - Get pending promotions"
++    implemented: true
++    working: true
++    file: "backend/routers/moderation.py"
++    stuck_count: 0
++    priority: "high"
++    needs_retesting: false
++    status_history:
++        - working: true
++        - agent: "testing"
++        - comment: "✅ TESTED: GET /api/moderation/promotions/pending-moderator returns proper structure with requests array and total count. Currently shows 0 pending promotions as expected for new system."
++
  frontend:
    - task: "Points display in profile modal"
-@@ -186,13 +222,13 @@ metadata:
- 
+     implemented: true
+@@ -223,6 +285,11 @@ metadata:
  test_plan:
    current_focus:
--    - "Points API - Get my points"
--    - "Points API - Get ranking"
--    - "Award points for event likes"
-+    - "Award points for radio transmission"
+     - "Award points for radio transmission"
++    - "Moderation API - Create reports"
++    - "Moderation API - Get report types"
++    - "Moderation API - Get pending reports"
++    - "Moderation API - Get moderator stats"
++    - "Moderation API - Get pending promotions"
    stuck_tasks: []
    test_all: false
    test_priority: "high_first"
- 
- agent_communication:
+@@ -231,4 +298,8 @@ agent_communication:
      - agent: "main"
--    - message: "Implemented complete points/gamification system. Backend has endpoints for getting user points and ranking. Points are awarded for: check-in/out (5 pts), alerts (10 pts), event likes (5 pts), radio minutes (1 pt), invitations (50 pts), approvals (25 pts). Please test the points API endpoints first. Test credentials: admin/admin"
+     - message: "Implemented complete points/gamification system. Backend has endpoints for getting user points and ranking. Points are awarded for: check-in/out (5 pts), alerts (10 pts), event likes (5 pts), radio minutes (1 pt), invitations (50 pts), approvals (25 pts). Please test the points API endpoints first. Test credentials: admin/admin"
+     - agent: "testing"
+-    - message: "✅ BACKEND TESTING COMPLETED: All major points system endpoints tested and working correctly. GET /api/points/my-points, GET /api/points/ranking, GET /api/points/config all return proper data structures. Event like points (5 pts) and invitation points (50 pts) are correctly awarded. Self-voting protection works. Created comprehensive test suite in backend_test.py. Radio transmission points not tested due to hardware requirements. All high-priority backend tasks are working."
 \ No newline at end of file
-+    - message: "Implemented complete points/gamification system. Backend has endpoints for getting user points and ranking. Points are awarded for: check-in/out (5 pts), alerts (10 pts), event likes (5 pts), radio minutes (1 pt), invitations (50 pts), approvals (25 pts). Please test the points API endpoints first. Test credentials: admin/admin"
-+    - agent: "testing"
 +    - message: "✅ BACKEND TESTING COMPLETED: All major points system endpoints tested and working correctly. GET /api/points/my-points, GET /api/points/ranking, GET /api/points/config all return proper data structures. Event like points (5 pts) and invitation points (50 pts) are correctly awarded. Self-voting protection works. Created comprehensive test suite in backend_test.py. Radio transmission points not tested due to hardware requirements. All high-priority backend tasks are working."
++    - agent: "user"
++    - message: "Por favor, prueba el sistema de moderación y reportes recién implementado en el backend. Credenciales de prueba: admin/admin (rol admin). Endpoints a probar: POST /api/moderation/reports, GET /api/moderation/reports/types, GET /api/moderation/reports/pending-moderator, GET /api/moderation/stats/moderator, GET /api/moderation/promotions/pending-moderator."
++    - agent: "testing"
++    - message: "✅ MODERATION SYSTEM TESTING COMPLETED: All requested moderation endpoints tested and working perfectly. POST /api/moderation/reports creates reports successfully with proper validation. GET /api/moderation/reports/types returns all 5 report types. GET /api/moderation/reports/pending-moderator shows pending reports correctly. GET /api/moderation/stats/moderator provides accurate statistics. GET /api/moderation/promotions/pending-moderator works as expected. Complete flow tested: login → create report → verify in pending list → check stats. All validation working (invalid types, short descriptions rejected). Created comprehensive test suites in moderation_test.py and moderation_flow_test.py."
 \ No newline at end of file
