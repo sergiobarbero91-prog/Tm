@@ -9980,6 +9980,19 @@ export default function TransportMeter() {
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>Información</Text>
               <View style={styles.settingsLinks}>
+                {/* Report Button */}
+                <TouchableOpacity 
+                  style={[styles.settingsLinkButton, { backgroundColor: '#DC2626', marginBottom: 12 }]}
+                  onPress={() => {
+                    setShowSettings(false);
+                    openReportModal();
+                  }}
+                >
+                  <Ionicons name="flag" size={22} color="#FFFFFF" />
+                  <Text style={[styles.settingsLinkText, { color: '#FFFFFF' }]}>Reportar Usuario o Problema</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                   style={styles.settingsLinkButton}
                   onPress={() => {
