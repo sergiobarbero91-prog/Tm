@@ -10861,22 +10861,47 @@ export default function TransportMeter() {
               <View style={styles.profileStatsSection}>
                 <Text style={styles.profileStatsSectionTitle}>Mis Estadísticas</Text>
                 <View style={styles.profileStatsRow}>
-                  <View style={styles.profileStatBox}>
+                  <TouchableOpacity 
+                    style={styles.profileStatBox}
+                    onPress={() => setShowInvitedTaxistsModal(true)}
+                  >
                     <Ionicons name="people" size={28} color="#6366F1" />
                     <Text style={styles.profileStatNumber}>{myReferrals.length}</Text>
                     <Text style={styles.profileStatLabel}>Taxistas Invitados</Text>
-                  </View>
-                  <View style={styles.profileStatBox}>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.profileStatBox}
+                    onPress={() => setShowMyInvitationsModal(true)}
+                  >
                     <Ionicons name="ticket" size={28} color="#10B981" />
                     <Text style={styles.profileStatNumber}>{myInvitations.filter(i => !i.used).length}</Text>
                     <Text style={styles.profileStatLabel}>Invitaciones Activas</Text>
-                  </View>
-                  <View style={styles.profileStatBox}>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.profileStatBox, pendingRequestsCount > 0 && { borderColor: '#F59E0B', borderWidth: 2 }]}
+                    onPress={() => setShowPendingRequestsModal(true)}
+                  >
                     <Ionicons name="time" size={28} color="#F59E0B" />
                     <Text style={styles.profileStatNumber}>{pendingRequestsCount}</Text>
                     <Text style={styles.profileStatLabel}>Solicitudes Pendientes</Text>
-                  </View>
+                    {pendingRequestsCount > 0 && (
+                      <View style={styles.statBadge}>
+                        <Text style={styles.statBadgeText}>!</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
                 </View>
+              </View>
+              
+              {/* Quick Action Buttons for Invitations */}
+              <View style={styles.profileInvitationActions}>
+                <TouchableOpacity
+                  style={styles.createInvitationButton}
+                  onPress={handleCreateInvitation}
+                >
+                  <Ionicons name="add-circle" size={22} color="#FFFFFF" />
+                  <Text style={styles.createInvitationButtonText}>Crear Código de Invitación</Text>
+                </TouchableOpacity>
               </View>
               
               {/* Action Buttons */}
