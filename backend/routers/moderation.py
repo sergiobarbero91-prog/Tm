@@ -179,6 +179,8 @@ async def create_report(
         "description": report.description.strip(),
         "context": report.context,
         "context_id": report.context_id,
+        "media_base64": report.media_base64,
+        "media_type": report.media_type,
         "status": "pending_mod",  # pending_mod, pending_admin, approved, rejected
         "created_at": datetime.utcnow(),
         # Moderator review
