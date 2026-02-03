@@ -4756,7 +4756,7 @@ export default function TransportMeter() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser, timeWindow, selectedTimeRange, getTimeRangeParams, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData, fetchAdminUsers, fetchAdminStats]);
+  }, [activeTab, shift, currentUser, timeWindow, selectedTimeRange, getTimeRangeParams, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData, fetchAdminUsers, fetchAdminStats, fetchModerationReports, fetchModerationPromotions, fetchModerationStats, fetchAdminReports, fetchAdminPromotions, fetchAdminModerationStats]);
 
   // Keep fetchDataRef updated with the latest fetchData function
   useEffect(() => {
