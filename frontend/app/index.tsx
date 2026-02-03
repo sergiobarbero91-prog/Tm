@@ -9600,6 +9600,113 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* Reports Section for Admin */}
+            <TouchableOpacity 
+              style={[styles.adminSupportButton, { backgroundColor: adminReports.length > 0 ? '#DC2626' : '#1E293B', marginTop: 12 }]}
+              onPress={() => {
+                fetchAdminReports();
+                fetchAdminPromotions();
+                fetchAdminModerationStats();
+              }}
+            >
+              <View style={styles.adminSupportButtonContent}>
+                <Ionicons name="flag" size={22} color="#FFFFFF" />
+                <Text style={[styles.adminSupportButtonText, { color: '#FFFFFF' }]}>
+                  Reportes de Moderadores
+                </Text>
+                {(adminModerationStats?.pending_reports || 0) > 0 && (
+                  <View style={[styles.adminSupportBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={[styles.adminSupportBadgeText, { color: '#B45309' }]}>{adminModerationStats?.pending_reports}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* Admin Reports List */}
+            {adminReports.length > 0 && (
+              <View style={styles.moderationSection}>
+                <Text style={[styles.moderationSectionTitle, { marginTop: 12 }]}>📋 Reportes Aprobados por Moderadores</Text>
+                {adminReports.map((report) => (
+                  <View key={report.id} style={styles.moderationCard}>
+                    <View style={styles.moderationCardHeader}>
+                      <View style={[styles.moderationCardType, { backgroundColor: '#DC2626' }]}>
+                        <Ionicons name="flag" size={12} color="#FFFFFF" />
+                        <Text style={styles.moderationCardTypeText}>{report.report_type_name}</Text>
+                      </View>
+                      <Text style={styles.moderationCardTime}>
+                        {report.created_at ? new Date(report.created_at).toLocaleDateString('es-ES') : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.moderationCardReporter}>Reportado por: @{report.reporter_username}</Text>
+                    {report.reported_username && (
+                      <Text style={styles.moderationCardReported}>Usuario: @{report.reported_username}</Text>
+                    )}
+                    <Text style={styles.moderationCardDesc}>{report.description}</Text>
+                    <View style={{ backgroundColor: '#0F172A', padding: 8, borderRadius: 6, marginBottom: 10 }}>
+                      <Text style={{ color: '#9CA3AF', fontSize: 11 }}>Moderador: @{report.moderator_username}</Text>
+                      {report.moderator_notes && (
+                        <Text style={{ color: '#60A5FA', fontSize: 12, marginTop: 4 }}>"{report.moderator_notes}"</Text>
+                      )}
+                    </View>
+                    <View style={styles.moderationCardActions}>
+                      <TouchableOpacity
+                        style={styles.moderationRejectButton}
+                        onPress={() => adminDecideReport(report.id, false, 'Rechazado por administrador')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationRejectButtonText}>❌ Rechazar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.moderationApproveButton, { backgroundColor: '#DC2626' }]}
+                        onPress={() => {
+                          setBanTargetReport(report);
+                          setShowBanModal(true);
+                        }}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationApproveButtonText}>⚠️ Aprobar + Banear</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Admin Promotions (moderator → admin) */}
+            {adminPromotions.length > 0 && (
+              <View style={styles.moderationSection}>
+                <Text style={styles.moderationSectionTitle}>🏆 Peticiones de Promoción a Admin</Text>
+                {adminPromotions.map((promo) => (
+                  <View key={promo.id} style={styles.promotionCard}>
+                    <View style={styles.promotionCardHeader}>
+                      <Text style={styles.promotionCardUser}>{promo.full_name || promo.username}</Text>
+                      <View style={styles.promotionCardPoints}>
+                        <Ionicons name="star" size={14} color="#FFFFFF" />
+                        <Text style={styles.promotionCardPointsText}>{promo.total_points} pts</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.promotionCardTarget}>Solicita: Moderador → Admin</Text>
+                    <View style={styles.moderationCardActions}>
+                      <TouchableOpacity
+                        style={styles.moderationRejectButton}
+                        onPress={() => decidePromotion(promo.id, false, 'Rechazado')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationRejectButtonText}>❌ Rechazar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.moderationApproveButton}
+                        onPress={() => decidePromotion(promo.id, true, 'Aprobado')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationApproveButtonText}>✅ Aprobar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {/* Support Tickets Button */}
             <TouchableOpacity 
               style={[styles.adminSupportButton, showAdminSupport && styles.adminSupportButtonActive]}
