@@ -33,16 +33,95 @@ async def add_points(user_id: str, action: str, points: int, description: str = 
         await points_history_collection.insert_one(transaction)
         
         # Update user's total points
-        await users_collection.update_one(
+        result = await users_collection.find_one_and_update(
             {"id": user_id},
-            {"$inc": {"total_points": points}}
+            {"$inc": {"total_points": points}},
+            return_document=True
         )
         
-        logger.info(f"Points added: {points} to user {user_id} for {action}")
+        if result:
+            new_total = result.get("total_points", 0)
+            logger.info(f"Points added: {points} to user {user_id} for {action}. New total: {new_total}")
+            
+            # Check for promotion eligibility
+            await check_and_create_promotion_request(user_id, new_total, result.get("role", "user"))
+        
         return True
     except Exception as e:
         logger.error(f"Error adding points: {e}")
         return False
+
+
+async def check_and_create_promotion_request(user_id: str, total_points: int, current_role: str):
+    """Check if user qualifies for promotion and create request if needed"""
+    try:
+        # Import here to avoid circular imports
+        from motor.motor_asyncio import AsyncIOMotorClient
+        import os
+        from dotenv import load_dotenv
+        from pathlib import Path
+        
+        ROOT_DIR = Path(__file__).parent.parent
+        load_dotenv(ROOT_DIR / '.env')
+        
+        mongo_url = os.environ['MONGO_URL']
+        client = AsyncIOMotorClient(mongo_url)
+        db = client[os.environ['DB_NAME']]
+        promotion_requests_collection = db['promotion_requests']
+        
+        user = await users_collection.find_one({"id": user_id})
+        if not user:
+            return
+        
+        # Check for moderator promotion (1500+ points, current role is user)
+        if total_points >= 1500 and current_role == "user":
+            existing = await promotion_requests_collection.find_one({
+                "user_id": user_id,
+                "target_role": "moderator",
+                "status": "pending"
+            })
+            if not existing:
+                await promotion_requests_collection.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "username": user.get("username"),
+                    "full_name": user.get("full_name"),
+                    "current_role": current_role,
+                    "target_role": "moderator",
+                    "total_points": total_points,
+                    "status": "pending",
+                    "created_at": datetime.utcnow(),
+                    "reviewed_by": None,
+                    "reviewed_at": None,
+                    "notes": None
+                })
+                logger.info(f"Created moderator promotion request for user {user_id} with {total_points} points")
+        
+        # Check for admin promotion (3000+ points, current role is moderator)
+        if total_points >= 3000 and current_role == "moderator":
+            existing = await promotion_requests_collection.find_one({
+                "user_id": user_id,
+                "target_role": "admin",
+                "status": "pending"
+            })
+            if not existing:
+                await promotion_requests_collection.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "username": user.get("username"),
+                    "full_name": user.get("full_name"),
+                    "current_role": current_role,
+                    "target_role": "admin",
+                    "total_points": total_points,
+                    "status": "pending",
+                    "created_at": datetime.utcnow(),
+                    "reviewed_by": None,
+                    "reviewed_at": None,
+                    "notes": None
+                })
+                logger.info(f"Created admin promotion request for user {user_id} with {total_points} points")
+    except Exception as e:
+        logger.error(f"Error checking promotion eligibility: {e}")
 
 
 async def get_user_points(user_id: str) -> int:
