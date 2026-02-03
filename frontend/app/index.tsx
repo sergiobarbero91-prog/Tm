@@ -8891,6 +8891,34 @@ export default function TransportMeter() {
               {activeTab === 'events' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
             
+            {/* Moderation Tab - for moderators and admins */}
+            {(currentUser?.role === 'moderator' || currentUser?.role === 'admin') && (
+              <TouchableOpacity
+                style={[styles.dropdownMenuItem, activeTab === 'moderation' && styles.dropdownMenuItemActive]}
+                onPress={() => {
+                  if (activeTab !== 'moderation') {
+                    setLoading(true);
+                    setActiveTab('moderation' as any);
+                    fetchModerationReports();
+                    fetchModerationPromotions();
+                    fetchModerationStats();
+                  }
+                  setShowPageDropdown(false);
+                }}
+              >
+                <Ionicons name="shield-half" size={20} color={activeTab === 'moderation' ? '#F59E0B' : '#94A3B8'} />
+                <Text style={[styles.dropdownMenuItemText, activeTab === 'moderation' && styles.dropdownMenuItemTextActive]}>Moderación</Text>
+                {moderationStats && (moderationStats.pending_reports + moderationStats.pending_promotions) > 0 && (
+                  <View style={styles.moderationBadge}>
+                    <Text style={styles.moderationBadgeText}>
+                      {moderationStats.pending_reports + moderationStats.pending_promotions}
+                    </Text>
+                  </View>
+                )}
+                {activeTab === 'moderation' && <Ionicons name="checkmark" size={20} color="#F59E0B" />}
+              </TouchableOpacity>
+            )}
+            
             {currentUser?.role === 'admin' && (
               <TouchableOpacity
                 style={[styles.dropdownMenuItem, activeTab === 'admin' && styles.dropdownMenuItemActive]}
