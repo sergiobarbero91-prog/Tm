@@ -285,6 +285,11 @@ metadata:
 test_plan:
   current_focus:
     - "Award points for radio transmission"
+    - "Moderation API - Create reports"
+    - "Moderation API - Get report types"
+    - "Moderation API - Get pending reports"
+    - "Moderation API - Get moderator stats"
+    - "Moderation API - Get pending promotions"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
