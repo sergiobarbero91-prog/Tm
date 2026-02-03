@@ -4735,10 +4735,19 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
+      } else if (activeTab === 'moderation') {
+        await Promise.all([
+          fetchModerationReports(),
+          fetchModerationPromotions(),
+          fetchModerationStats()
+        ]);
       } else if (activeTab === 'admin') {
         await Promise.all([
           fetchAdminUsers(),
-          fetchAdminStats()
+          fetchAdminStats(),
+          fetchAdminReports(),
+          fetchAdminPromotions(),
+          fetchAdminModerationStats()
         ]);
       }
     } catch (error) {
