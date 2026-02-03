@@ -838,6 +838,27 @@ export default function TransportMeter() {
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportUnreadCount, setSupportUnreadCount] = useState(0);
 
+  // Moderation and Reports states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportedUserId, setReportedUserId] = useState<string | null>(null);
+  const [reportedUsername, setReportedUsername] = useState<string | null>(null);
+  const [reportContext, setReportContext] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [showModerationTab, setShowModerationTab] = useState(false);
+  const [moderationReports, setModerationReports] = useState<any[]>([]);
+  const [moderationPromotions, setModerationPromotions] = useState<any[]>([]);
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const [moderationStats, setModerationStats] = useState<{pending_reports: number; pending_promotions: number} | null>(null);
+  // Admin reports states (reports passed by moderators)
+  const [adminReports, setAdminReports] = useState<any[]>([]);
+  const [adminPromotions, setAdminPromotions] = useState<any[]>([]);
+  const [adminModerationStats, setAdminModerationStats] = useState<{pending_reports: number; pending_promotions: number} | null>(null);
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [banTargetReport, setBanTargetReport] = useState<any>(null);
+  const [selectedBanDuration, setSelectedBanDuration] = useState<string | null>(null);
+
   // Define all functions first
   const checkExistingSession = async () => {
     try {
