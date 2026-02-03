@@ -11261,7 +11261,7 @@ export default function TransportMeter() {
               <TouchableOpacity
                 style={styles.createNewInvitationButton}
                 onPress={() => {
-                  handleCreateInvitation();
+                  createInvitation();
                 }}
               >
                 <Ionicons name="add-circle" size={24} color="#FFFFFF" />
