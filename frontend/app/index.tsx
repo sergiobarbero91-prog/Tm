@@ -4196,6 +4196,212 @@ export default function TransportMeter() {
     }
   };
 
+  // ===== MODERATION & REPORTS FUNCTIONS =====
+  
+  // Create a new report
+  const createReport = async () => {
+    if (!reportType) {
+      Alert.alert('Error', 'Por favor, selecciona el tipo de reporte');
+      return;
+    }
+    if (!reportDescription.trim() || reportDescription.trim().length < 10) {
+      Alert.alert('Error', 'La descripción debe tener al menos 10 caracteres');
+      return;
+    }
+    
+    setReportLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/moderation/reports`, {
+        reported_user_id: reportedUserId,
+        reported_username: reportedUsername,
+        report_type: reportType,
+        description: reportDescription.trim(),
+        context: reportContext
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Éxito', 'Reporte enviado correctamente. Será revisado por los moderadores.');
+      setShowReportModal(false);
+      setReportType('');
+      setReportDescription('');
+      setReportedUserId(null);
+      setReportedUsername(null);
+      setReportContext(null);
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al enviar el reporte';
+      Alert.alert('Error', message);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  // Open report modal (can be called from different contexts)
+  const openReportModal = (userId?: string, username?: string, context?: string) => {
+    setReportedUserId(userId || null);
+    setReportedUsername(username || null);
+    setReportContext(context || null);
+    setReportType('');
+    setReportDescription('');
+    setShowReportModal(true);
+  };
+
+  // Fetch reports pending moderation (for moderators)
+  const fetchModerationReports = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/reports/pending-moderator`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setModerationReports(response.data.reports || []);
+    } catch (error) {
+      console.error('Error fetching moderation reports:', error);
+    }
+  }, []);
+
+  // Fetch promotion requests (for moderators - user to moderator)
+  const fetchModerationPromotions = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/promotions/pending-moderator`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setModerationPromotions(response.data.requests || []);
+    } catch (error) {
+      console.error('Error fetching moderation promotions:', error);
+    }
+  }, []);
+
+  // Fetch moderation stats
+  const fetchModerationStats = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/stats/moderator`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setModerationStats(response.data);
+    } catch (error) {
+      console.error('Error fetching moderation stats:', error);
+    }
+  }, []);
+
+  // Moderate a report (approve/reject)
+  const moderateReport = async (reportId: string, approved: boolean, notes?: string) => {
+    setModerationLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/moderation/reports/${reportId}/moderate`, {
+        approved,
+        moderator_notes: notes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Éxito', approved ? 'Reporte enviado a administración' : 'Reporte rechazado');
+      fetchModerationReports();
+      fetchModerationStats();
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al procesar el reporte';
+      Alert.alert('Error', message);
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
+  // Decide on promotion request (moderator approving user->moderator)
+  const decidePromotion = async (requestId: string, approved: boolean, notes?: string) => {
+    setModerationLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/moderation/promotions/${requestId}/decide`, {
+        approved,
+        notes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Éxito', approved ? 'Usuario promovido a moderador' : 'Solicitud rechazada');
+      fetchModerationPromotions();
+      fetchModerationStats();
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al procesar la solicitud';
+      Alert.alert('Error', message);
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
+  // Admin functions - Fetch reports passed by moderators
+  const fetchAdminReports = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/reports/pending-admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminReports(response.data.reports || []);
+    } catch (error) {
+      console.error('Error fetching admin reports:', error);
+    }
+  }, []);
+
+  // Fetch admin promotion requests (moderator to admin)
+  const fetchAdminPromotions = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/promotions/pending-admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminPromotions(response.data.requests || []);
+    } catch (error) {
+      console.error('Error fetching admin promotions:', error);
+    }
+  }, []);
+
+  // Fetch admin moderation stats
+  const fetchAdminModerationStats = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/moderation/stats/admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminModerationStats(response.data);
+    } catch (error) {
+      console.error('Error fetching admin moderation stats:', error);
+    }
+  }, []);
+
+  // Admin decision on report (with optional ban)
+  const adminDecideReport = async (reportId: string, approved: boolean, notes?: string, banDuration?: string) => {
+    setModerationLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/moderation/reports/${reportId}/admin-decision`, {
+        approved,
+        admin_notes: notes,
+        ban_duration: banDuration
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      let message = approved ? 'Reporte aprobado' : 'Reporte rechazado';
+      if (banDuration) {
+        message += `. Usuario baneado: ${banDuration === 'permanent' ? 'permanentemente' : banDuration}`;
+      }
+      Alert.alert('Éxito', message);
+      fetchAdminReports();
+      fetchAdminModerationStats();
+      setShowBanModal(false);
+      setBanTargetReport(null);
+      setSelectedBanDuration(null);
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al procesar el reporte';
+      Alert.alert('Error', message);
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
   // Search for licenses (autocomplete)
   const searchLicenses = async (query: string) => {
     if (!query || query.length < 1) {
