@@ -306,6 +306,155 @@ export default function HelpPage() {
           </View>
         </Section>
 
+        {/* Sistema de Reportes */}
+        <Section icon="flag" title="Sistema de Reportes">
+          <Text style={styles.paragraph}>
+            Si observas comportamientos inadecuados o problemas con otros usuarios, 
+            puedes crear un reporte para que sea revisado por los moderadores.
+          </Text>
+
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>🚩 Tipos de reportes:</Text>
+          <View style={styles.reportTypesContainer}>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#DC2626' }]}>
+                <Ionicons name="warning" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Comportamiento inapropiado</Text>
+                <Text style={styles.reportTypeDesc}>Conducta ofensiva o irrespetuosa</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="mail-unread" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Spam</Text>
+                <Text style={styles.reportTypeDesc}>Mensajes repetitivos o publicidad</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#6366F1' }]}>
+                <Ionicons name="alert-circle" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Información falsa</Text>
+                <Text style={styles.reportTypeDesc}>Alertas falsas o datos incorrectos</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#EC4899' }]}>
+                <Ionicons name="hand-left" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Acoso</Text>
+                <Text style={styles.reportTypeDesc}>Hostigamiento a otros usuarios</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#64748B' }]}>
+                <Ionicons name="ellipsis-horizontal" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Otro</Text>
+                <Text style={styles.reportTypeDesc}>Cualquier otro problema</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>📝 Cómo crear un reporte:</Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>Ve a Ajustes (icono de engranaje)</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca el botón rojo "Reportar Usuario o Problema"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Selecciona el tipo de reporte</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
+              <Text style={styles.stepText}>Describe el problema con detalle (mínimo 10 caracteres)</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>5</Text></View>
+              <Text style={styles.stepText}>Opcional: Adjunta una imagen o video como evidencia</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>⚖️ Proceso de revisión:</Text>
+          <View style={styles.reviewProcessContainer}>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#6366F1' }]}>
+                <Text style={styles.reviewStepNumber}>1</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Moderador revisa</Text>
+                <Text style={styles.reviewStepDesc}>Un moderador verifica tu reporte</Text>
+              </View>
+            </View>
+            <View style={styles.reviewArrow}>
+              <Ionicons name="arrow-down" size={16} color="#64748B" />
+            </View>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.reviewStepNumber}>2</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Pasa a administración</Text>
+                <Text style={styles.reviewStepDesc}>Si es válido, se escala al admin</Text>
+              </View>
+            </View>
+            <View style={styles.reviewArrow}>
+              <Ionicons name="arrow-down" size={16} color="#64748B" />
+            </View>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#DC2626' }]}>
+                <Text style={styles.reviewStepNumber}>3</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Decisión final</Text>
+                <Text style={styles.reviewStepDesc}>El admin decide y puede aplicar sanciones</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>🚫 Sanciones posibles:</Text>
+          <View style={styles.sanctionsContainer}>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>6 horas</Text>
+              <Text style={styles.sanctionDesc}>Primera infracción leve</Text>
+            </View>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>12 horas</Text>
+              <Text style={styles.sanctionDesc}>Reincidencia o infracción moderada</Text>
+            </View>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>48 horas</Text>
+              <Text style={styles.sanctionDesc}>Infracciones graves</Text>
+            </View>
+            <View style={[styles.sanctionItem, { borderLeftColor: '#DC2626' }]}>
+              <Text style={[styles.sanctionDuration, { color: '#FCA5A5' }]}>Permanente</Text>
+              <Text style={styles.sanctionDesc}>Infracciones muy graves o reincidencia</Text>
+            </View>
+          </View>
+
+          <View style={styles.warningBox}>
+            <Ionicons name="information-circle" size={24} color="#60A5FA" />
+            <View style={styles.warningContent}>
+              <Text style={[styles.warningTitle, { color: '#93C5FD' }]}>ℹ️ NOTA</Text>
+              <Text style={[styles.warningText, { color: '#BFDBFE' }]}>
+                Los reportes falsos o malintencionados también pueden ser sancionados.
+                Usa el sistema de reportes de forma responsable.
+              </Text>
+            </View>
+          </View>
+        </Section>
+
         {/* Juegos */}
         <Section icon="game-controller" title="Juegos Online">
           <Text style={styles.paragraph}>
