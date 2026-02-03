@@ -10596,6 +10596,36 @@ export default function TransportMeter() {
               textAlignVertical="top"
             />
 
+            {/* Media Upload Section */}
+            <Text style={styles.reportLabel}>Adjuntar evidencia (opcional)</Text>
+            <View style={styles.reportMediaContainer}>
+              <TouchableOpacity
+                style={styles.reportMediaButton}
+                onPress={() => pickReportMedia('image')}
+              >
+                <Ionicons name="image" size={24} color="#60A5FA" />
+                <Text style={styles.reportMediaButtonText}>Imagen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reportMediaButton}
+                onPress={() => pickReportMedia('video')}
+              >
+                <Ionicons name="videocam" size={24} color="#A78BFA" />
+                <Text style={styles.reportMediaButtonText}>Video</Text>
+              </TouchableOpacity>
+            </View>
+            {reportMediaBase64 && (
+              <View style={styles.reportMediaPreview}>
+                <Ionicons name={reportMediaType === 'image' ? 'image' : 'videocam'} size={20} color="#10B981" />
+                <Text style={styles.reportMediaPreviewText}>
+                  {reportMediaType === 'image' ? 'Imagen adjunta' : 'Video adjunto'}
+                </Text>
+                <TouchableOpacity onPress={() => { setReportMediaBase64(null); setReportMediaType(null); }}>
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.reportButtons}>
               <TouchableOpacity
                 style={styles.reportCancelButton}
