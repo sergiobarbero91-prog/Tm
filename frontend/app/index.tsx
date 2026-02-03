@@ -10902,7 +10902,7 @@ export default function TransportMeter() {
               <View style={styles.profileInvitationActions}>
                 <TouchableOpacity
                   style={styles.createInvitationButton}
-                  onPress={handleCreateInvitation}
+                  onPress={() => createInvitation()}
                 >
                   <Ionicons name="add-circle" size={22} color="#FFFFFF" />
                   <Text style={styles.createInvitationButtonText}>Crear Código de Invitación</Text>
