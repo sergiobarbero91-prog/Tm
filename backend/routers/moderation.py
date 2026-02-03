@@ -43,6 +43,8 @@ class ReportCreate(BaseModel):
     description: str
     context: Optional[str] = None  # e.g., "chat message", "false alert", "event"
     context_id: Optional[str] = None  # ID of the related item
+    media_base64: Optional[str] = None  # Base64 encoded image or video
+    media_type: Optional[str] = None  # "image" or "video"
 
 class ModeratorReview(BaseModel):
     """Model for moderator review"""
