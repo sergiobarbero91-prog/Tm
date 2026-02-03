@@ -596,4 +596,111 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Points system styles
+  pointsTable: {
+    marginTop: 8,
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pointsBadge: {
+    width: 44,
+    height: 28,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  pointsBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  pointsAction: {
+    flex: 1,
+    color: '#D1D5DB',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  levelsTable: {
+    marginTop: 4,
+  },
+  levelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 10,
+  },
+  levelBadge: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  levelName: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  levelPoints: {
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  // Invitation system styles
+  stepsList: {
+    marginTop: 8,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepText: {
+    flex: 1,
+    color: '#D1D5DB',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingTop: 2,
+  },
+  rewardsBox: {
+    flexDirection: 'row',
+    backgroundColor: '#422006',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#78350F',
+  },
+  rewardsContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  rewardsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCD34D',
+    marginBottom: 8,
+  },
+  rewardsText: {
+    fontSize: 13,
+    color: '#FDE68A',
+    lineHeight: 22,
+  },
 });
