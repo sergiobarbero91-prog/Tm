@@ -9225,6 +9225,124 @@ export default function TransportMeter() {
               ))
             )}
           </View>
+        ) : activeTab === 'moderation' ? (
+          <ScrollView style={styles.moderationContainer}>
+            {/* Moderation Header */}
+            <View style={styles.moderationHeader}>
+              <Ionicons name="shield-half" size={28} color="#F59E0B" />
+              <Text style={styles.moderationTitle}>Panel de Moderación</Text>
+            </View>
+
+            {/* Stats Cards */}
+            <View style={styles.moderationStats}>
+              <View style={[styles.moderationStatCard, { backgroundColor: '#DC262620' }]}>
+                <Ionicons name="flag" size={24} color="#DC2626" />
+                <Text style={styles.moderationStatNumber}>{moderationStats?.pending_reports || 0}</Text>
+                <Text style={styles.moderationStatLabel}>Reportes Pendientes</Text>
+              </View>
+              <View style={[styles.moderationStatCard, { backgroundColor: '#8B5CF620' }]}>
+                <Ionicons name="arrow-up-circle" size={24} color="#8B5CF6" />
+                <Text style={styles.moderationStatNumber}>{moderationStats?.pending_promotions || 0}</Text>
+                <Text style={styles.moderationStatLabel}>Promociones</Text>
+              </View>
+            </View>
+
+            {/* Pending Reports Section */}
+            <View style={styles.moderationSection}>
+              <Text style={styles.moderationSectionTitle}>📋 Reportes Pendientes de Revisión</Text>
+              {moderationReports.length === 0 ? (
+                <View style={styles.moderationEmpty}>
+                  <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                  <Text style={styles.moderationEmptyText}>No hay reportes pendientes</Text>
+                </View>
+              ) : (
+                moderationReports.map((report) => (
+                  <View key={report.id} style={styles.moderationCard}>
+                    <View style={styles.moderationCardHeader}>
+                      <View style={styles.moderationCardType}>
+                        <Ionicons name="flag" size={12} color="#FFFFFF" />
+                        <Text style={styles.moderationCardTypeText}>{report.report_type_name}</Text>
+                      </View>
+                      <Text style={styles.moderationCardTime}>
+                        {report.created_at ? new Date(report.created_at).toLocaleDateString('es-ES') : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.moderationCardReporter}>Reportado por: @{report.reporter_username}</Text>
+                    {report.reported_username && (
+                      <Text style={styles.moderationCardReported}>Usuario reportado: @{report.reported_username}</Text>
+                    )}
+                    <Text style={styles.moderationCardDesc}>{report.description}</Text>
+                    {report.media_url && (
+                      <TouchableOpacity 
+                        style={{backgroundColor: '#374151', padding: 10, borderRadius: 8, marginBottom: 10}}
+                        onPress={() => {/* Open media */}}
+                      >
+                        <Text style={{color: '#60A5FA', fontSize: 13}}>📎 Ver archivo adjunto</Text>
+                      </TouchableOpacity>
+                    )}
+                    <View style={styles.moderationCardActions}>
+                      <TouchableOpacity
+                        style={styles.moderationRejectButton}
+                        onPress={() => moderateReport(report.id, false, 'Rechazado por moderador')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationRejectButtonText}>❌ Rechazar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.moderationApproveButton}
+                        onPress={() => moderateReport(report.id, true, 'Aprobado para revisión admin')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationApproveButtonText}>✅ Pasar a Admin</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Promotion Requests Section */}
+            <View style={styles.moderationSection}>
+              <Text style={styles.moderationSectionTitle}>🏅 Peticiones de Promoción a Moderador</Text>
+              {moderationPromotions.length === 0 ? (
+                <View style={styles.moderationEmpty}>
+                  <Ionicons name="people" size={48} color="#64748B" />
+                  <Text style={styles.moderationEmptyText}>No hay peticiones pendientes</Text>
+                </View>
+              ) : (
+                moderationPromotions.map((promo) => (
+                  <View key={promo.id} style={styles.promotionCard}>
+                    <View style={styles.promotionCardHeader}>
+                      <Text style={styles.promotionCardUser}>{promo.full_name || promo.username}</Text>
+                      <View style={styles.promotionCardPoints}>
+                        <Ionicons name="star" size={14} color="#FFFFFF" />
+                        <Text style={styles.promotionCardPointsText}>{promo.total_points} pts</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.promotionCardTarget}>
+                      Solicita: {promo.current_role} → {promo.target_role}
+                    </Text>
+                    <View style={styles.moderationCardActions}>
+                      <TouchableOpacity
+                        style={styles.moderationRejectButton}
+                        onPress={() => decidePromotion(promo.id, false, 'Rechazado')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationRejectButtonText}>❌ Rechazar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.moderationApproveButton}
+                        onPress={() => decidePromotion(promo.id, true, 'Aprobado')}
+                        disabled={moderationLoading}
+                      >
+                        <Text style={styles.moderationApproveButtonText}>✅ Aprobar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
         ) : activeTab === 'admin' ? (
           <View style={styles.adminContainer}>
             {/* Admin Header */}
