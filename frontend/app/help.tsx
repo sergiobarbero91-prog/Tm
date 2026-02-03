@@ -852,4 +852,97 @@ const styles = StyleSheet.create({
     color: '#FDE68A',
     lineHeight: 22,
   },
+  // Report system styles
+  reportTypesContainer: {
+    marginTop: 8,
+  },
+  reportTypeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reportTypeBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  reportTypeInfo: {
+    flex: 1,
+  },
+  reportTypeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reportTypeDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  reviewProcessContainer: {
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  reviewStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewStepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  reviewStepNumber: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reviewStepContent: {
+    flex: 1,
+  },
+  reviewStepTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reviewStepDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  reviewArrow: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 8,
+  },
+  sanctionsContainer: {
+    marginTop: 8,
+  },
+  sanctionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  sanctionDuration: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCD34D',
+    width: 90,
+  },
+  sanctionDesc: {
+    flex: 1,
+    fontSize: 13,
+    color: '#D1D5DB',
+  },
 });
