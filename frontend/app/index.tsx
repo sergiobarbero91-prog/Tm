@@ -11194,6 +11194,209 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Invited Taxists Modal */}
+      {showInvitedTaxistsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.invitationManagementModal}>
+            <View style={styles.invitationModalHeader}>
+              <Ionicons name="people" size={28} color="#6366F1" />
+              <Text style={styles.invitationModalTitle}>Taxistas Invitados</Text>
+              <TouchableOpacity onPress={() => setShowInvitedTaxistsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.invitationModalContent}>
+              {myReferrals.length === 0 ? (
+                <View style={styles.invitationEmptyState}>
+                  <Ionicons name="people-outline" size={48} color="#64748B" />
+                  <Text style={styles.invitationEmptyText}>No has invitado a ningún taxista todavía</Text>
+                  <Text style={styles.invitationEmptySubtext}>Crea un código de invitación y compártelo</Text>
+                </View>
+              ) : (
+                myReferrals.map((referral, index) => (
+                  <View key={referral.id || index} style={styles.invitedTaxistCard}>
+                    <View style={styles.invitedTaxistAvatar}>
+                      <Ionicons name="person" size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.invitedTaxistInfo}>
+                      <Text style={styles.invitedTaxistName}>{referral.full_name || referral.username}</Text>
+                      <Text style={styles.invitedTaxistUsername}>@{referral.username}</Text>
+                      {referral.license_number && (
+                        <Text style={styles.invitedTaxistLicense}>Licencia: {referral.license_number}</Text>
+                      )}
+                    </View>
+                    <View style={styles.invitedTaxistBadge}>
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            
+            <TouchableOpacity
+              style={styles.invitationModalCloseButton}
+              onPress={() => setShowInvitedTaxistsModal(false)}
+            >
+              <Text style={styles.invitationModalCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* My Invitations Modal */}
+      {showMyInvitationsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.invitationManagementModal}>
+            <View style={styles.invitationModalHeader}>
+              <Ionicons name="ticket" size={28} color="#10B981" />
+              <Text style={styles.invitationModalTitle}>Mis Invitaciones</Text>
+              <TouchableOpacity onPress={() => setShowMyInvitationsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.invitationModalContent}>
+              {/* Create new invitation button */}
+              <TouchableOpacity
+                style={styles.createNewInvitationButton}
+                onPress={() => {
+                  handleCreateInvitation();
+                }}
+              >
+                <Ionicons name="add-circle" size={24} color="#FFFFFF" />
+                <Text style={styles.createNewInvitationText}>Crear Nueva Invitación</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.invitationSectionTitle}>Invitaciones Activas</Text>
+              {myInvitations.filter(i => !i.used).length === 0 ? (
+                <View style={styles.invitationEmptyState}>
+                  <Ionicons name="ticket-outline" size={40} color="#64748B" />
+                  <Text style={styles.invitationEmptyText}>No tienes invitaciones activas</Text>
+                </View>
+              ) : (
+                myInvitations.filter(i => !i.used).map((inv) => (
+                  <View key={inv.id} style={styles.invitationCard}>
+                    <View style={styles.invitationCardHeader}>
+                      <View style={[styles.invitationStatusBadge, { backgroundColor: '#10B981' }]}>
+                        <Text style={styles.invitationStatusText}>Activa</Text>
+                      </View>
+                      <Text style={styles.invitationDate}>
+                        Caduca: {new Date(inv.expires_at).toLocaleDateString('es-ES')}
+                      </Text>
+                    </View>
+                    <View style={styles.invitationCodeContainer}>
+                      <Text style={styles.invitationCodeLabel}>Código:</Text>
+                      <Text style={styles.invitationCode}>{inv.code}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          // Copy to clipboard
+                          Alert.alert('Código Copiado', inv.code);
+                        }}
+                      >
+                        <Ionicons name="copy" size={20} color="#60A5FA" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+              
+              {myInvitations.filter(i => i.used).length > 0 && (
+                <>
+                  <Text style={[styles.invitationSectionTitle, { marginTop: 16 }]}>Invitaciones Usadas</Text>
+                  {myInvitations.filter(i => i.used).map((inv) => (
+                    <View key={inv.id} style={[styles.invitationCard, { opacity: 0.6 }]}>
+                      <View style={styles.invitationCardHeader}>
+                        <View style={[styles.invitationStatusBadge, { backgroundColor: '#6B7280' }]}>
+                          <Text style={styles.invitationStatusText}>Usada</Text>
+                        </View>
+                      </View>
+                      <View style={styles.invitationCodeContainer}>
+                        <Text style={styles.invitationCodeLabel}>Código:</Text>
+                        <Text style={[styles.invitationCode, { color: '#6B7280' }]}>{inv.code}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+            
+            <TouchableOpacity
+              style={styles.invitationModalCloseButton}
+              onPress={() => setShowMyInvitationsModal(false)}
+            >
+              <Text style={styles.invitationModalCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Pending Requests Modal */}
+      {showPendingRequestsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.invitationManagementModal}>
+            <View style={styles.invitationModalHeader}>
+              <Ionicons name="time" size={28} color="#F59E0B" />
+              <Text style={styles.invitationModalTitle}>Solicitudes Pendientes</Text>
+              <TouchableOpacity onPress={() => setShowPendingRequestsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.invitationModalContent}>
+              {pendingRequests.length === 0 ? (
+                <View style={styles.invitationEmptyState}>
+                  <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                  <Text style={styles.invitationEmptyText}>No tienes solicitudes pendientes</Text>
+                  <Text style={styles.invitationEmptySubtext}>Las solicitudes aparecerán aquí cuando alguien use tu número de licencia para registrarse</Text>
+                </View>
+              ) : (
+                pendingRequests.map((req) => (
+                  <View key={req.id} style={styles.pendingRequestCard}>
+                    <View style={styles.pendingRequestHeader}>
+                      <Ionicons name="person-add" size={24} color="#F59E0B" />
+                      <View style={styles.pendingRequestInfo}>
+                        <Text style={styles.pendingRequestName}>{req.user_details?.full_name || 'Nuevo usuario'}</Text>
+                        <Text style={styles.pendingRequestUsername}>@{req.user_details?.username}</Text>
+                      </View>
+                    </View>
+                    {req.user_details?.license_number && (
+                      <Text style={styles.pendingRequestLicense}>Licencia: {req.user_details.license_number}</Text>
+                    )}
+                    <Text style={styles.pendingRequestDate}>
+                      Solicitado: {new Date(req.created_at).toLocaleDateString('es-ES')}
+                    </Text>
+                    <View style={styles.pendingRequestActions}>
+                      <TouchableOpacity
+                        style={styles.pendingRequestRejectButton}
+                        onPress={() => handleRejectRequest(req.id)}
+                      >
+                        <Ionicons name="close" size={18} color="#FFFFFF" />
+                        <Text style={styles.pendingRequestButtonText}>Rechazar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.pendingRequestApproveButton}
+                        onPress={() => handleApproveRequest(req.id)}
+                      >
+                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                        <Text style={styles.pendingRequestButtonText}>Aprobar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            
+            <TouchableOpacity
+              style={styles.invitationModalCloseButton}
+              onPress={() => setShowPendingRequestsModal(false)}
+            >
+              <Text style={styles.invitationModalCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Change Password Modal */}
       {showChangePasswordModal && (
         <View style={styles.modalOverlay}>
