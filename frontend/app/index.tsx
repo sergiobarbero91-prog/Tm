@@ -9649,10 +9649,18 @@ export default function TransportMeter() {
             </TouchableOpacity>
 
             {/* Admin Reports List */}
-            {adminReports.length > 0 && (
-              <View style={styles.moderationSection}>
-                <Text style={[styles.moderationSectionTitle, { marginTop: 12 }]}>📋 Reportes Aprobados por Moderadores</Text>
-                {adminReports.map((report) => (
+            <View style={styles.moderationSection}>
+              <Text style={[styles.moderationSectionTitle, { marginTop: 12 }]}>📋 Reportes Aprobados por Moderadores</Text>
+              {adminReports.length === 0 ? (
+                <View style={styles.moderationEmpty}>
+                  <Ionicons name="document-text-outline" size={40} color="#64748B" />
+                  <Text style={styles.moderationEmptyText}>No hay reportes pendientes de decisión</Text>
+                  <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 4 }}>
+                    Los moderadores deben aprobar reportes primero
+                  </Text>
+                </View>
+              ) : (
+                adminReports.map((report) => (
                   <View key={report.id} style={styles.moderationCard}>
                     <View style={styles.moderationCardHeader}>
                       <View style={[styles.moderationCardType, { backgroundColor: '#DC2626' }]}>
@@ -9674,6 +9682,13 @@ export default function TransportMeter() {
                         <Text style={{ color: '#60A5FA', fontSize: 12, marginTop: 4 }}>"{report.moderator_notes}"</Text>
                       )}
                     </View>
+                    {report.media_base64 && (
+                      <View style={{ backgroundColor: '#1E293B', padding: 10, borderRadius: 8, marginBottom: 10 }}>
+                        <Text style={{ color: '#60A5FA', fontSize: 12 }}>
+                          📎 {report.media_type === 'image' ? 'Imagen adjunta' : 'Video adjunto'}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.moderationCardActions}>
                       <TouchableOpacity
                         style={styles.moderationRejectButton}
@@ -9694,9 +9709,9 @@ export default function TransportMeter() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              )}
+            </View>
 
             {/* Admin Promotions (moderator → admin) */}
             <View style={styles.moderationSection}>
