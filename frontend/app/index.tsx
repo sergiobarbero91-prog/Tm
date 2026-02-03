@@ -846,6 +846,8 @@ export default function TransportMeter() {
   const [reportedUsername, setReportedUsername] = useState<string | null>(null);
   const [reportContext, setReportContext] = useState<string | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportMediaBase64, setReportMediaBase64] = useState<string | null>(null);
+  const [reportMediaType, setReportMediaType] = useState<'image' | 'video' | null>(null);
   const [showModerationTab, setShowModerationTab] = useState(false);
   const [moderationReports, setModerationReports] = useState<any[]>([]);
   const [moderationPromotions, setModerationPromotions] = useState<any[]>([]);
