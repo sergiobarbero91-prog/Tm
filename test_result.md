@@ -104,6 +104,8 @@
 
 user_problem_statement: Implementar un sistema de gamificación/puntos completo para incentivar la participación de usuarios. Los usuarios ganan puntos por: crear eventos que reciben likes (5 pts), hacer check-in/check-out de estaciones (5 pts), crear alertas válidas (10 pts), invitar usuarios que se registran (50 pts), aprobar solicitudes de registro (25 pts), y por actividad en la radio (1 pt por minuto de transmisión). El total de puntos y categoría del usuario deben mostrarse en su perfil, con una vista separada para ver el ranking global.
 
+recent_request: Por favor, prueba el sistema de moderación y reportes recién implementado en el backend. Credenciales de prueba: admin/admin (rol admin). Endpoints a probar: POST /api/moderation/reports, GET /api/moderation/reports/types, GET /api/moderation/reports/pending-moderator, GET /api/moderation/stats/moderator, GET /api/moderation/promotions/pending-moderator.
+
 backend:
   - task: "Points API - Get my points"
     implemented: true
