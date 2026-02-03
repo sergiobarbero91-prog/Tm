@@ -10596,6 +10596,84 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Ban Selection Modal */}
+      {showBanModal && banTargetReport && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.reportModal}>
+            <View style={styles.reportModalHeader}>
+              <Ionicons name="ban" size={32} color="#DC2626" />
+              <Text style={styles.reportModalTitle}>Aplicar Baneo</Text>
+              <TouchableOpacity onPress={() => { setShowBanModal(false); setBanTargetReport(null); setSelectedBanDuration(null); }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.reportTargetInfo}>
+              <Ionicons name="person" size={18} color="#DC2626" />
+              <Text style={styles.reportTargetText}>Usuario: @{banTargetReport.reported_username || 'Desconocido'}</Text>
+            </View>
+
+            <Text style={styles.reportLabel}>Selecciona la duración del baneo:</Text>
+            <View style={styles.reportTypeContainer}>
+              {[
+                { id: '6h', label: '6 horas' },
+                { id: '12h', label: '12 horas' },
+                { id: '48h', label: '48 horas' },
+                { id: 'permanent', label: 'Permanente' },
+              ].map((duration) => (
+                <TouchableOpacity
+                  key={duration.id}
+                  style={[
+                    styles.reportTypeButton,
+                    selectedBanDuration === duration.id && styles.reportTypeButtonActive
+                  ]}
+                  onPress={() => setSelectedBanDuration(duration.id)}
+                >
+                  <Ionicons 
+                    name={duration.id === 'permanent' ? 'infinite' : 'time'} 
+                    size={18} 
+                    color={selectedBanDuration === duration.id ? '#FFFFFF' : '#9CA3AF'} 
+                  />
+                  <Text style={[
+                    styles.reportTypeText,
+                    selectedBanDuration === duration.id && styles.reportTypeTextActive
+                  ]}>
+                    {duration.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.reportButtons}>
+              <TouchableOpacity
+                style={styles.reportCancelButton}
+                onPress={() => { setShowBanModal(false); setBanTargetReport(null); setSelectedBanDuration(null); }}
+              >
+                <Text style={styles.reportCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reportSubmitButton, !selectedBanDuration && styles.reportButtonDisabled]}
+                onPress={() => {
+                  if (selectedBanDuration && banTargetReport) {
+                    adminDecideReport(banTargetReport.id, true, 'Aprobado con baneo', selectedBanDuration);
+                  }
+                }}
+                disabled={!selectedBanDuration || moderationLoading}
+              >
+                {moderationLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="ban" size={18} color="#FFFFFF" />
+                    <Text style={styles.reportSubmitButtonText}>Aplicar Baneo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Profile View Modal (Read-Only) */}
       {showProfileModal && (
         <View style={styles.modalOverlay}>
