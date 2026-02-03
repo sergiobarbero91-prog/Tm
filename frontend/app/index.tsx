@@ -4219,7 +4219,9 @@ export default function TransportMeter() {
         reported_username: reportedUsername,
         report_type: reportType,
         description: reportDescription.trim(),
-        context: reportContext
+        context: reportContext,
+        media_base64: reportMediaBase64,
+        media_type: reportMediaType
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -4231,11 +4233,33 @@ export default function TransportMeter() {
       setReportedUserId(null);
       setReportedUsername(null);
       setReportContext(null);
+      setReportMediaBase64(null);
+      setReportMediaType(null);
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Error al enviar el reporte';
       Alert.alert('Error', message);
     } finally {
       setReportLoading(false);
+    }
+  };
+
+  // Pick image/video for report
+  const pickReportMedia = async (type: 'image' | 'video') => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: type === 'image' ? ['images'] : ['videos'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        setReportMediaBase64(result.assets[0].base64 || null);
+        setReportMediaType(type);
+      }
+    } catch (error) {
+      console.error('Error picking media:', error);
+      Alert.alert('Error', 'No se pudo seleccionar el archivo');
     }
   };
 
