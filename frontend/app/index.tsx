@@ -519,6 +519,11 @@ export default function TransportMeter() {
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [rankingLoading, setRankingLoading] = useState(false);
   
+  // Invitation management modals
+  const [showInvitedTaxistsModal, setShowInvitedTaxistsModal] = useState(false);
+  const [showMyInvitationsModal, setShowMyInvitationsModal] = useState(false);
+  const [showPendingRequestsModal, setShowPendingRequestsModal] = useState(false);
+  
   // Profile editing states
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
