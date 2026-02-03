@@ -191,6 +191,66 @@ backend:
         - agent: "testing"
         - comment: "NOT TESTED: Radio transmission points not tested due to complexity of radio system testing. Requires audio/hardware components."
 
+  - task: "Moderation API - Create reports"
+    implemented: true
+    working: true
+    file: "backend/routers/moderation.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: POST /api/moderation/reports successfully creates reports with proper validation. Returns success=true and report_id. Validates report_type and description length (min 10 chars). Correctly rejects invalid report types and short descriptions with HTTP 400."
+
+  - task: "Moderation API - Get report types"
+    implemented: true
+    working: true
+    file: "backend/routers/moderation.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: GET /api/moderation/reports/types returns all 5 expected report types: inappropriate, spam, false_info, harassment, other. Each type includes id and name fields."
+
+  - task: "Moderation API - Get pending reports"
+    implemented: true
+    working: true
+    file: "backend/routers/moderation.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: GET /api/moderation/reports/pending-moderator returns proper structure with reports array and total count. Successfully shows reports with status 'pending_mod'. Created reports appear immediately in the list."
+
+  - task: "Moderation API - Get moderator stats"
+    implemented: true
+    working: true
+    file: "backend/routers/moderation.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: GET /api/moderation/stats/moderator returns correct structure with pending_reports and pending_promotions counts. Stats update correctly when new reports are created."
+
+  - task: "Moderation API - Get pending promotions"
+    implemented: true
+    working: true
+    file: "backend/routers/moderation.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "✅ TESTED: GET /api/moderation/promotions/pending-moderator returns proper structure with requests array and total count. Currently shows 0 pending promotions as expected for new system."
+
 frontend:
   - task: "Points display in profile modal"
     implemented: true
