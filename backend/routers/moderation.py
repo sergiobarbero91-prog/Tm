@@ -266,6 +266,8 @@ async def get_pending_reports_for_admin(
                 "report_type_name": r["report_type_name"],
                 "description": r["description"],
                 "context": r.get("context"),
+                "media_base64": r.get("media_base64"),
+                "media_type": r.get("media_type"),
                 "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
                 "moderator_username": r.get("moderator_username"),
                 "moderator_notes": r.get("moderator_notes"),
