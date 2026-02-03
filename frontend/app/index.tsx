@@ -9699,10 +9699,18 @@ export default function TransportMeter() {
             )}
 
             {/* Admin Promotions (moderator → admin) */}
-            {adminPromotions.length > 0 && (
-              <View style={styles.moderationSection}>
-                <Text style={styles.moderationSectionTitle}>🏆 Peticiones de Promoción a Admin</Text>
-                {adminPromotions.map((promo) => (
+            <View style={styles.moderationSection}>
+              <Text style={styles.moderationSectionTitle}>🏆 Peticiones de Promoción a Admin</Text>
+              {adminPromotions.length === 0 ? (
+                <View style={styles.moderationEmpty}>
+                  <Ionicons name="medal-outline" size={40} color="#64748B" />
+                  <Text style={styles.moderationEmptyText}>No hay peticiones de promoción pendientes</Text>
+                  <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 4 }}>
+                    Se crean automáticamente cuando un moderador alcanza 3000+ puntos
+                  </Text>
+                </View>
+              ) : (
+                adminPromotions.map((promo) => (
                   <View key={promo.id} style={styles.promotionCard}>
                     <View style={styles.promotionCardHeader}>
                       <Text style={styles.promotionCardUser}>{promo.full_name || promo.username}</Text>
@@ -9729,9 +9737,9 @@ export default function TransportMeter() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              )}
+            </View>
 
             {/* Support Tickets Button */}
             <TouchableOpacity 
