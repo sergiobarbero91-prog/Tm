@@ -9926,13 +9926,13 @@ export default function TransportMeter() {
                   <View style={styles.chatContainer}>
                     {/* Group Chat Header */}
                     <View style={styles.chatHeader}>
-                      <TouchableOpacity onPress={() => setSelectedGroup(null)}>
+                      <TouchableOpacity onPress={() => setSelectedGroup(null)} style={{ padding: 8 }}>
                         <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                       </TouchableOpacity>
                       <Text style={styles.chatHeaderTitle}>
                         {chatGroups.find(g => g.id === selectedGroup)?.name || 'Grupo'}
                       </Text>
-                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         {/* Add member button - only for admins */}
                         {chatGroups.find(g => g.id === selectedGroup)?.is_admin && (
                           <TouchableOpacity 
@@ -9942,14 +9942,33 @@ export default function TransportMeter() {
                               setAddMemberSearchResults([]);
                               setShowAddToGroupModal(true);
                             }}
-                            style={{ padding: 4 }}
+                            style={{ 
+                              padding: 8, 
+                              backgroundColor: 'rgba(16, 185, 129, 0.2)', 
+                              borderRadius: 8,
+                              minWidth: 40,
+                              minHeight: 40,
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
-                            <Ionicons name="person-add" size={22} color="#10B981" />
+                            <Ionicons name="person-add" size={20} color="#10B981" />
                           </TouchableOpacity>
                         )}
                         {/* Leave group button */}
-                        <TouchableOpacity onPress={() => leaveGroup(selectedGroup)} style={{ padding: 4 }}>
-                          <Ionicons name="exit-outline" size={22} color="#EF4444" />
+                        <TouchableOpacity 
+                          onPress={() => leaveGroup(selectedGroup)} 
+                          style={{ 
+                            padding: 8, 
+                            backgroundColor: 'rgba(239, 68, 68, 0.2)', 
+                            borderRadius: 8,
+                            minWidth: 40,
+                            minHeight: 40,
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Ionicons name="exit-outline" size={20} color="#EF4444" />
                         </TouchableOpacity>
                       </View>
                     </View>
