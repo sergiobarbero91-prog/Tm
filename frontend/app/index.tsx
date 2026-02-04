@@ -890,6 +890,10 @@ export default function TransportMeter() {
   const [selectedUserProfile, setSelectedUserProfile] = useState<any>(null);
   const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
   const [groupToAddMember, setGroupToAddMember] = useState<string | null>(null);
+  const [showLeaveGroupConfirm, setShowLeaveGroupConfirm] = useState(false);
+  const [groupToLeave, setGroupToLeave] = useState<string | null>(null);
+  const [addMemberSearchQuery, setAddMemberSearchQuery] = useState('');
+  const [addMemberSearchResults, setAddMemberSearchResults] = useState<any[]>([]);
 
   // Define all functions first
   const checkExistingSession = async () => {
