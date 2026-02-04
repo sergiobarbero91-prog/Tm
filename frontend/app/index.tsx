@@ -9932,9 +9932,26 @@ export default function TransportMeter() {
                       <Text style={styles.chatHeaderTitle}>
                         {chatGroups.find(g => g.id === selectedGroup)?.name || 'Grupo'}
                       </Text>
-                      <TouchableOpacity onPress={() => leaveGroup(selectedGroup)}>
-                        <Ionicons name="exit-outline" size={22} color="#EF4444" />
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        {/* Add member button - only for admins */}
+                        {chatGroups.find(g => g.id === selectedGroup)?.is_admin && (
+                          <TouchableOpacity 
+                            onPress={() => {
+                              setGroupToAddMember(selectedGroup);
+                              setAddMemberSearchQuery('');
+                              setAddMemberSearchResults([]);
+                              setShowAddToGroupModal(true);
+                            }}
+                            style={{ padding: 4 }}
+                          >
+                            <Ionicons name="person-add" size={22} color="#10B981" />
+                          </TouchableOpacity>
+                        )}
+                        {/* Leave group button */}
+                        <TouchableOpacity onPress={() => leaveGroup(selectedGroup)} style={{ padding: 4 }}>
+                          <Ionicons name="exit-outline" size={22} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     {/* Group Messages */}
                     <ScrollView style={styles.messagesContainer}>
