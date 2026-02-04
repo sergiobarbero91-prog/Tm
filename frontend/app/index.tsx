@@ -9639,6 +9639,355 @@ export default function TransportMeter() {
               ))
             )}
           </View>
+        ) : activeTab === 'social' ? (
+          <View style={styles.socialContainer}>
+            {/* Social Header */}
+            <View style={styles.socialHeader}>
+              <Ionicons name="people" size={28} color="#EC4899" />
+              <Text style={styles.socialTitle}>Red Social</Text>
+            </View>
+
+            {/* Social Tabs */}
+            <View style={styles.socialTabs}>
+              <TouchableOpacity
+                style={[styles.socialTab, socialTab === 'friends' && styles.socialTabActive]}
+                onPress={() => { setSocialTab('friends'); setSelectedConversation(null); setSelectedGroup(null); }}
+              >
+                <Ionicons name="people-outline" size={18} color={socialTab === 'friends' ? '#FFFFFF' : '#9CA3AF'} />
+                <Text style={[styles.socialTabText, socialTab === 'friends' && styles.socialTabTextActive]}>Amigos</Text>
+                {friendRequests.length > 0 && (
+                  <View style={styles.socialTabBadge}><Text style={styles.socialTabBadgeText}>{friendRequests.length}</Text></View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialTab, socialTab === 'messages' && styles.socialTabActive]}
+                onPress={() => { setSocialTab('messages'); setSelectedGroup(null); }}
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={socialTab === 'messages' ? '#FFFFFF' : '#9CA3AF'} />
+                <Text style={[styles.socialTabText, socialTab === 'messages' && styles.socialTabTextActive]}>Mensajes</Text>
+                {socialUnreadCount > 0 && (
+                  <View style={styles.socialTabBadge}><Text style={styles.socialTabBadgeText}>{socialUnreadCount}</Text></View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialTab, socialTab === 'groups' && styles.socialTabActive]}
+                onPress={() => { setSocialTab('groups'); setSelectedConversation(null); }}
+              >
+                <Ionicons name="chatbubbles-outline" size={18} color={socialTab === 'groups' ? '#FFFFFF' : '#9CA3AF'} />
+                <Text style={[styles.socialTabText, socialTab === 'groups' && styles.socialTabTextActive]}>Grupos</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Friends Tab Content */}
+            {socialTab === 'friends' && (
+              <ScrollView style={styles.socialContent}>
+                {/* Search Users */}
+                <View style={styles.socialSearchContainer}>
+                  <Ionicons name="search" size={18} color="#6B7280" />
+                  <TextInput
+                    style={styles.socialSearchInput}
+                    placeholder="Buscar usuarios..."
+                    placeholderTextColor="#6B7280"
+                    value={searchUserQuery}
+                    onChangeText={(text) => {
+                      setSearchUserQuery(text);
+                      searchUsers(text);
+                    }}
+                  />
+                </View>
+
+                {/* Search Results */}
+                {searchUserResults.length > 0 && (
+                  <View style={styles.searchResultsContainer}>
+                    <Text style={styles.socialSectionTitle}>Resultados de búsqueda</Text>
+                    {searchUserResults.map((user) => (
+                      <View key={user.id} style={styles.friendCard}>
+                        <TouchableOpacity style={styles.friendInfo} onPress={() => viewUserProfile(user.id)}>
+                          <View style={styles.friendAvatar}>
+                            <Text style={styles.friendAvatarText}>{user.level_badge}</Text>
+                          </View>
+                          <View style={styles.friendDetails}>
+                            <Text style={styles.friendName}>{user.full_name || user.username}</Text>
+                            <Text style={styles.friendUsername}>@{user.username} • {user.level_name}</Text>
+                          </View>
+                        </TouchableOpacity>
+                        {user.is_friend ? (
+                          <View style={styles.friendBadge}>
+                            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                          </View>
+                        ) : user.has_pending_request ? (
+                          <View style={[styles.friendBadge, { backgroundColor: '#374151' }]}>
+                            <Text style={{ color: '#9CA3AF', fontSize: 11 }}>Pendiente</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.addFriendButton}
+                            onPress={() => sendFriendRequest(user.id)}
+                          >
+                            <Ionicons name="person-add" size={18} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Friend Requests */}
+                {friendRequests.length > 0 && (
+                  <View style={styles.friendRequestsSection}>
+                    <Text style={styles.socialSectionTitle}>📩 Solicitudes de amistad ({friendRequests.length})</Text>
+                    {friendRequests.map((req) => (
+                      <View key={req.id} style={styles.friendRequestCard}>
+                        <View style={styles.friendInfo}>
+                          <View style={[styles.friendAvatar, { backgroundColor: '#F59E0B' }]}>
+                            <Ionicons name="person" size={20} color="#FFFFFF" />
+                          </View>
+                          <View style={styles.friendDetails}>
+                            <Text style={styles.friendName}>{req.from_full_name || req.from_username}</Text>
+                            <Text style={styles.friendUsername}>@{req.from_username}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.friendRequestActions}>
+                          <TouchableOpacity
+                            style={styles.rejectRequestButton}
+                            onPress={() => respondToFriendRequest(req.id, false)}
+                          >
+                            <Ionicons name="close" size={18} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.acceptRequestButton}
+                            onPress={() => respondToFriendRequest(req.id, true)}
+                          >
+                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Friends List */}
+                <View style={styles.friendsListSection}>
+                  <Text style={styles.socialSectionTitle}>👥 Mis amigos ({friends.length})</Text>
+                  {friends.length === 0 ? (
+                    <View style={styles.socialEmptyState}>
+                      <Ionicons name="people-outline" size={48} color="#64748B" />
+                      <Text style={styles.socialEmptyText}>No tienes amigos todavía</Text>
+                      <Text style={styles.socialEmptySubtext}>Busca usuarios para añadirlos</Text>
+                    </View>
+                  ) : (
+                    friends.map((friend) => (
+                      <View key={friend.id} style={styles.friendCard}>
+                        <TouchableOpacity style={styles.friendInfo} onPress={() => viewUserProfile(friend.id)}>
+                          <View style={styles.friendAvatar}>
+                            <Text style={styles.friendAvatarText}>{friend.level_badge}</Text>
+                          </View>
+                          <View style={styles.friendDetails}>
+                            <Text style={styles.friendName}>{friend.full_name || friend.username}</Text>
+                            <Text style={styles.friendUsername}>@{friend.username} • {friend.level_name}</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <View style={styles.friendActions}>
+                          <TouchableOpacity
+                            style={styles.dmButton}
+                            onPress={() => startDMWithUser(friend.id, friend.username)}
+                          >
+                            <Ionicons name="chatbubble" size={18} color="#60A5FA" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.removeFriendButton}
+                            onPress={() => removeFriend(friend.id)}
+                          >
+                            <Ionicons name="person-remove" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </ScrollView>
+            )}
+
+            {/* Messages Tab Content */}
+            {socialTab === 'messages' && (
+              <View style={styles.socialContent}>
+                {selectedConversation ? (
+                  <View style={styles.chatContainer}>
+                    {/* Chat Header */}
+                    <View style={styles.chatHeader}>
+                      <TouchableOpacity onPress={() => setSelectedConversation(null)}>
+                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <Text style={styles.chatHeaderTitle}>
+                        {conversations.find(c => c.id === selectedConversation)?.other_username || 'Chat'}
+                      </Text>
+                    </View>
+                    {/* Messages */}
+                    <ScrollView style={styles.messagesContainer}>
+                      {conversationMessages.map((msg) => (
+                        <View key={msg.id} style={[styles.messageRow, msg.is_mine && styles.messageRowMine]}>
+                          <View style={[styles.messageBubble, msg.is_mine ? styles.messageBubbleMine : styles.messageBubbleOther]}>
+                            <Text style={styles.messageText}>{msg.content}</Text>
+                            <Text style={styles.messageTime}>
+                              {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                    {/* Input */}
+                    <View style={styles.chatInputContainer}>
+                      <TextInput
+                        style={styles.chatInput}
+                        placeholder="Escribe un mensaje..."
+                        placeholderTextColor="#6B7280"
+                        value={dmMessage}
+                        onChangeText={setDmMessage}
+                      />
+                      <TouchableOpacity
+                        style={styles.chatSendButton}
+                        onPress={() => {
+                          const conv = conversations.find(c => c.id === selectedConversation);
+                          if (conv) {
+                            sendDirectMessage(conv.other_user_id);
+                          }
+                        }}
+                      >
+                        <Ionicons name="send" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <ScrollView>
+                    <Text style={styles.socialSectionTitle}>💬 Conversaciones</Text>
+                    {conversations.length === 0 ? (
+                      <View style={styles.socialEmptyState}>
+                        <Ionicons name="chatbubbles-outline" size={48} color="#64748B" />
+                        <Text style={styles.socialEmptyText}>No tienes conversaciones</Text>
+                        <Text style={styles.socialEmptySubtext}>Envía un mensaje a un amigo</Text>
+                      </View>
+                    ) : (
+                      conversations.map((conv) => (
+                        <TouchableOpacity
+                          key={conv.id}
+                          style={styles.conversationCard}
+                          onPress={() => {
+                            setSelectedConversation(conv.id);
+                            fetchConversationMessages(conv.id);
+                          }}
+                        >
+                          <View style={styles.conversationAvatar}>
+                            <Text style={styles.conversationAvatarText}>{conv.other_level_badge || '🥉'}</Text>
+                          </View>
+                          <View style={styles.conversationInfo}>
+                            <Text style={styles.conversationName}>{conv.other_full_name || conv.other_username}</Text>
+                            <Text style={styles.conversationPreview} numberOfLines={1}>{conv.last_message_preview}</Text>
+                          </View>
+                          {conv.unread_count > 0 && (
+                            <View style={styles.conversationBadge}>
+                              <Text style={styles.conversationBadgeText}>{conv.unread_count}</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            {/* Groups Tab Content */}
+            {socialTab === 'groups' && (
+              <View style={styles.socialContent}>
+                {selectedGroup ? (
+                  <View style={styles.chatContainer}>
+                    {/* Group Chat Header */}
+                    <View style={styles.chatHeader}>
+                      <TouchableOpacity onPress={() => setSelectedGroup(null)}>
+                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <Text style={styles.chatHeaderTitle}>
+                        {chatGroups.find(g => g.id === selectedGroup)?.name || 'Grupo'}
+                      </Text>
+                      <TouchableOpacity onPress={() => leaveGroup(selectedGroup)}>
+                        <Ionicons name="exit-outline" size={22} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                    {/* Group Messages */}
+                    <ScrollView style={styles.messagesContainer}>
+                      {groupMessages.map((msg) => (
+                        <View key={msg.id} style={[styles.messageRow, msg.is_mine && styles.messageRowMine]}>
+                          <View style={[styles.messageBubble, msg.is_mine ? styles.messageBubbleMine : styles.messageBubbleOther]}>
+                            {!msg.is_mine && <Text style={styles.messageAuthor}>@{msg.from_username}</Text>}
+                            <Text style={styles.messageText}>{msg.content}</Text>
+                            <Text style={styles.messageTime}>
+                              {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                    {/* Input */}
+                    <View style={styles.chatInputContainer}>
+                      <TextInput
+                        style={styles.chatInput}
+                        placeholder="Escribe un mensaje..."
+                        placeholderTextColor="#6B7280"
+                        value={groupChatMessage}
+                        onChangeText={setGroupChatMessage}
+                      />
+                      <TouchableOpacity style={styles.chatSendButton} onPress={sendGroupMessage}>
+                        <Ionicons name="send" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <ScrollView>
+                    <TouchableOpacity
+                      style={styles.createGroupButton}
+                      onPress={() => setShowCreateGroupModal(true)}
+                    >
+                      <Ionicons name="add-circle" size={22} color="#FFFFFF" />
+                      <Text style={styles.createGroupButtonText}>Crear nuevo grupo</Text>
+                    </TouchableOpacity>
+                    
+                    <Text style={styles.socialSectionTitle}>👥 Mis grupos ({chatGroups.length})</Text>
+                    {chatGroups.length === 0 ? (
+                      <View style={styles.socialEmptyState}>
+                        <Ionicons name="chatbubbles-outline" size={48} color="#64748B" />
+                        <Text style={styles.socialEmptyText}>No estás en ningún grupo</Text>
+                        <Text style={styles.socialEmptySubtext}>Crea un grupo o espera una invitación</Text>
+                      </View>
+                    ) : (
+                      chatGroups.map((group) => (
+                        <TouchableOpacity
+                          key={group.id}
+                          style={styles.groupCard}
+                          onPress={() => {
+                            setSelectedGroup(group.id);
+                            fetchGroupMessages(group.id);
+                          }}
+                        >
+                          <View style={styles.groupAvatar}>
+                            <Ionicons name="people" size={24} color="#FFFFFF" />
+                          </View>
+                          <View style={styles.groupInfo}>
+                            <Text style={styles.groupName}>{group.name}</Text>
+                            <Text style={styles.groupMembers}>{group.member_count} miembros</Text>
+                          </View>
+                          {group.is_admin && (
+                            <View style={styles.groupAdminBadge}>
+                              <Text style={styles.groupAdminBadgeText}>Admin</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
         ) : activeTab === 'moderation' ? (
           <ScrollView style={styles.moderationContainer}>
             {/* Moderation Header */}
