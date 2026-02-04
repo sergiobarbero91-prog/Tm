@@ -5113,6 +5113,14 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
+      } else if (activeTab === 'social') {
+        await Promise.all([
+          fetchFriends(),
+          fetchFriendRequests(),
+          fetchConversations(),
+          fetchGroups(),
+          fetchSocialUnreadCount()
+        ]);
       } else if (activeTab === 'moderation') {
         await Promise.all([
           fetchModerationReports(),
