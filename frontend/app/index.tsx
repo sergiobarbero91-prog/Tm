@@ -9278,6 +9278,34 @@ export default function TransportMeter() {
               {activeTab === 'events' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
             
+            {/* Social Tab */}
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, activeTab === 'social' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'social') {
+                  setLoading(true);
+                  setActiveTab('social');
+                  fetchFriends();
+                  fetchFriendRequests();
+                  fetchConversations();
+                  fetchGroups();
+                  fetchSocialUnreadCount();
+                }
+                setShowPageDropdown(false);
+              }}
+            >
+              <Ionicons name="people" size={20} color={activeTab === 'social' ? '#EC4899' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'social' && styles.dropdownMenuItemTextActive]}>Social</Text>
+              {(socialUnreadCount > 0 || friendRequests.length > 0) && (
+                <View style={[styles.moderationBadge, { backgroundColor: '#EC4899' }]}>
+                  <Text style={styles.moderationBadgeText}>
+                    {socialUnreadCount + friendRequests.length}
+                  </Text>
+                </View>
+              )}
+              {activeTab === 'social' && <Ionicons name="checkmark" size={20} color="#EC4899" />}
+            </TouchableOpacity>
+            
             {/* Moderation Tab - for moderators and admins */}
             {(currentUser?.role === 'moderator' || currentUser?.role === 'admin') && (
               <TouchableOpacity
