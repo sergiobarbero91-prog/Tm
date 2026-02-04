@@ -4712,8 +4712,8 @@ export default function TransportMeter() {
     );
   };
 
-  // Search users
-  const searchUsers = async (query: string) => {
+  // Search users for social
+  const searchSocialUsers = async (query: string) => {
     if (query.length < 2) {
       setSearchUserResults([]);
       return;
