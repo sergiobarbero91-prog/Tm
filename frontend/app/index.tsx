@@ -4689,31 +4689,50 @@ export default function TransportMeter() {
     }
   };
 
-  // Leave group
-  const leaveGroup = async (groupId: string) => {
-    Alert.alert(
-      'Salir del grupo',
-      '¿Estás seguro de que quieres salir de este grupo?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Salir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await AsyncStorage.getItem('token');
-              await axios.delete(`${API_BASE}/api/social/groups/${groupId}/members/${currentUser?.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              setSelectedGroup(null);
-              fetchGroups();
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Error al salir del grupo');
-            }
-          }
-        }
-      ]
-    );
+  // Leave group - show confirmation modal
+  const leaveGroup = (groupId: string) => {
+    setGroupToLeave(groupId);
+    setShowLeaveGroupConfirm(true);
+  };
+
+  // Confirm leave group
+  const confirmLeaveGroup = async () => {
+    if (!groupToLeave) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/social/groups/${groupToLeave}/members/${currentUser?.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedGroup(null);
+      setShowLeaveGroupConfirm(false);
+      setGroupToLeave(null);
+      fetchGroups();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al salir del grupo');
+    }
+  };
+
+  // Search users for adding to group
+  const searchUsersForGroup = async (query: string) => {
+    if (query.length < 2) {
+      setAddMemberSearchResults([]);
+      return;
+    }
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/search/users?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Filter to show only friends or users with public profiles
+      const filteredUsers = (response.data.users || []).filter((user: any) => 
+        user.is_friend || user.is_public !== false
+      );
+      setAddMemberSearchResults(filteredUsers);
+    } catch (error) {
+      console.error('Error searching users for group:', error);
+    }
   };
 
   // Search users for social
