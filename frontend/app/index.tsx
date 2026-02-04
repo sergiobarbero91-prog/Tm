@@ -866,6 +866,31 @@ export default function TransportMeter() {
   const [banTargetReport, setBanTargetReport] = useState<any>(null);
   const [selectedBanDuration, setSelectedBanDuration] = useState<string | null>(null);
 
+  // Social Network states
+  const [socialTab, setSocialTab] = useState<'friends' | 'messages' | 'groups'>('friends');
+  const [friends, setFriends] = useState<any[]>([]);
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [chatGroups, setChatGroups] = useState<any[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [conversationMessages, setConversationMessages] = useState<any[]>([]);
+  const [groupMessages, setGroupMessages] = useState<any[]>([]);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [dmMessage, setDmMessage] = useState('');
+  const [groupChatMessage, setGroupChatMessage] = useState('');
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [searchUserResults, setSearchUserResults] = useState<any[]>([]);
+  const [socialUnreadCount, setSocialUnreadCount] = useState(0);
+  const [isProfilePublic, setIsProfilePublic] = useState(true);
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<any>(null);
+  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  const [groupToAddMember, setGroupToAddMember] = useState<string | null>(null);
+
   // Define all functions first
   const checkExistingSession = async () => {
     try {
