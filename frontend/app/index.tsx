@@ -4458,6 +4458,328 @@ export default function TransportMeter() {
     }
   };
 
+  // ===== SOCIAL NETWORK FUNCTIONS =====
+
+  // Fetch friends list
+  const fetchFriends = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/friends`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFriends(response.data.friends || []);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  }, []);
+
+  // Fetch friend requests
+  const fetchFriendRequests = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/friends/requests/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFriendRequests(response.data.requests || []);
+    } catch (error) {
+      console.error('Error fetching friend requests:', error);
+    }
+  }, []);
+
+  // Send friend request
+  const sendFriendRequest = async (toUserId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/friends/request`, {
+        to_user_id: toUserId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Alert.alert('Éxito', 'Solicitud de amistad enviada');
+      fetchFriends();
+      setSearchUserResults(prev => prev.map(u => 
+        u.id === toUserId ? { ...u, has_pending_request: true } : u
+      ));
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo enviar la solicitud');
+    }
+  };
+
+  // Respond to friend request
+  const respondToFriendRequest = async (requestId: string, accepted: boolean) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/social/friends/requests/${requestId}`, {
+        accepted
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Alert.alert('Éxito', accepted ? 'Solicitud aceptada' : 'Solicitud rechazada');
+      fetchFriendRequests();
+      fetchFriends();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al procesar solicitud');
+    }
+  };
+
+  // Remove friend
+  const removeFriend = async (friendId: string) => {
+    Alert.alert(
+      'Eliminar amigo',
+      '¿Estás seguro de que quieres eliminar a este amigo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('token');
+              await axios.delete(`${API_BASE}/api/social/friends/${friendId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              fetchFriends();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar amigo');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Fetch conversations
+  const fetchConversations = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/messages/conversations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setConversations(response.data.conversations || []);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
+  }, []);
+
+  // Fetch conversation messages
+  const fetchConversationMessages = async (conversationId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/messages/conversation/${conversationId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setConversationMessages(response.data.messages || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
+  // Send direct message
+  const sendDirectMessage = async (toUserId: string) => {
+    if (!dmMessage.trim()) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/social/messages/direct`, {
+        to_user_id: toUserId,
+        content: dmMessage.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setDmMessage('');
+      if (response.data.conversation_id) {
+        setSelectedConversation(response.data.conversation_id);
+        fetchConversationMessages(response.data.conversation_id);
+      }
+      fetchConversations();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al enviar mensaje');
+    }
+  };
+
+  // Fetch unread count for social
+  const fetchSocialUnreadCount = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/messages/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSocialUnreadCount(response.data.unread_count || 0);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch groups
+  const fetchGroups = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setChatGroups(response.data.groups || []);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    }
+  }, []);
+
+  // Create group
+  const createGroup = async () => {
+    if (!newGroupName.trim()) {
+      Alert.alert('Error', 'El nombre del grupo es obligatorio');
+      return;
+    }
+    
+    setSocialLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/groups`, {
+        name: newGroupName.trim(),
+        description: newGroupDescription.trim() || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Éxito', 'Grupo creado correctamente');
+      setShowCreateGroupModal(false);
+      setNewGroupName('');
+      setNewGroupDescription('');
+      fetchGroups();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al crear grupo');
+    } finally {
+      setSocialLoading(false);
+    }
+  };
+
+  // Fetch group messages
+  const fetchGroupMessages = async (groupId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/groups/${groupId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGroupMessages(response.data.messages || []);
+    } catch (error) {
+      console.error('Error fetching group messages:', error);
+    }
+  };
+
+  // Send group message
+  const sendGroupMessage = async () => {
+    if (!groupChatMessage.trim() || !selectedGroup) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/groups/${selectedGroup}/messages`, {
+        content: groupChatMessage.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setGroupChatMessage('');
+      fetchGroupMessages(selectedGroup);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al enviar mensaje');
+    }
+  };
+
+  // Leave group
+  const leaveGroup = async (groupId: string) => {
+    Alert.alert(
+      'Salir del grupo',
+      '¿Estás seguro de que quieres salir de este grupo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Salir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('token');
+              await axios.delete(`${API_BASE}/api/social/groups/${groupId}/members/${currentUser?.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              setSelectedGroup(null);
+              fetchGroups();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Error al salir del grupo');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Search users
+  const searchUsers = async (query: string) => {
+    if (query.length < 2) {
+      setSearchUserResults([]);
+      return;
+    }
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/search/users?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSearchUserResults(response.data.users || []);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    }
+  };
+
+  // Add member to group
+  const addMemberToGroup = async (userId: string) => {
+    if (!groupToAddMember) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/groups/${groupToAddMember}/members`, {
+        user_id: userId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      Alert.alert('Éxito', 'Miembro añadido al grupo');
+      setShowAddToGroupModal(false);
+      setSearchUserQuery('');
+      setSearchUserResults([]);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al añadir miembro');
+    }
+  };
+
+  // View user profile
+  const viewUserProfile = async (userId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/profile/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedUserProfile(response.data);
+      setShowUserProfileModal(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al cargar perfil');
+    }
+  };
+
+  // Start direct message with user
+  const startDMWithUser = (userId: string, username: string) => {
+    // Find existing conversation or create new
+    const existingConv = conversations.find(c => c.other_user_id === userId);
+    if (existingConv) {
+      setSelectedConversation(existingConv.id);
+      fetchConversationMessages(existingConv.id);
+    } else {
+      // Will create conversation on first message
+      setSelectedConversation(userId); // Temporary - will be replaced with real conv id
+    }
+    setSocialTab('messages');
+    setShowUserProfileModal(false);
+  };
+
   // Search for licenses (autocomplete)
   const searchLicenses = async (query: string) => {
     if (!query || query.length < 1) {
