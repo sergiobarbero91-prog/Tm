@@ -1,40 +1,43 @@
 <analysis>
+**original_problem_statement**: The user initially requested a gamification/points system. This was successfully implemented. Subsequently, the user requested a series of major new features:
 
-**original_problem_statement**: The user wants to implement a comprehensive gamification/points system to incentivize user participation. Users should earn points for various actions: creating popular events (that receive likes), posting valid alerts (sin taxis, barandilla), being active on the radio, checking in/out of stations, and successfully inviting or approving new drivers. The user's points total and rank should be displayed in their profile.
+1.  **Moderation & Reporting System**:
+    *   Users can create reports (for inappropriate behavior, spam, etc.) from a button in Settings. Reports can include image/video attachments.
+    *   A new Moderator role is introduced. Reports are first reviewed by moderators.
+    *   Moderators can approve a report (passing it to admins) or reject it.
+    *   Admins make the final decision on approved reports and can issue bans (6h, 12h, 48h, permanent).
+    *   A new Moderation tab, visible to moderators and admins, lists pending user reports and promotion requests.
+    *   The Admin tab is updated to show reports approved by moderators, awaiting final admin decision.
 
-This request came after a long session of implementing a major new registration flow based on invitations and approvals, fixing numerous bugs, and making performance optimizations.
+2.  **Point-Based Promotion System**:
+    *   Users who reach 1500 points automatically generate a promotion request for moderators to review to become a moderator.
+    *   Moderators who reach 3000 points automatically generate a promotion request for admins to review to become an admin.
+    *   These requests appear in the Moderation and Admin tabs, respectively.
 
-PRODUCT REQUIREMENTS:
-1.  **Points System (Backend)**:
-    *   Create a system to track user points and log point-earning events.
-    *   Award points for:
-        *   Station check-in/check-out. (5 points)
-        *   Creating a valid station alert. (10 points)
-        *   Inviting a new user who successfully registers. (50 points)
-        *   Approving a new user's registration request. (25 points)
-        *   Being active on the radio (e.g., for every 5 minutes of transmission).
-        *   Creating an event that receives a like.
-    *   Create API endpoints to get a user's current points and a global user ranking.
-2.  **Points System (Frontend)**:
-    *   Display the user's total points and rank in their read-only profile modal.
-    *   (Optional but implied) Create a dedicated Ranking or Leaderboard view accessible from the profile.
+3.  **Enhanced Invitation Management**:
+    *   The user profile statistics (Invited Taxists, Active Invitations, Pending Requests) should be clickable.
+    *   Clicking them should open dedicated modals to view lists of invited users, manage invitation codes (create new, view active/used), and handle pending approval requests.
+
+4.  **User Manual Updates**:
+    *   The User Manual () should be updated to include detailed sections explaining the new Points, Invitations, and Reporting systems.
+
+5.  **Social Features**:
+    *   A new Social tab in the app.
+    *   **Friends System**: Users can send, accept, and reject friend requests.
+    *   **Direct Messaging**: Users can have private, one-on-one chats with their friends.
+    *   **Group Chats**: Users can create, join, and chat in groups.
+    *   **Profile Privacy**: Users can set their profile to be public or private.
 
 **User's preferred language**: español
 
 **what currently exists?**
-The application is a full-stack Expo (React Native for Web) and FastAPI application.
-
-*   **Frontend**: A massive, monolithic  file (over 15,000 lines) contains the entire UI and logic for all features, including authentication, a new two-step registration flow (invitation/approval based), a read-only profile modal, an editable profile modal, a help/support center, station/flight data display, chat, radio, and various other modals. The agent has just added state variables and placeholder functions in  to handle the new points system data.
-*   **Backend**: The backend has been significantly extended. A new registration system with endpoints in  for creating/managing invitations and approval requests is fully implemented. The agent has just begun implementing the points system:
-    *    has been updated with new Pydantic models (, ) and MongoDB collections (, ).
-    *   A new router, , has been created with placeholder endpoints for getting points and rankings.
-    *   Existing routers (, , ) have been modified to import and call a new  function when relevant actions occur (check-ins, creating alerts, using invitations, approving users).
+The application is a full-stack Expo (React Native) and FastAPI application. The frontend is a massive monolithic  file (now likely over 15,000 lines) which contains the logic and UI for all features, including the recently completed points, moderation, and invitation management systems. The backend has been significantly extended with new routers: , , and . The  router and associated backend logic are complete, but the frontend implementation for the social features is currently in progress. A separate  file exists for the user manual.
 
 **Last working item**:
-    - Last item agent was working: Implementing the new gamification/points system. The agent was in the middle of a multi-step process: it had just finished adding the initial backend logic for awarding points and was starting to add the corresponding state and data-fetching functions to the frontend in .
+    - Last item agent was working: Implementing the frontend for the comprehensive Social Features (Friends, DMs, Group Chats) in . The agent had just finished adding the backend router () and was in the middle of adding the necessary states, data-fetching functions, UI components (the Social tab, modals for creating groups/viewing profiles), and styles to the  file.
     - Status: IN PROGRESS
-    - Agent Testing Done: N (Backend changes for points have not been tested).
-    - Which testing method agent to use? backend testing agent. The agent should first test the new and modified backend endpoints (, , , , ) to ensure points are being awarded correctly. Afterwards, the frontend will require testing with the screenshot tool.
+    - Agent Testing Done: N (The new Social feature is completely untested on both backend and frontend).
+    - Which testing method agent to use? both. The  backend endpoints need to be tested first using . Afterwards, the new Social tab and its functionalities on the frontend need to be tested with the .
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
@@ -49,7 +52,7 @@ plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= test suite in  has failing tests, likely due to fixture setup or outdated tests that don't account for recent schema/logic changes. This was identified in a previous session and has not been addressed.
+============================ no tests ran in 0.01s ============================= test suite in  has failing tests, likely due to fixture setup or outdated tests that don't account for the massive amount of recent schema/logic changes (points, moderation, social). This was identified in a previous session and remains unaddressed.
      - Attempted fixes: None.
      - Next debug checklist:
         1. Run ============================= test session starts ==============================
@@ -174,7 +177,7 @@ E           RuntimeError: Event loop is closed
 
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ---------------------------- Captured stderr setup -----------------------------
-2026-02-02 05:02:04,930 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-04 14:33:57,597 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log setup ------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 _____ ERROR at setup of TestStationAlerts.test_create_alert_authenticated ______
@@ -207,7 +210,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
           ^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-client = <httpx.AsyncClient object at 0xfeb55c39a650>
+client = <httpx.AsyncClient object at 0xfcc97176d990>
 
     @pytest.fixture
     async def authenticated_client(client):
@@ -234,16 +237,16 @@ E           KeyError: 'access_token'
 
 ../backend/tests/conftest.py:59: KeyError
 ---------------------------- Captured stderr setup -----------------------------
-2026-02-02 05:02:47,879 - slowapi - WARNING - ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
-2026-02-02 05:02:47,880 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
+2026-02-04 14:34:20,446 - slowapi - WARNING - ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
+2026-02-04 14:34:20,446 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
 ------------------------------ Captured log setup ------------------------------
 WARNING  slowapi:extension.py:510 ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
 =================================== FAILURES ===================================
 _______________________ TestAuth.test_register_new_user ________________________
 
-self = <tests.test_api.TestAuth object at 0xfeb55f17e1d0>
-client = <httpx.AsyncClient object at 0xfeb55f19af10>
+self = <tests.test_api.TestAuth object at 0xfcc973fd08d0>
+client = <httpx.AsyncClient object at 0xfcc973fdfc50>
 
     @pytest.mark.asyncio
     async def test_register_new_user(self, client: AsyncClient):
@@ -264,13 +267,13 @@ E        +  where 400 = <Response [400 Bad Request]>.status_code
 
 ../backend/tests/test_api.py:32: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-02 05:02:04,661 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-04 14:33:57,273 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 __________________ TestAuth.test_register_duplicate_username ___________________
 
-self = <tests.test_api.TestAuth object at 0xfeb55f17ec10>
-client = <httpx.AsyncClient object at 0xfeb55f189150>
+self = <tests.test_api.TestAuth object at 0xfcc973fd1210>
+client = <httpx.AsyncClient object at 0xfcc973fbb810>
 
     @pytest.mark.asyncio
     async def test_register_duplicate_username(self, client: AsyncClient):
@@ -300,15 +303,15 @@ E       AssertionError: assert 'ya existe' in 'El registro directo está deshabi
 
 ../backend/tests/test_api.py:61: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-02 05:02:04,697 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-02 05:02:04,697 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-04 14:33:57,309 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-04 14:33:57,309 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ____________________ TestAuth.test_login_valid_credentials _____________________
 
-self = <tests.test_api.TestAuth object at 0xfeb55f17f590>
-client = <httpx.AsyncClient object at 0xfeb55f161f50>
+self = <tests.test_api.TestAuth object at 0xfcc973fd1b90>
+client = <httpx.AsyncClient object at 0xfcc973fe23d0>
 
     @pytest.mark.asyncio
     async def test_login_valid_credentials(self, client: AsyncClient):
@@ -336,17 +339,17 @@ E        +  where 401 = <Response [401 Unauthorized]>.status_code
 
 ../backend/tests/test_api.py:83: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-02 05:02:04,705 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-02 05:02:04,712 - shared - INFO - Login attempt for user: test_login_5c19e213, found: False
-2026-02-02 05:02:04,713 - httpx - INFO - HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
+2026-02-04 14:33:57,316 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-04 14:33:57,327 - shared - INFO - Login attempt for user: test_login_1e290dd7, found: False
+2026-02-04 14:33:57,327 - httpx - INFO - HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-INFO     shared:auth.py:43 Login attempt for user: test_login_5c19e213, found: False
+INFO     shared:auth.py:43 Login attempt for user: test_login_1e290dd7, found: False
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
 ___________________ TestAuth.test_login_invalid_credentials ____________________
 
-self = <tests.test_api.TestAuth object at 0xfeb55f17fed0>
-client = <httpx.AsyncClient object at 0xfeb55f018310>
+self = <tests.test_api.TestAuth object at 0xfcc973fd24d0>
+client = <httpx.AsyncClient object at 0xfcc973fe35d0>
 
     @pytest.mark.asyncio
     async def test_login_invalid_credentials(self, client: AsyncClient):
@@ -440,8 +443,8 @@ E           RuntimeError: Event loop is closed
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ___________________ TestStationAlerts.test_get_active_alerts ___________________
 
-self = <tests.test_api.TestStationAlerts object at 0xfeb55f18b9d0>
-client = <httpx.AsyncClient object at 0xfeb55f01fa50>
+self = <tests.test_api.TestStationAlerts object at 0xfcc973fdc710>
+client = <httpx.AsyncClient object at 0xfcc971018550>
 
     @pytest.mark.asyncio
     async def test_get_active_alerts(self, client: AsyncClient):
@@ -529,8 +532,8 @@ E           RuntimeError: Event loop is closed
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ______________ TestStationAlerts.test_create_alert_requires_auth _______________
 
-self = <tests.test_api.TestStationAlerts object at 0xfeb55f198350>
-client = <httpx.AsyncClient object at 0xfeb55c8a5e50>
+self = <tests.test_api.TestStationAlerts object at 0xfcc973fdcf50>
+client = <httpx.AsyncClient object at 0xfcc973f19250>
 
     @pytest.mark.asyncio
     async def test_create_alert_requires_auth(self, client: AsyncClient):
@@ -547,13 +550,13 @@ E        +  where 405 = <Response [405 Method Not Allowed]>.status_code
 
 ../backend/tests/test_api.py:173: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-02 05:02:47,874 - httpx - INFO - HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
+2026-02-04 14:34:20,441 - httpx - INFO - HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
 __________________________ TestChat.test_get_channels __________________________
 
-self = <tests.test_api.TestChat object at 0xfeb55f18aa90>
-client = <httpx.AsyncClient object at 0xfeb55caf4a10>
+self = <tests.test_api.TestChat object at 0xfcc973fde1d0>
+client = <httpx.AsyncClient object at 0xfcc9713bd7d0>
 
     @pytest.mark.asyncio
     async def test_get_channels(self, client: AsyncClient):
@@ -566,7 +569,7 @@ E        +  where 401 = <Response [401 Unauthorized]>.status_code
 
 ../backend/tests/test_api.py:196: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-02 05:02:47,916 - httpx - INFO - HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
+2026-02-04 14:34:20,484 - httpx - INFO - HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
 =============================== warnings summary ===============================
@@ -578,8 +581,8 @@ INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/chat/channels "
   /root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
     from crypt import crypt as _crypt
 
-../backend/server.py:2923
-  /app/backend/server.py:2923: DeprecationWarning: 
+../backend/server.py:2927
+  /app/backend/server.py:2927: DeprecationWarning: 
           on_event is deprecated, use lifespan event handlers instead.
   
           Read more about it in the
@@ -597,8 +600,8 @@ INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/chat/channels "
           
     return self.router.on_event(event_type)
 
-../backend/server.py:3067
-  /app/backend/server.py:3067: DeprecationWarning: 
+../backend/server.py:3071
+  /app/backend/server.py:3071: DeprecationWarning: 
           on_event is deprecated, use lifespan event handlers instead.
   
           Read more about it in the
@@ -617,115 +620,110 @@ FAILED ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_requir
 FAILED ../backend/tests/test_api.py::TestChat::test_get_channels - assert 401...
 ERROR ../backend/tests/test_api.py::TestAuth::test_get_current_user - Runtime...
 ERROR ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_authenticated
-============== 7 failed, 6 passed, 6 warnings, 2 errors in 43.28s ============== to identify the specific failing tests and errors.
+============== 7 failed, 6 passed, 6 warnings, 2 errors in 23.23s ============== to identify the specific failing tests and errors.
         2. Analyze and debug the fixtures in .
         3. Update or fix the test logic in  to align with the current application logic until all tests pass.
-     - Why fix this issue and what will be achieved with the fix? A working test suite is crucial for ensuring backend stability, preventing regressions, and safely making future changes.
+     - Why fix this issue and what will be achieved with the fix? A working test suite is crucial for ensuring backend stability, preventing regressions, and safely making future changes, especially given the project's complexity.
      - Status: NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? backend (by running pytest)
      - Blocked on other issue: None
 
 **In progress Task List**:
-  - Task 1: Complete the Points/Gamification System implementation. (P0)
+  - Task 1: Complete the Social Features implementation. (P0)
      - Where to resume: 
-        1. **Backend**: The agent still needs to implement point awards for radio activity and event likes. This will involve modifying  (or  where the WebSocket is handled) and .
-        2. **Frontend**: Implement the UI in  to display the user's points and rank in the read-only profile modal. This involves calling the new backend endpoints and rendering the data.
-     - What will be achieved with this? This will complete the user's main feature request for gamification, encouraging user engagement.
+        1. **Frontend ()**: The agent has added the state, functions, and a skeleton UI for the Social tab, along with modals and styles. The next steps are to fully connect the UI components to the state and functions, ensure data is being fetched and displayed correctly, and thoroughly debug the entire user flow (adding friends, sending messages, creating groups).
+        2. **Testing**: After the frontend implementation seems complete, the entire social feature set needs to be tested from scratch, starting with the backend endpoints and then moving to the frontend UI.
+     - What will be achieved with this? This will complete the user's major feature request for social functionality, adding a significant new dimension to the app.
      - Status: IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: None.
 
 **Upcoming and Future Tasks**
-    Upcoming Tasks:
-    - (P1) **Frontend UI for Points System**: Build the UI to display points and a user ranking leaderboard in .
-    
     Future Tasks:
-    - (P0) **CRITICAL - Refactor **: The main frontend file  is now dangerously large and complex. It is critical to break it down into smaller, manageable components. Good candidates for extraction are: , , , , , etc.
+    - (P0) **CRITICAL - Refactor **: This file is now critically unmaintainable, containing the logic for authentication, stations, events, chat, radio, points, moderation, invitations, and now social features. It MUST be broken down into smaller, manageable components and screens (e.g., , , , etc.). This technical debt is the biggest risk to the project.
     - (P1) **Persist Game State in DB**: Game data in  is stored in-memory and will be lost on server restart. It should be migrated to MongoDB.
     - (P2) **Migrate  to **: The  package is deprecated. The code in  and  should be updated.
-    - (P3) **Implement WebSockets for Games**: Game updates rely on inefficient HTTP polling and should be migrated to WebSockets.
 
 **Completed work in this session**
-- **New Registration System**: Implemented a full-stack, secure registration system requiring either an invitation from an existing user or an approval based on a registered user's license number. This included major backend changes in  and a complete UI/UX overhaul of the registration flow in .
-- **Profile Modals Separation**: Created two distinct profile modals: a read-only view (showing user data) and an edit view (accessible from Settings), fixing a bug where editing was unintentionally disabled. A logout button was also added to the profile modal.
-- **Data Display Bugs Fixed**:
-    - Fixed a bug where flights/trains for future/past time slots were not displayed due to a faulty frontend filter.
-    - Fixed a bug where the selected time range would automatically reset to now every 30 seconds.
-    - Removed the hardcoded limit of 5, so all arrivals for a selected time range are now displayed.
-- **Backend Performance Optimization**: Refactored train/flight data endpoints to use saved historical data from MongoDB for past queries, significantly speeding up response times, while fetching fresh data for current/future queries.
-- **Radio Lag Optimization**: Improved radio performance by removing an artificial delay and optimizing the audio encoding/sending process.
-- **Maximum call stack size exceeded Fix**: Resolved a critical frontend bug causing an infinite loop by refactoring a  dependency array.
+- **Gamification/Points System**: Fully implemented and tested. Awards points for various actions and displays points/rank in the user's profile and a dedicated ranking modal.
+- **Moderation and Reporting System**: Fully implemented and tested. Includes a new Moderation tab, a reporting flow with media attachments, a promotion system based on points, and updates to the Admin panel.
+- **Enhanced Invitation Management**: The profile modal was updated with clickable stats that open dedicated modals for managing invited users, invitation codes, and pending requests.
+- **User Manual Update**: The  file was created and populated with comprehensive documentation for the new points, invitation, and reporting systems.
+- **Social Features (Backend)**: Created the  router and all necessary backend logic and database models for friends, direct messages, and group chats.
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1:  deprecation warning.
-     - Debug checklist: Replace  with  and refactor the API usage in  and .
-     - Why to solve this issue and what will be achieved with this? To remove console warnings and keep dependencies current.
-     - Should Test frontend/backend/both after fix: frontend
-     - Is recurring issue? N
+   - Issue 1:  deprecation warning. The agent has not addressed this.
+   - Issue 2:  style props warning on web. The agent has not addressed this.
+   - Issue 3: Failing ============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app/frontend
+plugins: asyncio-1.3.0, anyio-4.12.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
 
-   - Issue 2:  style props warning on web.
-     - Debug checklist: Create a platform-specific style utility to use  for web.
-     - Why to solve this issue and what will be achieved with this? To remove console warnings and follow cross-platform best practices.
-     - Should Test frontend/backend/both after fix: frontend
-     - Is recurring issue? N
+============================ no tests ran in 0.01s ============================= suite. This is a recurring and unresolved issue.
 
 **Known issue recurrence from previous fork**
-  - The  has persistent difficulty clicking UI elements in React Native Web, especially text-based links inside . The agent successfully used s (when they work), coordinate-based clicks, or direct JS injection as workarounds. This is a limitation of the testing tool, not the application.
+  - The  continues to have difficulty with scrolling and sometimes clicking elements in React Native Web. The agent has successfully used workarounds like clicking specific text, using coordinates, or re-attempting navigation. This is a limitation of the testing tool, not the application.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend:** React Native for Web, Expo, TypeScript. The application is a single-page app dominated by the  file, which manages complex, interwoven state for multiple features.
-- **Backend:** FastAPI, MongoDB (). The backend now includes complex business logic for a multi-faceted registration system and a new gamification/points system.
-- **Gamification**: A new points system to track and reward user actions.
+- **Frontend:** React Native for Web, Expo, TypeScript. A monolithic SPA in  managing state for all features.
+- **Backend:** FastAPI, MongoDB ().
+- **New Features:** Gamification, Moderation/Reporting, Point-based Promotions, Social Networking (Friends, DMs, Groups).
 
 **key DB schema**
-  - **invitations**: { _id, id, code, created_by_id, created_at, expires_at, used, used_by_id, used_at }
-  - **registration_requests**: { _id, id, user_details, requested_to_license, status, created_at, resolved_at }
-  - **user_points**: { _id, user_id, total_points, last_updated_at }
-  - **points_log**: { _id, user_id, points, action, entity_id, created_at }
+  - **reports**: { _id, id, reporter_id, reporter_username, reported_user_id, report_type, description, context, media_base64, status, created_at, reviewed_at, reviewed_by }
+  - **promotion_requests**: { _id, id, user_id, username, current_level, requested_role, status, created_at, resolved_at }
+  - **friends**: { user_id, friend_id, status ('pending', 'accepted'), created_at }
+  - **direct_messages**: { _id, sender_id, receiver_id, content, created_at }
+  - **groups**: { _id, id, name, created_by, members, created_at }
+  - **group_messages**: { _id, group_id, sender_id, content, created_at }
+  - (Existing): invitations, registration_requests, user_points, points_log, users, etc.
 
 **All files of reference**
-- : New file for the points system.
-- : Heavily modified to handle the new registration flow and award points.
-- : Modified to award points.
-- : Modified to award points.
-- : Updated with several new data models.
-- : Modified to include the new points router.
-- : The primary file for all frontend work, containing the UI for the new registration flow, separated profile modals, and state management for the points system.
+- : New file for the report and promotion system.
+- : New file for all social features.
+- : Modified to trigger promotion requests.
+- : Modified to include the new routers.
+- : Massively updated with all frontend logic for points, moderation, enhanced invitations, and the in-progress social features.
+- : New file created for the user manual.
 
 **Areas that need refactoring**:
-- **CRITICAL**: The  file is an unmaintainable monolith. Its size and complexity are a major liability. It urgently needs to be broken down into smaller components, hooks, and screens. The entire Registration/Auth flow and the various Profile/Settings modals are prime candidates for extraction.
+- **CRITICAL**: The  file has become dangerously large and complex. It is a single point of failure and makes development slow and risky. It is imperative to break it down into smaller, self-contained components, hooks, and screens. The entire Social feature, Moderation panel, and Admin panel should be extracted into their own files/directories.
 
 **key api endpoints**
-- : Create an invitation code.
-- : Get invitations created by the current user.
-- : Register a new user using an invitation code.
-- : Create a registration request for an existing user to approve.
-- : Get pending registration requests for the current user to approve.
-- : Approve a registration request.
-- : (To be implemented) Get a user's points.
-- : (To be implemented) Get the user leaderboard.
+- **Moderation**: , , , etc.
+- **Promotions**: , , etc.
+- **Social**: , , , , , , , etc.
 
 **Critical Info for New Agent**
-- **Immediate Priority:** Your first task is to complete the points system. This means finishing the backend instrumentation (adding points for radio usage and event likes) and then building the entire frontend UI to display points and the user ranking.
-- **Code Refactoring:** The  file is critically oversized. This is the highest priority technical debt. After finishing the points system, you must propose and execute a refactoring plan to break this file apart.
-- **Testing Limitations:** The automated testing tool () has known issues with clicking elements in the web UI. Be prepared to use workarounds like coordinate-based clicks, JS injection, or direct API calls (). Do not waste time debugging the tool's failures.
+- **Immediate Priority:** Your first task is to complete the frontend implementation for the Social Features in . The backend is done, but the UI needs to be fully connected and tested.
+- **CRITICAL Technical Debt:** The  file is unmaintainable. This is the highest priority technical debt. After finishing the Social features, you MUST propose and execute a refactoring plan to break this file apart. Do not add any more major features to this file without refactoring first.
+- **Testing:** The backend social endpoints are untested. You should test them with  before spending too much time on the frontend. The ============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app/frontend
+plugins: asyncio-1.3.0, anyio-4.12.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
+
+============================ no tests ran in 0.01s ============================= suite is broken and needs to be fixed to ensure stability.
 - **Language:** Remember to respond to the user in **español**.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. **(CONFIRMED)** User confirms requirements for the new points system.
- - 9. **(PENDING)** User asks the agent to implement the new points system.
- - 8. **(ADDRESSED)** User asks for a new fork to be created for the large new points system feature.
- - 7. **(ADDRESSED)** User requests a profile button to view user data.
- - 6. **(ADDRESSED)** User confirms the new registration flow is working but points out the old UI is still there. (This was part of the flow of the agent implementing the frontend).
- - 5. **(ADDRESSED)** User confirms Yes to implementing the profile management section for invitations/requests.
- - 4. **(ADDRESSED)** User points out the registration button is not working (this was a testing tool issue the agent worked around).
- - 3. **(ADDRESSED)** User reports the edit profile functionality is broken after the agent created the read-only profile view.
- - 2. **(ADDRESSED)** User clarifies that the read-only profile modal should not have editable fields and should include a counter for invited drivers.
- - 1. **(PENDING)** The user is waiting for the agent to implement the points system.
+ - 10. (IN PROGRESS) User asks to continue with the Social features frontend implementation.
+ - 9. (ADDRESSED) User is prompted for confirmation to implement the full social features suite (profile privacy, friends, DMs, groups).
+ - 8. (ADDRESSED) User requests the addition of the Reports system to the user manual.
+ - 7. (ADDRESSED) User requests to update the user manual with information on the points and invitation systems.
+ - 6. (ADDRESSED) User requests to make the profile stats clickable to open new modals for managing invitations and approval requests.
+ - 5. (ADDRESSED) User reports that the promotion requests are not visible in the admin panel.
+ - 4. (ADDRESSED) User reports that the admin panel doesn't show reports, the moderation tab doesn't load, and requests image/video upload for reports.
+ - 3. (ADDRESSED) User provides clarifications for the moderation system.
+ - 2. (ADDRESSED) User requests a major new feature: a moderation and reporting system with point-based promotions.
+ - 1. (ADDRESSED) User is asked to confirm the next steps after the gamification system was completed.
 
 **Project Health Check:**
 - **Broken:**
@@ -736,34 +734,33 @@ plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= suite has failing tests and is not being maintained.
-- **Mocked:** None.
+============================ no tests ran in 0.01s ============================= suite has failing tests and is not being maintained. This is a significant risk.
+- **At Risk:**
+    - The  file is a monolith of extreme size and complexity, making it fragile, difficult to debug, and a major blocker for future development.
 
 **3rd Party Integrations**
-- Sentry (Configured but inactive, requires  env variable)
+- Sentry (Configured but inactive)
 - OSRM (Open Source Routing Machine)
 - Photon
 - OpenStreetMap
 - ADIF & AENA APIs
 
 **Testing status**
-  - Testing agent used after significant changes: YES (,  for manual API tests)
+  - Testing agent used after significant changes: YES ( and  were used for the points and moderation features).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: No new test files were created. The existing suite in  is failing.
-  - Known regressions: None.
+  - Test files created: No new test files were created. The existing suite in  remains broken.
+  - Known regressions: None identified.
 
 **Credentials to test flow:**
 - Admin user:  / 
 
 **What agent forgot to execute**
-- The agent has not yet implemented awarding points for being active on the radio or for event likes in the backend.
-- The agent has not fixed the failing ============================= test session starts ==============================
+- The agent has consistently failed to fix the broken ============================= test session starts ==============================
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
 rootdir: /app/frontend
 plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= suite, a task carried over from a previous session.
-
+============================ no tests ran in 0.01s ============================= suite in , despite it being carried over from previous sessions. This is a critical piece of neglected technical debt.
 </analysis>
