@@ -11412,6 +11412,145 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.createGroupModal}>
+            <View style={styles.createGroupModalHeader}>
+              <Ionicons name="people" size={28} color="#EC4899" />
+              <Text style={styles.createGroupModalTitle}>Crear Grupo</Text>
+              <TouchableOpacity onPress={() => setShowCreateGroupModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.createGroupContent}>
+              <Text style={styles.createGroupLabel}>Nombre del grupo *</Text>
+              <TextInput
+                style={styles.createGroupInput}
+                placeholder="Ej: Taxistas de Atocha"
+                placeholderTextColor="#6B7280"
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+              />
+              
+              <Text style={styles.createGroupLabel}>Descripción (opcional)</Text>
+              <TextInput
+                style={[styles.createGroupInput, { height: 80 }]}
+                placeholder="Describe el propósito del grupo..."
+                placeholderTextColor="#6B7280"
+                value={newGroupDescription}
+                onChangeText={setNewGroupDescription}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+            
+            <View style={styles.createGroupButtons}>
+              <TouchableOpacity
+                style={styles.createGroupCancelButton}
+                onPress={() => setShowCreateGroupModal(false)}
+              >
+                <Text style={styles.createGroupCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.createGroupSubmitButton, socialLoading && { opacity: 0.6 }]}
+                onPress={createGroup}
+                disabled={socialLoading}
+              >
+                {socialLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                    <Text style={styles.createGroupSubmitText}>Crear</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfileModal && selectedUserProfile && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.userProfileModal}>
+            <View style={styles.userProfileModalHeader}>
+              <TouchableOpacity onPress={() => setShowUserProfileModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.userProfileContent}>
+              <View style={styles.userProfileAvatar}>
+                <Text style={styles.userProfileAvatarText}>{selectedUserProfile.level_badge}</Text>
+              </View>
+              <Text style={styles.userProfileName}>{selectedUserProfile.full_name || selectedUserProfile.username}</Text>
+              <Text style={styles.userProfileUsername}>@{selectedUserProfile.username}</Text>
+              <View style={styles.userProfileLevelBadge}>
+                <Text style={styles.userProfileLevelText}>{selectedUserProfile.level_name} • {selectedUserProfile.total_points} pts</Text>
+              </View>
+              
+              {selectedUserProfile.can_view_full && (
+                <View style={styles.userProfileDetails}>
+                  {selectedUserProfile.license_number && (
+                    <View style={styles.userProfileDetailRow}>
+                      <Ionicons name="card" size={18} color="#6B7280" />
+                      <Text style={styles.userProfileDetailText}>Licencia: {selectedUserProfile.license_number}</Text>
+                    </View>
+                  )}
+                  {selectedUserProfile.phone && (
+                    <View style={styles.userProfileDetailRow}>
+                      <Ionicons name="call" size={18} color="#6B7280" />
+                      <Text style={styles.userProfileDetailText}>{selectedUserProfile.phone}</Text>
+                    </View>
+                  )}
+                  {selectedUserProfile.shift && (
+                    <View style={styles.userProfileDetailRow}>
+                      <Ionicons name="time" size={18} color="#6B7280" />
+                      <Text style={styles.userProfileDetailText}>Turno: {selectedUserProfile.shift}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              
+              {!selectedUserProfile.can_view_full && (
+                <View style={styles.userProfilePrivate}>
+                  <Ionicons name="lock-closed" size={24} color="#64748B" />
+                  <Text style={styles.userProfilePrivateText}>Perfil privado</Text>
+                </View>
+              )}
+            </View>
+            
+            {!selectedUserProfile.is_own_profile && (
+              <View style={styles.userProfileActions}>
+                {selectedUserProfile.is_friend ? (
+                  <TouchableOpacity
+                    style={styles.userProfileActionButton}
+                    onPress={() => startDMWithUser(selectedUserProfile.id, selectedUserProfile.username)}
+                  >
+                    <Ionicons name="chatbubble" size={20} color="#FFFFFF" />
+                    <Text style={styles.userProfileActionText}>Enviar mensaje</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.userProfileActionButton, { backgroundColor: '#10B981' }]}
+                    onPress={() => {
+                      sendFriendRequest(selectedUserProfile.id);
+                      setShowUserProfileModal(false);
+                    }}
+                  >
+                    <Ionicons name="person-add" size={20} color="#FFFFFF" />
+                    <Text style={styles.userProfileActionText}>Añadir amigo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* Ban Selection Modal */}
       {showBanModal && banTargetReport && (
         <View style={styles.modalOverlay}>
