@@ -78,6 +78,7 @@ from routers import analytics as analytics_router
 from routers import support as support_router
 from routers import points as points_router
 from routers import moderation as moderation_router
+from routers import social as social_router
 
 # Import history collections from shared
 from shared import (
