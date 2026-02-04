@@ -9691,7 +9691,7 @@ export default function TransportMeter() {
                     value={searchUserQuery}
                     onChangeText={(text) => {
                       setSearchUserQuery(text);
-                      searchUsers(text);
+                      searchSocialUsers(text);
                     }}
                   />
                 </View>
