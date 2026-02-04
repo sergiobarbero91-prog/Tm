@@ -11591,6 +11591,111 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Leave Group Confirmation Modal */}
+      {showLeaveGroupConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.reportModal, { maxWidth: 350 }]}>
+            <View style={styles.reportModalHeader}>
+              <Ionicons name="exit-outline" size={32} color="#EF4444" />
+              <Text style={styles.reportModalTitle}>Salir del Grupo</Text>
+            </View>
+            <Text style={{ color: '#9CA3AF', textAlign: 'center', marginVertical: 16, fontSize: 15 }}>
+              ¿Estás seguro de que quieres salir de este grupo? No podrás ver los mensajes hasta que te vuelvan a añadir.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={[styles.createGroupCancelButton, { flex: 1 }]}
+                onPress={() => {
+                  setShowLeaveGroupConfirm(false);
+                  setGroupToLeave(null);
+                }}
+              >
+                <Text style={styles.createGroupCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.createGroupSubmitButton, { flex: 1, backgroundColor: '#EF4444' }]}
+                onPress={confirmLeaveGroup}
+              >
+                <Ionicons name="exit-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.createGroupSubmitText}>Salir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Add Member to Group Modal */}
+      {showAddToGroupModal && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.createGroupModal, { maxHeight: '80%' }]}>
+            <View style={styles.createGroupModalHeader}>
+              <Ionicons name="person-add" size={28} color="#10B981" />
+              <Text style={styles.createGroupModalTitle}>Añadir Miembro</Text>
+              <TouchableOpacity onPress={() => {
+                setShowAddToGroupModal(false);
+                setGroupToAddMember(null);
+                setAddMemberSearchQuery('');
+                setAddMemberSearchResults([]);
+              }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.createGroupContent}>
+              <Text style={styles.createGroupLabel}>Buscar usuario</Text>
+              <View style={styles.socialSearchContainer}>
+                <Ionicons name="search" size={18} color="#6B7280" />
+                <TextInput
+                  style={styles.socialSearchInput}
+                  placeholder="Nombre de usuario..."
+                  placeholderTextColor="#6B7280"
+                  value={addMemberSearchQuery}
+                  onChangeText={(text) => {
+                    setAddMemberSearchQuery(text);
+                    searchUsersForGroup(text);
+                  }}
+                />
+              </View>
+              
+              <Text style={{ color: '#64748B', fontSize: 12, marginTop: 8, marginBottom: 12 }}>
+                Solo puedes añadir amigos o usuarios con perfil público
+              </Text>
+              
+              <ScrollView style={{ maxHeight: 300 }}>
+                {addMemberSearchResults.length === 0 && addMemberSearchQuery.length >= 2 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                    <Ionicons name="search" size={32} color="#64748B" />
+                    <Text style={{ color: '#64748B', marginTop: 8 }}>No se encontraron usuarios</Text>
+                  </View>
+                ) : (
+                  addMemberSearchResults.map((user) => (
+                    <View key={user.id} style={styles.friendCard}>
+                      <View style={styles.friendInfo}>
+                        <View style={styles.friendAvatar}>
+                          <Text style={styles.friendAvatarText}>{user.level_badge}</Text>
+                        </View>
+                        <View style={styles.friendDetails}>
+                          <Text style={styles.friendName}>{user.full_name || user.username}</Text>
+                          <Text style={styles.friendUsername}>
+                            @{user.username} • {user.is_friend ? '👥 Amigo' : '🌐 Público'}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.addFriendButton}
+                        onPress={() => addMemberToGroup(user.id)}
+                      >
+                        <Ionicons name="add" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Ban Selection Modal */}
       {showBanModal && banTargetReport && (
         <View style={styles.modalOverlay}>
