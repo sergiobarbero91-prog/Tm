@@ -39,10 +39,11 @@ router = APIRouter(prefix="/social", tags=["Social"])
 
 # Post categories
 POST_CATEGORIES = [
-    {"id": "hot_zone", "name": "🚖 Zona caliente", "color": "#EF4444"},
-    {"id": "warning", "name": "⚠️ Aviso/Incidencia", "color": "#F59E0B"},
-    {"id": "general", "name": "💬 General", "color": "#6366F1"},
-    {"id": "good_news", "name": "🎉 Buenas noticias", "color": "#10B981"},
+    {"id": "news", "name": "📰 Noticias", "color": "#3B82F6"},
+    {"id": "humor", "name": "😂 Humor", "color": "#F59E0B"},
+    {"id": "tips", "name": "💡 Consejos", "color": "#10B981"},
+    {"id": "stories", "name": "📖 Historias", "color": "#8B5CF6"},
+    {"id": "events", "name": "🎉 Eventos", "color": "#EC4899"},
 ]
 
 # ============== MODELS ==============
