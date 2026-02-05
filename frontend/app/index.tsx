@@ -867,7 +867,7 @@ export default function TransportMeter() {
   const [selectedBanDuration, setSelectedBanDuration] = useState<string | null>(null);
 
   // Social Network states
-  const [socialTab, setSocialTab] = useState<'friends' | 'messages' | 'groups'>('friends');
+  const [socialTab, setSocialTab] = useState<'feed' | 'friends' | 'messages' | 'groups'>('feed');
   const [friends, setFriends] = useState<any[]>([]);
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
@@ -894,6 +894,22 @@ export default function TransportMeter() {
   const [groupToLeave, setGroupToLeave] = useState<string | null>(null);
   const [addMemberSearchQuery, setAddMemberSearchQuery] = useState('');
   const [addMemberSearchResults, setAddMemberSearchResults] = useState<any[]>([]);
+  
+  // Feed/Posts states
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postCategories, setPostCategories] = useState<any[]>([]);
+  const [selectedPostCategory, setSelectedPostCategory] = useState<string | null>(null);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostCategory, setNewPostCategory] = useState('general');
+  const [newPostVisibility, setNewPostVisibility] = useState('public');
+  const [newPostImage, setNewPostImage] = useState<string | null>(null);
+  const [newPostLocation, setNewPostLocation] = useState('');
+  const [showPostCommentsModal, setShowPostCommentsModal] = useState(false);
+  const [selectedPostForComments, setSelectedPostForComments] = useState<any>(null);
+  const [postComments, setPostComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [postsLoading, setPostsLoading] = useState(false);
 
   // Define all functions first
   const checkExistingSession = async () => {
