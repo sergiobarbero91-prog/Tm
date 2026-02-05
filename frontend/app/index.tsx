@@ -10341,40 +10341,54 @@ export default function TransportMeter() {
                     </View>
                   </View>
                 ) : (
-                  <ScrollView>
-                    <Text style={styles.socialSectionTitle}>💬 Conversaciones</Text>
-                    {conversations.length === 0 ? (
-                      <View style={styles.socialEmptyState}>
-                        <Ionicons name="chatbubbles-outline" size={48} color="#64748B" />
-                        <Text style={styles.socialEmptyText}>No tienes conversaciones</Text>
-                        <Text style={styles.socialEmptySubtext}>Envía un mensaje a un amigo</Text>
-                      </View>
-                    ) : (
-                      conversations.map((conv) => (
-                        <TouchableOpacity
-                          key={conv.id}
-                          style={styles.conversationCard}
-                          onPress={() => {
-                            setSelectedConversation(conv.id);
-                            fetchConversationMessages(conv.id);
-                          }}
-                        >
-                          <View style={styles.conversationAvatar}>
-                            <Text style={styles.conversationAvatarText}>{conv.other_level_badge || '🥉'}</Text>
-                          </View>
-                          <View style={styles.conversationInfo}>
-                            <Text style={styles.conversationName}>{conv.other_full_name || conv.other_username}</Text>
-                            <Text style={styles.conversationPreview} numberOfLines={1}>{conv.last_message_preview}</Text>
-                          </View>
-                          {conv.unread_count > 0 && (
-                            <View style={styles.conversationBadge}>
-                              <Text style={styles.conversationBadgeText}>{conv.unread_count}</Text>
+                  <View style={{ flex: 1 }}>
+                    {/* New Message Button */}
+                    <TouchableOpacity
+                      style={styles.newMessageButton}
+                      onPress={() => {
+                        setShowNewMessageModal(true);
+                        setNewMessageSearchResults(friends);
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.newMessageButtonText}>Nueva conversación</Text>
+                    </TouchableOpacity>
+
+                    <ScrollView>
+                      <Text style={styles.socialSectionTitle}>💬 Conversaciones</Text>
+                      {conversations.length === 0 ? (
+                        <View style={styles.socialEmptyState}>
+                          <Ionicons name="chatbubbles-outline" size={48} color="#64748B" />
+                          <Text style={styles.socialEmptyText}>No tienes conversaciones</Text>
+                          <Text style={styles.socialEmptySubtext}>Inicia una conversación con un amigo</Text>
+                        </View>
+                      ) : (
+                        conversations.map((conv) => (
+                          <TouchableOpacity
+                            key={conv.id}
+                            style={styles.conversationCard}
+                            onPress={() => {
+                              setSelectedConversation(conv.id);
+                              fetchConversationMessages(conv.id);
+                            }}
+                          >
+                            <View style={styles.conversationAvatar}>
+                              <Text style={styles.conversationAvatarText}>{conv.other_level_badge || '🥉'}</Text>
                             </View>
-                          )}
-                        </TouchableOpacity>
-                      ))
-                    )}
-                  </ScrollView>
+                            <View style={styles.conversationInfo}>
+                              <Text style={styles.conversationName}>{conv.other_full_name || conv.other_username}</Text>
+                              <Text style={styles.conversationPreview} numberOfLines={1}>{conv.last_message_preview}</Text>
+                            </View>
+                            {conv.unread_count > 0 && (
+                              <View style={styles.conversationBadge}>
+                                <Text style={styles.conversationBadgeText}>{conv.unread_count}</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
                 )}
               </View>
             )}
