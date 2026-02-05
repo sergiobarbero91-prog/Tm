@@ -31,8 +31,19 @@ direct_messages_collection = db['direct_messages']
 conversations_collection = db['conversations']
 chat_groups_collection = db['chat_groups']
 group_messages_collection = db['group_messages']
+posts_collection = db['posts']
+post_likes_collection = db['post_likes']
+post_comments_collection = db['post_comments']
 
 router = APIRouter(prefix="/social", tags=["Social"])
+
+# Post categories
+POST_CATEGORIES = [
+    {"id": "hot_zone", "name": "🚖 Zona caliente", "color": "#EF4444"},
+    {"id": "warning", "name": "⚠️ Aviso/Incidencia", "color": "#F59E0B"},
+    {"id": "general", "name": "💬 General", "color": "#6366F1"},
+    {"id": "good_news", "name": "🎉 Buenas noticias", "color": "#10B981"},
+]
 
 # ============== MODELS ==============
 
