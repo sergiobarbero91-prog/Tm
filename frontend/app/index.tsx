@@ -910,6 +910,16 @@ export default function TransportMeter() {
   const [postComments, setPostComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postsLoading, setPostsLoading] = useState(false);
+  
+  // New conversation states
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [newMessageSearchQuery, setNewMessageSearchQuery] = useState('');
+  const [newMessageSearchResults, setNewMessageSearchResults] = useState<any[]>([]);
+  
+  // User activity states
+  const [userActivityPosts, setUserActivityPosts] = useState<any[]>([]);
+  const [userActivityTaxi, setUserActivityTaxi] = useState<any[]>([]);
+  const [profileActivityTab, setProfileActivityTab] = useState<'posts' | 'activity'>('posts');
 
   // Define all functions first
   const checkExistingSession = async () => {
