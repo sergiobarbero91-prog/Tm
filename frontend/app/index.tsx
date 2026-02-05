@@ -12053,6 +12053,216 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Create Post Modal */}
+      {showCreatePostModal && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.createGroupModal, { maxHeight: '90%' }]}>
+            <View style={styles.createGroupModalHeader}>
+              <Ionicons name="create" size={28} color="#EC4899" />
+              <Text style={styles.createGroupModalTitle}>Nueva Publicación</Text>
+              <TouchableOpacity onPress={() => setShowCreatePostModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.createGroupContent}>
+              {/* Category Selection */}
+              <Text style={styles.createGroupLabel}>Categoría</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {postCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryFilterButton,
+                      newPostCategory === cat.id && { backgroundColor: cat.color }
+                    ]}
+                    onPress={() => setNewPostCategory(cat.id)}
+                  >
+                    <Text style={[
+                      styles.categoryFilterText,
+                      newPostCategory === cat.id && styles.categoryFilterTextActive
+                    ]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Visibility */}
+              <Text style={styles.createGroupLabel}>Visibilidad</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.visibilityButton,
+                    newPostVisibility === 'public' && styles.visibilityButtonActive
+                  ]}
+                  onPress={() => setNewPostVisibility('public')}
+                >
+                  <Ionicons name="globe" size={18} color={newPostVisibility === 'public' ? '#FFFFFF' : '#9CA3AF'} />
+                  <Text style={[styles.visibilityButtonText, newPostVisibility === 'public' && { color: '#FFFFFF' }]}>
+                    Público
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.visibilityButton,
+                    newPostVisibility === 'friends_only' && styles.visibilityButtonActive
+                  ]}
+                  onPress={() => setNewPostVisibility('friends_only')}
+                >
+                  <Ionicons name="people" size={18} color={newPostVisibility === 'friends_only' ? '#FFFFFF' : '#9CA3AF'} />
+                  <Text style={[styles.visibilityButtonText, newPostVisibility === 'friends_only' && { color: '#FFFFFF' }]}>
+                    Solo amigos
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Content */}
+              <Text style={styles.createGroupLabel}>Contenido</Text>
+              <TextInput
+                style={[styles.createGroupInput, { height: 100, textAlignVertical: 'top' }]}
+                placeholder="¿Qué quieres compartir con los compañeros?"
+                placeholderTextColor="#6B7280"
+                value={newPostContent}
+                onChangeText={setNewPostContent}
+                multiline
+                numberOfLines={4}
+              />
+
+              {/* Location */}
+              <Text style={styles.createGroupLabel}>Ubicación (opcional)</Text>
+              <View style={[styles.socialSearchContainer, { marginBottom: 16 }]}>
+                <Ionicons name="location" size={18} color="#F59E0B" />
+                <TextInput
+                  style={styles.socialSearchInput}
+                  placeholder="Ej: Gran Vía, Atocha, T4..."
+                  placeholderTextColor="#6B7280"
+                  value={newPostLocation}
+                  onChangeText={setNewPostLocation}
+                />
+              </View>
+
+              {/* Image */}
+              <Text style={styles.createGroupLabel}>Imagen (opcional)</Text>
+              <TouchableOpacity style={styles.imagePickerButton} onPress={pickPostImage}>
+                {newPostImage ? (
+                  <Image source={{ uri: newPostImage }} style={styles.imagePickerPreview} />
+                ) : (
+                  <View style={styles.imagePickerPlaceholder}>
+                    <Ionicons name="image-outline" size={32} color="#6B7280" />
+                    <Text style={{ color: '#6B7280', marginTop: 4 }}>Añadir imagen</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {newPostImage && (
+                <TouchableOpacity 
+                  style={{ alignSelf: 'center', marginTop: 8 }}
+                  onPress={() => setNewPostImage(null)}
+                >
+                  <Text style={{ color: '#EF4444' }}>Eliminar imagen</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+
+            <View style={styles.createGroupActions}>
+              <TouchableOpacity
+                style={styles.createGroupCancelButton}
+                onPress={() => setShowCreatePostModal(false)}
+              >
+                <Text style={styles.createGroupCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.createGroupSubmitButton, !newPostContent.trim() && { opacity: 0.5 }]}
+                onPress={createPost}
+                disabled={!newPostContent.trim()}
+              >
+                <Ionicons name="send" size={18} color="#FFFFFF" />
+                <Text style={styles.createGroupSubmitText}>Publicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Post Comments Modal */}
+      {showPostCommentsModal && selectedPostForComments && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.createGroupModal, { maxHeight: '80%' }]}>
+            <View style={styles.createGroupModalHeader}>
+              <Ionicons name="chatbubbles" size={24} color="#EC4899" />
+              <Text style={styles.createGroupModalTitle}>Comentarios</Text>
+              <TouchableOpacity onPress={() => {
+                setShowPostCommentsModal(false);
+                setSelectedPostForComments(null);
+                setPostComments([]);
+                setNewComment('');
+              }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Original Post Preview */}
+            <View style={{ padding: 12, backgroundColor: '#1E293B', borderRadius: 8, marginHorizontal: 16, marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                  {selectedPostForComments.user_full_name || selectedPostForComments.username}
+                </Text>
+                <View style={[styles.postCategoryBadge, { backgroundColor: selectedPostForComments.category_color, marginLeft: 8 }]}>
+                  <Text style={styles.postCategoryText}>{selectedPostForComments.category_name}</Text>
+                </View>
+              </View>
+              <Text style={{ color: '#D1D5DB' }} numberOfLines={3}>{selectedPostForComments.content}</Text>
+            </View>
+
+            {/* Comments List */}
+            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }}>
+              {postComments.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                  <Ionicons name="chatbubble-outline" size={40} color="#64748B" />
+                  <Text style={{ color: '#64748B', marginTop: 8 }}>No hay comentarios</Text>
+                  <Text style={{ color: '#64748B', fontSize: 12 }}>¡Sé el primero en comentar!</Text>
+                </View>
+              ) : (
+                postComments.map((comment) => (
+                  <View key={comment.id} style={styles.commentCard}>
+                    <View style={styles.commentHeader}>
+                      <View style={styles.commentAvatar}>
+                        <Text style={{ fontSize: 12 }}>{comment.user_level_badge}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.commentAuthor}>@{comment.username}</Text>
+                        <Text style={styles.commentTime}>
+                          {new Date(comment.created_at).toLocaleDateString('es-ES')} {new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.commentContent}>{comment.content}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {/* Add Comment Input */}
+            <View style={styles.commentInputContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Escribe un comentario..."
+                placeholderTextColor="#6B7280"
+                value={newComment}
+                onChangeText={setNewComment}
+              />
+              <TouchableOpacity 
+                style={[styles.commentSendButton, !newComment.trim() && { opacity: 0.5 }]}
+                onPress={addComment}
+                disabled={!newComment.trim()}
+              >
+                <Ionicons name="send" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Ban Selection Modal */}
       {showBanModal && banTargetReport && (
         <View style={styles.modalOverlay}>
