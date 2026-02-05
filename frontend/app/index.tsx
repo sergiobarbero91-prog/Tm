@@ -12005,16 +12005,17 @@ export default function TransportMeter() {
         </View>
       )}
 
-      {/* User Profile Modal */}
+      {/* User Profile Modal - Enhanced with Activity */}
       {showUserProfileModal && selectedUserProfile && (
         <View style={styles.modalOverlay}>
-          <View style={styles.userProfileModal}>
+          <View style={[styles.userProfileModal, { maxHeight: '90%' }]}>
             <View style={styles.userProfileModalHeader}>
               <TouchableOpacity onPress={() => setShowUserProfileModal(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
             
+            {/* Profile Header */}
             <View style={styles.userProfileContent}>
               <View style={styles.userProfileAvatar}>
                 <Text style={styles.userProfileAvatarText}>{selectedUserProfile.level_badge}</Text>
@@ -12033,12 +12034,6 @@ export default function TransportMeter() {
                       <Text style={styles.userProfileDetailText}>Licencia: {selectedUserProfile.license_number}</Text>
                     </View>
                   )}
-                  {selectedUserProfile.phone && (
-                    <View style={styles.userProfileDetailRow}>
-                      <Ionicons name="call" size={18} color="#6B7280" />
-                      <Text style={styles.userProfileDetailText}>{selectedUserProfile.phone}</Text>
-                    </View>
-                  )}
                   {selectedUserProfile.shift && (
                     <View style={styles.userProfileDetailRow}>
                       <Ionicons name="time" size={18} color="#6B7280" />
@@ -12055,7 +12050,91 @@ export default function TransportMeter() {
                 </View>
               )}
             </View>
+
+            {/* Activity Tabs */}
+            {selectedUserProfile.can_view_full && (
+              <View style={styles.profileActivitySection}>
+                <View style={styles.profileActivityTabs}>
+                  <TouchableOpacity
+                    style={[styles.profileActivityTab, profileActivityTab === 'posts' && styles.profileActivityTabActive]}
+                    onPress={() => setProfileActivityTab('posts')}
+                  >
+                    <Ionicons name="newspaper-outline" size={18} color={profileActivityTab === 'posts' ? '#EC4899' : '#64748B'} />
+                    <Text style={[styles.profileActivityTabText, profileActivityTab === 'posts' && styles.profileActivityTabTextActive]}>
+                      Publicaciones
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.profileActivityTab, profileActivityTab === 'activity' && styles.profileActivityTabActive]}
+                    onPress={() => setProfileActivityTab('activity')}
+                  >
+                    <Ionicons name="car-outline" size={18} color={profileActivityTab === 'activity' ? '#EC4899' : '#64748B'} />
+                    <Text style={[styles.profileActivityTabText, profileActivityTab === 'activity' && styles.profileActivityTabTextActive]}>
+                      Actividad
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.profileActivityContent}>
+                  {profileActivityTab === 'posts' ? (
+                    userActivityPosts.length === 0 ? (
+                      <View style={styles.profileEmptyActivity}>
+                        <Ionicons name="newspaper-outline" size={32} color="#475569" />
+                        <Text style={styles.profileEmptyActivityText}>Sin publicaciones</Text>
+                      </View>
+                    ) : (
+                      userActivityPosts.map((post) => (
+                        <View key={post.id} style={styles.profilePostItem}>
+                          <View style={[styles.profilePostCategory, { backgroundColor: post.category_color }]}>
+                            <Text style={styles.profilePostCategoryText}>{post.category_name}</Text>
+                          </View>
+                          <Text style={styles.profilePostContent} numberOfLines={2}>{post.content}</Text>
+                          <View style={styles.profilePostStats}>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="heart" size={14} color="#EF4444" />
+                              <Text style={styles.profilePostStatText}>{post.likes_count}</Text>
+                            </View>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="chatbubble" size={14} color="#64748B" />
+                              <Text style={styles.profilePostStatText}>{post.comments_count}</Text>
+                            </View>
+                            <Text style={styles.profilePostTime}>{getTimeAgo(post.created_at)}</Text>
+                          </View>
+                        </View>
+                      ))
+                    )
+                  ) : (
+                    userActivityTaxi.length === 0 ? (
+                      <View style={styles.profileEmptyActivity}>
+                        <Ionicons name="car-outline" size={32} color="#475569" />
+                        <Text style={styles.profileEmptyActivityText}>Sin actividad reciente</Text>
+                      </View>
+                    ) : (
+                      userActivityTaxi.map((activity, idx) => (
+                        <View key={idx} style={styles.profileActivityItem}>
+                          <View style={[styles.profileActivityIcon, { backgroundColor: activity.color + '20' }]}>
+                            <Ionicons name={activity.icon as any} size={20} color={activity.color} />
+                          </View>
+                          <View style={styles.profileActivityInfo}>
+                            <Text style={styles.profileActivityTitle}>{activity.title}</Text>
+                            <Text style={styles.profileActivityDesc}>{activity.description}</Text>
+                            {activity.location && (
+                              <View style={styles.profileActivityLocation}>
+                                <Ionicons name="location" size={12} color="#F59E0B" />
+                                <Text style={styles.profileActivityLocationText}>{activity.location}</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.profileActivityTime}>{activity.created_at ? getTimeAgo(activity.created_at) : ''}</Text>
+                        </View>
+                      ))
+                    )
+                  )}
+                </ScrollView>
+              </View>
+            )}
             
+            {/* Action Buttons */}
             {!selectedUserProfile.is_own_profile && (
               <View style={styles.userProfileActions}>
                 {selectedUserProfile.is_friend ? (
@@ -12080,6 +12159,73 @@ export default function TransportMeter() {
                 )}
               </View>
             )}
+          </View>
+        </View>
+      )}
+
+      {/* New Message Modal */}
+      {showNewMessageModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.createGroupModal}>
+            <View style={styles.createGroupModalHeader}>
+              <Ionicons name="chatbubble-ellipses" size={28} color="#EC4899" />
+              <Text style={styles.createGroupModalTitle}>Nueva Conversación</Text>
+              <TouchableOpacity onPress={() => {
+                setShowNewMessageModal(false);
+                setNewMessageSearchQuery('');
+                setNewMessageSearchResults([]);
+              }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.createGroupContent}>
+              {friends.length === 0 ? (
+                <View style={styles.socialEmptyState}>
+                  <Ionicons name="people-outline" size={48} color="#64748B" />
+                  <Text style={styles.socialEmptyText}>No tienes amigos todavía</Text>
+                  <Text style={styles.socialEmptySubtext}>Añade amigos para enviarles mensajes</Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.createGroupLabel}>Selecciona un amigo</Text>
+                  <View style={styles.socialSearchContainer}>
+                    <Ionicons name="search" size={18} color="#6B7280" />
+                    <TextInput
+                      style={styles.socialSearchInput}
+                      placeholder="Buscar amigo..."
+                      placeholderTextColor="#6B7280"
+                      value={newMessageSearchQuery}
+                      onChangeText={(text) => {
+                        setNewMessageSearchQuery(text);
+                        searchFriendsForMessage(text);
+                      }}
+                    />
+                  </View>
+
+                  <ScrollView style={{ maxHeight: 300, marginTop: 12 }}>
+                    {newMessageSearchResults.map((friend) => (
+                      <TouchableOpacity
+                        key={friend.id}
+                        style={styles.friendCard}
+                        onPress={() => startNewConversation(friend.id, friend.username)}
+                      >
+                        <View style={styles.friendInfo}>
+                          <View style={styles.friendAvatar}>
+                            <Text style={styles.friendAvatarText}>{friend.level_badge || '🥉'}</Text>
+                          </View>
+                          <View style={styles.friendDetails}>
+                            <Text style={styles.friendName}>{friend.full_name || friend.username}</Text>
+                            <Text style={styles.friendUsername}>@{friend.username}</Text>
+                          </View>
+                        </View>
+                        <Ionicons name="chatbubble-outline" size={22} color="#EC4899" />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+            </View>
           </View>
         </View>
       )}
