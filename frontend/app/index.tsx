@@ -5052,7 +5052,12 @@ export default function TransportMeter() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedUserProfile(response.data);
+      setProfileActivityTab('posts');
       setShowUserProfileModal(true);
+      
+      // Fetch user posts and activity
+      fetchUserPosts(userId);
+      fetchUserActivity(userId);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Error al cargar perfil');
     }
