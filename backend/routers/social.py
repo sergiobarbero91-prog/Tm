@@ -74,6 +74,19 @@ class GroupMemberAction(BaseModel):
 class GroupMessageCreate(BaseModel):
     content: str
 
+# Post models
+class PostCreate(BaseModel):
+    content: str
+    category: str  # hot_zone, warning, general, good_news
+    visibility: str = "public"  # public or friends_only
+    image_base64: Optional[str] = None
+    location_name: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
+
+class CommentCreate(BaseModel):
+    content: str
+
 # ============== PROFILE VISIBILITY ==============
 
 @router.put("/profile/visibility")
