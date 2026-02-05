@@ -4751,6 +4751,181 @@ export default function TransportMeter() {
     }
   };
 
+  // ============== POSTS / TABLÓN FUNCTIONS ==============
+  
+  // Fetch post categories
+  const fetchPostCategories = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/posts/categories`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPostCategories(response.data.categories || []);
+    } catch (error) {
+      console.error('Error fetching post categories:', error);
+    }
+  };
+
+  // Fetch posts
+  const fetchPosts = async (category?: string | null) => {
+    setPostsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      let url = `${API_BASE}/api/social/posts`;
+      if (category) {
+        url += `?category=${category}`;
+      }
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPosts(response.data.posts || []);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  // Create post
+  const createPost = async () => {
+    if (!newPostContent.trim()) {
+      Alert.alert('Error', 'Escribe algo en tu publicación');
+      return;
+    }
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/posts`, {
+        content: newPostContent,
+        category: newPostCategory,
+        visibility: newPostVisibility,
+        image_base64: newPostImage,
+        location_name: newPostLocation || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Reset form
+      setNewPostContent('');
+      setNewPostCategory('general');
+      setNewPostVisibility('public');
+      setNewPostImage(null);
+      setNewPostLocation('');
+      setShowCreatePostModal(false);
+      
+      // Refresh posts
+      fetchPosts(selectedPostCategory);
+      Alert.alert('Éxito', '¡Publicación creada!');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al crear publicación');
+    }
+  };
+
+  // Toggle like on post
+  const toggleLikePost = async (postId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/social/posts/${postId}/like`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update post in list
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            is_liked: response.data.liked,
+            likes_count: response.data.liked ? post.likes_count + 1 : post.likes_count - 1
+          };
+        }
+        return post;
+      }));
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
+  // Fetch comments for a post
+  const fetchPostComments = async (postId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/posts/${postId}/comments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPostComments(response.data.comments || []);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
+  // Open comments modal
+  const openCommentsModal = async (post: any) => {
+    setSelectedPostForComments(post);
+    setShowPostCommentsModal(true);
+    await fetchPostComments(post.id);
+  };
+
+  // Add comment
+  const addComment = async () => {
+    if (!newComment.trim() || !selectedPostForComments) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/posts/${selectedPostForComments.id}/comments`, {
+        content: newComment
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setNewComment('');
+      await fetchPostComments(selectedPostForComments.id);
+      
+      // Update comment count
+      setPosts(prev => prev.map(post => {
+        if (post.id === selectedPostForComments.id) {
+          return { ...post, comments_count: post.comments_count + 1 };
+        }
+        return post;
+      }));
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al añadir comentario');
+    }
+  };
+
+  // Delete post
+  const deletePost = async (postId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/social/posts/${postId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      Alert.alert('Éxito', 'Publicación eliminada');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al eliminar publicación');
+    }
+  };
+
+  // Pick image for post
+  const pickPostImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        base64: true,
+      });
+      
+      if (!result.canceled && result.assets[0].base64) {
+        setNewPostImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
+  };
+
   // Search users for social
   const searchSocialUsers = async (query: string) => {
     if (query.length < 2) {
