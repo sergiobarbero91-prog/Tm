@@ -22235,4 +22235,154 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
   },
+  // New Message Button
+  newMessageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EC4899',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  newMessageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Profile Activity Styles
+  profileActivitySection: {
+    flex: 1,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    paddingTop: 16,
+  },
+  profileActivityTabs: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  profileActivityTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+  },
+  profileActivityTabActive: {
+    backgroundColor: '#EC489920',
+  },
+  profileActivityTabText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  profileActivityTabTextActive: {
+    color: '#EC4899',
+  },
+  profileActivityContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  profileEmptyActivity: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  profileEmptyActivityText: {
+    color: '#64748B',
+    marginTop: 8,
+    fontSize: 14,
+  },
+  profilePostItem: {
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  profilePostCategory: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  profilePostCategoryText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  profilePostContent: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  profilePostStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profilePostStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  profilePostStatText: {
+    color: '#64748B',
+    fontSize: 12,
+  },
+  profilePostTime: {
+    color: '#475569',
+    fontSize: 12,
+    marginLeft: 'auto',
+  },
+  profileActivityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  profileActivityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  profileActivityInfo: {
+    flex: 1,
+  },
+  profileActivityTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  profileActivityDesc: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  profileActivityLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 4,
+  },
+  profileActivityLocationText: {
+    color: '#F59E0B',
+    fontSize: 11,
+  },
+  profileActivityTime: {
+    color: '#475569',
+    fontSize: 11,
+  },
 });
