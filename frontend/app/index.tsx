@@ -9866,6 +9866,13 @@ export default function TransportMeter() {
             {/* Social Tabs */}
             <View style={styles.socialTabs}>
               <TouchableOpacity
+                style={[styles.socialTab, socialTab === 'feed' && styles.socialTabActive]}
+                onPress={() => { setSocialTab('feed'); setSelectedConversation(null); setSelectedGroup(null); }}
+              >
+                <Ionicons name="newspaper-outline" size={18} color={socialTab === 'feed' ? '#FFFFFF' : '#9CA3AF'} />
+                <Text style={[styles.socialTabText, socialTab === 'feed' && styles.socialTabTextActive]}>Tablón</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.socialTab, socialTab === 'friends' && styles.socialTabActive]}
                 onPress={() => { setSocialTab('friends'); setSelectedConversation(null); setSelectedGroup(null); }}
               >
@@ -9893,6 +9900,144 @@ export default function TransportMeter() {
                 <Text style={[styles.socialTabText, socialTab === 'groups' && styles.socialTabTextActive]}>Grupos</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Feed/Tablón Tab Content */}
+            {socialTab === 'feed' && (
+              <View style={styles.socialContent}>
+                {/* Category Filter */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryFilterButton,
+                      !selectedPostCategory && styles.categoryFilterButtonActive
+                    ]}
+                    onPress={() => { setSelectedPostCategory(null); fetchPosts(null); }}
+                  >
+                    <Text style={[styles.categoryFilterText, !selectedPostCategory && styles.categoryFilterTextActive]}>
+                      Todos
+                    </Text>
+                  </TouchableOpacity>
+                  {postCategories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryFilterButton,
+                        selectedPostCategory === cat.id && { backgroundColor: cat.color }
+                      ]}
+                      onPress={() => { setSelectedPostCategory(cat.id); fetchPosts(cat.id); }}
+                    >
+                      <Text style={[
+                        styles.categoryFilterText,
+                        selectedPostCategory === cat.id && styles.categoryFilterTextActive
+                      ]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Create Post Button */}
+                <TouchableOpacity
+                  style={styles.createPostButton}
+                  onPress={() => setShowCreatePostModal(true)}
+                >
+                  <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.createPostButtonText}>Crear publicación</Text>
+                </TouchableOpacity>
+
+                {/* Posts List */}
+                <ScrollView style={{ flex: 1 }}>
+                  {postsLoading ? (
+                    <ActivityIndicator size="large" color="#EC4899" style={{ marginTop: 40 }} />
+                  ) : posts.length === 0 ? (
+                    <View style={styles.socialEmptyState}>
+                      <Ionicons name="newspaper-outline" size={48} color="#64748B" />
+                      <Text style={styles.socialEmptyText}>No hay publicaciones</Text>
+                      <Text style={{ color: '#64748B', marginTop: 4 }}>¡Sé el primero en publicar!</Text>
+                    </View>
+                  ) : (
+                    posts.map((post) => (
+                      <View key={post.id} style={styles.postCard}>
+                        {/* Post Header */}
+                        <View style={styles.postHeader}>
+                          <TouchableOpacity 
+                            style={styles.postUserInfo}
+                            onPress={() => viewUserProfile(post.user_id)}
+                          >
+                            <View style={styles.postAvatar}>
+                              <Text style={styles.postAvatarText}>{post.user_level_badge}</Text>
+                            </View>
+                            <View>
+                              <Text style={styles.postAuthor}>{post.user_full_name || post.username}</Text>
+                              <Text style={styles.postMeta}>
+                                @{post.username} • {new Date(post.created_at).toLocaleDateString('es-ES')}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={[styles.postCategoryBadge, { backgroundColor: post.category_color }]}>
+                              <Text style={styles.postCategoryText}>{post.category_name}</Text>
+                            </View>
+                            {post.visibility === 'friends_only' && (
+                              <Ionicons name="people" size={16} color="#64748B" />
+                            )}
+                            {post.is_own && (
+                              <TouchableOpacity onPress={() => deletePost(post.id)}>
+                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Post Content */}
+                        <Text style={styles.postContent}>{post.content}</Text>
+
+                        {/* Post Image */}
+                        {post.image_base64 && (
+                          <Image 
+                            source={{ uri: post.image_base64 }} 
+                            style={styles.postImage}
+                            resizeMode="cover"
+                          />
+                        )}
+
+                        {/* Post Location */}
+                        {post.location_name && (
+                          <View style={styles.postLocation}>
+                            <Ionicons name="location" size={14} color="#F59E0B" />
+                            <Text style={styles.postLocationText}>{post.location_name}</Text>
+                          </View>
+                        )}
+
+                        {/* Post Actions */}
+                        <View style={styles.postActions}>
+                          <TouchableOpacity 
+                            style={styles.postActionButton}
+                            onPress={() => toggleLikePost(post.id)}
+                          >
+                            <Ionicons 
+                              name={post.is_liked ? "heart" : "heart-outline"} 
+                              size={22} 
+                              color={post.is_liked ? "#EF4444" : "#9CA3AF"} 
+                            />
+                            <Text style={[styles.postActionText, post.is_liked && { color: '#EF4444' }]}>
+                              {post.likes_count}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.postActionButton}
+                            onPress={() => openCommentsModal(post)}
+                          >
+                            <Ionicons name="chatbubble-outline" size={20} color="#9CA3AF" />
+                            <Text style={styles.postActionText}>{post.comments_count}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Friends Tab Content */}
             {socialTab === 'friends' && (
