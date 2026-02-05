@@ -9901,141 +9901,179 @@ export default function TransportMeter() {
               </TouchableOpacity>
             </View>
 
-            {/* Feed/Tablón Tab Content */}
+            {/* Feed/Tablón Tab Content - Instagram Style */}
             {socialTab === 'feed' && (
-              <View style={styles.socialContent}>
-                {/* Category Filter */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryFilterButton,
-                      !selectedPostCategory && styles.categoryFilterButtonActive
-                    ]}
-                    onPress={() => { setSelectedPostCategory(null); fetchPosts(null); }}
-                  >
-                    <Text style={[styles.categoryFilterText, !selectedPostCategory && styles.categoryFilterTextActive]}>
-                      Todos
-                    </Text>
-                  </TouchableOpacity>
-                  {postCategories.map((cat) => (
+              <View style={{ flex: 1, position: 'relative' }}>
+                {/* Category Filter - Stories style bar */}
+                <View style={styles.feedFilterBar}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8 }}>
                     <TouchableOpacity
-                      key={cat.id}
                       style={[
-                        styles.categoryFilterButton,
-                        selectedPostCategory === cat.id && { backgroundColor: cat.color }
+                        styles.feedFilterChip,
+                        !selectedPostCategory && styles.feedFilterChipActive
                       ]}
-                      onPress={() => { setSelectedPostCategory(cat.id); fetchPosts(cat.id); }}
+                      onPress={() => { setSelectedPostCategory(null); fetchPosts(null); }}
                     >
-                      <Text style={[
-                        styles.categoryFilterText,
-                        selectedPostCategory === cat.id && styles.categoryFilterTextActive
-                      ]}>
-                        {cat.name}
+                      <Text style={[styles.feedFilterChipText, !selectedPostCategory && styles.feedFilterChipTextActive]}>
+                        ✨ Todo
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                    {postCategories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.feedFilterChip,
+                          selectedPostCategory === cat.id && { backgroundColor: cat.color, borderColor: cat.color }
+                        ]}
+                        onPress={() => { setSelectedPostCategory(cat.id); fetchPosts(cat.id); }}
+                      >
+                        <Text style={[
+                          styles.feedFilterChipText,
+                          selectedPostCategory === cat.id && styles.feedFilterChipTextActive
+                        ]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
 
-                {/* Create Post Button */}
-                <TouchableOpacity
-                  style={styles.createPostButton}
-                  onPress={() => setShowCreatePostModal(true)}
+                {/* Posts Feed - Instagram style scroll */}
+                <ScrollView 
+                  style={styles.feedScrollView}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 80 }}
                 >
-                  <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.createPostButtonText}>Crear publicación</Text>
-                </TouchableOpacity>
-
-                {/* Posts List */}
-                <ScrollView style={{ flex: 1 }}>
                   {postsLoading ? (
-                    <ActivityIndicator size="large" color="#EC4899" style={{ marginTop: 40 }} />
+                    <View style={styles.feedLoadingContainer}>
+                      <ActivityIndicator size="large" color="#EC4899" />
+                      <Text style={styles.feedLoadingText}>Cargando...</Text>
+                    </View>
                   ) : posts.length === 0 ? (
-                    <View style={styles.socialEmptyState}>
-                      <Ionicons name="newspaper-outline" size={48} color="#64748B" />
-                      <Text style={styles.socialEmptyText}>No hay publicaciones</Text>
-                      <Text style={{ color: '#64748B', marginTop: 4 }}>¡Sé el primero en publicar!</Text>
+                    <View style={styles.feedEmptyState}>
+                      <View style={styles.feedEmptyIcon}>
+                        <Ionicons name="newspaper-outline" size={56} color="#475569" />
+                      </View>
+                      <Text style={styles.feedEmptyTitle}>No hay publicaciones</Text>
+                      <Text style={styles.feedEmptySubtitle}>¡Sé el primero en compartir algo con la comunidad!</Text>
+                      <TouchableOpacity 
+                        style={styles.feedEmptyButton}
+                        onPress={() => setShowCreatePostModal(true)}
+                      >
+                        <Ionicons name="add" size={20} color="#FFFFFF" />
+                        <Text style={styles.feedEmptyButtonText}>Crear publicación</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
-                    posts.map((post) => (
-                      <View key={post.id} style={styles.postCard}>
-                        {/* Post Header */}
-                        <View style={styles.postHeader}>
+                    posts.map((post, index) => (
+                      <View key={post.id} style={[styles.feedPostCard, index === 0 && { marginTop: 8 }]}>
+                        {/* Post Header - Instagram style */}
+                        <View style={styles.feedPostHeader}>
                           <TouchableOpacity 
-                            style={styles.postUserInfo}
+                            style={styles.feedPostUserInfo}
                             onPress={() => viewUserProfile(post.user_id)}
                           >
-                            <View style={styles.postAvatar}>
-                              <Text style={styles.postAvatarText}>{post.user_level_badge}</Text>
+                            <View style={styles.feedPostAvatar}>
+                              <Text style={styles.feedPostAvatarText}>{post.user_level_badge}</Text>
                             </View>
-                            <View>
-                              <Text style={styles.postAuthor}>{post.user_full_name || post.username}</Text>
-                              <Text style={styles.postMeta}>
-                                @{post.username} • {new Date(post.created_at).toLocaleDateString('es-ES')}
+                            <View style={styles.feedPostUserDetails}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={styles.feedPostAuthor}>{post.user_full_name || post.username}</Text>
+                                <View style={[styles.feedPostCategoryDot, { backgroundColor: post.category_color }]} />
+                              </View>
+                              <Text style={styles.feedPostMeta}>
+                                {post.category_name} • {getTimeAgo(post.created_at)}
                               </Text>
                             </View>
                           </TouchableOpacity>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <View style={[styles.postCategoryBadge, { backgroundColor: post.category_color }]}>
-                              <Text style={styles.postCategoryText}>{post.category_name}</Text>
-                            </View>
                             {post.visibility === 'friends_only' && (
-                              <Ionicons name="people" size={16} color="#64748B" />
+                              <View style={styles.feedPrivateBadge}>
+                                <Ionicons name="people" size={12} color="#94A3B8" />
+                              </View>
                             )}
                             {post.is_own && (
-                              <TouchableOpacity onPress={() => deletePost(post.id)}>
-                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                              <TouchableOpacity 
+                                style={styles.feedMoreButton}
+                                onPress={() => deletePost(post.id)}
+                              >
+                                <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
                               </TouchableOpacity>
                             )}
                           </View>
                         </View>
 
-                        {/* Post Content */}
-                        <Text style={styles.postContent}>{post.content}</Text>
-
-                        {/* Post Image */}
+                        {/* Post Image - Full width like Instagram */}
                         {post.image_base64 && (
-                          <Image 
-                            source={{ uri: post.image_base64 }} 
-                            style={styles.postImage}
-                            resizeMode="cover"
-                          />
-                        )}
-
-                        {/* Post Location */}
-                        {post.location_name && (
-                          <View style={styles.postLocation}>
-                            <Ionicons name="location" size={14} color="#F59E0B" />
-                            <Text style={styles.postLocationText}>{post.location_name}</Text>
+                          <View style={styles.feedPostImageContainer}>
+                            <Image 
+                              source={{ uri: post.image_base64 }} 
+                              style={styles.feedPostImage}
+                              resizeMode="cover"
+                            />
                           </View>
                         )}
 
-                        {/* Post Actions */}
-                        <View style={styles.postActions}>
-                          <TouchableOpacity 
-                            style={styles.postActionButton}
-                            onPress={() => toggleLikePost(post.id)}
-                          >
-                            <Ionicons 
-                              name={post.is_liked ? "heart" : "heart-outline"} 
-                              size={22} 
-                              color={post.is_liked ? "#EF4444" : "#9CA3AF"} 
-                            />
-                            <Text style={[styles.postActionText, post.is_liked && { color: '#EF4444' }]}>
-                              {post.likes_count}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={styles.postActionButton}
-                            onPress={() => openCommentsModal(post)}
-                          >
-                            <Ionicons name="chatbubble-outline" size={20} color="#9CA3AF" />
-                            <Text style={styles.postActionText}>{post.comments_count}</Text>
-                          </TouchableOpacity>
+                        {/* Post Content */}
+                        <View style={styles.feedPostContent}>
+                          <Text style={styles.feedPostText}>{post.content}</Text>
+                          
+                          {/* Location */}
+                          {post.location_name && (
+                            <View style={styles.feedPostLocation}>
+                              <Ionicons name="location-sharp" size={14} color="#F59E0B" />
+                              <Text style={styles.feedPostLocationText}>{post.location_name}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Post Actions - Instagram style */}
+                        <View style={styles.feedPostActions}>
+                          <View style={styles.feedPostActionsLeft}>
+                            <TouchableOpacity 
+                              style={styles.feedActionButton}
+                              onPress={() => toggleLikePost(post.id)}
+                            >
+                              <Ionicons 
+                                name={post.is_liked ? "heart" : "heart-outline"} 
+                                size={26} 
+                                color={post.is_liked ? "#EF4444" : "#E5E7EB"} 
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.feedActionButton}
+                              onPress={() => openCommentsModal(post)}
+                            >
+                              <Ionicons name="chatbubble-outline" size={24} color="#E5E7EB" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* Likes & Comments count */}
+                        <View style={styles.feedPostStats}>
+                          {post.likes_count > 0 && (
+                            <Text style={styles.feedLikesText}>{post.likes_count} Me gusta</Text>
+                          )}
+                          {post.comments_count > 0 && (
+                            <TouchableOpacity onPress={() => openCommentsModal(post)}>
+                              <Text style={styles.feedCommentsLink}>
+                                Ver {post.comments_count} comentario{post.comments_count > 1 ? 's' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     ))
                   )}
                 </ScrollView>
+
+                {/* FAB - Floating Action Button */}
+                <TouchableOpacity
+                  style={styles.feedFAB}
+                  onPress={() => setShowCreatePostModal(true)}
+                >
+                  <Ionicons name="add" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
             )}
 
