@@ -1115,3 +1115,129 @@ async def delete_comment(post_id: str, comment_id: str, current_user: dict = Dep
     )
     
     return {"message": "Comentario eliminado"}
+
+# ============== USER ACTIVITY ENDPOINTS ==============
+
+@router.get("/profile/{user_id}/posts")
+async def get_user_posts(user_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Get posts by a specific user"""
+    # Check if user exists
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Check friendship for private posts
+    is_friend = False
+    is_own = user_id == current_user["id"]
+    
+    if not is_own:
+        friendship = await friends_collection.find_one({
+            "$or": [
+                {"user_id_1": current_user["id"], "user_id_2": user_id},
+                {"user_id_1": user_id, "user_id_2": current_user["id"]}
+            ]
+        })
+        is_friend = bool(friendship)
+    
+    # Build query based on access
+    if is_own:
+        query = {"user_id": user_id}
+    elif is_friend:
+        query = {"user_id": user_id}  # Can see all posts if friends
+    else:
+        query = {"user_id": user_id, "visibility": "public"}
+    
+    posts = await posts_collection.find(query).sort("created_at", -1).limit(20).to_list(20)
+    
+    result = []
+    for post in posts:
+        category_info = next((c for c in POST_CATEGORIES if c["id"] == post["category"]), None)
+        liked = await post_likes_collection.find_one({
+            "post_id": post["id"],
+            "user_id": current_user["id"]
+        })
+        
+        result.append({
+            "id": post["id"],
+            "content": post["content"],
+            "category": post["category"],
+            "category_name": category_info["name"] if category_info else "",
+            "category_color": category_info["color"] if category_info else "#6366F1",
+            "visibility": post["visibility"],
+            "image_base64": post.get("image_base64"),
+            "location_name": post.get("location_name"),
+            "likes_count": post.get("likes_count", 0),
+            "comments_count": post.get("comments_count", 0),
+            "is_liked": bool(liked),
+            "created_at": post["created_at"].isoformat() if post.get("created_at") else None
+        })
+    
+    return {"posts": result}
+
+@router.get("/profile/{user_id}/activity")
+async def get_user_activity(user_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Get taxi activity for a specific user"""
+    # Check if user exists
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Check privacy settings and friendship
+    is_own = user_id == current_user["id"]
+    
+    if not is_own:
+        # Check profile privacy
+        is_public = user.get("is_profile_public", True)
+        if not is_public:
+            friendship = await friends_collection.find_one({
+                "$or": [
+                    {"user_id_1": current_user["id"], "user_id_2": user_id},
+                    {"user_id_1": user_id, "user_id_2": current_user["id"]}
+                ]
+            })
+            if not friendship:
+                return {"activity": [], "restricted": True}
+    
+    # Get checkins from the checkin collection
+    checkins_collection = db['checkins']
+    services_collection = db['services']
+    
+    activities = []
+    
+    # Get recent checkins (station waits)
+    checkins = await checkins_collection.find({
+        "user_id": user_id
+    }).sort("created_at", -1).limit(10).to_list(10)
+    
+    for checkin in checkins:
+        activities.append({
+            "type": "checkin",
+            "icon": "time-outline",
+            "color": "#3B82F6",
+            "title": f"Espera en {checkin.get('location_name', 'estación')}",
+            "description": f"Tiempo estimado: {checkin.get('wait_time', 'N/A')} min",
+            "location": checkin.get('location_name'),
+            "created_at": checkin["created_at"].isoformat() if checkin.get("created_at") else None
+        })
+    
+    # Get recent services (rides)
+    services = await services_collection.find({
+        "user_id": user_id
+    }).sort("created_at", -1).limit(10).to_list(10)
+    
+    for service in services:
+        distance = service.get('distance_km', 0)
+        activities.append({
+            "type": "service",
+            "icon": "car-outline",
+            "color": "#10B981",
+            "title": f"Servicio completado",
+            "description": f"Distancia: {distance:.1f} km" if distance else "Servicio realizado",
+            "location": service.get('destination'),
+            "created_at": service["created_at"].isoformat() if service.get("created_at") else None
+        })
+    
+    # Sort by date
+    activities.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    
+    return {"activity": activities[:15], "restricted": False}
