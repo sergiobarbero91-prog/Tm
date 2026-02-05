@@ -4952,6 +4952,59 @@ export default function TransportMeter() {
     }
   };
 
+  // Search friends for new message
+  const searchFriendsForMessage = async (query: string) => {
+    if (query.length < 1) {
+      // Show all friends if no query
+      setNewMessageSearchResults(friends);
+      return;
+    }
+    
+    const filtered = friends.filter((f: any) => 
+      f.username.toLowerCase().includes(query.toLowerCase()) ||
+      (f.full_name && f.full_name.toLowerCase().includes(query.toLowerCase()))
+    );
+    setNewMessageSearchResults(filtered);
+  };
+
+  // Start new conversation with friend
+  const startNewConversation = async (friendId: string, friendUsername: string) => {
+    setShowNewMessageModal(false);
+    setNewMessageSearchQuery('');
+    setNewMessageSearchResults([]);
+    
+    // Start DM with this friend
+    await startDMWithUser(friendId, friendUsername);
+  };
+
+  // Fetch user posts for profile
+  const fetchUserPosts = async (userId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/profile/${userId}/posts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserActivityPosts(response.data.posts || []);
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+      setUserActivityPosts([]);
+    }
+  };
+
+  // Fetch user taxi activity for profile
+  const fetchUserActivity = async (userId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/profile/${userId}/activity`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserActivityTaxi(response.data.activity || []);
+    } catch (error) {
+      console.error('Error fetching user activity:', error);
+      setUserActivityTaxi([]);
+    }
+  };
+
   // Search users for social
   const searchSocialUsers = async (query: string) => {
     if (query.length < 2) {
