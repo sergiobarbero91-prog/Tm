@@ -870,3 +870,247 @@ async def search_users(
         })
     
     return {"users": result}
+
+
+
+# ============== POSTS / TABLÓN ENDPOINTS ==============
+
+@router.get("/posts/categories")
+async def get_post_categories():
+    """Get available post categories"""
+    return {"categories": POST_CATEGORIES}
+
+@router.post("/posts")
+async def create_post(post_data: PostCreate, current_user: dict = Depends(get_current_user_required)):
+    """Create a new post"""
+    # Validate category
+    valid_categories = [c["id"] for c in POST_CATEGORIES]
+    if post_data.category not in valid_categories:
+        raise HTTPException(status_code=400, detail="Categoría inválida")
+    
+    # Validate visibility
+    if post_data.visibility not in ["public", "friends_only"]:
+        raise HTTPException(status_code=400, detail="Visibilidad inválida")
+    
+    post_id = str(uuid.uuid4())
+    level_info = get_user_level(current_user.get("points", 0))
+    
+    post = {
+        "id": post_id,
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "user_full_name": current_user.get("full_name"),
+        "user_level_name": level_info[0],
+        "user_level_badge": level_info[1],
+        "content": post_data.content,
+        "category": post_data.category,
+        "visibility": post_data.visibility,
+        "image_base64": post_data.image_base64,
+        "location_name": post_data.location_name,
+        "location_lat": post_data.location_lat,
+        "location_lng": post_data.location_lng,
+        "likes_count": 0,
+        "comments_count": 0,
+        "created_at": datetime.utcnow()
+    }
+    
+    await posts_collection.insert_one(post)
+    
+    logger.info(f"User {current_user['username']} created post {post_id}")
+    
+    return {"id": post_id, "message": "Publicación creada correctamente"}
+
+@router.get("/posts")
+async def get_posts(
+    page: int = 0, 
+    limit: int = 20, 
+    category: Optional[str] = None,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get posts feed"""
+    # Get user's friends for filtering friends_only posts
+    friendships = await friends_collection.find({
+        "$or": [
+            {"user_id_1": current_user["id"]},
+            {"user_id_2": current_user["id"]}
+        ]
+    }).to_list(1000)
+    
+    friend_ids = set()
+    for f in friendships:
+        if f["user_id_1"] == current_user["id"]:
+            friend_ids.add(f["user_id_2"])
+        else:
+            friend_ids.add(f["user_id_1"])
+    
+    # Build query: show public posts OR friends_only posts from friends OR own posts
+    query = {
+        "$or": [
+            {"visibility": "public"},
+            {"visibility": "friends_only", "user_id": {"$in": list(friend_ids)}},
+            {"user_id": current_user["id"]}
+        ]
+    }
+    
+    if category:
+        query["category"] = category
+    
+    posts = await posts_collection.find(query).sort("created_at", -1).skip(page * limit).limit(limit).to_list(limit)
+    
+    result = []
+    for post in posts:
+        # Check if current user liked this post
+        liked = await post_likes_collection.find_one({
+            "post_id": post["id"],
+            "user_id": current_user["id"]
+        })
+        
+        # Get category info
+        category_info = next((c for c in POST_CATEGORIES if c["id"] == post["category"]), None)
+        
+        result.append({
+            "id": post["id"],
+            "user_id": post["user_id"],
+            "username": post["username"],
+            "user_full_name": post.get("user_full_name"),
+            "user_level_name": post.get("user_level_name"),
+            "user_level_badge": post.get("user_level_badge"),
+            "content": post["content"],
+            "category": post["category"],
+            "category_name": category_info["name"] if category_info else "",
+            "category_color": category_info["color"] if category_info else "#6366F1",
+            "visibility": post["visibility"],
+            "image_base64": post.get("image_base64"),
+            "location_name": post.get("location_name"),
+            "location_lat": post.get("location_lat"),
+            "location_lng": post.get("location_lng"),
+            "likes_count": post.get("likes_count", 0),
+            "comments_count": post.get("comments_count", 0),
+            "is_liked": bool(liked),
+            "is_own": post["user_id"] == current_user["id"],
+            "created_at": post["created_at"].isoformat() if post.get("created_at") else None
+        })
+    
+    return {"posts": result}
+
+@router.post("/posts/{post_id}/like")
+async def toggle_like_post(post_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Like or unlike a post"""
+    post = await posts_collection.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Check if already liked
+    existing_like = await post_likes_collection.find_one({
+        "post_id": post_id,
+        "user_id": current_user["id"]
+    })
+    
+    if existing_like:
+        # Unlike
+        await post_likes_collection.delete_one({"_id": existing_like["_id"]})
+        await posts_collection.update_one(
+            {"id": post_id},
+            {"$inc": {"likes_count": -1}}
+        )
+        return {"liked": False, "message": "Like eliminado"}
+    else:
+        # Like
+        await post_likes_collection.insert_one({
+            "post_id": post_id,
+            "user_id": current_user["id"],
+            "created_at": datetime.utcnow()
+        })
+        await posts_collection.update_one(
+            {"id": post_id},
+            {"$inc": {"likes_count": 1}}
+        )
+        return {"liked": True, "message": "Like añadido"}
+
+@router.get("/posts/{post_id}/comments")
+async def get_post_comments(post_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Get comments for a post"""
+    post = await posts_collection.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    comments = await post_comments_collection.find({"post_id": post_id}).sort("created_at", 1).to_list(100)
+    
+    result = []
+    for comment in comments:
+        result.append({
+            "id": comment["id"],
+            "user_id": comment["user_id"],
+            "username": comment["username"],
+            "user_level_badge": comment.get("user_level_badge"),
+            "content": comment["content"],
+            "is_own": comment["user_id"] == current_user["id"],
+            "created_at": comment["created_at"].isoformat() if comment.get("created_at") else None
+        })
+    
+    return {"comments": result}
+
+@router.post("/posts/{post_id}/comments")
+async def add_comment(post_id: str, comment_data: CommentCreate, current_user: dict = Depends(get_current_user_required)):
+    """Add a comment to a post"""
+    post = await posts_collection.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    comment_id = str(uuid.uuid4())
+    level_info = get_user_level(current_user.get("points", 0))
+    
+    comment = {
+        "id": comment_id,
+        "post_id": post_id,
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "user_level_badge": level_info[1],
+        "content": comment_data.content,
+        "created_at": datetime.utcnow()
+    }
+    
+    await post_comments_collection.insert_one(comment)
+    await posts_collection.update_one(
+        {"id": post_id},
+        {"$inc": {"comments_count": 1}}
+    )
+    
+    return {"id": comment_id, "message": "Comentario añadido"}
+
+@router.delete("/posts/{post_id}")
+async def delete_post(post_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Delete own post"""
+    post = await posts_collection.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Only owner or admin can delete
+    if post["user_id"] != current_user["id"] and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta publicación")
+    
+    # Delete post and all related data
+    await posts_collection.delete_one({"id": post_id})
+    await post_likes_collection.delete_many({"post_id": post_id})
+    await post_comments_collection.delete_many({"post_id": post_id})
+    
+    return {"message": "Publicación eliminada"}
+
+@router.delete("/posts/{post_id}/comments/{comment_id}")
+async def delete_comment(post_id: str, comment_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Delete own comment"""
+    comment = await post_comments_collection.find_one({"id": comment_id, "post_id": post_id})
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comentario no encontrado")
+    
+    # Only owner or admin can delete
+    if comment["user_id"] != current_user["id"] and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este comentario")
+    
+    await post_comments_collection.delete_one({"id": comment_id})
+    await posts_collection.update_one(
+        {"id": post_id},
+        {"$inc": {"comments_count": -1}}
+    )
+    
+    return {"message": "Comentario eliminado"}
