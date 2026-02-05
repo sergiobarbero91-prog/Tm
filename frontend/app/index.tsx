@@ -5333,7 +5333,9 @@ export default function TransportMeter() {
           fetchFriendRequests(),
           fetchConversations(),
           fetchGroups(),
-          fetchSocialUnreadCount()
+          fetchSocialUnreadCount(),
+          fetchPostCategories(),
+          fetchPosts(selectedPostCategory)
         ]);
       } else if (activeTab === 'moderation') {
         await Promise.all([
