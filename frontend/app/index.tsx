@@ -901,7 +901,7 @@ export default function TransportMeter() {
   const [selectedPostCategory, setSelectedPostCategory] = useState<string | null>(null);
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
-  const [newPostCategory, setNewPostCategory] = useState('general');
+  const [newPostCategory, setNewPostCategory] = useState('news');
   const [newPostVisibility, setNewPostVisibility] = useState('public');
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const [newPostLocation, setNewPostLocation] = useState('');
