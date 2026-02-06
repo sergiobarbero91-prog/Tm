@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import * as Linking from 'expo-linking';
