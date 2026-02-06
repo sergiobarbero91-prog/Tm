@@ -5530,7 +5530,8 @@ export default function TransportMeter() {
           fetchGroups(),
           fetchSocialUnreadCount(),
           fetchPostCategories(),
-          fetchPosts(selectedPostCategory)
+          fetchPosts(selectedPostCategory),
+          fetchMyProfile()
         ]);
       } else if (activeTab === 'moderation') {
         await Promise.all([
