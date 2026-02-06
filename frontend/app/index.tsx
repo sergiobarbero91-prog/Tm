@@ -10375,12 +10375,12 @@ export default function TransportMeter() {
                           </View>
                         </View>
 
-                        {/* Post Image - Full width like Instagram */}
+                        {/* Post Image - Full width */}
                         {post.image_base64 && (
                           <View style={styles.feedPostImageContainer}>
                             <Image 
                               source={{ uri: post.image_base64 }} 
-                              style={styles.feedPostImage}
+                              style={[styles.feedPostImage, Platform.OS === 'web' ? { height: 'auto', maxHeight: 600 } : {}]}
                               resizeMode="contain"
                             />
                           </View>
