@@ -10381,7 +10381,7 @@ export default function TransportMeter() {
                             <Image 
                               source={{ uri: post.image_base64 }} 
                               style={styles.feedPostImage}
-                              resizeMode="cover"
+                              resizeMode="contain"
                             />
                           </View>
                         )}
