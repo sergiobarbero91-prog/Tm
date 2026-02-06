@@ -10378,11 +10378,25 @@ export default function TransportMeter() {
                         {/* Post Image - Full width */}
                         {post.image_base64 && (
                           <View style={styles.feedPostImageContainer}>
-                            <Image 
-                              source={{ uri: post.image_base64 }} 
-                              style={[styles.feedPostImage, Platform.OS === 'web' ? { height: 'auto', maxHeight: 600 } : {}]}
-                              resizeMode="contain"
-                            />
+                            {Platform.OS === 'web' ? (
+                              <img 
+                                src={post.image_base64}
+                                style={{
+                                  width: '100%',
+                                  height: 'auto',
+                                  maxHeight: 600,
+                                  objectFit: 'contain',
+                                  display: 'block',
+                                }}
+                                alt="Post"
+                              />
+                            ) : (
+                              <Image 
+                                source={{ uri: post.image_base64 }} 
+                                style={styles.feedPostImage}
+                                resizeMode="contain"
+                              />
+                            )}
                           </View>
                         )}
 
