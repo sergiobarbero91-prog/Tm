@@ -5109,7 +5109,7 @@ export default function TransportMeter() {
       
       // Refresh profile data
       await fetchMyProfile();
-      setShowEditProfileModal(false);
+      setShowSocialEditProfileModal(false);
       Alert.alert('Éxito', '¡Perfil actualizado!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Error al guardar perfil');
