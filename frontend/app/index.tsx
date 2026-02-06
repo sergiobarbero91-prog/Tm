@@ -10314,7 +10314,7 @@ export default function TransportMeter() {
                             {post.is_own && (
                               <TouchableOpacity 
                                 style={styles.feedMoreButton}
-                                onPress={() => deletePost(post.id)}
+                                onPress={() => openPostOptions(post)}
                               >
                                 <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
                               </TouchableOpacity>
