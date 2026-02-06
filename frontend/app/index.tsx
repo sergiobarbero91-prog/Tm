@@ -810,6 +810,12 @@ export default function TransportMeter() {
   const [streetCalculatingFare, setStreetCalculatingFare] = useState(false);
   const streetSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streetDestinationInputRef = useRef<any>(null);
+  
+  // File input refs for web file picker
+  const postImageInputRef = useRef<HTMLInputElement | null>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const coverPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const reportMediaInputRef = useRef<HTMLInputElement | null>(null);
 
   // Street work states
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
