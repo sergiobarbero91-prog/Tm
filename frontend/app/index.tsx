@@ -5057,6 +5057,9 @@ export default function TransportMeter() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*,video/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      
       input.onchange = (e: any) => {
         const file = e.target?.files?.[0];
         if (file) {
@@ -5066,7 +5069,10 @@ export default function TransportMeter() {
           };
           reader.readAsDataURL(file);
         }
+        // Cleanup
+        document.body.removeChild(input);
       };
+      
       input.click();
     } catch (error) {
       console.error('Error picking image:', error);
