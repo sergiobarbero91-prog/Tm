@@ -5054,22 +5054,27 @@ export default function TransportMeter() {
 
   // Pick image for post - using dynamic HTML input for web
   const pickPostImage = () => {
+    console.log('pickPostImage called, Platform:', Platform.OS);
     if (Platform.OS !== 'web') {
       Alert.alert('No disponible', 'La selección de archivos solo está disponible en la versión web');
       return;
     }
     try {
+      console.log('Creating file input...');
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*,video/*';
       input.style.display = 'none';
       document.body.appendChild(input);
+      console.log('File input appended to body');
       
       input.onchange = (e: any) => {
+        console.log('File selected:', e.target?.files?.[0]?.name);
         const file = e.target?.files?.[0];
         if (file) {
           const reader = new FileReader();
           reader.onload = (event: any) => {
+            console.log('File loaded, setting image...');
             setNewPostImage(event.target.result);
           };
           reader.readAsDataURL(file);
@@ -5078,7 +5083,9 @@ export default function TransportMeter() {
         document.body.removeChild(input);
       };
       
+      console.log('Clicking file input...');
       input.click();
+      console.log('File input clicked');
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'No se pudo abrir el selector de archivos');
