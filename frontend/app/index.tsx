@@ -5158,38 +5158,52 @@ export default function TransportMeter() {
   // Pick profile photo
   const pickProfilePhoto = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para cambiar tu foto');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.7,
         base64: true,
       });
       
-      if (!result.canceled && result.assets[0].base64) {
+      if (!result.canceled && result.assets[0]?.base64) {
         setEditProfilePhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
       }
     } catch (error) {
       console.error('Error picking profile photo:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
 
   // Pick cover photo
   const pickCoverPhoto = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para cambiar tu portada');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.7,
         base64: true,
       });
       
-      if (!result.canceled && result.assets[0].base64) {
+      if (!result.canceled && result.assets[0]?.base64) {
         setEditCoverPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
       }
     } catch (error) {
       console.error('Error picking cover photo:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
 
