@@ -96,6 +96,61 @@ class ProfileUpdate(BaseModel):
 
 # ============== PROFILE VISIBILITY ==============
 
+@router.get("/profile/me")
+async def get_my_profile(current_user: dict = Depends(get_current_user_required)):
+    """Get current user's full profile for viewing/editing"""
+    user = await users_collection.find_one({"id": current_user["id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    level_info = get_user_level(user.get("points", 0))
+    
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "full_name": user.get("full_name"),
+        "bio": user.get("bio", ""),
+        "profile_photo": user.get("profile_photo"),
+        "cover_photo": user.get("cover_photo"),
+        "license_number": user.get("license_number"),
+        "shift": user.get("shift"),
+        "phone": user.get("phone"),
+        "level_name": level_info[0],
+        "level_badge": level_info[1],
+        "total_points": user.get("points", 0),
+        "is_profile_public": user.get("is_profile_public", True),
+        "role": user.get("role", "user"),
+        "created_at": user.get("created_at").isoformat() if user.get("created_at") else None
+    }
+
+@router.put("/profile/me")
+async def update_my_profile(
+    data: ProfileUpdate,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Update current user's profile (name, bio, photos)"""
+    update_fields = {}
+    
+    if data.full_name is not None:
+        update_fields["full_name"] = data.full_name
+    if data.bio is not None:
+        update_fields["bio"] = data.bio
+    if data.profile_photo is not None:
+        update_fields["profile_photo"] = data.profile_photo
+    if data.cover_photo is not None:
+        update_fields["cover_photo"] = data.cover_photo
+    
+    if update_fields:
+        await users_collection.update_one(
+            {"id": current_user["id"]},
+            {"$set": update_fields}
+        )
+    
+    return {
+        "success": True,
+        "message": "Perfil actualizado correctamente"
+    }
+
 @router.put("/profile/visibility")
 async def update_profile_visibility(
     data: ProfileVisibilityUpdate,
