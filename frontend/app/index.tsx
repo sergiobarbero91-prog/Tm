@@ -923,6 +923,7 @@ export default function TransportMeter() {
 
   // My Profile states
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const [showSocialEditProfileModal, setShowSocialEditProfileModal] = useState(false);
   const [myProfileData, setMyProfileData] = useState<any>(null);
   const [editFullName, setEditFullName] = useState('');
   const [editBio, setEditBio] = useState('');
