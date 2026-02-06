@@ -913,6 +913,15 @@ export default function TransportMeter() {
   const [newComment, setNewComment] = useState('');
   const [postsLoading, setPostsLoading] = useState(false);
   
+  // Post actions states
+  const [showSharePostModal, setShowSharePostModal] = useState(false);
+  const [postToShare, setPostToShare] = useState<any>(null);
+  const [shareHeaderText, setShareHeaderText] = useState('');
+  const [showPostOptionsModal, setShowPostOptionsModal] = useState(false);
+  const [selectedPostForOptions, setSelectedPostForOptions] = useState<any>(null);
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [showSavedPostsModal, setShowSavedPostsModal] = useState(false);
+  
   // New conversation states
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [newMessageSearchQuery, setNewMessageSearchQuery] = useState('');
@@ -921,7 +930,7 @@ export default function TransportMeter() {
   // User activity states
   const [userActivityPosts, setUserActivityPosts] = useState<any[]>([]);
   const [userActivityTaxi, setUserActivityTaxi] = useState<any[]>([]);
-  const [profileActivityTab, setProfileActivityTab] = useState<'posts' | 'activity'>('posts');
+  const [profileActivityTab, setProfileActivityTab] = useState<'posts' | 'activity' | 'saved'>('posts');
 
   // My Profile states
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
