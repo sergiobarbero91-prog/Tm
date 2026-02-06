@@ -22,12 +22,17 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import * as Linking from 'expo-linking';
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
+
+// Conditional import for ImagePicker (avoid web constructor error)
+let ImagePicker: any = null;
+if (Platform.OS !== 'web') {
+  ImagePicker = require('expo-image-picker');
+}
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
