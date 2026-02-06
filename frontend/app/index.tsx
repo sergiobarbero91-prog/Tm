@@ -10061,7 +10061,7 @@ export default function TransportMeter() {
                 <Ionicons name="people" size={28} color="#EC4899" />
                 <Text style={styles.socialTitle}>Red Social</Text>
               </View>
-              <TouchableOpacity
+              <Pressable
                 style={styles.myProfileButton}
                 onPress={() => {
                   console.log('Profile button pressed');
@@ -10075,7 +10075,7 @@ export default function TransportMeter() {
                     <Ionicons name="person" size={20} color="#FFFFFF" />
                   </View>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* Social Tabs */}
