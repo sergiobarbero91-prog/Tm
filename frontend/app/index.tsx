@@ -5181,6 +5181,25 @@ export default function TransportMeter() {
 
   // Pick profile photo
   const pickProfilePhoto = async () => {
+    if (Platform.OS === 'web') {
+      // Use HTML file input for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setEditProfilePhoto(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+    
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -5207,6 +5226,25 @@ export default function TransportMeter() {
 
   // Pick cover photo
   const pickCoverPhoto = async () => {
+    if (Platform.OS === 'web') {
+      // Use HTML file input for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setEditCoverPhoto(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+    
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
