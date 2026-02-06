@@ -23075,14 +23075,16 @@ const styles = StyleSheet.create({
   },
   // My Profile Button in Header
   myProfileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     overflow: 'hidden',
     borderWidth: 3,
     borderColor: '#EC4899',
     backgroundColor: '#334155',
-    zIndex: 100,
+    zIndex: 9999,
+    position: 'relative',
+    cursor: 'pointer',
   },
   myProfileButtonImage: {
     width: '100%',
