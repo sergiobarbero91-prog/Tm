@@ -13199,6 +13199,34 @@ export default function TransportMeter() {
               <Ionicons name="flag-outline" size={24} color="#EF4444" />
               <Text style={[styles.postOptionText, { color: '#EF4444' }]}>Reportar publicación</Text>
             </TouchableOpacity>
+            
+            {/* Delete option - only for own posts */}
+            {selectedPostForOptions.is_own && (
+              <TouchableOpacity 
+                style={[styles.postOptionItem, styles.postOptionItemDanger]}
+                onPress={() => {
+                  Alert.alert(
+                    'Eliminar publicación',
+                    '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { 
+                        text: 'Eliminar', 
+                        style: 'destructive',
+                        onPress: () => {
+                          deletePost(selectedPostForOptions.id);
+                          setShowPostOptionsModal(false);
+                          setSelectedPostForOptions(null);
+                        }
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="trash-outline" size={24} color="#EF4444" />
+                <Text style={[styles.postOptionText, { color: '#EF4444' }]}>Eliminar publicación</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
