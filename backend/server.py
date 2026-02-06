@@ -2426,14 +2426,27 @@ async def get_street_work_data(
     atocha_arrivals_filtered = filter_future_arrivals(atocha_arrivals_raw, "train")
     chamartin_arrivals_filtered = filter_future_arrivals(chamartin_arrivals_raw, "train")
     
-    # Count PAST arrivals (previous window: from -2*minutes to -minutes)
-    # Use raw data for past arrivals since we want to count what already arrived
-    atocha_prev_arrivals = count_arrivals_in_past_window(atocha_arrivals_raw, minutes * 2, minutes)
-    chamartin_prev_arrivals = count_arrivals_in_past_window(chamartin_arrivals_raw, minutes * 2, minutes)
+    # Check if we have a custom time window (future time selected)
+    custom_time_window = start_time is not None and end_time is not None
     
-    # Count FUTURE arrivals (next window: from now to +minutes) - use filtered data
-    atocha_future_arrivals = count_arrivals_in_window(atocha_arrivals_filtered, minutes)
-    chamartin_future_arrivals = count_arrivals_in_window(chamartin_arrivals_filtered, minutes)
+    if custom_time_window:
+        # Use the specific time range for counting arrivals
+        # For custom time window, "prev" is meaningless, so we use 0
+        # "future" should be the arrivals in the specified time range
+        atocha_prev_arrivals = 0
+        chamartin_prev_arrivals = 0
+        atocha_future_arrivals = count_arrivals_in_time_range(atocha_arrivals_raw, time_threshold, time_limit)
+        chamartin_future_arrivals = count_arrivals_in_time_range(chamartin_arrivals_raw, time_threshold, time_limit)
+        logger.info(f"[Street Data] Custom time window - Atocha arrivals: {atocha_future_arrivals}, Chamartín arrivals: {chamartin_future_arrivals}")
+    else:
+        # Count PAST arrivals (previous window: from -2*minutes to -minutes)
+        # Use raw data for past arrivals since we want to count what already arrived
+        atocha_prev_arrivals = count_arrivals_in_past_window(atocha_arrivals_raw, minutes * 2, minutes)
+        chamartin_prev_arrivals = count_arrivals_in_past_window(chamartin_arrivals_raw, minutes * 2, minutes)
+        
+        # Count FUTURE arrivals (next window: from now to +minutes) - use filtered data
+        atocha_future_arrivals = count_arrivals_in_window(atocha_arrivals_filtered, minutes)
+        chamartin_future_arrivals = count_arrivals_in_window(chamartin_arrivals_filtered, minutes)
     
     train_arrivals_data = {
         "Atocha": {"prev": atocha_prev_arrivals, "future": atocha_future_arrivals},
