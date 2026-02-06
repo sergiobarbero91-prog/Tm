@@ -1088,6 +1088,48 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
     return count
 
 
+def count_arrivals_in_time_range(arrivals: List[Dict], start_time: datetime, end_time: datetime) -> int:
+    """Count arrivals within a specific time range using Madrid timezone.
+    
+    Args:
+        arrivals: List of arrival dicts with 'time' field (HH:MM format)
+        start_time: Start of the time window (timezone-aware)
+        end_time: End of the time window (timezone-aware)
+    
+    Returns:
+        Number of arrivals within the specified time range
+    """
+    count = 0
+    
+    # Ensure times are in Madrid timezone
+    start_madrid = start_time.astimezone(MADRID_TZ) if start_time.tzinfo else MADRID_TZ.localize(start_time)
+    end_madrid = end_time.astimezone(MADRID_TZ) if end_time.tzinfo else MADRID_TZ.localize(end_time)
+    
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            # Parse time and set to the date of start_time
+            arrival_time = datetime.strptime(time_str, "%H:%M")
+            arrival_time = MADRID_TZ.localize(arrival_time.replace(
+                year=start_madrid.year, month=start_madrid.month, day=start_madrid.day
+            ))
+            
+            # Handle day rollover - if arrival time is before start by more than 12 hours, add a day
+            if arrival_time < start_madrid - timedelta(hours=12):
+                arrival_time += timedelta(days=1)
+            # If arrival time is after end by more than 12 hours, subtract a day
+            elif arrival_time > end_madrid + timedelta(hours=12):
+                arrival_time -= timedelta(days=1)
+            
+            # Check if arrival is within the time range
+            if start_madrid <= arrival_time <= end_madrid:
+                count += 1
+        except Exception:
+            pass
+    
+    return count
+
+
 def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
     """Calculate weighted arrival score combining future and past arrivals.
     
