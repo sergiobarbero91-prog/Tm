@@ -4336,6 +4336,9 @@ export default function TransportMeter() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = type === 'image' ? 'image/*' : 'video/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      
       input.onchange = (e: any) => {
         const file = e.target?.files?.[0];
         if (file) {
@@ -4348,7 +4351,9 @@ export default function TransportMeter() {
           };
           reader.readAsDataURL(file);
         }
+        document.body.removeChild(input);
       };
+      
       input.click();
     } catch (error) {
       console.error('Error picking report media:', error);
