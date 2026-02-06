@@ -12356,6 +12356,224 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* My Profile Modal */}
+      {showMyProfileModal && myProfileData && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.myProfileModalContainer}>
+            {/* Cover Photo */}
+            <View style={styles.myProfileCover}>
+              {myProfileData.cover_photo ? (
+                <Image source={{ uri: myProfileData.cover_photo }} style={styles.myProfileCoverImage} />
+              ) : (
+                <View style={styles.myProfileCoverPlaceholder}>
+                  <Ionicons name="image-outline" size={32} color="#475569" />
+                </View>
+              )}
+              <TouchableOpacity 
+                style={styles.myProfileCloseButton}
+                onPress={() => setShowMyProfileModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Profile Content */}
+            <View style={styles.myProfileContent}>
+              {/* Avatar */}
+              <View style={styles.myProfileAvatarContainer}>
+                {myProfileData.profile_photo ? (
+                  <Image source={{ uri: myProfileData.profile_photo }} style={styles.myProfileAvatar} />
+                ) : (
+                  <View style={styles.myProfileAvatarPlaceholder}>
+                    <Text style={styles.myProfileAvatarText}>{myProfileData.level_badge}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* User Info */}
+              <Text style={styles.myProfileName}>{myProfileData.full_name || myProfileData.username}</Text>
+              <Text style={styles.myProfileUsername}>@{myProfileData.username}</Text>
+              
+              {myProfileData.bio && (
+                <Text style={styles.myProfileBio}>{myProfileData.bio}</Text>
+              )}
+
+              <View style={styles.myProfileStats}>
+                <View style={styles.myProfileStatItem}>
+                  <Ionicons name="trophy" size={20} color="#F59E0B" />
+                  <Text style={styles.myProfileStatValue}>{myProfileData.total_points}</Text>
+                  <Text style={styles.myProfileStatLabel}>puntos</Text>
+                </View>
+                <View style={styles.myProfileStatItem}>
+                  <Text style={styles.myProfileStatBadge}>{myProfileData.level_badge}</Text>
+                  <Text style={styles.myProfileStatLabel}>{myProfileData.level_name}</Text>
+                </View>
+              </View>
+
+              {/* Edit Button */}
+              <TouchableOpacity
+                style={styles.myProfileEditButton}
+                onPress={openEditProfile}
+              >
+                <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.myProfileEditButtonText}>Editar perfil</Text>
+              </TouchableOpacity>
+
+              {/* Activity Tabs */}
+              <View style={styles.profileActivitySection}>
+                <View style={styles.profileActivityTabs}>
+                  <TouchableOpacity
+                    style={[styles.profileActivityTab, profileActivityTab === 'posts' && styles.profileActivityTabActive]}
+                    onPress={() => setProfileActivityTab('posts')}
+                  >
+                    <Ionicons name="newspaper-outline" size={18} color={profileActivityTab === 'posts' ? '#EC4899' : '#64748B'} />
+                    <Text style={[styles.profileActivityTabText, profileActivityTab === 'posts' && styles.profileActivityTabTextActive]}>
+                      Publicaciones
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.profileActivityTab, profileActivityTab === 'activity' && styles.profileActivityTabActive]}
+                    onPress={() => setProfileActivityTab('activity')}
+                  >
+                    <Ionicons name="car-outline" size={18} color={profileActivityTab === 'activity' ? '#EC4899' : '#64748B'} />
+                    <Text style={[styles.profileActivityTabText, profileActivityTab === 'activity' && styles.profileActivityTabTextActive]}>
+                      Actividad
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.profileActivityContent}>
+                  {profileActivityTab === 'posts' ? (
+                    userActivityPosts.length === 0 ? (
+                      <View style={styles.profileEmptyActivity}>
+                        <Ionicons name="newspaper-outline" size={32} color="#475569" />
+                        <Text style={styles.profileEmptyActivityText}>Sin publicaciones</Text>
+                      </View>
+                    ) : (
+                      userActivityPosts.map((post) => (
+                        <View key={post.id} style={styles.profilePostItem}>
+                          <View style={[styles.profilePostCategory, { backgroundColor: post.category_color }]}>
+                            <Text style={styles.profilePostCategoryText}>{post.category_name}</Text>
+                          </View>
+                          <Text style={styles.profilePostContent} numberOfLines={2}>{post.content}</Text>
+                          <View style={styles.profilePostStats}>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="heart" size={14} color="#EF4444" />
+                              <Text style={styles.profilePostStatText}>{post.likes_count}</Text>
+                            </View>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="chatbubble" size={14} color="#64748B" />
+                              <Text style={styles.profilePostStatText}>{post.comments_count}</Text>
+                            </View>
+                            <Text style={styles.profilePostTime}>{getTimeAgo(post.created_at)}</Text>
+                          </View>
+                        </View>
+                      ))
+                    )
+                  ) : (
+                    userActivityTaxi.length === 0 ? (
+                      <View style={styles.profileEmptyActivity}>
+                        <Ionicons name="car-outline" size={32} color="#475569" />
+                        <Text style={styles.profileEmptyActivityText}>Sin actividad reciente</Text>
+                      </View>
+                    ) : (
+                      userActivityTaxi.map((activity, idx) => (
+                        <View key={idx} style={styles.profileActivityItem}>
+                          <View style={[styles.profileActivityIcon, { backgroundColor: activity.color + '20' }]}>
+                            <Ionicons name={activity.icon as any} size={20} color={activity.color} />
+                          </View>
+                          <View style={styles.profileActivityInfo}>
+                            <Text style={styles.profileActivityTitle}>{activity.title}</Text>
+                            <Text style={styles.profileActivityDesc}>{activity.description}</Text>
+                          </View>
+                          <Text style={styles.profileActivityTime}>{activity.created_at ? getTimeAgo(activity.created_at) : ''}</Text>
+                        </View>
+                      ))
+                    )
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditProfileModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.editProfileModal}>
+            <View style={styles.editProfileHeader}>
+              <TouchableOpacity onPress={() => setShowEditProfileModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+              <Text style={styles.editProfileTitle}>Editar Perfil</Text>
+              <TouchableOpacity onPress={saveProfileChanges} disabled={savingProfile}>
+                {savingProfile ? (
+                  <ActivityIndicator size="small" color="#EC4899" />
+                ) : (
+                  <Text style={styles.editProfileSaveText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.editProfileContent}>
+              {/* Cover Photo */}
+              <Text style={styles.editProfileLabel}>Foto de portada</Text>
+              <TouchableOpacity style={styles.editCoverPhotoButton} onPress={pickCoverPhoto}>
+                {editCoverPhoto ? (
+                  <Image source={{ uri: editCoverPhoto }} style={styles.editCoverPhotoImage} />
+                ) : (
+                  <View style={styles.editCoverPhotoPlaceholder}>
+                    <Ionicons name="image-outline" size={32} color="#64748B" />
+                    <Text style={styles.editCoverPhotoText}>Añadir foto de portada</Text>
+                  </View>
+                )}
+                <View style={styles.editPhotoOverlay}>
+                  <Ionicons name="camera" size={24} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+
+              {/* Profile Photo */}
+              <Text style={styles.editProfileLabel}>Foto de perfil</Text>
+              <TouchableOpacity style={styles.editProfilePhotoButton} onPress={pickProfilePhoto}>
+                {editProfilePhoto ? (
+                  <Image source={{ uri: editProfilePhoto }} style={styles.editProfilePhotoImage} />
+                ) : (
+                  <View style={styles.editProfilePhotoPlaceholder}>
+                    <Ionicons name="person" size={32} color="#64748B" />
+                  </View>
+                )}
+                <View style={styles.editProfilePhotoOverlay}>
+                  <Ionicons name="camera" size={20} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+
+              {/* Name */}
+              <Text style={styles.editProfileLabel}>Nombre completo</Text>
+              <TextInput
+                style={styles.editProfileInput}
+                placeholder="Tu nombre"
+                placeholderTextColor="#64748B"
+                value={editFullName}
+                onChangeText={setEditFullName}
+              />
+
+              {/* Bio */}
+              <Text style={styles.editProfileLabel}>Biografía</Text>
+              <TextInput
+                style={[styles.editProfileInput, { height: 80, textAlignVertical: 'top' }]}
+                placeholder="Cuéntanos sobre ti..."
+                placeholderTextColor="#64748B"
+                value={editBio}
+                onChangeText={setEditBio}
+                multiline
+                numberOfLines={3}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
       {/* Leave Group Confirmation Modal */}
       {showLeaveGroupConfirm && (
         <View style={styles.modalOverlay}>
