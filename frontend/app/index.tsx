@@ -23483,9 +23483,10 @@ const styles = StyleSheet.create({
   },
   sharedPostImage: {
     width: '100%',
-    height: 120,
+    height: 150,
     borderRadius: 8,
     marginTop: 8,
+    resizeMode: 'contain',
   },
   sharedPostLocation: {
     flexDirection: 'row',
