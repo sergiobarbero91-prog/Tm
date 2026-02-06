@@ -15687,40 +15687,6 @@ export default function TransportMeter() {
           ))}
         </View>
       )}
-      
-      {/* Hidden file inputs for web file picker */}
-      {Platform.OS === 'web' && (
-        <>
-          <input
-            ref={postImageInputRef as any}
-            type="file"
-            accept="image/*,video/*"
-            style={{ display: 'none' }}
-            onChange={handlePostImageChange}
-          />
-          <input
-            ref={profilePhotoInputRef as any}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleProfilePhotoChange}
-          />
-          <input
-            ref={coverPhotoInputRef as any}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleCoverPhotoChange}
-          />
-          <input
-            ref={reportMediaInputRef as any}
-            type="file"
-            accept="image/*,video/*"
-            style={{ display: 'none' }}
-            onChange={handleReportMediaChange}
-          />
-        </>
-      )}
     </SafeAreaView>
   );
 }
