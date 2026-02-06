@@ -5044,6 +5044,7 @@ export default function TransportMeter() {
   };
 
   // Open edit profile modal
+  // Open edit profile modal (social version with photos)
   const openEditProfile = () => {
     if (myProfileData) {
       setEditFullName(myProfileData.full_name || '');
@@ -5051,7 +5052,7 @@ export default function TransportMeter() {
       setEditProfilePhoto(myProfileData.profile_photo || null);
       setEditCoverPhoto(myProfileData.cover_photo || null);
     }
-    setShowEditProfileModal(true);
+    setShowSocialEditProfileModal(true);
   };
 
   // Pick profile photo
