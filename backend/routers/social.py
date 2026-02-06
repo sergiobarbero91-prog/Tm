@@ -1310,3 +1310,128 @@ async def get_user_activity(user_id: str, current_user: dict = Depends(get_curre
     activities.sort(key=lambda x: x.get("created_at") or "", reverse=True)
     
     return {"activity": activities[:15], "restricted": False}
+
+
+
+# ============== SAVE/SHARE/REPORT POST ENDPOINTS ==============
+
+@router.post("/posts/{post_id}/save")
+async def toggle_save_post(post_id: str, current_user: dict = Depends(get_current_user_required)):
+    """Save or unsave a post"""
+    post = await posts_collection.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Check if already saved
+    existing_save = await saved_posts_collection.find_one({
+        "post_id": post_id,
+        "user_id": current_user["id"]
+    })
+    
+    if existing_save:
+        # Unsave
+        await saved_posts_collection.delete_one({"_id": existing_save["_id"]})
+        return {"saved": False, "message": "Publicación eliminada de guardados"}
+    else:
+        # Save
+        await saved_posts_collection.insert_one({
+            "post_id": post_id,
+            "user_id": current_user["id"],
+            "created_at": datetime.utcnow()
+        })
+        return {"saved": True, "message": "Publicación guardada"}
+
+@router.get("/posts/saved")
+async def get_saved_posts(current_user: dict = Depends(get_current_user_required)):
+    """Get user's saved posts"""
+    saved = await saved_posts_collection.find({
+        "user_id": current_user["id"]
+    }).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for save in saved:
+        post = await posts_collection.find_one({"id": save["post_id"]})
+        if post:
+            category_info = next((c for c in POST_CATEGORIES if c["id"] == post["category"]), None)
+            liked = await post_likes_collection.find_one({
+                "post_id": post["id"],
+                "user_id": current_user["id"]
+            })
+            
+            result.append({
+                "id": post["id"],
+                "user_id": post["user_id"],
+                "username": post["username"],
+                "user_full_name": post.get("user_full_name"),
+                "user_level_badge": post.get("user_level_badge"),
+                "content": post["content"],
+                "category": post["category"],
+                "category_name": category_info["name"] if category_info else "",
+                "category_color": category_info["color"] if category_info else "#6366F1",
+                "visibility": post["visibility"],
+                "image_base64": post.get("image_base64"),
+                "location_name": post.get("location_name"),
+                "likes_count": post.get("likes_count", 0),
+                "comments_count": post.get("comments_count", 0),
+                "is_liked": bool(liked),
+                "is_saved": True,
+                "is_own": post["user_id"] == current_user["id"],
+                "created_at": post["created_at"].isoformat() if post.get("created_at") else None,
+                "saved_at": save["created_at"].isoformat() if save.get("created_at") else None
+            })
+    
+    return {"posts": result}
+
+@router.post("/posts/{post_id}/share")
+async def share_post(
+    post_id: str, 
+    share_data: SharePostCreate,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Share a post to your wall with optional header text"""
+    original_post = await posts_collection.find_one({"id": post_id})
+    if not original_post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Create a new shared post
+    share_id = str(uuid.uuid4())
+    level_info = get_user_level(current_user.get("points", 0))
+    
+    shared_post = {
+        "id": share_id,
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "user_full_name": current_user.get("full_name"),
+        "user_level_name": level_info[0],
+        "user_level_badge": level_info[1],
+        "content": share_data.header_text or "",
+        "category": original_post["category"],
+        "visibility": "public",  # Shares are always public
+        "is_shared": True,
+        "original_post_id": post_id,
+        "original_user_id": original_post["user_id"],
+        "original_username": original_post["username"],
+        "original_user_full_name": original_post.get("user_full_name"),
+        "original_user_level_badge": original_post.get("user_level_badge"),
+        "original_content": original_post["content"],
+        "original_image_base64": original_post.get("image_base64"),
+        "original_location_name": original_post.get("location_name"),
+        "original_created_at": original_post["created_at"].isoformat() if original_post.get("created_at") else None,
+        "likes_count": 0,
+        "comments_count": 0,
+        "created_at": datetime.utcnow()
+    }
+    
+    await posts_collection.insert_one(shared_post)
+    
+    # Also track in shared_posts collection for analytics
+    await shared_posts_collection.insert_one({
+        "share_id": share_id,
+        "original_post_id": post_id,
+        "shared_by": current_user["id"],
+        "created_at": datetime.utcnow()
+    })
+    
+    logger.info(f"User {current_user['username']} shared post {post_id}")
+    
+    return {"id": share_id, "message": "Publicación compartida en tu muro"}
