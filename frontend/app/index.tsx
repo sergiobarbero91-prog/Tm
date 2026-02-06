@@ -4954,6 +4954,87 @@ export default function TransportMeter() {
     }
   };
 
+  // Toggle save post
+  const toggleSavePost = async (postId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/social/posts/${postId}/save`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update post in list
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return { ...post, is_saved: response.data.saved };
+        }
+        return post;
+      }));
+      
+      Alert.alert('Éxito', response.data.message);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al guardar publicación');
+    }
+  };
+
+  // Fetch saved posts
+  const fetchSavedPosts = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/posts/saved`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSavedPosts(response.data.posts || []);
+    } catch (error) {
+      console.error('Error fetching saved posts:', error);
+    }
+  };
+
+  // Share post
+  const sharePost = async () => {
+    if (!postToShare) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_BASE}/api/social/posts/${postToShare.id}/share`, {
+        header_text: shareHeaderText
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setShowSharePostModal(false);
+      setPostToShare(null);
+      setShareHeaderText('');
+      fetchPosts(selectedPostCategory);
+      Alert.alert('Éxito', '¡Publicación compartida en tu muro!');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al compartir publicación');
+    }
+  };
+
+  // Open share modal
+  const openShareModal = (post: any) => {
+    setPostToShare(post);
+    setShareHeaderText('');
+    setShowSharePostModal(true);
+  };
+
+  // Open post options modal
+  const openPostOptions = (post: any) => {
+    setSelectedPostForOptions(post);
+    setShowPostOptionsModal(true);
+  };
+
+  // Report post
+  const reportPost = (post: any) => {
+    setShowPostOptionsModal(false);
+    setSelectedPostForOptions(null);
+    // Use the existing report system
+    setReportedUserId(post.user_id);
+    setReportedUsername(post.username);
+    setReportContext(`Publicación: "${post.content.substring(0, 100)}..."`);
+    setShowReportModal(true);
+  };
+
   // Pick image for post
   const pickPostImage = async () => {
     try {
