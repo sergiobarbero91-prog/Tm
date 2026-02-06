@@ -5171,93 +5171,41 @@ export default function TransportMeter() {
     setShowSocialEditProfileModal(true);
   };
 
-  // Pick profile photo
+  // Pick profile photo - using HTML file input for cross-platform compatibility
   const pickProfilePhoto = async () => {
-    if (Platform.OS === 'web') {
-      // Use HTML file input for web
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e: any) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event: any) => {
-            setEditProfilePhoto(event.target.result);
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-      return;
-    }
-    
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para cambiar tu foto');
-        return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event: any) => {
+          setEditProfilePhoto(event.target.result);
+        };
+        reader.readAsDataURL(file);
       }
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-        base64: true,
-      });
-      
-      if (!result.canceled && result.assets[0]?.base64) {
-        setEditProfilePhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
-      }
-    } catch (error) {
-      console.error('Error picking profile photo:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
-    }
+    };
+    input.click();
   };
 
-  // Pick cover photo
+  // Pick cover photo - using HTML file input for cross-platform compatibility
   const pickCoverPhoto = async () => {
-    if (Platform.OS === 'web') {
-      // Use HTML file input for web
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e: any) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event: any) => {
-            setEditCoverPhoto(event.target.result);
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-      return;
-    }
-    
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para cambiar tu portada');
-        return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event: any) => {
+          setEditCoverPhoto(event.target.result);
+        };
+        reader.readAsDataURL(file);
       }
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.7,
-        base64: true,
-      });
-      
-      if (!result.canceled && result.assets[0]?.base64) {
-        setEditCoverPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
-      }
-    } catch (error) {
-      console.error('Error picking cover photo:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+    };
+    input.click();
+  };
     }
   };
 
