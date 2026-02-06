@@ -88,6 +88,12 @@ class PostCreate(BaseModel):
 class CommentCreate(BaseModel):
     content: str
 
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    bio: Optional[str] = None
+    profile_photo: Optional[str] = None  # Base64
+    cover_photo: Optional[str] = None    # Base64
+
 # ============== PROFILE VISIBILITY ==============
 
 @router.put("/profile/visibility")
