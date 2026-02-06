@@ -4326,27 +4326,33 @@ export default function TransportMeter() {
     }
   };
 
-  // Pick image/video for report
-  // Pick image/video for report - triggers file input click
+  // Pick image/video for report - using dynamic HTML input for web
   const pickReportMedia = (type: 'image' | 'video') => {
-    if (reportMediaInputRef.current) {
-      reportMediaInputRef.current.accept = type === 'image' ? 'image/*' : 'video/*';
-      reportMediaInputRef.current.click();
+    if (Platform.OS !== 'web') {
+      Alert.alert('No disponible', 'La selección de archivos solo está disponible en la versión web');
+      return;
     }
-  };
-  
-  // Handle report media selection
-  const handleReportMediaChange = (e: any) => {
-    const file = e.target?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event: any) => {
-        // Extract base64 data without the data URL prefix
-        const base64 = event.target.result.split(',')[1];
-        setReportMediaBase64(base64);
-        setReportMediaType(file.type.startsWith('video') ? 'video' : 'image');
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = type === 'image' ? 'image/*' : 'video/*';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            // Extract base64 data without the data URL prefix
+            const base64 = event.target.result.split(',')[1];
+            setReportMediaBase64(base64);
+            setReportMediaType(file.type.startsWith('video') ? 'video' : 'image');
+          };
+          reader.readAsDataURL(file);
+        }
       };
-      reader.readAsDataURL(file);
+      input.click();
+    } catch (error) {
+      console.error('Error picking report media:', error);
+      Alert.alert('Error', 'No se pudo abrir el selector de archivos');
     }
   };
 
