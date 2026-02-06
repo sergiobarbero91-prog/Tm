@@ -5206,8 +5206,6 @@ export default function TransportMeter() {
     };
     input.click();
   };
-    }
-  };
 
   // Save profile changes
   const saveProfileChanges = async () => {
