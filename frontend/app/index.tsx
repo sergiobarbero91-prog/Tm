@@ -12630,7 +12630,7 @@ export default function TransportMeter() {
                         </View>
                       ))
                     )
-                  ) : (
+                  ) : profileActivityTab === 'activity' ? (
                     userActivityTaxi.length === 0 ? (
                       <View style={styles.profileEmptyActivity}>
                         <Ionicons name="car-outline" size={32} color="#475569" />
@@ -12648,6 +12648,45 @@ export default function TransportMeter() {
                           </View>
                           <Text style={styles.profileActivityTime}>{activity.created_at ? getTimeAgo(activity.created_at) : ''}</Text>
                         </View>
+                      ))
+                    )
+                  ) : (
+                    /* Saved posts tab */
+                    savedPosts.length === 0 ? (
+                      <View style={styles.profileEmptyActivity}>
+                        <Ionicons name="bookmark-outline" size={32} color="#475569" />
+                        <Text style={styles.profileEmptyActivityText}>No tienes publicaciones guardadas</Text>
+                      </View>
+                    ) : (
+                      savedPosts.map((post) => (
+                        <TouchableOpacity 
+                          key={post.id} 
+                          style={styles.profilePostItem}
+                          onPress={() => {
+                            setShowMyProfileModal(false);
+                            setSelectedPostCategory(post.category);
+                          }}
+                        >
+                          <View style={[styles.profilePostCategory, { backgroundColor: post.category_color || '#6366F1' }]}>
+                            <Text style={styles.profilePostCategoryText}>{post.category_name || post.category}</Text>
+                          </View>
+                          <Text style={styles.profilePostContent} numberOfLines={2}>{post.content}</Text>
+                          <View style={styles.profilePostStats}>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="heart" size={14} color="#EF4444" />
+                              <Text style={styles.profilePostStatText}>{post.likes_count || 0}</Text>
+                            </View>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="chatbubble" size={14} color="#64748B" />
+                              <Text style={styles.profilePostStatText}>{post.comments_count || 0}</Text>
+                            </View>
+                            <View style={styles.profilePostStat}>
+                              <Ionicons name="person" size={14} color="#64748B" />
+                              <Text style={styles.profilePostStatText}>@{post.username}</Text>
+                            </View>
+                            <Text style={styles.profilePostTime}>{getTimeAgo(post.created_at)}</Text>
+                          </View>
+                        </TouchableOpacity>
                       ))
                     )
                   )}
