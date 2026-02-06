@@ -5045,23 +5045,23 @@ export default function TransportMeter() {
     setShowReportModal(true);
   };
 
-  // Pick image for post - using HTML file input for cross-platform compatibility
-  const pickPostImage = async () => {
-    // Use HTML file input which works on both web and native via React Native WebView
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event: any) => {
-          setNewPostImage(event.target.result);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
+  // Pick image for post - triggers file input click
+  const pickPostImage = () => {
+    if (postImageInputRef.current) {
+      postImageInputRef.current.click();
+    }
+  };
+  
+  // Handle post image selection
+  const handlePostImageChange = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        setNewPostImage(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Search friends for new message
