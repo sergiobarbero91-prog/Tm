@@ -12500,12 +12500,12 @@ export default function TransportMeter() {
         </View>
       )}
 
-      {/* Edit Profile Modal */}
-      {showEditProfileModal && (
+      {/* Social Edit Profile Modal - with photos */}
+      {showSocialEditProfileModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.editProfileModal}>
             <View style={styles.editProfileHeader}>
-              <TouchableOpacity onPress={() => setShowEditProfileModal(false)}>
+              <TouchableOpacity onPress={() => setShowSocialEditProfileModal(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
               <Text style={styles.editProfileTitle}>Editar Perfil</Text>
