@@ -2483,14 +2483,22 @@ async def get_street_work_data(
         terminal_flights = flight_data.get(terminal, [])
         grouped = TERMINAL_GROUPS.get(terminal, terminal)
         
-        # Use raw data for past arrivals
-        prev_count = count_arrivals_in_past_window(terminal_flights, minutes * 2, minutes)
-        # Filter for future arrivals (exclude cancelled and landed)
-        filtered_flights = filter_future_arrivals(terminal_flights, "flight")
-        future_count = count_arrivals_in_window(filtered_flights, minutes)
+        if custom_time_window:
+            # Use specific time range for counting arrivals
+            prev_count = 0
+            future_count = count_arrivals_in_time_range(terminal_flights, time_threshold, time_limit)
+        else:
+            # Use raw data for past arrivals
+            prev_count = count_arrivals_in_past_window(terminal_flights, minutes * 2, minutes)
+            # Filter for future arrivals (exclude cancelled and landed)
+            filtered_flights = filter_future_arrivals(terminal_flights, "flight")
+            future_count = count_arrivals_in_window(filtered_flights, minutes)
         
         flight_arrivals_data[grouped]["prev"] += prev_count
         flight_arrivals_data[grouped]["future"] += future_count
+    
+    if custom_time_window:
+        logger.info(f"[Street Data] Custom time window - Flight arrivals: T1={flight_arrivals_data['T1']['future']}, T2-T3={flight_arrivals_data['T2-T3']['future']}, T4-T4S={flight_arrivals_data['T4-T4S']['future']}")
     
     # Calculate station scores with 4 variables @ 25% each
     station_scores = {}
