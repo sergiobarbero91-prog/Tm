@@ -5183,6 +5183,9 @@ export default function TransportMeter() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      
       input.onchange = (e: any) => {
         const file = e.target?.files?.[0];
         if (file) {
@@ -5192,7 +5195,9 @@ export default function TransportMeter() {
           };
           reader.readAsDataURL(file);
         }
+        document.body.removeChild(input);
       };
+      
       input.click();
     } catch (error) {
       console.error('Error picking profile photo:', error);
@@ -5210,6 +5215,9 @@ export default function TransportMeter() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      
       input.onchange = (e: any) => {
         const file = e.target?.files?.[0];
         if (file) {
@@ -5219,7 +5227,9 @@ export default function TransportMeter() {
           };
           reader.readAsDataURL(file);
         }
+        document.body.removeChild(input);
       };
+      
       input.click();
     } catch (error) {
       console.error('Error picking cover photo:', error);
