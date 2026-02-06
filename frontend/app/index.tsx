@@ -5015,6 +5015,108 @@ export default function TransportMeter() {
     }
   };
 
+  // ============== MY PROFILE FUNCTIONS ==============
+  
+  // Fetch my profile data
+  const fetchMyProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/social/profile/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMyProfileData(response.data);
+      
+      // Also fetch my posts and activity
+      if (currentUser?.id) {
+        fetchUserPosts(currentUser.id);
+        fetchUserActivity(currentUser.id);
+      }
+    } catch (error) {
+      console.error('Error fetching my profile:', error);
+    }
+  };
+
+  // Open my profile modal
+  const openMyProfile = async () => {
+    await fetchMyProfile();
+    setProfileActivityTab('posts');
+    setShowMyProfileModal(true);
+  };
+
+  // Open edit profile modal
+  const openEditProfile = () => {
+    if (myProfileData) {
+      setEditFullName(myProfileData.full_name || '');
+      setEditBio(myProfileData.bio || '');
+      setEditProfilePhoto(myProfileData.profile_photo || null);
+      setEditCoverPhoto(myProfileData.cover_photo || null);
+    }
+    setShowEditProfileModal(true);
+  };
+
+  // Pick profile photo
+  const pickProfilePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+      
+      if (!result.canceled && result.assets[0].base64) {
+        setEditProfilePhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking profile photo:', error);
+    }
+  };
+
+  // Pick cover photo
+  const pickCoverPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        base64: true,
+      });
+      
+      if (!result.canceled && result.assets[0].base64) {
+        setEditCoverPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking cover photo:', error);
+    }
+  };
+
+  // Save profile changes
+  const saveProfileChanges = async () => {
+    setSavingProfile(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.put(`${API_BASE}/api/social/profile/me`, {
+        full_name: editFullName,
+        bio: editBio,
+        profile_photo: editProfilePhoto,
+        cover_photo: editCoverPhoto,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Refresh profile data
+      await fetchMyProfile();
+      setShowEditProfileModal(false);
+      Alert.alert('Éxito', '¡Perfil actualizado!');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'Error al guardar perfil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   // Search users for social
   const searchSocialUsers = async (query: string) => {
     if (query.length < 2) {
