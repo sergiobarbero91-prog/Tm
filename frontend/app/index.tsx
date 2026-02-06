@@ -5041,22 +5041,30 @@ export default function TransportMeter() {
     setShowReportModal(true);
   };
 
-  // Pick image for post - triggers file input click
+  // Pick image for post - using dynamic HTML input for web
   const pickPostImage = () => {
-    if (postImageInputRef.current) {
-      postImageInputRef.current.click();
+    if (Platform.OS !== 'web') {
+      Alert.alert('No disponible', 'La selección de archivos solo está disponible en la versión web');
+      return;
     }
-  };
-  
-  // Handle post image selection
-  const handlePostImageChange = (e: any) => {
-    const file = e.target?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event: any) => {
-        setNewPostImage(event.target.result);
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,video/*';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setNewPostImage(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
       };
-      reader.readAsDataURL(file);
+      input.click();
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'No se pudo abrir el selector de archivos');
     }
   };
 
