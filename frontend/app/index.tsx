@@ -10063,13 +10063,16 @@ export default function TransportMeter() {
               </View>
               <TouchableOpacity
                 style={styles.myProfileButton}
-                onPress={openMyProfile}
+                onPress={() => {
+                  console.log('Profile button pressed');
+                  openMyProfile();
+                }}
               >
                 {myProfileData?.profile_photo ? (
                   <Image source={{ uri: myProfileData.profile_photo }} style={styles.myProfileButtonImage} />
                 ) : (
                   <View style={styles.myProfileButtonPlaceholder}>
-                    <Ionicons name="person" size={18} color="#FFFFFF" />
+                    <Ionicons name="person" size={20} color="#FFFFFF" />
                   </View>
                 )}
               </TouchableOpacity>
