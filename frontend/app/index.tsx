@@ -5038,19 +5038,27 @@ export default function TransportMeter() {
   // Pick image for post
   const pickPostImage = async () => {
     try {
+      // Request permissions first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para añadir fotos');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.7,
         base64: true,
       });
       
-      if (!result.canceled && result.assets[0].base64) {
+      if (!result.canceled && result.assets[0]?.base64) {
         setNewPostImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
       }
     } catch (error) {
       console.error('Error picking image:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen. Intenta de nuevo.');
     }
   };
 
