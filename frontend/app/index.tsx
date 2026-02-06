@@ -5042,8 +5042,27 @@ export default function TransportMeter() {
 
   // Pick image for post
   const pickPostImage = async () => {
+    if (Platform.OS === 'web') {
+      // Use HTML file input for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setNewPostImage(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+    
     try {
-      // Request permissions first
+      // Request permissions first (native only)
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para añadir fotos');
