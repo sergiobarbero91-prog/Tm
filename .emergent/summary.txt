@@ -1,50 +1,79 @@
 <analysis>
-**original_problem_statement**: The user initially requested a gamification/points system. This was successfully implemented. Subsequently, the user requested a series of major new features:
 
-1.  **Moderation & Reporting System**:
-    *   Users can create reports (for inappropriate behavior, spam, etc.) from a button in Settings. Reports can include image/video attachments.
-    *   A new Moderator role is introduced. Reports are first reviewed by moderators.
-    *   Moderators can approve a report (passing it to admins) or reject it.
-    *   Admins make the final decision on approved reports and can issue bans (6h, 12h, 48h, permanent).
-    *   A new Moderation tab, visible to moderators and admins, lists pending user reports and promotion requests.
-    *   The Admin tab is updated to show reports approved by moderators, awaiting final admin decision.
+**original_problem_statement**: The user requested a comprehensive social feature suite, building upon a gamification and moderation system. The initial request included friends, direct messaging, group chats, and a user profile system. This evolved through several iterations of feedback to include:
 
-2.  **Point-Based Promotion System**:
-    *   Users who reach 1500 points automatically generate a promotion request for moderators to review to become a moderator.
-    *   Moderators who reach 3000 points automatically generate a promotion request for admins to review to become an admin.
-    *   These requests appear in the Moderation and Admin tabs, respectively.
+1.  **Social Wall/Feed:**
+    *   Users can create posts with text, optional images, and optional location.
+    *   Posts can be public or friends-only.
+    *   Users can like and comment on posts.
+    *   **Iteration 1:** Initial implementation with basic categories (Zona caliente).
+    *   **Iteration 2 (Redesign):** The user requested an Instagram-like scrollable feed, a floating action button (FAB) for creating posts, and more entertainment-focused categories (Noticias, Humor, Consejos, etc.).
+    *   **Iteration 3 (Post Actions):** The user requested the ability to **Save**, **Share (Repost)**, and **Report** individual posts.
 
-3.  **Enhanced Invitation Management**:
-    *   The user profile statistics (Invited Taxists, Active Invitations, Pending Requests) should be clickable.
-    *   Clicking them should open dedicated modals to view lists of invited users, manage invitation codes (create new, view active/used), and handle pending approval requests.
+2.  **User Profiles & Messaging:**
+    *   **Iteration 1:** View other users' profiles.
+    *   **Iteration 2:** Add a New Conversation button to start DMs, and enhance user profiles to show tabs for their recent Posts and Activity (taxi-related actions).
+    *   **Iteration 3 (My Profile):** Ability for a user to view and edit their *own* profile, including uploading a profile picture and a background/cover photo.
 
-4.  **User Manual Updates**:
-    *   The User Manual () should be updated to include detailed sections explaining the new Points, Invitations, and Reporting systems.
-
-5.  **Social Features**:
-    *   A new Social tab in the app.
-    *   **Friends System**: Users can send, accept, and reject friend requests.
-    *   **Direct Messaging**: Users can have private, one-on-one chats with their friends.
-    *   **Group Chats**: Users can create, join, and chat in groups.
-    *   **Profile Privacy**: Users can set their profile to be public or private.
+3.  **Group Chat Enhancements:**
+    *   Fix the Leave Group button.
+    *   Add a button to Add Members to a group.
 
 **User's preferred language**: español
 
 **what currently exists?**
-The application is a full-stack Expo (React Native) and FastAPI application. The frontend is a massive monolithic  file (now likely over 15,000 lines) which contains the logic and UI for all features, including the recently completed points, moderation, and invitation management systems. The backend has been significantly extended with new routers: , , and . The  router and associated backend logic are complete, but the frontend implementation for the social features is currently in progress. A separate  file exists for the user manual.
+The application is a full-stack Expo (React Native) and FastAPI application. The frontend is a monolithic  file, which has grown to an unmanageable size (likely over 23,000 lines) and contains the UI and logic for all features. The backend has been extended with a comprehensive  to support all the requested social features, including the latest Save, Share, Report functionality. The image upload functionality was recently fixed by installing  and adding the necessary imports, but it remains untested by the user. A significant bug where the My Profile button was unclickable was also worked on, but its resolution is not fully confirmed.
 
 **Last working item**:
-    - Last item agent was working: Implementing the frontend for the comprehensive Social Features (Friends, DMs, Group Chats) in . The agent had just finished adding the backend router () and was in the middle of adding the necessary states, data-fetching functions, UI components (the Social tab, modals for creating groups/viewing profiles), and styles to the  file.
+    - Last item agent was working: Implementing the Save, Share, and Report functionality for posts on the social wall. The backend endpoints and database models are complete. The frontend UI on the post cards was updated to include buttons for Share, Save, and More Options (containing Report). The agent had just finished adding the necessary modals and was about to add the final piece: a Guardados (Saved) tab to the My Profile modal to allow users to view their saved posts.
     - Status: IN PROGRESS
-    - Agent Testing Done: N (The new Social feature is completely untested on both backend and frontend).
-    - Which testing method agent to use? both. The  backend endpoints need to be tested first using . Afterwards, the new Social tab and its functionalities on the frontend need to be tested with the .
+    - Agent Testing Done: N (Backend for this feature was tested with curl, but frontend is incomplete and untested).
+    - Which testing method agent to use? both. After completing the frontend implementation, the backend endpoints for saving/sharing/reporting should be verified with the  agent. Subsequently, the frontend UI flow (clicking save, share, report, and viewing the Saved tab) should be tested using the .
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Failing backend test suite. (P1)
+  - Issue 1: My Profile button is unclickable or difficult to click. (P1)
+  - Issue 2: Image Upload functionality is not verified. (P2)
+  - Issue 3: Failing backend ============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app/frontend
+plugins: asyncio-1.3.0, anyio-4.12.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
+
+============================ no tests ran in 0.01s ============================= test suite. (P3)
 
   Issues Detail:
   - Issue 1: 
+     - Description: Throughout the session, the agent struggled to get the My Profile button in the social header to work reliably via the . The user also reported issues with the Edit Profile modal. The agent tried multiple fixes: increasing button size, changing  to , adding , and fixing a missing  import. While the import fix was the last action, it's not confirmed if this completely resolved the problem for the user.
+     - Attempted fixes: Increased button size, switched to , added , fixed a state name collision between two different edit profile modals, fixed a missing  import.
+     - Next debug checklist:
+        1. Restart expo and perform a clean test with the  specifically targeting the My Profile button (the blue circle icon in the social header).
+        2. Verify the  event handler () is being triggered by checking for its .
+        3. If it still fails, inspect the component hierarchy in  around line  for any overlapping elements or styling conflicts (, positioning) that might be intercepting the click.
+        4. Confirm that both the My Profile modal and the Edit Social Profile modal open correctly.
+     - Why fix this issue and what will be achieved with the fix? This is a core part of the user's latest request and blocks them from viewing or editing their own social profile.
+     - Status: TESTING PENDING
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? Frontend
+     - Blocked on other issue: None.
+
+  - Issue 2: 
+     - Description: The user reported that photo uploads were not working for posts, profile pictures, or banners. The agent discovered that the  package was not installed and the  module was not imported in . The agent installed the package and added the import.
+     - Attempted fixes: Installed  via yarn add v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/add for documentation about this command.. Added  to .
+     - Next debug checklist:
+        1. Use the  to test the end-to-end flow of uploading an image.
+        2. Test creating a post and adding an image.
+        3. Test editing the user's own profile and uploading a profile picture.
+        4. Test editing the user's own profile and uploading a cover photo.
+     - Why fix this issue and what will be achieved with the fix? Image uploads are a key part of the social feed and profile customization features. The feature is considered broken until this is verified.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Frontend
+     - Blocked on other issue: Potentially blocked by Issue 1 if the profile edit modal cannot be opened.
+
+  - Issue 3: 
      - Description: The ============================= test session starts ==============================
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
 rootdir: /app/frontend
@@ -52,8 +81,8 @@ plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= test suite in  has failing tests, likely due to fixture setup or outdated tests that don't account for the massive amount of recent schema/logic changes (points, moderation, social). This was identified in a previous session and remains unaddressed.
-     - Attempted fixes: None.
+============================ no tests ran in 0.01s ============================= test suite in  has failing tests. This is a long-standing issue from previous sessions that has been repeatedly ignored.
+     - Attempted fixes: None in this session.
      - Next debug checklist:
         1. Run ============================= test session starts ==============================
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
@@ -177,7 +206,7 @@ E           RuntimeError: Event loop is closed
 
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ---------------------------- Captured stderr setup -----------------------------
-2026-02-04 14:33:57,597 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-06 03:04:43,858 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log setup ------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 _____ ERROR at setup of TestStationAlerts.test_create_alert_authenticated ______
@@ -210,7 +239,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
           ^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-client = <httpx.AsyncClient object at 0xfcc97176d990>
+client = <httpx.AsyncClient object at 0xfe7b58f1cf50>
 
     @pytest.fixture
     async def authenticated_client(client):
@@ -237,16 +266,16 @@ E           KeyError: 'access_token'
 
 ../backend/tests/conftest.py:59: KeyError
 ---------------------------- Captured stderr setup -----------------------------
-2026-02-04 14:34:20,446 - slowapi - WARNING - ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
-2026-02-04 14:34:20,446 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
+2026-02-06 03:04:54,861 - slowapi - WARNING - ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
+2026-02-06 03:04:54,862 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
 ------------------------------ Captured log setup ------------------------------
 WARNING  slowapi:extension.py:510 ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
 =================================== FAILURES ===================================
 _______________________ TestAuth.test_register_new_user ________________________
 
-self = <tests.test_api.TestAuth object at 0xfcc973fd08d0>
-client = <httpx.AsyncClient object at 0xfcc973fdfc50>
+self = <tests.test_api.TestAuth object at 0xfe7b5bf62e10>
+client = <httpx.AsyncClient object at 0xfe7b5bc65350>
 
     @pytest.mark.asyncio
     async def test_register_new_user(self, client: AsyncClient):
@@ -267,13 +296,13 @@ E        +  where 400 = <Response [400 Bad Request]>.status_code
 
 ../backend/tests/test_api.py:32: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-04 14:33:57,273 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-06 03:04:43,556 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 __________________ TestAuth.test_register_duplicate_username ___________________
 
-self = <tests.test_api.TestAuth object at 0xfcc973fd1210>
-client = <httpx.AsyncClient object at 0xfcc973fbb810>
+self = <tests.test_api.TestAuth object at 0xfe7b5bc450d0>
+client = <httpx.AsyncClient object at 0xfe7b5bc56290>
 
     @pytest.mark.asyncio
     async def test_register_duplicate_username(self, client: AsyncClient):
@@ -303,15 +332,15 @@ E       AssertionError: assert 'ya existe' in 'El registro directo está deshabi
 
 ../backend/tests/test_api.py:61: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-04 14:33:57,309 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-04 14:33:57,309 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-06 03:04:43,592 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-06 03:04:43,593 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
 ____________________ TestAuth.test_login_valid_credentials _____________________
 
-self = <tests.test_api.TestAuth object at 0xfcc973fd1b90>
-client = <httpx.AsyncClient object at 0xfcc973fe23d0>
+self = <tests.test_api.TestAuth object at 0xfe7b5bc45a50>
+client = <httpx.AsyncClient object at 0xfe7b5bc47490>
 
     @pytest.mark.asyncio
     async def test_login_valid_credentials(self, client: AsyncClient):
@@ -339,17 +368,17 @@ E        +  where 401 = <Response [401 Unauthorized]>.status_code
 
 ../backend/tests/test_api.py:83: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-04 14:33:57,316 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-04 14:33:57,327 - shared - INFO - Login attempt for user: test_login_1e290dd7, found: False
-2026-02-04 14:33:57,327 - httpx - INFO - HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
+2026-02-06 03:04:43,600 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
+2026-02-06 03:04:43,609 - shared - INFO - Login attempt for user: test_login_daaa4674, found: False
+2026-02-06 03:04:43,609 - httpx - INFO - HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-INFO     shared:auth.py:43 Login attempt for user: test_login_1e290dd7, found: False
+INFO     shared:auth.py:43 Login attempt for user: test_login_daaa4674, found: False
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
 ___________________ TestAuth.test_login_invalid_credentials ____________________
 
-self = <tests.test_api.TestAuth object at 0xfcc973fd24d0>
-client = <httpx.AsyncClient object at 0xfcc973fe35d0>
+self = <tests.test_api.TestAuth object at 0xfe7b5bc46390>
+client = <httpx.AsyncClient object at 0xfe7b5bc56d50>
 
     @pytest.mark.asyncio
     async def test_login_invalid_credentials(self, client: AsyncClient):
@@ -443,8 +472,8 @@ E           RuntimeError: Event loop is closed
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ___________________ TestStationAlerts.test_get_active_alerts ___________________
 
-self = <tests.test_api.TestStationAlerts object at 0xfcc973fdc710>
-client = <httpx.AsyncClient object at 0xfcc971018550>
+self = <tests.test_api.TestStationAlerts object at 0xfe7b5bc476d0>
+client = <httpx.AsyncClient object at 0xfe7b592b33d0>
 
     @pytest.mark.asyncio
     async def test_get_active_alerts(self, client: AsyncClient):
@@ -532,8 +561,8 @@ E           RuntimeError: Event loop is closed
 /usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
 ______________ TestStationAlerts.test_create_alert_requires_auth _______________
 
-self = <tests.test_api.TestStationAlerts object at 0xfcc973fdcf50>
-client = <httpx.AsyncClient object at 0xfcc973f19250>
+self = <tests.test_api.TestStationAlerts object at 0xfe7b5bc44b10>
+client = <httpx.AsyncClient object at 0xfe7b58d02790>
 
     @pytest.mark.asyncio
     async def test_create_alert_requires_auth(self, client: AsyncClient):
@@ -550,13 +579,13 @@ E        +  where 405 = <Response [405 Method Not Allowed]>.status_code
 
 ../backend/tests/test_api.py:173: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-04 14:34:20,441 - httpx - INFO - HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
+2026-02-06 03:04:54,857 - httpx - INFO - HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
 __________________________ TestChat.test_get_channels __________________________
 
-self = <tests.test_api.TestChat object at 0xfcc973fde1d0>
-client = <httpx.AsyncClient object at 0xfcc9713bd7d0>
+self = <tests.test_api.TestChat object at 0xfe7b5bc54050>
+client = <httpx.AsyncClient object at 0xfe7b5bceffd0>
 
     @pytest.mark.asyncio
     async def test_get_channels(self, client: AsyncClient):
@@ -569,7 +598,7 @@ E        +  where 401 = <Response [401 Unauthorized]>.status_code
 
 ../backend/tests/test_api.py:196: AssertionError
 ----------------------------- Captured stderr call -----------------------------
-2026-02-04 14:34:20,484 - httpx - INFO - HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
+2026-02-06 03:04:54,951 - httpx - INFO - HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
 ------------------------------ Captured log call -------------------------------
 INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
 =============================== warnings summary ===============================
@@ -620,110 +649,102 @@ FAILED ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_requir
 FAILED ../backend/tests/test_api.py::TestChat::test_get_channels - assert 401...
 ERROR ../backend/tests/test_api.py::TestAuth::test_get_current_user - Runtime...
 ERROR ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_authenticated
-============== 7 failed, 6 passed, 6 warnings, 2 errors in 23.23s ============== to identify the specific failing tests and errors.
-        2. Analyze and debug the fixtures in .
-        3. Update or fix the test logic in  to align with the current application logic until all tests pass.
-     - Why fix this issue and what will be achieved with the fix? A working test suite is crucial for ensuring backend stability, preventing regressions, and safely making future changes, especially given the project's complexity.
+============== 7 failed, 6 passed, 6 warnings, 2 errors in 11.42s ============== to identify the specific failing tests.
+        2. Analyze and update fixtures in  to match the current database schema.
+        3. Update or fix tests in  to align with new and modified API endpoints.
+     - Why fix this issue and what will be achieved with the fix? A working test suite is essential for maintaining backend stability and preventing regressions as the application's complexity grows.
      - Status: NOT STARTED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? backend (by running pytest)
-     - Blocked on other issue: None
+     - Should Test frontend/backend/both after fix? backend
+     - Blocked on other issue: None.
 
 **In progress Task List**:
-  - Task 1: Complete the Social Features implementation. (P0)
-     - Where to resume: 
-        1. **Frontend ()**: The agent has added the state, functions, and a skeleton UI for the Social tab, along with modals and styles. The next steps are to fully connect the UI components to the state and functions, ensure data is being fetched and displayed correctly, and thoroughly debug the entire user flow (adding friends, sending messages, creating groups).
-        2. **Testing**: After the frontend implementation seems complete, the entire social feature set needs to be tested from scratch, starting with the backend endpoints and then moving to the frontend UI.
-     - What will be achieved with this? This will complete the user's major feature request for social functionality, adding a significant new dimension to the app.
+  - Task 1: Complete the Save, Share, Report post actions feature. (P0)
+     - Where to resume:
+        1. Open .
+        2. Locate the My Profile modal UI (around line ).
+        3. Add a new tab button for Guardados (Saved) next to the Publicaciones and Actividad tabs.
+        4. Add a new view that appears when the Guardados tab is active.
+        5. This view should fetch saved posts using the  function (already created) and display them, likely by reusing the  component.
+        6. Thoroughly test all three actions (Save, Share, Report) and the new Saved tab.
+     - What will be achieved with this? This will complete the user's latest feature request, adding key engagement actions to the social feed.
      - Status: IN PROGRESS
      - Should Test frontend/backend/both after fix? both
      - Blocked on something: None.
 
 **Upcoming and Future Tasks**
+    Upcoming Tasks:
+    - (P0) **CRITICAL - Refactor **: This file is now over 23,000 lines and is critically unmaintainable. It is the single biggest risk to the project's stability and future development. It MUST be broken down into smaller, manageable components and screens using a proper file structure (e.g., , , ). This should be the highest priority after the current features are stable.
     Future Tasks:
-    - (P0) **CRITICAL - Refactor **: This file is now critically unmaintainable, containing the logic for authentication, stations, events, chat, radio, points, moderation, invitations, and now social features. It MUST be broken down into smaller, manageable components and screens (e.g., , , , etc.). This technical debt is the biggest risk to the project.
-    - (P1) **Persist Game State in DB**: Game data in  is stored in-memory and will be lost on server restart. It should be migrated to MongoDB.
-    - (P2) **Migrate  to **: The  package is deprecated. The code in  and  should be updated.
+    - (P1) **Persist Game State in DB**: Game data in  is stored in-memory and should be migrated to MongoDB.
+    - (P2) **Migrate  to **: The  package is deprecated.
 
 **Completed work in this session**
-- **Gamification/Points System**: Fully implemented and tested. Awards points for various actions and displays points/rank in the user's profile and a dedicated ranking modal.
-- **Moderation and Reporting System**: Fully implemented and tested. Includes a new Moderation tab, a reporting flow with media attachments, a promotion system based on points, and updates to the Admin panel.
-- **Enhanced Invitation Management**: The profile modal was updated with clickable stats that open dedicated modals for managing invited users, invitation codes, and pending requests.
-- **User Manual Update**: The  file was created and populated with comprehensive documentation for the new points, invitation, and reporting systems.
-- **Social Features (Backend)**: Created the  router and all necessary backend logic and database models for friends, direct messages, and group chats.
+- **Social Feed Redesign**: The social wall was completely redesigned to an Instagram-style scrollable feed with a Floating Action Button (FAB), and categories were updated based on user feedback.
+- **Enhanced Group Chats**: Implemented functional Leave Group and Add Member buttons in the group chat header.
+- **Enhanced User Profiles**: Implemented a tabbed view for user profiles to show their Posts and Activity.
+- **New Conversation Feature**: Added a button and modal to allow users to initiate new direct messages with their friends.
+- **My Profile View & Edit**: Implemented the ability for users to view their own profile and open a modal to edit it (including placeholders for profile/cover photos).
+- **Image Upload Fix**: Identified that  was missing, installed the package, and added the required import to .
+- **Save, Share, Report (Backend)**: Created all necessary backend models and API endpoints in  to support saving, sharing (reposting), and reporting posts.
+- **Save, Share, Report (Frontend - Partial)**: Added the UI buttons and modals for the new post actions to the frontend.
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1:  deprecation warning. The agent has not addressed this.
-   - Issue 2:  style props warning on web. The agent has not addressed this.
-   - Issue 3: Failing ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= suite. This is a recurring and unresolved issue.
+   - Issue 1:  style props warning on web. The agent has not addressed this.
 
 **Known issue recurrence from previous fork**
-  - The  continues to have difficulty with scrolling and sometimes clicking elements in React Native Web. The agent has successfully used workarounds like clicking specific text, using coordinates, or re-attempting navigation. This is a limitation of the testing tool, not the application.
+  -  has intermittent issues with clicking specific coordinates on React Native Web, requiring multiple attempts or alternative strategies (clicking text, JS execution). This is a known limitation of the testing tool.
 
 **Code Architecture**
-
+expo-image-picker
 
 **Key Technical Concepts**
-- **Frontend:** React Native for Web, Expo, TypeScript. A monolithic SPA in  managing state for all features.
+- **Frontend:** React Native for Web, Expo. State is managed with  and  within a single massive  component.  is now used for the social feed.
 - **Backend:** FastAPI, MongoDB ().
-- **New Features:** Gamification, Moderation/Reporting, Point-based Promotions, Social Networking (Friends, DMs, Groups).
+- **Image Handling:**  for selecting images, which are then converted to base64 to be sent to the backend.
 
 **key DB schema**
-  - **reports**: { _id, id, reporter_id, reporter_username, reported_user_id, report_type, description, context, media_base64, status, created_at, reviewed_at, reviewed_by }
-  - **promotion_requests**: { _id, id, user_id, username, current_level, requested_role, status, created_at, resolved_at }
-  - **friends**: { user_id, friend_id, status ('pending', 'accepted'), created_at }
-  - **direct_messages**: { _id, sender_id, receiver_id, content, created_at }
-  - **groups**: { _id, id, name, created_by, members, created_at }
-  - **group_messages**: { _id, group_id, sender_id, content, created_at }
-  - (Existing): invitations, registration_requests, user_points, points_log, users, etc.
+  - **posts**: { ..., is_repost, original_post_id, original_username, repost_header_text }
+  - **saved_posts**: { _id, user_id, post_id, created_at }
+  - (Existing): reports, promotion_requests, friends, direct_messages, groups, group_messages, users, etc.
 
 **All files of reference**
-- : New file for the report and promotion system.
-- : New file for all social features.
-- : Modified to trigger promotion requests.
-- : Modified to include the new routers.
-- : Massively updated with all frontend logic for points, moderation, enhanced invitations, and the in-progress social features.
-- : New file created for the user manual.
+- : Massively modified to add the Instagram-style feed, enhanced profiles, My Profile view, and the UI for saving, sharing, and reporting posts. Now exceeds 23,000 lines.
+- : Significantly expanded with endpoints for user activity, profile photos, and the new post actions (save, share, report).
+- : Updated to include .
 
 **Areas that need refactoring**:
-- **CRITICAL**: The  file has become dangerously large and complex. It is a single point of failure and makes development slow and risky. It is imperative to break it down into smaller, self-contained components, hooks, and screens. The entire Social feature, Moderation panel, and Admin panel should be extracted into their own files/directories.
+- **CRITICAL**:  is unmanageable. It must be broken down. Propose a refactor immediately after stabilizing the current feature set. A good start would be to extract the entire Social section into its own screen file (e.g., ) and then break down its sub-components (e.g., ).
 
 **key api endpoints**
-- **Moderation**: , , , etc.
-- **Promotions**: , , etc.
-- **Social**: , , , , , , , etc.
+- **New Social Actions**:
+  - 
+  - 
+  - 
+  - 
+- **New Profile Endpoints**:
+  - 
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**
-- **Immediate Priority:** Your first task is to complete the frontend implementation for the Social Features in . The backend is done, but the UI needs to be fully connected and tested.
-- **CRITICAL Technical Debt:** The  file is unmaintainable. This is the highest priority technical debt. After finishing the Social features, you MUST propose and execute a refactoring plan to break this file apart. Do not add any more major features to this file without refactoring first.
-- **Testing:** The backend social endpoints are untested. You should test them with  before spending too much time on the frontend. The ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= suite is broken and needs to be fixed to ensure stability.
-- **Language:** Remember to respond to the user in **español**.
+- **Immediate Priority (P0):** Your first task is to finish the Save, Share, Report feature. This involves adding the Saved tab to the My Profile modal in  and connecting it to the  function.
+- **High Priority Bugs (P1, P2):** After completing the P0 task, you must immediately address and verify two critical bugs: the unclickable My Profile button and the unverified image upload functionality. Do not proceed to new features until these are confirmed fixed and working for the user.
+- **CRITICAL Technical Debt:** The  file is a ticking time bomb. After fixing the bugs and getting user confirmation on the current feature set, you MUST propose and execute a refactoring plan. Do not add any more features to this file without refactoring.
+- **Language:** The user's language is **español**. All your responses must be in Spanish.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - 10. (IN PROGRESS) User asks to continue with the Social features frontend implementation.
- - 9. (ADDRESSED) User is prompted for confirmation to implement the full social features suite (profile privacy, friends, DMs, groups).
- - 8. (ADDRESSED) User requests the addition of the Reports system to the user manual.
- - 7. (ADDRESSED) User requests to update the user manual with information on the points and invitation systems.
- - 6. (ADDRESSED) User requests to make the profile stats clickable to open new modals for managing invitations and approval requests.
- - 5. (ADDRESSED) User reports that the promotion requests are not visible in the admin panel.
- - 4. (ADDRESSED) User reports that the admin panel doesn't show reports, the moderation tab doesn't load, and requests image/video upload for reports.
- - 3. (ADDRESSED) User provides clarifications for the moderation system.
- - 2. (ADDRESSED) User requests a major new feature: a moderation and reporting system with point-based promotions.
- - 1. (ADDRESSED) User is asked to confirm the next steps after the gamification system was completed.
+- 10. (IN PROGRESS) User requests Save, Share, and Report functionality for posts.
+- 9. (ADDRESSED) User reports that they cannot upload photos to the wall or for their profile.
+- 8. (ADDRESSED) User reports an error () via screenshot.
+- 7. (ADDRESSED) User reports that the Edit Profile button does not give the correct options.
+- 6. (ADDRESSED) User requests the ability to view/edit their own profile with profile and cover photos.
+- 5. (ADDRESSED) User requests improved profiles with recent activity (posts and taxi actions) and a way to start new direct messages.
+- 4. (ADDRESSED) User provides feedback on the wall feature: wants an Instagram-style scroll, a FAB, and different categories.
+- 3. (ADDRESSED) User requests a wall feature for taxi drivers to create posts.
+- 2. (ADDRESSED) User provides details for the wall feature.
+- 1. (ADDRESSED) User reports that the leave group button doesn't work and a button to add users is missing.
 
 **Project Health Check:**
 - **Broken:**
@@ -734,9 +755,10 @@ plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= suite has failing tests and is not being maintained. This is a significant risk.
-- **At Risk:**
-    - The  file is a monolith of extreme size and complexity, making it fragile, difficult to debug, and a major blocker for future development.
+============================ no tests ran in 0.01s ============================= suite is non-functional.
+    - Core user-facing features (editing social profile, uploading images) are likely broken or not working as intended.
+- **At Risk / Red:**
+    - The entire frontend is contained in , a single >23,000-line file. This represents an extreme maintenance and development risk.
 
 **3rd Party Integrations**
 - Sentry (Configured but inactive)
@@ -744,12 +766,13 @@ collected 0 items
 - Photon
 - OpenStreetMap
 - ADIF & AENA APIs
+-  (newly added)
 
 **Testing status**
-  - Testing agent used after significant changes: YES ( and  were used for the points and moderation features).
+  - Testing agent used after significant changes: YES (but user-facing bugs still exist).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: No new test files were created. The existing suite in  remains broken.
-  - Known regressions: None identified.
+  - Test files created: No new test files. The  suite remains broken.
+  - Known regressions: The ability to edit a user's *original* profile (license, etc.) might be obscured by the new social profile edit modals, as they were briefly conflicting. This needs to be checked.
 
 **Credentials to test flow:**
 - Admin user:  / 
@@ -762,5 +785,8 @@ plugins: asyncio-1.3.0, anyio-4.12.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
 collected 0 items
 
-============================ no tests ran in 0.01s ============================= suite in , despite it being carried over from previous sessions. This is a critical piece of neglected technical debt.
+============================ no tests ran in 0.01s ============================= suite.
+- The agent did not fully test and confirm the My Profile button fix before moving on to the user's next request.
+- The agent did not test or verify the image upload fix after implementing it.
+
 </analysis>
