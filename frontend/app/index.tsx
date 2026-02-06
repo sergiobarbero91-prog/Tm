@@ -28,11 +28,8 @@ import * as Linking from 'expo-linking';
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 
-// Conditional import for ImagePicker (avoid web constructor error)
-let ImagePicker: any = null;
-if (Platform.OS !== 'web') {
-  ImagePicker = require('expo-image-picker');
-}
+// Note: expo-image-picker removed due to web compatibility issues
+// Using native HTML file input for all platforms instead
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
