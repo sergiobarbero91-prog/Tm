@@ -5161,41 +5161,57 @@ export default function TransportMeter() {
     setShowSocialEditProfileModal(true);
   };
 
-  // Pick profile photo - triggers file input click
+  // Pick profile photo - using dynamic HTML input for web
   const pickProfilePhoto = () => {
-    if (profilePhotoInputRef.current) {
-      profilePhotoInputRef.current.click();
+    if (Platform.OS !== 'web') {
+      Alert.alert('No disponible', 'La selección de archivos solo está disponible en la versión web');
+      return;
     }
-  };
-  
-  // Handle profile photo selection
-  const handleProfilePhotoChange = (e: any) => {
-    const file = e.target?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event: any) => {
-        setEditProfilePhoto(event.target.result);
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setEditProfilePhoto(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
       };
-      reader.readAsDataURL(file);
+      input.click();
+    } catch (error) {
+      console.error('Error picking profile photo:', error);
+      Alert.alert('Error', 'No se pudo abrir el selector de archivos');
     }
   };
 
-  // Pick cover photo - triggers file input click
+  // Pick cover photo - using dynamic HTML input for web
   const pickCoverPhoto = () => {
-    if (coverPhotoInputRef.current) {
-      coverPhotoInputRef.current.click();
+    if (Platform.OS !== 'web') {
+      Alert.alert('No disponible', 'La selección de archivos solo está disponible en la versión web');
+      return;
     }
-  };
-  
-  // Handle cover photo selection
-  const handleCoverPhotoChange = (e: any) => {
-    const file = e.target?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event: any) => {
-        setEditCoverPhoto(event.target.result);
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            setEditCoverPhoto(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
       };
-      reader.readAsDataURL(file);
+      input.click();
+    } catch (error) {
+      console.error('Error picking cover photo:', error);
+      Alert.alert('Error', 'No se pudo abrir el selector de archivos');
     }
   };
 
