@@ -96,6 +96,9 @@ class ProfileUpdate(BaseModel):
     profile_photo: Optional[str] = None  # Base64
     cover_photo: Optional[str] = None    # Base64
 
+class SharePostCreate(BaseModel):
+    header_text: Optional[str] = None  # Texto de cabecera al compartir
+
 # ============== PROFILE VISIBILITY ==============
 
 @router.get("/profile/me")
