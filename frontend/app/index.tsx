@@ -10053,10 +10053,24 @@ export default function TransportMeter() {
           </View>
         ) : activeTab === 'social' ? (
           <View style={styles.socialContainer}>
-            {/* Social Header */}
+            {/* Social Header with My Profile Button */}
             <View style={styles.socialHeader}>
-              <Ionicons name="people" size={28} color="#EC4899" />
-              <Text style={styles.socialTitle}>Red Social</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="people" size={28} color="#EC4899" />
+                <Text style={styles.socialTitle}>Red Social</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.myProfileButton}
+                onPress={openMyProfile}
+              >
+                {myProfileData?.profile_photo ? (
+                  <Image source={{ uri: myProfileData.profile_photo }} style={styles.myProfileButtonImage} />
+                ) : (
+                  <View style={styles.myProfileButtonPlaceholder}>
+                    <Ionicons name="person" size={18} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
             {/* Social Tabs */}
