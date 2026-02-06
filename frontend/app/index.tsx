@@ -10353,6 +10353,32 @@ export default function TransportMeter() {
                             >
                               <Ionicons name="chatbubble-outline" size={24} color="#E5E7EB" />
                             </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.feedActionButton}
+                              onPress={() => openShareModal(post)}
+                            >
+                              <Ionicons name="share-social-outline" size={24} color="#E5E7EB" />
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.feedPostActionsRight}>
+                            <TouchableOpacity 
+                              style={styles.feedActionButton}
+                              onPress={() => toggleSavePost(post.id)}
+                            >
+                              <Ionicons 
+                                name={post.is_saved ? "bookmark" : "bookmark-outline"} 
+                                size={24} 
+                                color={post.is_saved ? "#F59E0B" : "#E5E7EB"} 
+                              />
+                            </TouchableOpacity>
+                            {!post.is_own && (
+                              <TouchableOpacity 
+                                style={styles.feedActionButton}
+                                onPress={() => openPostOptions(post)}
+                              >
+                                <Ionicons name="ellipsis-horizontal" size={22} color="#64748B" />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
 
@@ -10369,6 +10395,31 @@ export default function TransportMeter() {
                             </TouchableOpacity>
                           )}
                         </View>
+
+                        {/* Shared Post Original Content */}
+                        {post.is_shared && (
+                          <View style={styles.sharedPostContainer}>
+                            <View style={styles.sharedPostHeader}>
+                              <View style={styles.sharedPostAvatar}>
+                                <Text>{post.original_user_level_badge}</Text>
+                              </View>
+                              <View>
+                                <Text style={styles.sharedPostAuthor}>{post.original_user_full_name || post.original_username}</Text>
+                                <Text style={styles.sharedPostMeta}>@{post.original_username} • {post.original_created_at ? getTimeAgo(post.original_created_at) : ''}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.sharedPostContent}>{post.original_content}</Text>
+                            {post.original_image_base64 && (
+                              <Image source={{ uri: post.original_image_base64 }} style={styles.sharedPostImage} />
+                            )}
+                            {post.original_location_name && (
+                              <View style={styles.sharedPostLocation}>
+                                <Ionicons name="location" size={12} color="#F59E0B" />
+                                <Text style={styles.sharedPostLocationText}>{post.original_location_name}</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
                       </View>
                     ))
                   )}
