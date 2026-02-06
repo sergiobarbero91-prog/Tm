@@ -22731,12 +22731,13 @@ const styles = StyleSheet.create({
   },
   // My Profile Button in Header
   myProfileButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     overflow: 'hidden',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#EC4899',
+    backgroundColor: '#334155',
   },
   myProfileButtonImage: {
     width: '100%',
@@ -22745,7 +22746,7 @@ const styles = StyleSheet.create({
   myProfileButtonPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#334155',
+    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
