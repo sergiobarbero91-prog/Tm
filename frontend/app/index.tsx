@@ -13037,6 +13037,151 @@ export default function TransportMeter() {
         </View>
       )}
 
+      {/* Share Post Modal */}
+      {showSharePostModal && postToShare && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.sharePostModal}>
+            <View style={styles.sharePostModalHeader}>
+              <Ionicons name="share-social" size={24} color="#EC4899" />
+              <Text style={styles.sharePostModalTitle}>Compartir en tu muro</Text>
+              <TouchableOpacity onPress={() => { setShowSharePostModal(false); setPostToShare(null); setShareHeaderText(''); }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.sharePostContent}>
+              {/* Header text input */}
+              <Text style={styles.sharePostLabel}>Añade un comentario (opcional)</Text>
+              <TextInput
+                style={styles.sharePostInput}
+                placeholder="¿Qué opinas de esto?"
+                placeholderTextColor="#64748B"
+                value={shareHeaderText}
+                onChangeText={setShareHeaderText}
+                multiline
+                numberOfLines={3}
+              />
+
+              {/* Preview of original post */}
+              <Text style={styles.sharePostLabel}>Publicación original</Text>
+              <View style={styles.sharePostPreview}>
+                <View style={styles.sharePostPreviewHeader}>
+                  <View style={styles.sharePostPreviewAvatar}>
+                    <Text>{postToShare.user_level_badge}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.sharePostPreviewAuthor}>{postToShare.user_full_name || postToShare.username}</Text>
+                    <Text style={styles.sharePostPreviewMeta}>@{postToShare.username}</Text>
+                  </View>
+                </View>
+                <Text style={styles.sharePostPreviewContent} numberOfLines={3}>{postToShare.content}</Text>
+                {postToShare.image_base64 && (
+                  <Image source={{ uri: postToShare.image_base64 }} style={styles.sharePostPreviewImage} />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.sharePostActions}>
+              <TouchableOpacity style={styles.sharePostCancelButton} onPress={() => { setShowSharePostModal(false); setPostToShare(null); }}>
+                <Text style={styles.sharePostCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.sharePostSubmitButton} onPress={sharePost}>
+                <Ionicons name="share-social" size={18} color="#FFFFFF" />
+                <Text style={styles.sharePostSubmitText}>Compartir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Post Options Modal */}
+      {showPostOptionsModal && selectedPostForOptions && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.postOptionsModal}>
+            <View style={styles.postOptionsHeader}>
+              <Text style={styles.postOptionsTitle}>Opciones</Text>
+              <TouchableOpacity onPress={() => { setShowPostOptionsModal(false); setSelectedPostForOptions(null); }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.postOptionItem}
+              onPress={() => {
+                setShowPostOptionsModal(false);
+                toggleSavePost(selectedPostForOptions.id);
+                setSelectedPostForOptions(null);
+              }}
+            >
+              <Ionicons name={selectedPostForOptions.is_saved ? "bookmark" : "bookmark-outline"} size={24} color="#F59E0B" />
+              <Text style={styles.postOptionText}>{selectedPostForOptions.is_saved ? 'Quitar de guardados' : 'Guardar publicación'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.postOptionItem}
+              onPress={() => {
+                setShowPostOptionsModal(false);
+                openShareModal(selectedPostForOptions);
+                setSelectedPostForOptions(null);
+              }}
+            >
+              <Ionicons name="share-social-outline" size={24} color="#3B82F6" />
+              <Text style={styles.postOptionText}>Compartir en mi muro</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.postOptionItem, styles.postOptionItemDanger]}
+              onPress={() => reportPost(selectedPostForOptions)}
+            >
+              <Ionicons name="flag-outline" size={24} color="#EF4444" />
+              <Text style={[styles.postOptionText, { color: '#EF4444' }]}>Reportar publicación</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Saved Posts Modal */}
+      {showSavedPostsModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.savedPostsModal}>
+            <View style={styles.savedPostsHeader}>
+              <Ionicons name="bookmark" size={24} color="#F59E0B" />
+              <Text style={styles.savedPostsTitle}>Publicaciones guardadas</Text>
+              <TouchableOpacity onPress={() => setShowSavedPostsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.savedPostsList}>
+              {savedPosts.length === 0 ? (
+                <View style={styles.savedPostsEmpty}>
+                  <Ionicons name="bookmark-outline" size={48} color="#475569" />
+                  <Text style={styles.savedPostsEmptyText}>No tienes publicaciones guardadas</Text>
+                </View>
+              ) : (
+                savedPosts.map((post) => (
+                  <View key={post.id} style={styles.savedPostItem}>
+                    <View style={styles.savedPostItemHeader}>
+                      <View style={styles.savedPostItemAvatar}>
+                        <Text>{post.user_level_badge}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.savedPostItemAuthor}>{post.user_full_name || post.username}</Text>
+                        <Text style={styles.savedPostItemMeta}>@{post.username} • {getTimeAgo(post.created_at)}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => toggleSavePost(post.id)}>
+                        <Ionicons name="bookmark" size={20} color="#F59E0B" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.savedPostItemContent} numberOfLines={2}>{post.content}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
       {/* Ban Selection Modal */}
       {showBanModal && banTargetReport && (
         <View style={styles.modalOverlay}>
