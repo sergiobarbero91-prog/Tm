@@ -4331,6 +4331,28 @@ export default function TransportMeter() {
 
   // Pick image/video for report
   const pickReportMedia = async (type: 'image' | 'video') => {
+    if (Platform.OS === 'web') {
+      // Use HTML file input for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = type === 'image' ? 'image/*' : 'video/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event: any) => {
+            // Extract base64 data without the data URL prefix
+            const base64 = event.target.result.split(',')[1];
+            setReportMediaBase64(base64);
+            setReportMediaType(type);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+    
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: type === 'image' ? ['images'] : ['videos'],
