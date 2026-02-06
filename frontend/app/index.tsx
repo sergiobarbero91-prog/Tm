@@ -5157,40 +5157,42 @@ export default function TransportMeter() {
     setShowSocialEditProfileModal(true);
   };
 
-  // Pick profile photo - using HTML file input for cross-platform compatibility
-  const pickProfilePhoto = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event: any) => {
-          setEditProfilePhoto(event.target.result);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
+  // Pick profile photo - triggers file input click
+  const pickProfilePhoto = () => {
+    if (profilePhotoInputRef.current) {
+      profilePhotoInputRef.current.click();
+    }
+  };
+  
+  // Handle profile photo selection
+  const handleProfilePhotoChange = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        setEditProfilePhoto(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  // Pick cover photo - using HTML file input for cross-platform compatibility
-  const pickCoverPhoto = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event: any) => {
-          setEditCoverPhoto(event.target.result);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
+  // Pick cover photo - triggers file input click
+  const pickCoverPhoto = () => {
+    if (coverPhotoInputRef.current) {
+      coverPhotoInputRef.current.click();
+    }
+  };
+  
+  // Handle cover photo selection
+  const handleCoverPhotoChange = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        setEditCoverPhoto(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Save profile changes
