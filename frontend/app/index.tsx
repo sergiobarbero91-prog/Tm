@@ -22957,11 +22957,13 @@ const styles = StyleSheet.create({
   feedPostImageContainer: {
     width: '100%',
     backgroundColor: '#0F172A',
-    overflow: 'hidden',
   },
   feedPostImage: {
     width: '100%',
-    height: 400,
+    height: 'auto',
+    minHeight: 200,
+    maxHeight: 600,
+    aspectRatio: undefined,
   },
   feedPostContent: {
     padding: 14,
