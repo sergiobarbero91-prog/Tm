@@ -921,6 +921,16 @@ export default function TransportMeter() {
   const [userActivityTaxi, setUserActivityTaxi] = useState<any[]>([]);
   const [profileActivityTab, setProfileActivityTab] = useState<'posts' | 'activity'>('posts');
 
+  // My Profile states
+  const [showMyProfileModal, setShowMyProfileModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [myProfileData, setMyProfileData] = useState<any>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editProfilePhoto, setEditProfilePhoto] = useState<string | null>(null);
+  const [editCoverPhoto, setEditCoverPhoto] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
   // Define all functions first
   const checkExistingSession = async () => {
     try {
