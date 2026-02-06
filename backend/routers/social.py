@@ -1035,10 +1035,16 @@ async def get_posts(
             "user_id": current_user["id"]
         })
         
+        # Check if current user saved this post
+        saved = await saved_posts_collection.find_one({
+            "post_id": post["id"],
+            "user_id": current_user["id"]
+        })
+        
         # Get category info
         category_info = next((c for c in POST_CATEGORIES if c["id"] == post["category"]), None)
         
-        result.append({
+        post_data = {
             "id": post["id"],
             "user_id": post["user_id"],
             "username": post["username"],
@@ -1057,9 +1063,27 @@ async def get_posts(
             "likes_count": post.get("likes_count", 0),
             "comments_count": post.get("comments_count", 0),
             "is_liked": bool(liked),
+            "is_saved": bool(saved),
             "is_own": post["user_id"] == current_user["id"],
+            "is_shared": post.get("is_shared", False),
             "created_at": post["created_at"].isoformat() if post.get("created_at") else None
-        })
+        }
+        
+        # Add original post info if this is a shared post
+        if post.get("is_shared"):
+            post_data.update({
+                "original_post_id": post.get("original_post_id"),
+                "original_user_id": post.get("original_user_id"),
+                "original_username": post.get("original_username"),
+                "original_user_full_name": post.get("original_user_full_name"),
+                "original_user_level_badge": post.get("original_user_level_badge"),
+                "original_content": post.get("original_content"),
+                "original_image_base64": post.get("original_image_base64"),
+                "original_location_name": post.get("original_location_name"),
+                "original_created_at": post.get("original_created_at")
+            })
+        
+        result.append(post_data)
     
     return {"posts": result}
 
