@@ -20400,7 +20400,7 @@ const styles = StyleSheet.create({
   socialHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#1E293B',
   },
