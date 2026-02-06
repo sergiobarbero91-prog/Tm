@@ -12588,6 +12588,18 @@ export default function TransportMeter() {
                       Actividad
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.profileActivityTab, profileActivityTab === 'saved' && styles.profileActivityTabActive]}
+                    onPress={() => {
+                      setProfileActivityTab('saved');
+                      fetchSavedPosts();
+                    }}
+                  >
+                    <Ionicons name="bookmark-outline" size={18} color={profileActivityTab === 'saved' ? '#EC4899' : '#64748B'} />
+                    <Text style={[styles.profileActivityTabText, profileActivityTab === 'saved' && styles.profileActivityTabTextActive]}>
+                      Guardados
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 <ScrollView style={styles.profileActivityContent}>
