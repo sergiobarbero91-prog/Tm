@@ -13229,22 +13229,32 @@ export default function TransportMeter() {
               <TouchableOpacity 
                 style={[styles.postOptionItem, styles.postOptionItemDanger]}
                 onPress={() => {
-                  Alert.alert(
-                    'Eliminar publicación',
-                    '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.',
-                    [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { 
-                        text: 'Eliminar', 
-                        style: 'destructive',
-                        onPress: () => {
-                          deletePost(selectedPostForOptions.id);
-                          setShowPostOptionsModal(false);
-                          setSelectedPostForOptions(null);
+                  if (Platform.OS === 'web') {
+                    // Use window.confirm for web
+                    const confirmed = window.confirm('¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.');
+                    if (confirmed) {
+                      deletePost(selectedPostForOptions.id);
+                      setShowPostOptionsModal(false);
+                      setSelectedPostForOptions(null);
+                    }
+                  } else {
+                    Alert.alert(
+                      'Eliminar publicación',
+                      '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { 
+                          text: 'Eliminar', 
+                          style: 'destructive',
+                          onPress: () => {
+                            deletePost(selectedPostForOptions.id);
+                            setShowPostOptionsModal(false);
+                            setSelectedPostForOptions(null);
+                          }
                         }
-                      }
-                    ]
-                  );
+                      ]
+                    );
+                  }
                 }}
               >
                 <Ionicons name="trash-outline" size={24} color="#EF4444" />
