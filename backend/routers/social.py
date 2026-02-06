@@ -34,6 +34,8 @@ group_messages_collection = db['group_messages']
 posts_collection = db['posts']
 post_likes_collection = db['post_likes']
 post_comments_collection = db['post_comments']
+saved_posts_collection = db['saved_posts']
+shared_posts_collection = db['shared_posts']
 
 router = APIRouter(prefix="/social", tags=["Social"])
 
