@@ -10383,14 +10383,14 @@ export default function TransportMeter() {
                           <View style={styles.feedPostImageContainer}>
                             <Image 
                               source={{ uri: post.image_base64 }} 
-                              style={[
-                                styles.feedPostImage,
-                                imageDimensions[post.id] ? {
-                                  aspectRatio: imageDimensions[post.id].width / imageDimensions[post.id].height,
-                                  height: undefined,
-                                } : {}
-                              ]}
-                              resizeMode="contain"
+                              style={{
+                                width: '100%',
+                                height: undefined,
+                                aspectRatio: imageDimensions[post.id] 
+                                  ? imageDimensions[post.id].width / imageDimensions[post.id].height 
+                                  : 1,
+                                maxHeight: 600,
+                              }}
                               onLoad={() => {
                                 // Get image dimensions using Image.getSize
                                 if (!imageDimensions[post.id]) {
