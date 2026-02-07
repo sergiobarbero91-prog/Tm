@@ -13114,68 +13114,80 @@ export default function TransportMeter() {
                 numberOfLines={4}
               />
 
-              {/* Location */}
+              {/* Location - GPS style autocomplete */}
               <Text style={styles.createGroupLabel}>Ubicación (opcional)</Text>
-              <TouchableOpacity 
-                style={[styles.socialSearchContainer, { marginBottom: 8 }]}
-                onPress={() => setShowLocationSuggestions(!showLocationSuggestions)}
-              >
+              <View style={[styles.socialSearchContainer, { marginBottom: 8 }]}>
                 <Ionicons name="location" size={18} color="#F59E0B" />
-                <Text style={[styles.socialSearchInput, { color: newPostLocation ? '#FFFFFF' : '#6B7280', paddingVertical: 10 }]}>
-                  {newPostLocation || 'Seleccionar ubicación...'}
-                </Text>
-                <Ionicons name={showLocationSuggestions ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7280" />
-              </TouchableOpacity>
+                <TextInput
+                  style={[styles.socialSearchInput, { flex: 1 }]}
+                  placeholder="Escribe una dirección..."
+                  placeholderTextColor="#6B7280"
+                  value={locationSearchQuery}
+                  onChangeText={handlePostLocationChange}
+                  onFocus={() => setShowLocationSuggestions(true)}
+                />
+                {locationSearching && (
+                  <ActivityIndicator size="small" color="#F59E0B" />
+                )}
+                {locationSearchQuery.length > 0 && !locationSearching && (
+                  <TouchableOpacity onPress={() => {
+                    setLocationSearchQuery('');
+                    setNewPostLocation('');
+                    setLocationSuggestions([]);
+                  }}>
+                    <Ionicons name="close-circle" size={20} color="#6B7280" />
+                  </TouchableOpacity>
+                )}
+              </View>
               
-              {/* Location Suggestions */}
-              {showLocationSuggestions && (
-                <View style={{ backgroundColor: '#1F2937', borderRadius: 12, padding: 8, marginBottom: 16, maxHeight: 200 }}>
+              {/* Location Suggestions List */}
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <View style={{ backgroundColor: '#1F2937', borderRadius: 12, marginBottom: 16, maxHeight: 180 }}>
                   <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {predefinedLocations.map((loc, idx) => (
-                        <TouchableOpacity
-                          key={idx}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            backgroundColor: newPostLocation === loc.name ? '#F59E0B' : '#374151',
-                            paddingHorizontal: 12,
-                            paddingVertical: 8,
-                            borderRadius: 20,
-                            gap: 6,
-                          }}
-                          onPress={() => {
-                            setNewPostLocation(loc.name);
-                            setShowLocationSuggestions(false);
-                          }}
-                        >
-                          <Ionicons 
-                            name={loc.icon as any} 
-                            size={14} 
-                            color={newPostLocation === loc.name ? '#000000' : '#9CA3AF'} 
-                          />
-                          <Text style={{ 
-                            color: newPostLocation === loc.name ? '#000000' : '#FFFFFF',
-                            fontSize: 13,
-                            fontWeight: newPostLocation === loc.name ? '600' : '400'
-                          }}>
-                            {loc.name}
+                    {locationSuggestions.map((suggestion, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          padding: 12,
+                          borderBottomWidth: idx < locationSuggestions.length - 1 ? 1 : 0,
+                          borderBottomColor: '#374151',
+                          gap: 10,
+                        }}
+                        onPress={() => selectPostLocation(suggestion)}
+                      >
+                        <Ionicons name="location-outline" size={18} color="#F59E0B" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 14 }} numberOfLines={1}>
+                            {suggestion.address.split(',')[0]}
                           </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                          <Text style={{ color: '#6B7280', fontSize: 12 }} numberOfLines={1}>
+                            {suggestion.address.split(',').slice(1).join(',').trim()}
+                          </Text>
+                        </View>
+                        {suggestion.is_inside_m30 && (
+                          <View style={{ backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>M30</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
                   </ScrollView>
-                  {newPostLocation && (
-                    <TouchableOpacity
-                      style={{ alignItems: 'center', marginTop: 8, paddingVertical: 8 }}
-                      onPress={() => {
-                        setNewPostLocation('');
-                        setShowLocationSuggestions(false);
-                      }}
-                    >
-                      <Text style={{ color: '#EF4444', fontSize: 13 }}>Quitar ubicación</Text>
-                    </TouchableOpacity>
-                  )}
+                </View>
+              )}
+              
+              {/* Selected location indicator */}
+              {newPostLocation && !showLocationSuggestions && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#374151', padding: 8, borderRadius: 8, marginBottom: 16, gap: 8 }}>
+                  <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                  <Text style={{ color: '#FFFFFF', flex: 1, fontSize: 13 }}>{newPostLocation}</Text>
+                  <TouchableOpacity onPress={() => {
+                    setNewPostLocation('');
+                    setLocationSearchQuery('');
+                  }}>
+                    <Ionicons name="close" size={18} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
               )}
 
