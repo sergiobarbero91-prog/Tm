@@ -9751,30 +9751,12 @@ export default function TransportMeter() {
           }}
         >
           <Ionicons
-            name={
-              activeTab === 'trains' ? 'train' :
-              activeTab === 'flights' ? 'airplane' :
-              activeTab === 'street' ? 'car' :
-              activeTab === 'events' ? 'calendar' :
-              activeTab === 'social' ? 'people' :
-              activeTab === 'moderation' ? 'shield-half' :
-              'shield-checkmark'
-            }
+            name={pageTabInfo.icon as any}
             size={18}
-            color={
-              activeTab === 'social' ? '#EC4899' :
-              activeTab === 'moderation' ? '#F59E0B' :
-              '#6366F1'
-            }
+            color={pageTabInfo.color}
           />
           <Text style={styles.dropdownSelectorText}>
-            {activeTab === 'trains' ? 'Trenes' :
-             activeTab === 'flights' ? 'Aviones' :
-             activeTab === 'street' ? 'Calle' :
-             activeTab === 'events' ? 'Eventos' :
-             activeTab === 'social' ? 'Social' :
-             activeTab === 'moderation' ? 'Moderación' :
-             'Admin'}
+            {pageTabInfo.label}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#94A3B8" />
         </TouchableOpacity>
