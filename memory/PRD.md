@@ -7,7 +7,7 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 - **Frontend:** React Native Web (Expo), TypeScript
 - **Backend:** FastAPI (Python)
 - **Base de datos:** MongoDB
-- **Despliegue:** Emergent Platform con supervisor
+- **Despliegue:** Railway (recomendado)
 
 ## Estado Actual - Febrero 2026
 
@@ -17,9 +17,15 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 - [x] Corrección de `.gitignore` para permitir archivos `.env` en despliegue
 - [x] Preparación para despliegue (configuración de variables de entorno)
 - [x] Fix del selector de pestañas con `useMemo` y `nativeID` dinámico
+- [x] **Configuración para Railway:**
+  - Archivos `Procfile` para backend y frontend
+  - Archivos `railway.toml` con configuración de despliegue
+  - Scripts de build actualizados en `package.json`
+  - Guía completa en `RAILWAY_DEPLOY.md`
 
-### 🔄 Pendiente de Verificación por Usuario
-- [ ] Bug del selector de pestañas - usuario debe confirmar si funciona correctamente
+### 🚀 Próximo Paso
+- [ ] Guardar en GitHub (botón "Save to Github")
+- [ ] Desplegar en Railway siguiendo `RAILWAY_DEPLOY.md`
 
 ### 📋 Backlog (P1)
 - [ ] Completar refactorización de `src/screens/index.tsx` (~16,000 líneas restantes)
@@ -32,24 +38,34 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 
 ```
 /app
-├── src/
-│   ├── screens/
-│   │   ├── index.tsx  // Componente principal (~16,000 líneas) - NECESITA REFACTORIZACIÓN
-│   │   └── styles.ts  // Estilos extraídos (~8,000 líneas)
-│   └── ...
+├── RAILWAY_DEPLOY.md    // <-- GUÍA DE DESPLIEGUE EN RAILWAY
 ├── frontend/
-│   └── .env           // Variables de entorno Expo
+│   ├── Procfile         // Comando de inicio para Railway
+│   ├── railway.toml     // Configuración de Railway
+│   ├── package.json     // Scripts de build actualizados
+│   └── ...
 ├── backend/
-│   ├── server.py      // API FastAPI
-│   └── .env           // Variables de entorno backend
-└── .gitignore         // Corregido para permitir .env
+│   ├── Procfile         // Comando de inicio para Railway
+│   ├── railway.toml     // Configuración de Railway
+│   └── server.py        // API FastAPI
+└── ...
 ```
+
+## Despliegue en Railway
+
+Ver guía completa: `/app/RAILWAY_DEPLOY.md`
+
+**Resumen rápido:**
+1. Crear cuenta en [railway.app](https://railway.app)
+2. Nuevo proyecto → Deploy from GitHub
+3. Añadir MongoDB (base de datos)
+4. Configurar Backend (root: `backend`)
+5. Configurar Frontend (root: `frontend`)
+6. Configurar variables de entorno
+
+**Costo:** ~$5-15/mes (siempre activo, sin spin-down)
 
 ## API Endpoints Principales
 - `GET /api/health` - Health check
 - `POST /api/login` - Autenticación
 - `GET /api/search-addresses` - Autocompletado de direcciones
-
-## Notas Técnicas
-- El bug del selector de pestañas requirió uso de `useMemo` y `nativeID` dinámico para forzar re-renderizado
-- El screenshot tool no funciona bien con el flujo de login de esta app; usar curl para backend y tests manuales para frontend
