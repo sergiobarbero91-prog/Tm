@@ -9708,10 +9708,9 @@ export default function TransportMeter() {
 
       {/* Tab Selector */}
       {/* NEW: Dropdowns Row - Page and Shift selectors */}
-      <View style={styles.dropdownsRow}>
-        {/* Page Dropdown - key forces re-render when activeTab changes */}
+      <View style={styles.dropdownsRow} key={`dropdowns-row-${activeTab}`}>
+        {/* Page Dropdown */}
         <TouchableOpacity
-          key={`page-selector-${activeTab}`}
           style={styles.dropdownSelector}
           onPress={() => {
             setShowPageDropdown(true);
