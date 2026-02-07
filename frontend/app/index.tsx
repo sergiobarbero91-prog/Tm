@@ -13045,7 +13045,12 @@ export default function TransportMeter() {
             <View style={styles.createGroupModalHeader}>
               <Ionicons name="create" size={28} color="#EC4899" />
               <Text style={styles.createGroupModalTitle}>Nueva Publicación</Text>
-              <TouchableOpacity onPress={() => { setShowCreatePostModal(false); setShowLocationSuggestions(false); }}>
+              <TouchableOpacity onPress={() => { 
+                setShowCreatePostModal(false); 
+                setShowLocationSuggestions(false);
+                setLocationSearchQuery('');
+                setLocationSuggestions([]);
+              }}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
