@@ -23,7 +23,9 @@ load_dotenv(ROOT_DIR / '.env')
 logger = logging.getLogger(__name__)
 
 # JWT Configuration
-SECRET_KEY = os.environ.get("SECRET_KEY", "transportmeter-secret-key-2025")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is required")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
