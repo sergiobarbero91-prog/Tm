@@ -10522,13 +10522,6 @@ export default function TransportMeter() {
                   )}
                 </ScrollView>
 
-                {/* FAB - Floating Action Button */}
-                <TouchableOpacity
-                  style={styles.feedFAB}
-                  onPress={() => setShowCreatePostModal(true)}
-                >
-                  <Ionicons name="add" size={28} color="#FFFFFF" />
-                </TouchableOpacity>
               </View>
             )}
 
