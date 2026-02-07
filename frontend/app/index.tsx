@@ -13629,22 +13629,6 @@ export default function TransportMeter() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#64748B" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.profileSettingsItem}
-                  onPress={() => {
-                    setShowProfileModal(false);
-                    setShowInfoModal(true);
-                  }}
-                >
-                  <View style={styles.profileSettingsItemIcon}>
-                    <Ionicons name="information-circle-outline" size={20} color="#10B981" />
-                  </View>
-                  <View style={styles.profileSettingsItemContent}>
-                    <Text style={styles.profileSettingsItemText}>Información</Text>
-                    <Text style={styles.profileSettingsItemSubtext}>Acerca de la app</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#64748B" />
-                </TouchableOpacity>
               </View>
               
               {/* Close and Logout Buttons */}
