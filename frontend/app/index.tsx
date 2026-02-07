@@ -9669,16 +9669,16 @@ export default function TransportMeter() {
         <TouchableOpacity
           style={[
             styles.dropdownSelector,
-            activeTab !== 'trains' && styles.dropdownSelectorHidden
+            activeTab !== 'trains' && activeTab !== 'flights' && styles.dropdownSelectorHidden
           ]}
           onPress={() => {
-            if (activeTab === 'trains') {
+            if (activeTab === 'trains' || activeTab === 'flights') {
               setShowShiftDropdown(true);
               setShowPageDropdown(false);
               setShowTimeRangeDropdown(false);
             }
           }}
-          disabled={activeTab !== 'trains'}
+          disabled={activeTab !== 'trains' && activeTab !== 'flights'}
         >
           <Ionicons
             name={shift === 'day' ? 'sunny' : shift === 'night' ? 'moon' : 'time'}
