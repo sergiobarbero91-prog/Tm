@@ -9664,16 +9664,24 @@ export default function TransportMeter() {
               activeTab === 'flights' ? 'airplane' :
               activeTab === 'street' ? 'car' :
               activeTab === 'events' ? 'calendar' :
+              activeTab === 'social' ? 'people' :
+              activeTab === 'moderation' ? 'shield-half' :
               'shield-checkmark'
             }
             size={18}
-            color="#6366F1"
+            color={
+              activeTab === 'social' ? '#EC4899' :
+              activeTab === 'moderation' ? '#F59E0B' :
+              '#6366F1'
+            }
           />
           <Text style={styles.dropdownSelectorText}>
             {activeTab === 'trains' ? 'Trenes' :
              activeTab === 'flights' ? 'Aviones' :
              activeTab === 'street' ? 'Calle' :
              activeTab === 'events' ? 'Eventos' :
+             activeTab === 'social' ? 'Social' :
+             activeTab === 'moderation' ? 'Moderación' :
              'Admin'}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#94A3B8" />
