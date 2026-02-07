@@ -7,7 +7,7 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 - **Frontend:** React Native Web (Expo), TypeScript
 - **Backend:** FastAPI (Python)
 - **Base de datos:** MongoDB
-- **Despliegue:** Railway (recomendado)
+- **Despliegue:** Clouding.io (España) con Docker
 
 ## Estado Actual - Febrero 2026
 
@@ -17,55 +17,81 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 - [x] Corrección de `.gitignore` para permitir archivos `.env` en despliegue
 - [x] Preparación para despliegue (configuración de variables de entorno)
 - [x] Fix del selector de pestañas con `useMemo` y `nativeID` dinámico
-- [x] **Configuración para Railway:**
-  - Archivos `Procfile` para backend y frontend
-  - Archivos `railway.toml` con configuración de despliegue
-  - Scripts de build actualizados en `package.json`
-  - Guía completa en `RAILWAY_DEPLOY.md`
+- [x] **Configuración completa para Clouding.io:**
+  - `docker-compose.yml` - Orquestación de servicios
+  - `backend/Dockerfile` - Imagen Docker del backend
+  - `frontend/Dockerfile` - Imagen Docker del frontend
+  - `nginx/nginx.conf` - Reverse proxy con SSL
+  - `scripts/install-clouding.sh` - Script de instalación automática
+  - `CLOUDING_DEPLOY.md` - Guía completa en español
 
 ### 🚀 Próximo Paso
-- [ ] Guardar en GitHub (botón "Save to Github")
-- [ ] Desplegar en Railway siguiendo `RAILWAY_DEPLOY.md`
+1. Guardar en GitHub (botón "Save to Github")
+2. Crear servidor en [clouding.io](https://clouding.io)
+3. Seguir la guía `CLOUDING_DEPLOY.md`
 
 ### 📋 Backlog (P1)
 - [ ] Completar refactorización de `src/screens/index.tsx` (~16,000 líneas restantes)
-  - Extraer tipos/interfaces
-  - Extraer constantes
-  - Extraer componentes principales (Social, Admin, Moderation panels)
-  - Crear estructura de carpetas: `src/components/`, `src/hooks/`, `src/types/`
 
-## Arquitectura de Archivos
+## Arquitectura de Despliegue (Clouding.io)
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   CLOUDING.IO                        │
+│                  (Barcelona 🇪🇸)                      │
+│                                                      │
+│  ┌─────────────────────────────────────────────┐   │
+│  │                   NGINX                      │   │
+│  │            (Reverse Proxy + SSL)             │   │
+│  │                 :80 / :443                   │   │
+│  └─────────────┬───────────────┬───────────────┘   │
+│                │               │                    │
+│        /api/*  │               │  /*                │
+│                ▼               ▼                    │
+│  ┌─────────────────┐   ┌─────────────────┐        │
+│  │    BACKEND      │   │    FRONTEND     │        │
+│  │   (FastAPI)     │   │  (Expo Web)     │        │
+│  │     :8001       │   │     :3000       │        │
+│  └────────┬────────┘   └─────────────────┘        │
+│           │                                        │
+│           ▼                                        │
+│  ┌─────────────────┐                              │
+│  │    MONGODB      │                              │
+│  │     :27017      │                              │
+│  └─────────────────┘                              │
+└─────────────────────────────────────────────────────┘
+```
+
+## Archivos de Despliegue
 
 ```
 /app
-├── RAILWAY_DEPLOY.md    // <-- GUÍA DE DESPLIEGUE EN RAILWAY
-├── frontend/
-│   ├── Procfile         // Comando de inicio para Railway
-│   ├── railway.toml     // Configuración de Railway
-│   ├── package.json     // Scripts de build actualizados
-│   └── ...
+├── CLOUDING_DEPLOY.md      # Guía completa en español
+├── docker-compose.yml      # Orquestación Docker
+├── .env.example            # Variables de ejemplo
+├── nginx/
+│   └── nginx.conf          # Configuración Nginx
+├── scripts/
+│   └── install-clouding.sh # Instalación automática
 ├── backend/
-│   ├── Procfile         // Comando de inicio para Railway
-│   ├── railway.toml     // Configuración de Railway
-│   └── server.py        // API FastAPI
-└── ...
+│   └── Dockerfile          # Imagen backend
+└── frontend/
+    └── Dockerfile          # Imagen frontend
 ```
 
-## Despliegue en Railway
+## Costes Estimados (España)
 
-Ver guía completa: `/app/RAILWAY_DEPLOY.md`
+| Concepto | Coste |
+|----------|-------|
+| Servidor Clouding.io (2GB RAM, Barcelona) | ~6€/mes |
+| Dominio .es | ~8€/año |
+| Certificado SSL (Let's Encrypt) | GRATIS |
+| **TOTAL** | **~7€/mes** |
 
-**Resumen rápido:**
-1. Crear cuenta en [railway.app](https://railway.app)
-2. Nuevo proyecto → Deploy from GitHub
-3. Añadir MongoDB (base de datos)
-4. Configurar Backend (root: `backend`)
-5. Configurar Frontend (root: `frontend`)
-6. Configurar variables de entorno
+## Ventajas de Clouding.io
 
-**Costo:** ~$5-15/mes (siempre activo, sin spin-down)
-
-## API Endpoints Principales
-- `GET /api/health` - Health check
-- `POST /api/login` - Autenticación
-- `GET /api/search-addresses` - Autocompletado de direcciones
+- ✅ Servidores en Barcelona (baja latencia)
+- ✅ 100% cumplimiento RGPD
+- ✅ Pago en euros (tarjeta española)
+- ✅ Soporte 24/7 en español
+- ✅ Facturación española con IVA
