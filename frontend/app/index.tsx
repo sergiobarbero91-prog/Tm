@@ -9688,32 +9688,6 @@ export default function TransportMeter() {
           <Ionicons name="chevron-down" size={16} color="#94A3B8" />
         </TouchableOpacity>
         
-        {/* Shift Dropdown - visible for trains only, but space reserved */}
-        <TouchableOpacity
-          style={[
-            styles.dropdownSelector,
-            activeTab !== 'trains' && activeTab !== 'flights' && styles.dropdownSelectorHidden
-          ]}
-          onPress={() => {
-            if (activeTab === 'trains' || activeTab === 'flights') {
-              setShowShiftDropdown(true);
-              setShowPageDropdown(false);
-              setShowTimeRangeDropdown(false);
-            }
-          }}
-          disabled={activeTab !== 'trains' && activeTab !== 'flights'}
-        >
-          <Ionicons
-            name={shift === 'day' ? 'sunny' : shift === 'night' ? 'moon' : 'time'}
-            size={18}
-            color={shift === 'day' ? '#F59E0B' : shift === 'night' ? '#8B5CF6' : '#6366F1'}
-          />
-          <Text style={styles.dropdownSelectorText}>
-            {shift === 'day' ? 'Diurno' : shift === 'night' ? 'Nocturno' : 'Todos'}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color="#94A3B8" />
-        </TouchableOpacity>
-        
         {/* View Settings Button - Opens modal with shift, time window, time range */}
         <TouchableOpacity
           style={styles.viewSettingsButton}
