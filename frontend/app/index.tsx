@@ -13169,7 +13169,7 @@ export default function TransportMeter() {
             <View style={styles.createGroupActions}>
               <TouchableOpacity
                 style={styles.createGroupCancelButton}
-                onPress={() => setShowCreatePostModal(false)}
+                onPress={() => { setShowCreatePostModal(false); setShowLocationSuggestions(false); }}
               >
                 <Text style={styles.createGroupCancelText}>Cancelar</Text>
               </TouchableOpacity>
