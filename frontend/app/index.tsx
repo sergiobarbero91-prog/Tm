@@ -9769,7 +9769,7 @@ export default function TransportMeter() {
           activeOpacity={1}
           onPress={() => setShowPageDropdown(false)}
         >
-          <View style={styles.dropdownMenu}>
+          <View style={styles.dropdownMenu} onStartShouldSetResponder={() => true}>
             <Text style={styles.dropdownMenuTitle}>Seleccionar Página</Text>
             
             <TouchableOpacity
