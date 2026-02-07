@@ -916,6 +916,9 @@ export default function TransportMeter() {
   const [newComment, setNewComment] = useState('');
   const [postsLoading, setPostsLoading] = useState(false);
   
+  // Image dimensions cache for adaptive sizing
+  const [imageDimensions, setImageDimensions] = useState<{[key: string]: {width: number, height: number}}>({});
+  
   // Post actions states
   const [showSharePostModal, setShowSharePostModal] = useState(false);
   const [postToShare, setPostToShare] = useState<any>(null);
