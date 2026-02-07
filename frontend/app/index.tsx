@@ -9740,9 +9740,10 @@ export default function TransportMeter() {
 
       {/* Tab Selector */}
       {/* NEW: Dropdowns Row - Page and Shift selectors */}
-      <View style={styles.dropdownsRow} key={`dropdowns-row-${activeTab}`}>
-        {/* Page Dropdown */}
+      <View style={styles.dropdownsRow}>
+        {/* Page Dropdown - nativeID forces re-render on mobile Safari */}
         <TouchableOpacity
+          nativeID={`page-selector-${activeTab}`}
           style={styles.dropdownSelector}
           onPress={() => {
             setShowPageDropdown(true);
@@ -9755,7 +9756,10 @@ export default function TransportMeter() {
             size={18}
             color={pageTabInfo.color}
           />
-          <Text style={styles.dropdownSelectorText}>
+          <Text 
+            nativeID={`page-label-${activeTab}`}
+            style={styles.dropdownSelectorText}
+          >
             {pageTabInfo.label}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#94A3B8" />
