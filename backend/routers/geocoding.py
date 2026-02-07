@@ -66,21 +66,31 @@ M30_POLYGON = [
 ]
 
 def point_in_polygon(lat: float, lng: float, polygon: list) -> bool:
-    """Check if a point is inside a polygon using ray casting algorithm."""
+    """Check if a point is inside a polygon using ray casting algorithm.
+    
+    Polygon points are defined as (lat, lng) tuples.
+    Uses the ray casting algorithm to determine if point is inside.
+    """
     n = len(polygon)
     inside = False
     
-    p1x, p1y = polygon[0]
+    # Extract first point (lat, lng format)
+    p1_lat, p1_lng = polygon[0]
+    
     for i in range(1, n + 1):
-        p2x, p2y = polygon[i % n]
-        if lat > min(p1y, p2y):
-            if lat <= max(p1y, p2y):
-                if lng <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or lng <= xinters:
+        p2_lat, p2_lng = polygon[i % n]
+        
+        # Check if the point's latitude is within the edge's latitude range
+        if lat > min(p1_lat, p2_lat):
+            if lat <= max(p1_lat, p2_lat):
+                if lng <= max(p1_lng, p2_lng):
+                    # Calculate the x-intersection of the ray with the edge
+                    if p1_lat != p2_lat:
+                        lng_intersect = (lat - p1_lat) * (p2_lng - p1_lng) / (p2_lat - p1_lat) + p1_lng
+                    if p1_lng == p2_lng or lng <= lng_intersect:
                         inside = not inside
-        p1x, p1y = p2x, p2y
+        
+        p1_lat, p1_lng = p2_lat, p2_lng
     
     return inside
 
