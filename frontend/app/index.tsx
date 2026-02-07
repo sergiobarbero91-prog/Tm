@@ -9929,6 +9929,104 @@ export default function TransportMeter() {
         </TouchableOpacity>
       </Modal>
 
+      {/* View Settings Modal - Unified settings for shift, time window, and time range */}
+      <Modal
+        visible={showViewSettingsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowViewSettingsModal(false)}
+      >
+        <View style={styles.viewSettingsModalOverlay}>
+          <View style={styles.viewSettingsModalContent}>
+            <View style={styles.viewSettingsModalHeader}>
+              <Text style={styles.viewSettingsModalTitle}>Ajustes de Vista</Text>
+              <TouchableOpacity onPress={() => setShowViewSettingsModal(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Time Window Section */}
+            <View style={styles.viewSettingsSection}>
+              <Text style={styles.viewSettingsSectionTitle}>Ventana de tiempo</Text>
+              <View style={styles.viewSettingsButtonGroup}>
+                <TouchableOpacity
+                  style={[styles.viewSettingsOptionButton, timeWindow === 30 && styles.viewSettingsOptionButtonActive]}
+                  onPress={() => setTimeWindow(30)}
+                >
+                  <Text style={[styles.viewSettingsOptionText, timeWindow === 30 && styles.viewSettingsOptionTextActive]}>30 min</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewSettingsOptionButton, timeWindow === 60 && styles.viewSettingsOptionButtonActive]}
+                  onPress={() => setTimeWindow(60)}
+                >
+                  <Text style={[styles.viewSettingsOptionText, timeWindow === 60 && styles.viewSettingsOptionTextActive]}>60 min</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Shift Section - Only for trains/flights */}
+            {(activeTab === 'trains' || activeTab === 'flights') && (
+              <View style={styles.viewSettingsSection}>
+                <Text style={styles.viewSettingsSectionTitle}>Turno</Text>
+                <View style={styles.viewSettingsButtonGroup}>
+                  <TouchableOpacity
+                    style={[styles.viewSettingsOptionButton, shift === 'all' && styles.viewSettingsOptionButtonActive]}
+                    onPress={() => setShift('all')}
+                  >
+                    <Ionicons name="time" size={16} color={shift === 'all' ? '#FFFFFF' : '#94A3B8'} />
+                    <Text style={[styles.viewSettingsOptionText, shift === 'all' && styles.viewSettingsOptionTextActive]}>Todos</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.viewSettingsOptionButton, shift === 'day' && styles.viewSettingsOptionButtonActive]}
+                    onPress={() => setShift('day')}
+                  >
+                    <Ionicons name="sunny" size={16} color={shift === 'day' ? '#FFFFFF' : '#F59E0B'} />
+                    <Text style={[styles.viewSettingsOptionText, shift === 'day' && styles.viewSettingsOptionTextActive]}>Diurno</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.viewSettingsOptionButton, shift === 'night' && styles.viewSettingsOptionButtonActive]}
+                    onPress={() => setShift('night')}
+                  >
+                    <Ionicons name="moon" size={16} color={shift === 'night' ? '#FFFFFF' : '#8B5CF6'} />
+                    <Text style={[styles.viewSettingsOptionText, shift === 'night' && styles.viewSettingsOptionTextActive]}>Nocturno</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            
+            {/* Time Range Section */}
+            <View style={styles.viewSettingsSection}>
+              <Text style={styles.viewSettingsSectionTitle}>Hora a mostrar</Text>
+              <TouchableOpacity
+                style={[styles.viewSettingsTimeRangeButton, selectedTimeRange !== 'now' && styles.viewSettingsTimeRangeButtonActive]}
+                onPress={() => {
+                  setShowViewSettingsModal(false);
+                  setShowTimeRangeDropdown(true);
+                }}
+              >
+                <Ionicons 
+                  name="time-outline" 
+                  size={20} 
+                  color={selectedTimeRange !== 'now' ? "#10B981" : "#F59E0B"} 
+                />
+                <Text style={[styles.viewSettingsTimeRangeText, selectedTimeRange !== 'now' && styles.viewSettingsTimeRangeTextActive]}>
+                  {getSelectedTimeRangeLabel()}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Apply Button */}
+            <TouchableOpacity
+              style={styles.viewSettingsApplyButton}
+              onPress={() => setShowViewSettingsModal(false)}
+            >
+              <Text style={styles.viewSettingsApplyButtonText}>Aplicar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Content */}
       <ScrollView
         style={styles.content}
