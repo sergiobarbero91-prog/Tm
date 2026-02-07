@@ -13,16 +13,56 @@ router = APIRouter(tags=["Geocoding"])
 logger = logging.getLogger(__name__)
 
 # M30 polygon for Madrid fare zone determination
+# Detailed polygon following the actual M-30 ring road path
 M30_POLYGON = [
-    (40.4752, -3.7223),  # North
-    (40.4689, -3.6892),  # NE
-    (40.4481, -3.6674),  # East
-    (40.4167, -3.6634),  # SE
-    (40.3917, -3.6856),  # South
-    (40.3889, -3.7167),  # SW
-    (40.4028, -3.7458),  # West
-    (40.4344, -3.7542),  # NW
-    (40.4752, -3.7223),  # Close polygon
+    # North section (Plaza de Castilla area)
+    (40.4658, -3.6904),  # Nudo Norte / Plaza Castilla
+    (40.4689, -3.6850),  # Hacia el este
+    (40.4700, -3.6780),  # Continuación norte
+    
+    # Northeast section (towards A-2)
+    (40.4680, -3.6700),  # NE curve
+    (40.4620, -3.6620),  # Hacia Ventas
+    (40.4550, -3.6550),  # M-30 Este norte
+    
+    # East section (Ventas - O'Donnell)
+    (40.4480, -3.6520),  # Ventas area
+    (40.4400, -3.6500),  # Hacia O'Donnell
+    (40.4320, -3.6510),  # O'Donnell
+    (40.4250, -3.6530),  # Hacia Puente de Ventas
+    
+    # Southeast section (Moratalaz - Puente de Vallecas)
+    (40.4180, -3.6560),  # Moratalaz
+    (40.4100, -3.6600),  # Hacia sur
+    (40.4020, -3.6680),  # Puente de Vallecas area
+    (40.3950, -3.6780),  # Continuación sur
+    
+    # South section (Nudo Sur)
+    (40.3900, -3.6900),  # Nudo Sur Este
+    (40.3870, -3.7000),  # Nudo Sur
+    (40.3860, -3.7100),  # Nudo Sur continuación
+    (40.3870, -3.7200),  # Hacia oeste
+    
+    # Southwest section (Usera - Carabanchel)
+    (40.3900, -3.7300),  # Usera
+    (40.3950, -3.7400),  # Hacia Carabanchel
+    (40.4020, -3.7480),  # Carabanchel
+    
+    # West section (Casa de Campo - Moncloa)
+    (40.4100, -3.7520),  # Puente de Segovia area
+    (40.4200, -3.7550),  # Casa de Campo
+    (40.4300, -3.7560),  # Hacia Moncloa
+    (40.4400, -3.7540),  # Moncloa sur
+    
+    # Northwest section (Moncloa - Plaza de Castilla)
+    (40.4480, -3.7480),  # Moncloa
+    (40.4550, -3.7380),  # Hacia norte
+    (40.4600, -3.7250),  # Tetuán area
+    (40.4640, -3.7100),  # Hacia Plaza Castilla
+    (40.4658, -3.6980),  # Aproximación Plaza Castilla
+    
+    # Close polygon
+    (40.4658, -3.6904),  # Volver al punto inicial
 ]
 
 def point_in_polygon(lat: float, lng: float, polygon: list) -> bool:
