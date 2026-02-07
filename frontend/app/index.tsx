@@ -23226,6 +23226,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  createPostHeaderButton: {
+    padding: 4,
+  },
   // My Profile Modal
   myProfileModalContainer: {
     backgroundColor: '#1E293B',
