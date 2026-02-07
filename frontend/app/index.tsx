@@ -4960,6 +4960,8 @@ export default function TransportMeter() {
       setNewPostVisibility('public');
       setNewPostImage(null);
       setNewPostLocation('');
+      setLocationSearchQuery('');
+      setLocationSuggestions([]);
       setShowLocationSuggestions(false);
       setShowCreatePostModal(false);
       
