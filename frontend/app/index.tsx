@@ -9867,7 +9867,7 @@ export default function TransportMeter() {
                 onPress={() => {
                   if (activeTab !== 'moderation') {
                     setLoading(true);
-                    setActiveTab('moderation' as any);
+                    setActiveTab('moderation');
                     fetchModerationReports();
                     fetchModerationPromotions();
                     fetchModerationStats();
