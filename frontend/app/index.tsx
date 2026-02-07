@@ -4882,6 +4882,59 @@ export default function TransportMeter() {
     }
   };
 
+  // Search locations for post creation (GPS-style autocomplete)
+  const searchPostLocations = async (query: string) => {
+    if (query.length < 2) {
+      setLocationSuggestions([]);
+      return;
+    }
+    
+    setLocationSearching(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/search-addresses`, {
+        query,
+        city: 'Madrid'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setLocationSuggestions(response.data.suggestions || []);
+    } catch (error) {
+      console.log('Error searching locations:', error);
+      setLocationSuggestions([]);
+    } finally {
+      setLocationSearching(false);
+    }
+  };
+
+  // Handle location input change with debounce for post creation
+  const locationSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handlePostLocationChange = (text: string) => {
+    setLocationSearchQuery(text);
+    setNewPostLocation(''); // Clear selected location when typing
+    
+    // Clear previous timeout
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+    }
+    
+    // Set new timeout for search
+    locationSearchTimeoutRef.current = setTimeout(() => {
+      searchPostLocations(text);
+    }, 400);
+  };
+
+  // Select location from suggestions
+  const selectPostLocation = (suggestion: any) => {
+    // Extract short address (first part before first comma or full if short)
+    const shortAddress = suggestion.address.split(',')[0].trim();
+    setNewPostLocation(shortAddress);
+    setLocationSearchQuery(shortAddress);
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
+  };
+
   // Create post
   const createPost = async () => {
     if (!newPostContent.trim()) {
