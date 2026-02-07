@@ -10378,13 +10378,39 @@ export default function TransportMeter() {
                           </View>
                         </View>
 
-                        {/* Post Image - Full width */}
+                        {/* Post Image - Full width, adaptive height */}
                         {post.image_base64 && (
                           <View style={styles.feedPostImageContainer}>
                             <Image 
                               source={{ uri: post.image_base64 }} 
-                              style={styles.feedPostImage}
-                              resizeMode="cover"
+                              style={[
+                                styles.feedPostImage,
+                                imageDimensions[post.id] ? {
+                                  aspectRatio: imageDimensions[post.id].width / imageDimensions[post.id].height,
+                                  height: undefined,
+                                } : {}
+                              ]}
+                              resizeMode="contain"
+                              onLoad={(e: any) => {
+                                // Get image dimensions on load
+                                if (Platform.OS === 'web') {
+                                  const img = e.target as HTMLImageElement;
+                                  if (img.naturalWidth && img.naturalHeight) {
+                                    setImageDimensions(prev => ({
+                                      ...prev,
+                                      [post.id]: { width: img.naturalWidth, height: img.naturalHeight }
+                                    }));
+                                  }
+                                } else {
+                                  const { width, height } = e.nativeEvent.source;
+                                  if (width && height) {
+                                    setImageDimensions(prev => ({
+                                      ...prev,
+                                      [post.id]: { width, height }
+                                    }));
+                                  }
+                                }
+                              }}
                             />
                           </View>
                         )}
