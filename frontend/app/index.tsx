@@ -357,6 +357,7 @@ export default function TransportMeter() {
   // Dropdown selector states
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [showShiftDropdown, setShowShiftDropdown] = useState(false);
+  const [showViewSettingsModal, setShowViewSettingsModal] = useState(false);
 
   // Events states
   const [eventsData, setEventsData] = useState<any[]>([]);
