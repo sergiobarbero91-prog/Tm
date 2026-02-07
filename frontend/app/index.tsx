@@ -7996,6 +7996,28 @@ export default function TransportMeter() {
                 color={currentGame ? '#10B981' : '#94A3B8'} 
               />
             </TouchableOpacity>
+            {/* Chat Button - Moved to header */}
+            <TouchableOpacity
+              style={styles.headerChatButton}
+              onPress={openChatModal}
+              testID="chat-button-header"
+            >
+              <Ionicons name="chatbubbles" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+            {/* SOS Button - Moved to header */}
+            <TouchableOpacity
+              style={[
+                styles.headerSosButton,
+                myActiveAlert && styles.headerSosButtonActive
+              ]}
+              onPress={() => setShowSosModal(true)}
+            >
+              <Ionicons 
+                name={myActiveAlert ? "alert-circle" : "shield-checkmark-outline"} 
+                size={20} 
+                color={myActiveAlert ? "#EF4444" : "#94A3B8"} 
+              />
+            </TouchableOpacity>
           </View>
           <View style={styles.headerActions}>
             {/* Alerts Button */}
