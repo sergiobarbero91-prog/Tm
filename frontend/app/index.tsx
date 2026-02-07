@@ -23035,7 +23035,7 @@ const styles = StyleSheet.create({
   },
   feedFAB: {
     position: 'absolute',
-    bottom: 20,
+    top: 20,
     right: 20,
     width: 56,
     height: 56,
@@ -23048,6 +23048,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
+    zIndex: 100,
   },
   // New Message Button
   newMessageButton: {
