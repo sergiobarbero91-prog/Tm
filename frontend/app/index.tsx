@@ -16095,10 +16095,11 @@ const styles = StyleSheet.create({
   dropdownMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: 10,
     gap: 12,
+    marginVertical: 2,
   },
   dropdownMenuItemActive: {
     backgroundColor: '#6366F120',
