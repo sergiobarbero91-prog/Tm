@@ -4904,6 +4904,7 @@ export default function TransportMeter() {
       setNewPostVisibility('public');
       setNewPostImage(null);
       setNewPostLocation('');
+      setShowLocationSuggestions(false);
       setShowCreatePostModal(false);
       
       // Refresh posts
