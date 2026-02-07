@@ -8035,15 +8035,6 @@ export default function TransportMeter() {
                 color={alertsUnreadCount > 0 ? "#FFFFFF" : "#94A3B8"} 
               />
             </TouchableOpacity>
-            {/* Settings Button */}
-            <TouchableOpacity 
-              style={styles.settingsButton}
-              onPress={() => setShowSettings(true)}
-              testID="settings-button"
-              accessibilityLabel="Ajustes"
-            >
-              <Ionicons name="settings-outline" size={20} color="#94A3B8" />
-            </TouchableOpacity>
             {/* User Button - Opens Profile */}
             <TouchableOpacity 
               style={styles.userButton}
