@@ -10244,6 +10244,7 @@ export default function TransportMeter() {
                   </View>
                 )}
               </Pressable>
+              </View>
             </View>
 
             {/* Social Tabs */}
