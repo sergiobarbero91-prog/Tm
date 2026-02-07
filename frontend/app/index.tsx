@@ -3,7 +3,6 @@ import { styles } from './styles/mainStyles';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Pressable,
