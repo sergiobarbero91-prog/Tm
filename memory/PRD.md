@@ -1,76 +1,55 @@
-# TaxiDash Madrid - Product Requirements Document
+# TaxiMeter Madrid - PRD
 
-## Original Problem Statement
-Aplicación full-stack para taxistas de Madrid que incluye:
-- Dashboard de datos de trenes/vuelos/calle
-- Suite social completa (feed, DMs, perfiles, grupos)
-- Sistema de moderación y administración
-- Alertas y emergencias
-- Juegos para taxistas
+## Descripción del Proyecto
+Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidades sociales, moderación y administración.
 
-## User Personas
-- Taxistas de Madrid (usuarios principales)
-- Moderadores (gestión de reportes)
-- Administradores (gestión completa)
+## Stack Tecnológico
+- **Frontend:** React Native Web (Expo), TypeScript
+- **Backend:** FastAPI (Python)
+- **Base de datos:** MongoDB
+- **Despliegue:** Emergent Platform con supervisor
 
-## Core Requirements
-1. Dashboard con datos en tiempo real de estaciones y aeropuertos
-2. Sistema social con posts, mensajes, amigos y grupos
-3. Panel de moderación y administración
-4. Sistema de alertas y emergencias (SOS)
-5. Juegos multijugador
+## Estado Actual - Febrero 2026
 
-## Tech Stack
-- **Frontend**: React Native for Web (Expo)
-- **Backend**: FastAPI + MongoDB
-- **APIs externas**: ADIF (trenes), AENA (vuelos), OSRM (routing), Photon (geocoding)
+### ✅ Completado
+- [x] Autocompletado GPS para ubicaciones en creación de posts
+- [x] Refactorización parcial: estilos extraídos a `styles.ts` (~8,000 líneas)
+- [x] Corrección de `.gitignore` para permitir archivos `.env` en despliegue
+- [x] Preparación para despliegue (configuración de variables de entorno)
+- [x] Fix del selector de pestañas con `useMemo` y `nativeID` dinámico
 
-## Current Status
+### 🔄 Pendiente de Verificación por Usuario
+- [ ] Bug del selector de pestañas - usuario debe confirmar si funciona correctamente
 
-### Completed Features
-- Dashboard principal con datos de trenes/vuelos/calle
-- Sistema de autenticación JWT
-- Feed social con posts, likes, comentarios
-- Sistema de mensajes directos y grupos
-- Panel de moderación y administración
-- Sistema de alertas y emergencias
-- Juegos (Batalla Naval, etc.)
-- Subida de imágenes en posts
-- Posts guardados
-- Opciones de post (editar, eliminar, reportar)
-- Autocompletado de ubicación tipo GPS al crear posts
+### 📋 Backlog (P1)
+- [ ] Completar refactorización de `src/screens/index.tsx` (~16,000 líneas restantes)
+  - Extraer tipos/interfaces
+  - Extraer constantes
+  - Extraer componentes principales (Social, Admin, Moderation panels)
+  - Crear estructura de carpetas: `src/components/`, `src/hooks/`, `src/types/`
 
-### Session 2026-02-07 - Refactorización
-**COMPLETADO:**
-1. **Refactorización de estilos**: Extraídos ~8,100 líneas de estilos a `/app/frontend/app/styles/mainStyles.ts`
-2. **Reducción del archivo principal**: `index.tsx` reducido de 24,100 a ~16,000 líneas
-3. **Bug selector de pestañas**: Implementado `useMemo` y `nativeID` para forzar re-render
-4. **Autocompletado de ubicaciones**: Campo de texto con búsqueda usando Photon API
+## Arquitectura de Archivos
 
-## Architecture (Post-Refactoring)
 ```
 /app
+├── src/
+│   ├── screens/
+│   │   ├── index.tsx  // Componente principal (~16,000 líneas) - NECESITA REFACTORIZACIÓN
+│   │   └── styles.ts  // Estilos extraídos (~8,000 líneas)
+│   └── ...
+├── frontend/
+│   └── .env           // Variables de entorno Expo
 ├── backend/
-│   ├── routers/
-│   │   ├── social.py
-│   │   └── geocoding.py
-│   └── server.py
-└── frontend/
-    └── app/
-        ├── index.tsx        # 16,000 líneas (reducido de 24,100)
-        └── styles/
-            └── mainStyles.ts  # 8,100 líneas de estilos
+│   ├── server.py      // API FastAPI
+│   └── .env           // Variables de entorno backend
+└── .gitignore         // Corregido para permitir .env
 ```
 
-## Known Issues
-1. Bug del selector de pestañas en Safari móvil (parcialmente corregido)
-2. Suite de tests pytest rota (P2)
-3. Warnings de `shadow*` style props en web
+## API Endpoints Principales
+- `GET /api/health` - Health check
+- `POST /api/login` - Autenticación
+- `GET /api/search-addresses` - Autocompletado de direcciones
 
-## Future Improvements
-- Continuar extrayendo componentes de `index.tsx`
-- Migrar `expo-av` a `expo-audio`
-- Persistir datos de juegos en MongoDB
-
-## Credentials
-- Admin: `admin` / `admin`
+## Notas Técnicas
+- El bug del selector de pestañas requirió uso de `useMemo` y `nativeID` dinámico para forzar re-renderizado
+- El screenshot tool no funciona bien con el flujo de login de esta app; usar curl para backend y tests manuales para frontend
