@@ -689,6 +689,38 @@ export default function TransportMeter() {
     setPlacementBoard(Array(10).fill(null).map(() => Array(10).fill('~')));
   }, [gamePollingInterval, matchmakingInterval, gameState?.game_id, currentUser?.id, currentUser?.username, isSearchingMatch, selectedGames]);
 
+  // Memoized values for page selector to ensure re-render on mobile Safari
+  const pageTabInfo = useMemo(() => {
+    const labelMap: Record<string, string> = {
+      trains: 'Trenes',
+      flights: 'Aviones',
+      street: 'Calle',
+      events: 'Eventos',
+      social: 'Social',
+      moderation: 'Moderación',
+      admin: 'Admin'
+    };
+    const iconMap: Record<string, string> = {
+      trains: 'train',
+      flights: 'airplane',
+      street: 'car',
+      events: 'calendar',
+      social: 'people',
+      moderation: 'shield-half',
+      admin: 'shield-checkmark'
+    };
+    const colorMap: Record<string, string> = {
+      social: '#EC4899',
+      moderation: '#F59E0B',
+      default: '#6366F1'
+    };
+    return {
+      label: labelMap[activeTab] || 'Admin',
+      icon: iconMap[activeTab] || 'shield-checkmark',
+      color: colorMap[activeTab] || colorMap.default
+    };
+  }, [activeTab]);
+
   // Clean up when games modal is closed
   useEffect(() => {
     if (!showGamesModal) {
