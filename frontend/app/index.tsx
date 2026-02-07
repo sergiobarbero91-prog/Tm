@@ -10389,7 +10389,6 @@ export default function TransportMeter() {
                                 aspectRatio: imageDimensions[post.id] 
                                   ? imageDimensions[post.id].width / imageDimensions[post.id].height 
                                   : 1,
-                                maxHeight: 600,
                               }}
                               onLoad={() => {
                                 // Get image dimensions using Image.getSize
