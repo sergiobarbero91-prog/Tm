@@ -13610,6 +13610,43 @@ export default function TransportMeter() {
                 </TouchableOpacity>
               </View>
               
+              {/* Settings Section */}
+              <View style={styles.profileSettingsSection}>
+                <Text style={styles.profileSettingsSectionTitle}>Configuración</Text>
+                <TouchableOpacity
+                  style={styles.profileSettingsItem}
+                  onPress={() => {
+                    setShowProfileModal(false);
+                    setShowSettings(true);
+                  }}
+                >
+                  <View style={styles.profileSettingsItemIcon}>
+                    <Ionicons name="settings-outline" size={20} color="#6366F1" />
+                  </View>
+                  <View style={styles.profileSettingsItemContent}>
+                    <Text style={styles.profileSettingsItemText}>Preferencias</Text>
+                    <Text style={styles.profileSettingsItemSubtext}>GPS, notificaciones y más</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#64748B" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.profileSettingsItem}
+                  onPress={() => {
+                    setShowProfileModal(false);
+                    setShowInfoModal(true);
+                  }}
+                >
+                  <View style={styles.profileSettingsItemIcon}>
+                    <Ionicons name="information-circle-outline" size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.profileSettingsItemContent}>
+                    <Text style={styles.profileSettingsItemText}>Información</Text>
+                    <Text style={styles.profileSettingsItemSubtext}>Acerca de la app</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              
               {/* Close and Logout Buttons */}
               <View style={styles.profileBottomButtons}>
                 <TouchableOpacity
