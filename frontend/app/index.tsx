@@ -22956,14 +22956,11 @@ const styles = StyleSheet.create({
   },
   feedPostImageContainer: {
     width: '100%',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E293B',
   },
   feedPostImage: {
     width: '100%',
-    height: 'auto',
-    minHeight: 200,
-    maxHeight: 600,
-    aspectRatio: undefined,
+    height: 350,
   },
   feedPostContent: {
     padding: 14,
