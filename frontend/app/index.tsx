@@ -9714,28 +9714,13 @@ export default function TransportMeter() {
           <Ionicons name="chevron-down" size={16} color="#94A3B8" />
         </TouchableOpacity>
         
-        {/* Chat Button */}
+        {/* View Settings Button - Opens modal with shift, time window, time range */}
         <TouchableOpacity
-          style={styles.chatButtonCompact}
-          onPress={openChatModal}
-          testID="chat-button"
+          style={styles.viewSettingsButton}
+          onPress={() => setShowViewSettingsModal(true)}
         >
-          <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-        
-        {/* SOS Button */}
-        <TouchableOpacity
-          style={[
-            styles.sosButtonCompact,
-            myActiveAlert && styles.sosButtonActive
-          ]}
-          onPress={() => setShowSosModal(true)}
-        >
-          <Ionicons 
-            name={myActiveAlert ? "alert-circle" : "shield-checkmark-outline"} 
-            size={18} 
-            color={myActiveAlert ? "#FFFFFF" : "#9CA3AF"} 
-          />
+          <Ionicons name="options-outline" size={20} color="#6366F1" />
+          <Text style={styles.viewSettingsButtonText}>Ajustes</Text>
         </TouchableOpacity>
       </View>
       
