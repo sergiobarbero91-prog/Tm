@@ -911,6 +911,7 @@ export default function TransportMeter() {
   const [newPostVisibility, setNewPostVisibility] = useState('public');
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const [newPostLocation, setNewPostLocation] = useState('');
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [showPostCommentsModal, setShowPostCommentsModal] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState<any>(null);
   const [postComments, setPostComments] = useState<any[]>([]);
