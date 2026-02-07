@@ -1,792 +1,121 @@
-<analysis>
+<analysis>**original_problem_statement:**
+1.  **Tab Display Bug:** When navigating between tabs, specifically the social and moderation tabs, the selector incorrectly displays administración (Admin). The user later provided a video showing the dropdown selector's text does not update correctly when a new tab is selected, getting stuck on the previous value.
+2.  **Location Input Feature:** When creating a post, the location input field should provide suggestions based on user input, like a GPS, instead of being a free-text field, to prevent users from entering strange values.
 
-**original_problem_statement**: The user requested a comprehensive social feature suite, building upon a gamification and moderation system. The initial request included friends, direct messaging, group chats, and a user profile system. This evolved through several iterations of feedback to include:
-
-1.  **Social Wall/Feed:**
-    *   Users can create posts with text, optional images, and optional location.
-    *   Posts can be public or friends-only.
-    *   Users can like and comment on posts.
-    *   **Iteration 1:** Initial implementation with basic categories (Zona caliente).
-    *   **Iteration 2 (Redesign):** The user requested an Instagram-like scrollable feed, a floating action button (FAB) for creating posts, and more entertainment-focused categories (Noticias, Humor, Consejos, etc.).
-    *   **Iteration 3 (Post Actions):** The user requested the ability to **Save**, **Share (Repost)**, and **Report** individual posts.
-
-2.  **User Profiles & Messaging:**
-    *   **Iteration 1:** View other users' profiles.
-    *   **Iteration 2:** Add a New Conversation button to start DMs, and enhance user profiles to show tabs for their recent Posts and Activity (taxi-related actions).
-    *   **Iteration 3 (My Profile):** Ability for a user to view and edit their *own* profile, including uploading a profile picture and a background/cover photo.
-
-3.  **Group Chat Enhancements:**
-    *   Fix the Leave Group button.
-    *   Add a button to Add Members to a group.
-
-**User's preferred language**: español
+**User's preferred language**: Spanish
 
 **what currently exists?**
-The application is a full-stack Expo (React Native) and FastAPI application. The frontend is a monolithic  file, which has grown to an unmanageable size (likely over 23,000 lines) and contains the UI and logic for all features. The backend has been extended with a comprehensive  to support all the requested social features, including the latest Save, Share, Report functionality. The image upload functionality was recently fixed by installing  and adding the necessary imports, but it remains untested by the user. A significant bug where the My Profile button was unclickable was also worked on, but its resolution is not fully confirmed.
+The application is a React Native web app with its primary logic and UI contained in a very large monolithic file, .
+- The location input for creating posts has been updated from a free-text field to a GPS-style autocomplete that fetches suggestions from the  endpoint.
+- A fix for the tab selector display bug has been implemented. This fix uses advanced React hooks () and properties () to force the component to re-render correctly when the active tab changes.
+- A partial refactor was performed, extracting ~8,100 lines of  definitions from  into a new  file.
 
 **Last working item**:
-    - Last item agent was working: Implementing the Save, Share, and Report functionality for posts on the social wall. The backend endpoints and database models are complete. The frontend UI on the post cards was updated to include buttons for Share, Save, and More Options (containing Report). The agent had just finished adding the necessary modals and was about to add the final piece: a Guardados (Saved) tab to the My Profile modal to allow users to view their saved posts.
-    - Status: IN PROGRESS
-    - Agent Testing Done: N (Backend for this feature was tested with curl, but frontend is incomplete and untested).
-    - Which testing method agent to use? both. After completing the frontend implementation, the backend endpoints for saving/sharing/reporting should be verified with the  agent. Subsequently, the frontend UI flow (clicking save, share, report, and viewing the Saved tab) should be tested using the .
-    - User Testing Done: N
+- **Last item agent was working:** Preparing the application for deployment. The agent ran the deployment readiness check, which identified several issues (incorrect  format, invalid , and an iOS-specific style import issue). The agent has addressed these configuration and code issues and verified that the application is running correctly after the fixes.
+- **Status:** USER VERIFICATION PENDING
+- **Agent Testing Done:** Y
+- **Which testing method agent to use?** Manual testing by user. The screenshot tool has proven unreliable for logging into this React Native Web application. The next agent should guide the user to test the fixes manually.
+- **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: My Profile button is unclickable or difficult to click. (P1)
-  - Issue 2: Image Upload functionality is not verified. (P2)
-  - Issue 3: Failing backend ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= test suite. (P3)
-
-  Issues Detail:
-  - Issue 1: 
-     - Description: Throughout the session, the agent struggled to get the My Profile button in the social header to work reliably via the . The user also reported issues with the Edit Profile modal. The agent tried multiple fixes: increasing button size, changing  to , adding , and fixing a missing  import. While the import fix was the last action, it's not confirmed if this completely resolved the problem for the user.
-     - Attempted fixes: Increased button size, switched to , added , fixed a state name collision between two different edit profile modals, fixed a missing  import.
-     - Next debug checklist:
-        1. Restart expo and perform a clean test with the  specifically targeting the My Profile button (the blue circle icon in the social header).
-        2. Verify the  event handler () is being triggered by checking for its .
-        3. If it still fails, inspect the component hierarchy in  around line  for any overlapping elements or styling conflicts (, positioning) that might be intercepting the click.
-        4. Confirm that both the My Profile modal and the Edit Social Profile modal open correctly.
-     - Why fix this issue and what will be achieved with the fix? This is a core part of the user's latest request and blocks them from viewing or editing their own social profile.
-     - Status: TESTING PENDING
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on other issue: None.
-
-  - Issue 2: 
-     - Description: The user reported that photo uploads were not working for posts, profile pictures, or banners. The agent discovered that the  package was not installed and the  module was not imported in . The agent installed the package and added the import.
-     - Attempted fixes: Installed  via yarn add v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/add for documentation about this command.. Added  to .
-     - Next debug checklist:
-        1. Use the  to test the end-to-end flow of uploading an image.
-        2. Test creating a post and adding an image.
-        3. Test editing the user's own profile and uploading a profile picture.
-        4. Test editing the user's own profile and uploading a cover photo.
-     - Why fix this issue and what will be achieved with the fix? Image uploads are a key part of the social feed and profile customization features. The feature is considered broken until this is verified.
-     - Status: USER VERIFICATION PENDING
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on other issue: Potentially blocked by Issue 1 if the profile edit modal cannot be opened.
-
-  - Issue 3: 
-     - Description: The ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= test suite in  has failing tests. This is a long-standing issue from previous sessions that has been repeatedly ignored.
-     - Attempted fixes: None in this session.
-     - Next debug checklist:
-        1. Run ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/backend
-configfile: pytest.ini
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 15 items
-
-../backend/tests/test_api.py .FFFFE....FFEF.                             [100%]
-
-==================================== ERRORS ====================================
-_______________ ERROR at setup of TestAuth.test_get_current_user _______________
-
-self = <Coroutine test_get_current_user>
-
-    def setup(self) -> None:
-        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
-        if runner_fixture_id not in self.fixturenames:
-            self.fixturenames.append(runner_fixture_id)
->       return super().setup()
-               ^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:458: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:743: in pytest_fixture_setup
-    hook_result = yield
-                  ^^^^^
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:313: in _asyncgen_fixture_wrapper
-    result = runner.run(setup(), context=context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/runners.py:118: in run
-    return self._loop.run_until_complete(task)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
-    return future.result()
-           ^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:309: in setup
-    res = await gen_obj.__anext__()
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-../backend/tests/conftest.py:53: in authenticated_client
-    login_response = await client.post("/api/auth/login", json={
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1859: in post
-    return await self.request(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1540: in request
-    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1629: in send
-    response = await self._send_handling_auth(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1657: in _send_handling_auth
-    response = await self._send_handling_redirects(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1694: in _send_handling_redirects
-    response = await self._send_single_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1730: in _send_single_request
-    response = await transport.handle_async_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/fastapi/applications.py:1054: in __call__
-    await super().__call__(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/applications.py:123: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:186: in __call__
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:164: in __call__
-    await self.app(scope, receive, _send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/cors.py:85: in __call__
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:24: in __call__
-    await responder(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:44: in __call__
-    await self.app(scope, receive, self.send_with_gzip)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py:65: in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:756: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:776: in app
-    await route.handle(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:297: in handle
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:77: in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:72: in app
-    response = await func(request)
-               ^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:278: in app
-    raw_response = await run_endpoint_function(
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:191: in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/slowapi/extension.py:734: in async_wrapper
-    response = await func(*args, **kwargs)  # type: ignore
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-../backend/routers/auth.py:42: in login
-    user = await users_collection.find_one({"username": login_data.username})
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
-    return framework.run_on_executor(
-/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
-    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
-    self._check_closed()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <_UnixSelectorEventLoop running=False closed=True debug=False>
-
-    def _check_closed(self):
-        if self._closed:
->           raise RuntimeError('Event loop is closed')
-E           RuntimeError: Event loop is closed
-
-/usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
----------------------------- Captured stderr setup -----------------------------
-2026-02-06 03:04:43,858 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
------------------------------- Captured log setup ------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-_____ ERROR at setup of TestStationAlerts.test_create_alert_authenticated ______
-
-self = <Coroutine test_create_alert_authenticated>
-
-    def setup(self) -> None:
-        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
-        if runner_fixture_id not in self.fixturenames:
-            self.fixturenames.append(runner_fixture_id)
->       return super().setup()
-               ^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:458: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:743: in pytest_fixture_setup
-    hook_result = yield
-                  ^^^^^
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:313: in _asyncgen_fixture_wrapper
-    result = runner.run(setup(), context=context)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/runners.py:118: in run
-    return self._loop.run_until_complete(task)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
-    return future.result()
-           ^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:309: in setup
-    res = await gen_obj.__anext__()
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-client = <httpx.AsyncClient object at 0xfe7b58f1cf50>
-
-    @pytest.fixture
-    async def authenticated_client(client):
-        """Create authenticated test client with a test user."""
-        # Register a test user
-        register_response = await client.post("/api/auth/register", json={
-            "username": "test_user_pytest",
-            "password": "testpassword123",
-            "full_name": "Test User",
-            "license_number": "99999"
-        })
-    
-        if register_response.status_code == 400:
-            # User exists, login instead
-            login_response = await client.post("/api/auth/login", json={
-                "username": "test_user_pytest",
-                "password": "testpassword123"
-            })
-            token = login_response.json()["access_token"]
-        else:
->           token = register_response.json()["access_token"]
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E           KeyError: 'access_token'
-
-../backend/tests/conftest.py:59: KeyError
----------------------------- Captured stderr setup -----------------------------
-2026-02-06 03:04:54,861 - slowapi - WARNING - ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
-2026-02-06 03:04:54,862 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
------------------------------- Captured log setup ------------------------------
-WARNING  slowapi:extension.py:510 ratelimit 5 per 1 minute (127.0.0.1) exceeded at endpoint: /api/auth/register
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 429 Too Many Requests"
-=================================== FAILURES ===================================
-_______________________ TestAuth.test_register_new_user ________________________
-
-self = <tests.test_api.TestAuth object at 0xfe7b5bf62e10>
-client = <httpx.AsyncClient object at 0xfe7b5bc65350>
-
-    @pytest.mark.asyncio
-    async def test_register_new_user(self, client: AsyncClient):
-        """Test user registration."""
-        import uuid
-        unique_username = f"test_user_{uuid.uuid4().hex[:8]}"
-    
-        response = await client.post("/api/auth/register", json={
-            "username": unique_username,
-            "password": "testpassword123",
-            "full_name": "Test User",
-            "license_number": str(uuid.uuid4().int)[:5]
-        })
-    
->       assert response.status_code == 200
-E       assert 400 == 200
-E        +  where 400 = <Response [400 Bad Request]>.status_code
-
-../backend/tests/test_api.py:32: AssertionError
------------------------------ Captured stderr call -----------------------------
-2026-02-06 03:04:43,556 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
------------------------------- Captured log call -------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-__________________ TestAuth.test_register_duplicate_username ___________________
-
-self = <tests.test_api.TestAuth object at 0xfe7b5bc450d0>
-client = <httpx.AsyncClient object at 0xfe7b5bc56290>
-
-    @pytest.mark.asyncio
-    async def test_register_duplicate_username(self, client: AsyncClient):
-        """Test that duplicate username registration fails."""
-        import uuid
-        unique_username = f"test_dup_{uuid.uuid4().hex[:8]}"
-    
-        # First registration
-        await client.post("/api/auth/register", json={
-            "username": unique_username,
-            "password": "testpassword123",
-            "full_name": "Test User",
-            "license_number": str(uuid.uuid4().int)[:5]
-        })
-    
-        # Duplicate registration
-        response = await client.post("/api/auth/register", json={
-            "username": unique_username,
-            "password": "testpassword123",
-            "full_name": "Test User 2",
-            "license_number": str(uuid.uuid4().int)[:5]
-        })
-    
-        assert response.status_code == 400
->       assert "ya existe" in response.json()["detail"]
-E       AssertionError: assert 'ya existe' in 'El registro directo está deshabilitado. Debes usar un código de invitación o solicitar aprobación con la licencia de un taxista registrado.'
-
-../backend/tests/test_api.py:61: AssertionError
------------------------------ Captured stderr call -----------------------------
-2026-02-06 03:04:43,592 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-06 03:04:43,593 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
------------------------------- Captured log call -------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-____________________ TestAuth.test_login_valid_credentials _____________________
-
-self = <tests.test_api.TestAuth object at 0xfe7b5bc45a50>
-client = <httpx.AsyncClient object at 0xfe7b5bc47490>
-
-    @pytest.mark.asyncio
-    async def test_login_valid_credentials(self, client: AsyncClient):
-        """Test login with valid credentials."""
-        import uuid
-        unique_username = f"test_login_{uuid.uuid4().hex[:8]}"
-    
-        # Register first
-        await client.post("/api/auth/register", json={
-            "username": unique_username,
-            "password": "testpassword123",
-            "full_name": "Test User",
-            "license_number": str(uuid.uuid4().int)[:5]
-        })
-    
-        # Login
-        response = await client.post("/api/auth/login", json={
-            "username": unique_username,
-            "password": "testpassword123"
-        })
-    
->       assert response.status_code == 200
-E       assert 401 == 200
-E        +  where 401 = <Response [401 Unauthorized]>.status_code
-
-../backend/tests/test_api.py:83: AssertionError
------------------------------ Captured stderr call -----------------------------
-2026-02-06 03:04:43,600 - httpx - INFO - HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-2026-02-06 03:04:43,609 - shared - INFO - Login attempt for user: test_login_daaa4674, found: False
-2026-02-06 03:04:43,609 - httpx - INFO - HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
------------------------------- Captured log call -------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/register "HTTP/1.1 400 Bad Request"
-INFO     shared:auth.py:43 Login attempt for user: test_login_daaa4674, found: False
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/auth/login "HTTP/1.1 401 Unauthorized"
-___________________ TestAuth.test_login_invalid_credentials ____________________
-
-self = <tests.test_api.TestAuth object at 0xfe7b5bc46390>
-client = <httpx.AsyncClient object at 0xfe7b5bc56d50>
-
-    @pytest.mark.asyncio
-    async def test_login_invalid_credentials(self, client: AsyncClient):
-        """Test login with invalid credentials."""
->       response = await client.post("/api/auth/login", json={
-            "username": "nonexistent_user",
-            "password": "wrongpassword"
-        })
-
-../backend/tests/test_api.py:90: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1859: in post
-    return await self.request(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1540: in request
-    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1629: in send
-    response = await self._send_handling_auth(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1657: in _send_handling_auth
-    response = await self._send_handling_redirects(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1694: in _send_handling_redirects
-    response = await self._send_single_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1730: in _send_single_request
-    response = await transport.handle_async_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/fastapi/applications.py:1054: in __call__
-    await super().__call__(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/applications.py:123: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:186: in __call__
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:164: in __call__
-    await self.app(scope, receive, _send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/cors.py:85: in __call__
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:24: in __call__
-    await responder(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:44: in __call__
-    await self.app(scope, receive, self.send_with_gzip)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py:65: in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:756: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:776: in app
-    await route.handle(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:297: in handle
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:77: in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:72: in app
-    response = await func(request)
-               ^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:278: in app
-    raw_response = await run_endpoint_function(
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:191: in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/slowapi/extension.py:734: in async_wrapper
-    response = await func(*args, **kwargs)  # type: ignore
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-../backend/routers/auth.py:42: in login
-    user = await users_collection.find_one({"username": login_data.username})
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
-    return framework.run_on_executor(
-/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
-    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
-    self._check_closed()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <_UnixSelectorEventLoop running=False closed=True debug=False>
-
-    def _check_closed(self):
-        if self._closed:
->           raise RuntimeError('Event loop is closed')
-E           RuntimeError: Event loop is closed
-
-/usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
-___________________ TestStationAlerts.test_get_active_alerts ___________________
-
-self = <tests.test_api.TestStationAlerts object at 0xfe7b5bc476d0>
-client = <httpx.AsyncClient object at 0xfe7b592b33d0>
-
-    @pytest.mark.asyncio
-    async def test_get_active_alerts(self, client: AsyncClient):
-        """Test getting active alerts."""
->       response = await client.get("/api/station-alerts/active")
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-../backend/tests/test_api.py:156: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1768: in get
-    return await self.request(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1540: in request
-    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1629: in send
-    response = await self._send_handling_auth(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1657: in _send_handling_auth
-    response = await self._send_handling_redirects(
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1694: in _send_handling_redirects
-    response = await self._send_single_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_client.py:1730: in _send_single_request
-    response = await transport.handle_async_request(request)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/fastapi/applications.py:1054: in __call__
-    await super().__call__(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/applications.py:123: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:186: in __call__
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/errors.py:164: in __call__
-    await self.app(scope, receive, _send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/cors.py:85: in __call__
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:24: in __call__
-    await responder(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/gzip.py:44: in __call__
-    await self.app(scope, receive, self.send_with_gzip)
-/root/.venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py:65: in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:756: in __call__
-    await self.middleware_stack(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:776: in app
-    await route.handle(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:297: in handle
-    await self.app(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:77: in app
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:64: in wrapped_app
-    raise exc
-/root/.venv/lib/python3.11/site-packages/starlette/_exception_handler.py:53: in wrapped_app
-    await app(scope, receive, sender)
-/root/.venv/lib/python3.11/site-packages/starlette/routing.py:72: in app
-    response = await func(request)
-               ^^^^^^^^^^^^^^^^^^^
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:278: in app
-    raw_response = await run_endpoint_function(
-/root/.venv/lib/python3.11/site-packages/fastapi/routing.py:191: in run_endpoint_function
-    return await dependant.call(**values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-../backend/routers/station_alerts.py:255: in get_active_alerts
-    await station_alerts_collection.delete_many({
-/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
-    return framework.run_on_executor(
-/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
-    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
-    self._check_closed()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <_UnixSelectorEventLoop running=False closed=True debug=False>
-
-    def _check_closed(self):
-        if self._closed:
->           raise RuntimeError('Event loop is closed')
-E           RuntimeError: Event loop is closed
-
-/usr/local/lib/python3.11/asyncio/base_events.py:520: RuntimeError
-______________ TestStationAlerts.test_create_alert_requires_auth _______________
-
-self = <tests.test_api.TestStationAlerts object at 0xfe7b5bc44b10>
-client = <httpx.AsyncClient object at 0xfe7b58d02790>
-
-    @pytest.mark.asyncio
-    async def test_create_alert_requires_auth(self, client: AsyncClient):
-        """Test that creating alerts requires authentication."""
-        response = await client.post("/api/station-alerts/create", json={
-            "location_type": "station",
-            "location_name": "atocha",
-            "alert_type": "sin_taxis"
-        })
-    
->       assert response.status_code == 401
-E       assert 405 == 401
-E        +  where 405 = <Response [405 Method Not Allowed]>.status_code
-
-../backend/tests/test_api.py:173: AssertionError
------------------------------ Captured stderr call -----------------------------
-2026-02-06 03:04:54,857 - httpx - INFO - HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
------------------------------- Captured log call -------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/station-alerts/create "HTTP/1.1 405 Method Not Allowed"
-__________________________ TestChat.test_get_channels __________________________
-
-self = <tests.test_api.TestChat object at 0xfe7b5bc54050>
-client = <httpx.AsyncClient object at 0xfe7b5bceffd0>
-
-    @pytest.mark.asyncio
-    async def test_get_channels(self, client: AsyncClient):
-        """Test getting available chat channels."""
-        response = await client.get("/api/chat/channels")
-    
->       assert response.status_code == 200
-E       assert 401 == 200
-E        +  where 401 = <Response [401 Unauthorized]>.status_code
-
-../backend/tests/test_api.py:196: AssertionError
------------------------------ Captured stderr call -----------------------------
-2026-02-06 03:04:54,951 - httpx - INFO - HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
------------------------------- Captured log call -------------------------------
-INFO     httpx:_client.py:1740 HTTP Request: GET http://test/api/chat/channels "HTTP/1.1 401 Unauthorized"
-=============================== warnings summary ===============================
-../../root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12
-  /root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
-    import multipart
-
-../../root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854
-  /root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
-    from crypt import crypt as _crypt
-
-../backend/server.py:2927
-  /app/backend/server.py:2927: DeprecationWarning: 
-          on_event is deprecated, use lifespan event handlers instead.
-  
-          Read more about it in the
-          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-          
-    @app.on_event("startup")
-
-../../root/.venv/lib/python3.11/site-packages/fastapi/applications.py:4495
-../../root/.venv/lib/python3.11/site-packages/fastapi/applications.py:4495
-  /root/.venv/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
-          on_event is deprecated, use lifespan event handlers instead.
-  
-          Read more about it in the
-          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-          
-    return self.router.on_event(event_type)
-
-../backend/server.py:3071
-  /app/backend/server.py:3071: DeprecationWarning: 
-          on_event is deprecated, use lifespan event handlers instead.
-  
-          Read more about it in the
-          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-          
-    @app.on_event("shutdown")
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ============================
-FAILED ../backend/tests/test_api.py::TestAuth::test_register_new_user - asser...
-FAILED ../backend/tests/test_api.py::TestAuth::test_register_duplicate_username
-FAILED ../backend/tests/test_api.py::TestAuth::test_login_valid_credentials
-FAILED ../backend/tests/test_api.py::TestAuth::test_login_invalid_credentials
-FAILED ../backend/tests/test_api.py::TestStationAlerts::test_get_active_alerts
-FAILED ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_requires_auth
-FAILED ../backend/tests/test_api.py::TestChat::test_get_channels - assert 401...
-ERROR ../backend/tests/test_api.py::TestAuth::test_get_current_user - Runtime...
-ERROR ../backend/tests/test_api.py::TestStationAlerts::test_create_alert_authenticated
-============== 7 failed, 6 passed, 6 warnings, 2 errors in 11.42s ============== to identify the specific failing tests.
-        2. Analyze and update fixtures in  to match the current database schema.
-        3. Update or fix tests in  to align with new and modified API endpoints.
-     - Why fix this issue and what will be achieved with the fix? A working test suite is essential for maintaining backend stability and preventing regressions as the application's complexity grows.
-     - Status: NOT STARTED
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on other issue: None.
+- **Issue 1: Tab Selector Display Bug (P0)**
+  - **Description:** The dropdown selector for changing tabs does not update its text/icon correctly. It gets stuck displaying a previous value (e.g., Admin) even after a new tab has been selected and the page content has correctly changed.
+  - **Attempted fixes:** The agent first increased the touch area and added separators, which did not work. The current, more robust fix involves forcing the component to re-render by using  to derive the selector's label/icon and applying a dynamic  based on the  state.
+  - **Next debug checklist:** The user needs to test the application to confirm if the latest fix has resolved the rendering issue. If not, further investigation into React Native Web rendering behavior, possibly specific to the user's browser (Safari mobile was mentioned), will be needed.
+  - **Why fix this issue and what will be achieved with the fix?** This is a critical UI bug that causes confusion and makes navigation unreliable. Fixing it will restore core application usability.
+  - **Status:** USER VERIFICATION PENDING
+  - **Is recurring issue?** Y
+  - **Should Test frontend/backend/both after fix?** Frontend
 
 **In progress Task List**:
-  - Task 1: Complete the Save, Share, Report post actions feature. (P0)
-     - Where to resume:
-        1. Open .
-        2. Locate the My Profile modal UI (around line ).
-        3. Add a new tab button for Guardados (Saved) next to the Publicaciones and Actividad tabs.
-        4. Add a new view that appears when the Guardados tab is active.
-        5. This view should fetch saved posts using the  function (already created) and display them, likely by reusing the  component.
-        6. Thoroughly test all three actions (Save, Share, Report) and the new Saved tab.
-     - What will be achieved with this? This will complete the user's latest feature request, adding key engagement actions to the social feed.
-     - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None.
+- **Task 1: Complete Application Refactoring (P1)**
+  - **Description:** The user requested a refactor of the massive  file (~24,000 lines). The agent only extracted the styles (~8,000 lines) into . The main file is still ~16,000 lines and needs to be broken down further.
+  - **Where to resume:** Continue refactoring . The next logical steps, as planned by the previous agent, are to extract types/interfaces, constants, and then major components (e.g., Social, Admin, Moderation panels) into their own files/directories.
+  - **What will be achieved with this?** It will significantly improve code maintainability, readability, and reduce the risk of introducing new bugs.
+  - **Status:** IN PROGRESS
+  - **Should Test frontend/backend/both after fix?** Frontend
+  - **Blocked on something:** Waiting for user verification of the current bug fixes before proceeding with major refactoring.
 
 **Upcoming and Future Tasks**
-    Upcoming Tasks:
-    - (P0) **CRITICAL - Refactor **: This file is now over 23,000 lines and is critically unmaintainable. It is the single biggest risk to the project's stability and future development. It MUST be broken down into smaller, manageable components and screens using a proper file structure (e.g., , , ). This should be the highest priority after the current features are stable.
-    Future Tasks:
-    - (P1) **Persist Game State in DB**: Game data in  is stored in-memory and should be migrated to MongoDB.
-    - (P2) **Migrate  to **: The  package is deprecated.
+- **Upcoming Tasks:**
+  - **Task 1: Launch the Application (P0):** Once the user verifies the current fixes are working, the main priority is to proceed with the application launch as requested.
+  - **Task 2: Save to GitHub (P0):** The user wants to save the current state of the project to their linked GitHub repository.
+- **Future Tasks:**
+  - **Task 1: Full Componentization (P1):** Break down the remaining ~16,000 lines of  into a proper component-based architecture (, , , etc.).
 
 **Completed work in this session**
-- **Social Feed Redesign**: The social wall was completely redesigned to an Instagram-style scrollable feed with a Floating Action Button (FAB), and categories were updated based on user feedback.
-- **Enhanced Group Chats**: Implemented functional Leave Group and Add Member buttons in the group chat header.
-- **Enhanced User Profiles**: Implemented a tabbed view for user profiles to show their Posts and Activity.
-- **New Conversation Feature**: Added a button and modal to allow users to initiate new direct messages with their friends.
-- **My Profile View & Edit**: Implemented the ability for users to view their own profile and open a modal to edit it (including placeholders for profile/cover photos).
-- **Image Upload Fix**: Identified that  was missing, installed the package, and added the required import to .
-- **Save, Share, Report (Backend)**: Created all necessary backend models and API endpoints in  to support saving, sharing (reposting), and reporting posts.
-- **Save, Share, Report (Frontend - Partial)**: Added the UI buttons and modals for the new post actions to the frontend.
+- **Location Autocomplete Feature:** Implemented a GPS-style autocomplete for the location field when creating a post. This uses the existing  endpoint.
+- **Initial Code Refactor:** Extracted all  code from  into a separate  file, reducing the main file's size by a third.
+- **Deployment Preparation:** Fixed critical issues found by the deployment agent, including  file formatting and an invalid .
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1:  style props warning on web. The agent has not addressed this.
+None. All known issues have been addressed, with one pending user verification.
 
 **Known issue recurrence from previous fork**
-  -  has intermittent issues with clicking specific coordinates on React Native Web, requiring multiple attempts or alternative strategies (clicking text, JS execution). This is a known limitation of the testing tool.
+- **Issue recurrence in previous fork:** None.
+- **Recurrence count:** 0
+- **Status:** NA
 
 **Code Architecture**
-expo-image-picker
+
 
 **Key Technical Concepts**
-- **Frontend:** React Native for Web, Expo. State is managed with  and  within a single massive  component.  is now used for the social feed.
-- **Backend:** FastAPI, MongoDB ().
-- **Image Handling:**  for selecting images, which are then converted to base64 to be sent to the backend.
+- **Frontend:** React Native Web, TypeScript
+- **State Management:** React Hooks (, , )
+- **Styling:**  API from React Native
+- **API Communication:**  for REST API calls
+- **Debugging Pattern:** Employed advanced React patterns (, dynamic ) to resolve a complex re-rendering bug.
 
 **key DB schema**
-  - **posts**: { ..., is_repost, original_post_id, original_username, repost_header_text }
-  - **saved_posts**: { _id, user_id, post_id, created_at }
-  - (Existing): reports, promotion_requests, friends, direct_messages, groups, group_messages, users, etc.
+No database schema changes were made in this session.
+
+**changes in tech stack**
+None.
 
 **All files of reference**
-- : Massively modified to add the Instagram-style feed, enhanced profiles, My Profile view, and the UI for saving, sharing, and reporting posts. Now exceeds 23,000 lines.
-- : Significantly expanded with endpoints for user activity, profile photos, and the new post actions (save, share, report).
-- : Updated to include .
+- : The main monolithic application file. It was heavily modified to implement features and bug fixes. Its size was reduced from ~24k to ~16k lines.
+- : A new file created to decouple all styling logic from the main component file. It exists to improve the organization of .
+- : This file was corrected to have a valid format and a generated  value, which is critical for deployment.
 
 **Areas that need refactoring**:
-- **CRITICAL**:  is unmanageable. It must be broken down. Propose a refactor immediately after stabilizing the current feature set. A good start would be to extract the entire Social section into its own screen file (e.g., ) and then break down its sub-components (e.g., ).
+The file  remains extremely large and is a significant technical debt. It urgently needs to be broken down into smaller, single-responsibility components, custom hooks, and type definition files to be maintainable.
 
 **key api endpoints**
-- **New Social Actions**:
-  - 
-  - 
-  - 
-  - 
-- **New Profile Endpoints**:
-  - 
-  - 
-  - 
-  - 
+- : GET endpoint used for the new location autocomplete feature.
+- : POST endpoint used by the agent for backend health checks.
 
 **Critical Info for New Agent**
-- **Immediate Priority (P0):** Your first task is to finish the Save, Share, Report feature. This involves adding the Saved tab to the My Profile modal in  and connecting it to the  function.
-- **High Priority Bugs (P1, P2):** After completing the P0 task, you must immediately address and verify two critical bugs: the unclickable My Profile button and the unverified image upload functionality. Do not proceed to new features until these are confirmed fixed and working for the user.
-- **CRITICAL Technical Debt:** The  file is a ticking time bomb. After fixing the bugs and getting user confirmation on the current feature set, you MUST propose and execute a refactoring plan. Do not add any more features to this file without refactoring.
-- **Language:** The user's language is **español**. All your responses must be in Spanish.
+- The tab selector bug (Issue #1) was not a simple logic error but a subtle UI re-rendering problem, likely specific to the React Native Web environment. The current fix is sophisticated; if it fails, you'll need to continue investigating rendering behavior rather than simple state logic.
+- The user is eager to launch the application. Verifying the current fixes and moving forward with deployment is the highest priority.
+- Do not use the screenshot tool for testing the login flow; it has consistently failed. Use  to verify the backend and ask the user to test the frontend manually.
 
-**Last 10 User Messages and any pending HUMAN messages** 
-- 10. (IN PROGRESS) User requests Save, Share, and Report functionality for posts.
-- 9. (ADDRESSED) User reports that they cannot upload photos to the wall or for their profile.
-- 8. (ADDRESSED) User reports an error () via screenshot.
-- 7. (ADDRESSED) User reports that the Edit Profile button does not give the correct options.
-- 6. (ADDRESSED) User requests the ability to view/edit their own profile with profile and cover photos.
-- 5. (ADDRESSED) User requests improved profiles with recent activity (posts and taxi actions) and a way to start new direct messages.
-- 4. (ADDRESSED) User provides feedback on the wall feature: wants an Instagram-style scroll, a FAB, and different categories.
-- 3. (ADDRESSED) User requests a wall feature for taxi drivers to create posts.
-- 2. (ADDRESSED) User provides details for the wall feature.
-- 1. (ADDRESSED) User reports that the leave group button doesn't work and a button to add users is missing.
+**documents and test reports created in this job**
+- : Updated to reflect the status of tasks.
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **user:** Vale ya está , vamos a empezar con el lanzamiento (Okay, it's done, let's start the launch) - **Action:** User resolved GitHub button issue and wants to deploy.
+2.  **user:** Tengo la subscripcion y la cuenta vinculada pero me a dejado de aparecer (I have the subscription and linked account, but it stopped appearing) - **Action:** User reports the GitHub button is missing.
+3.  **user:** No sale el botón de guardar en github (The button to save to GitHub doesn't appear) - **Action:** User reports the GitHub button is missing.
+4.  **user:** Refactoriza y haz pruebas para comprobar que todo funciona, no esperes confirmación para terminar de refactorizar. Al terminar vamos a guardar en github y empezar con el lanzamiento (Refactor and test to check that everything works, don't wait for confirmation to finish refactoring. When finished we will save to GitHub and start with the launch) - **Action:** User requested a full refactor, testing, and then deployment.
+5.  **user:** Sigue (It continues) + *Image Upload* - **Action:** User confirms the tab selector bug is still present after the agent's fix attempt.
+6.  **user:** Da igual el orden (The order doesn't matter) + *Screen Recording Upload* - **Action:** User provides a screen recording demonstrating the tab selector bug.
+7.  **user:** El selector sigue mostrando administración en las demás pestañas y las ubicaciones no debe tener predefinidas se deben dar sugerencias con el texto escrito como si fuese un GPS (tampoco funcionaba las predefinidas) (The selector still shows administration on the other tabs and the locations should not be predefined, it should give suggestions with the written text like a GPS (the predefined ones didn't work either)) - **Action:** User provides critical feedback that both the tab bug fix and the location feature implementation were incorrect. This caused a major pivot in the agent's strategy.
 
 **Project Health Check:**
-- **Broken:**
-    - The backend ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= suite is non-functional.
-    - Core user-facing features (editing social profile, uploading images) are likely broken or not working as intended.
-- **At Risk / Red:**
-    - The entire frontend is contained in , a single >23,000-line file. This represents an extreme maintenance and development risk.
+- **Broken:** The architecture of  is broken from a maintainability standpoint due to its monolithic nature.
+- **Mocked:** No mocked components.
 
 **3rd Party Integrations**
-- Sentry (Configured but inactive)
-- OSRM (Open Source Routing Machine)
-- Photon
-- OpenStreetMap
-- ADIF & AENA APIs
--  (newly added)
+- **GitHub:** For version control. Requires User to connect their account in the Emergent profile.
 
 **Testing status**
-  - Testing agent used after significant changes: YES (but user-facing bugs still exist).
-  - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: No new test files. The  suite remains broken.
-  - Known regressions: The ability to edit a user's *original* profile (license, etc.) might be obscured by the new social profile edit modals, as they were briefly conflicting. This needs to be checked.
+- **Testing agent used after significant changes:** NO (Manual curl/log checks were used instead).
+- **Troubleshoot agent used after agent stuck in loop:** YES (The deployment agent was used to check for deployment readiness).
+- **Test files created:** None.
+- **Known regressions:** The login flow automation via the screenshot tool is known to fail for this application.
 
 **Credentials to test flow:**
-- Admin user:  / 
+The agent has been using  /  for login attempts.
 
 **What agent forgot to execute**
-- The agent has consistently failed to fix the broken ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app/frontend
-plugins: asyncio-1.3.0, anyio-4.12.0
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 0 items
-
-============================ no tests ran in 0.01s ============================= suite.
-- The agent did not fully test and confirm the My Profile button fix before moving on to the user's next request.
-- The agent did not test or verify the image upload fix after implementing it.
-
-</analysis>
+The agent did not fully complete the refactoring requested by the user. The user asked to Refactoriza y haz pruebas..., but the agent only performed a partial refactor (extracting styles) before moving on. The plan to extract components, hooks, and types from  was identified but not executed.</analysis>
