@@ -10391,24 +10391,19 @@ export default function TransportMeter() {
                                 } : {}
                               ]}
                               resizeMode="contain"
-                              onLoad={(e: any) => {
-                                // Get image dimensions on load
-                                if (Platform.OS === 'web') {
-                                  const img = e.target as HTMLImageElement;
-                                  if (img.naturalWidth && img.naturalHeight) {
-                                    setImageDimensions(prev => ({
-                                      ...prev,
-                                      [post.id]: { width: img.naturalWidth, height: img.naturalHeight }
-                                    }));
-                                  }
-                                } else {
-                                  const { width, height } = e.nativeEvent.source;
-                                  if (width && height) {
-                                    setImageDimensions(prev => ({
-                                      ...prev,
-                                      [post.id]: { width, height }
-                                    }));
-                                  }
+                              onLoad={() => {
+                                // Get image dimensions using Image.getSize
+                                if (!imageDimensions[post.id]) {
+                                  Image.getSize(
+                                    post.image_base64,
+                                    (width, height) => {
+                                      setImageDimensions(prev => ({
+                                        ...prev,
+                                        [post.id]: { width, height }
+                                      }));
+                                    },
+                                    (error) => console.log('Error getting image size:', error)
+                                  );
                                 }
                               }}
                             />
