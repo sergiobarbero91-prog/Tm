@@ -621,29 +621,6 @@ export default function TransportMeter() {
   const shipSizes = [5, 4, 3, 3, 2];  // Standard battleship ship sizes
   const shipNames = ['Portaaviones (5)', 'Acorazado (4)', 'Crucero (3)', 'Submarino (3)', 'Destructor (2)'];
   
-  // Predefined locations for post creation
-  const predefinedLocations = [
-    { name: 'Atocha', icon: 'train' },
-    { name: 'Chamartín', icon: 'train' },
-    { name: 'T1', icon: 'airplane' },
-    { name: 'T2', icon: 'airplane' },
-    { name: 'T3', icon: 'airplane' },
-    { name: 'T4', icon: 'airplane' },
-    { name: 'T4S', icon: 'airplane' },
-    { name: 'Gran Vía', icon: 'location' },
-    { name: 'Sol', icon: 'location' },
-    { name: 'Callao', icon: 'location' },
-    { name: 'Plaza España', icon: 'location' },
-    { name: 'Cibeles', icon: 'location' },
-    { name: 'Retiro', icon: 'leaf' },
-    { name: 'Castellana', icon: 'location' },
-    { name: 'Serrano', icon: 'location' },
-    { name: 'Ifema', icon: 'business' },
-    { name: 'WiZink Center', icon: 'musical-notes' },
-    { name: 'Santiago Bernabéu', icon: 'football' },
-    { name: 'Metropolitano', icon: 'football' },
-  ];
-  
   // Helper function to show game toast instead of Alert.alert
   const showGameToast = useCallback((title: string, message: string) => {
     setGameToast({ title, message });
