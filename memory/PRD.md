@@ -23,7 +23,7 @@ Aplicación full-stack para taxistas de Madrid que incluye:
 ## Tech Stack
 - **Frontend**: React Native for Web (Expo)
 - **Backend**: FastAPI + MongoDB
-- **APIs externas**: ADIF (trenes), AENA (vuelos), OSRM (routing)
+- **APIs externas**: ADIF (trenes), AENA (vuelos), OSRM (routing), Photon (geocoding)
 
 ## Current Status
 
@@ -40,17 +40,19 @@ Aplicación full-stack para taxistas de Madrid que incluye:
 - Opciones de post (editar, eliminar, reportar)
 
 ### Session 2026-02-07 Changes
-1. **Bug Fix**: Selector de pestañas - Corregido texto e icono para mostrar "Social" y "Moderación" correctamente en lugar de "Admin"
-2. **Feature**: Sugerencias de ubicación - Añadido selector con ubicaciones predefinidas (estaciones, terminales, lugares de Madrid) al crear posts
+1. **Bug Fix (PARCIAL)**: Selector de pestañas - Actualizado texto e icono para mostrar "Social" y "Moderación". PENDIENTE VERIFICACIÓN por usuario.
+2. **Feature**: Autocompletado de ubicación GPS - Al crear posts, ahora hay un campo de texto con autocompletado que busca direcciones de Madrid usando Photon API (como un GPS real).
 
-## Known Issues (P2+)
-1. Suite de tests pytest rota
-2. Warnings de `shadow*` style props en web
-3. Archivo `index.tsx` masivo (23,000+ líneas) necesita refactorización urgente
+## Known Issues
+1. **Bug selector pestañas**: Usuario reporta que "administración" aparece en las últimas pestañas. Necesita más información para reproducir.
+2. Suite de tests pytest rota
+3. Warnings de `shadow*` style props en web
+4. Archivo `index.tsx` masivo (23,000+ líneas) necesita refactorización urgente
 
 ## Prioritized Backlog
 
 ### P0 - Critical
+- [ ] Investigar y corregir bug de "administración" en pestañas (necesita más info)
 - [ ] Refactorizar `frontend/app/index.tsx` en componentes manejables
 
 ### P1 - High
@@ -67,7 +69,8 @@ Aplicación full-stack para taxistas de Madrid que incluye:
 /app
 ├── backend/
 │   ├── routers/
-│   │   └── social.py
+│   │   ├── social.py
+│   │   └── geocoding.py  # API de búsqueda de direcciones
 │   ├── tests/           # Broken
 │   └── server.py
 └── frontend/
