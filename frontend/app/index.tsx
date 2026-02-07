@@ -20020,6 +20020,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  profileSettingsSection: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  profileSettingsSectionTitle: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  profileSettingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  profileSettingsItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  profileSettingsItemContent: {
+    flex: 1,
+  },
+  profileSettingsItemText: {
+    color: '#E5E7EB',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  profileSettingsItemSubtext: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 2,
+  },
   profileBottomButtons: {
     flexDirection: 'row',
     gap: 10,
