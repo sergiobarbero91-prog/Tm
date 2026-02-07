@@ -10221,13 +10221,21 @@ export default function TransportMeter() {
                 <Ionicons name="people" size={28} color="#EC4899" />
                 <Text style={styles.socialTitle}>Red Social</Text>
               </View>
-              <Pressable
-                style={styles.myProfileButton}
-                onPress={() => {
-                  console.log('Profile button pressed');
-                  openMyProfile();
-                }}
-              >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {/* Create Post Button in Header */}
+                <TouchableOpacity
+                  style={styles.createPostHeaderButton}
+                  onPress={() => setShowCreatePostModal(true)}
+                >
+                  <Ionicons name="add-circle" size={32} color="#EC4899" />
+                </TouchableOpacity>
+                <Pressable
+                  style={styles.myProfileButton}
+                  onPress={() => {
+                    console.log('Profile button pressed');
+                    openMyProfile();
+                  }}
+                >
                 {myProfileData?.profile_photo ? (
                   <Image source={{ uri: myProfileData.profile_photo }} style={styles.myProfileButtonImage} />
                 ) : (
