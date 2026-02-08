@@ -449,6 +449,19 @@ export default function TransportMeter() {
   const [isOnline, setIsOnline] = useState(true);
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
   
+  // Release Notes modal
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [releaseNotes, setReleaseNotes] = useState<Array<{
+    id: string;
+    version: string;
+    title: string;
+    description: string;
+    features: string[];
+    fixes: string[];
+    improvements: string[];
+    created_at: string;
+  }>>([]);
+  
   // Registration states
   const [showRegister, setShowRegister] = useState(false);
   const [registerStep, setRegisterStep] = useState<1 | 2>(1);
