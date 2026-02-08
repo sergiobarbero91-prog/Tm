@@ -1099,6 +1099,38 @@ export default function TransportMeter() {
     setCurrentUser(null);
   };
 
+  // Check for unread release notes
+  const checkReleaseNotes = async (token: string) => {
+    try {
+      const response = await axios.get(`${API_BASE}/api/release-notes/latest`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.has_unread && response.data.notes.length > 0) {
+        setReleaseNotes(response.data.notes);
+        setShowReleaseNotes(true);
+      }
+    } catch (error) {
+      console.log('[ReleaseNotes] Error checking release notes:', error);
+    }
+  };
+
+  // Mark all release notes as seen and close modal
+  const dismissReleaseNotes = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await axios.post(`${API_BASE}/api/release-notes/mark-all-seen`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (error) {
+      console.log('[ReleaseNotes] Error marking notes as seen:', error);
+    }
+    setShowReleaseNotes(false);
+    setReleaseNotes([]);
+  };
+
   // Handle registration step 1 - Validate fields and check username availability
   const handleRegisterContinue = async () => {
     if (!registerUsername || !registerPassword || !registerFullName || !registerLicenseNumber) {
