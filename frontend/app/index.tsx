@@ -1083,6 +1083,9 @@ export default function TransportMeter() {
       setCurrentUser(user);
       setLoginUsername('');
       setLoginPassword('');
+      
+      // Check for unread release notes after login
+      checkReleaseNotes(access_token);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Usuario o contraseña incorrectos');
     } finally {
