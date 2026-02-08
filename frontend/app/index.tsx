@@ -16006,6 +16006,102 @@ export default function TransportMeter() {
           ))}
         </View>
       )}
+
+      {/* Release Notes Modal */}
+      {showReleaseNotes && releaseNotes.length > 0 && (
+        <Modal
+          visible={showReleaseNotes}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={dismissReleaseNotes}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.confirmModal, { maxHeight: '80%', width: '90%', maxWidth: 500 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Ionicons name="megaphone" size={28} color="#F59E0B" />
+                <Text style={[styles.confirmModalTitle, { marginLeft: 10, flex: 1 }]}>
+                  Novedades de la App
+                </Text>
+              </View>
+              
+              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+                {releaseNotes.map((note, index) => (
+                  <View key={note.id} style={{ 
+                    marginBottom: 16, 
+                    padding: 12, 
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)', 
+                    borderRadius: 12,
+                    borderLeftWidth: 3,
+                    borderLeftColor: '#6366F1'
+                  }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>
+                        {note.title}
+                      </Text>
+                      <Text style={{ color: '#6B7280', fontSize: 12 }}>
+                        v{note.version}
+                      </Text>
+                    </View>
+                    
+                    <Text style={{ color: '#D1D5DB', marginTop: 8, lineHeight: 20 }}>
+                      {note.description}
+                    </Text>
+                    
+                    {note.features.length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 13, marginBottom: 4 }}>
+                          Nuevas funciones:
+                        </Text>
+                        {note.features.map((feature, i) => (
+                          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 8 }}>
+                            <Text style={{ color: '#10B981', marginRight: 6 }}>+</Text>
+                            <Text style={{ color: '#9CA3AF', fontSize: 13, flex: 1 }}>{feature}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    
+                    {note.fixes.length > 0 && (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 13, marginBottom: 4 }}>
+                          Correcciones:
+                        </Text>
+                        {note.fixes.map((fix, i) => (
+                          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 8 }}>
+                            <Text style={{ color: '#EF4444', marginRight: 6 }}>*</Text>
+                            <Text style={{ color: '#9CA3AF', fontSize: 13, flex: 1 }}>{fix}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    
+                    {note.improvements.length > 0 && (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ color: '#3B82F6', fontWeight: '600', fontSize: 13, marginBottom: 4 }}>
+                          Mejoras:
+                        </Text>
+                        {note.improvements.map((improvement, i) => (
+                          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 8 }}>
+                            <Text style={{ color: '#3B82F6', marginRight: 6 }}>-</Text>
+                            <Text style={{ color: '#9CA3AF', fontSize: 13, flex: 1 }}>{improvement}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+              
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: '#6366F1', marginTop: 16 }]}
+                onPress={dismissReleaseNotes}
+              >
+                <Text style={styles.confirmModalButtonText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
