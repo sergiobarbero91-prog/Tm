@@ -2,9 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar dependencias
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+# Instalar dependencias (sin yarn.lock para evitar problemas)
+COPY package.json ./
+RUN yarn install
 
 # Copiar código fuente
 COPY . .
