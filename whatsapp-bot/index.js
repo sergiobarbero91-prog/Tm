@@ -434,16 +434,26 @@ async function fetchAllInfo() {
 function showHelp() {
     let message = `🤖 *COMANDOS DISPONIBLES*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `*!trenes* o *!estaciones*\n`;
-    message += `   Ver llegadas de trenes\n\n`;
-    message += `*!vuelos* o *!terminales*\n`;
-    message += `   Ver llegadas de vuelos\n\n`;
-    message += `*!eventos*\n`;
-    message += `   Ver eventos activos\n\n`;
-    message += `*!todo* o *!resumen*\n`;
-    message += `   Ver todo junto\n\n`;
-    message += `*!ayuda* o *!help*\n`;
-    message += `   Ver esta ayuda\n\n`;
+    
+    message += `📋 *RESUMEN*\n`;
+    message += `*!todo* o *!resumen* - Ver todo\n\n`;
+    
+    message += `🚂 *TRENES*\n`;
+    message += `*!trenes* - Ver todas las estaciones\n`;
+    message += `*!atocha* - Solo Atocha\n`;
+    message += `*!chamartin* - Solo Chamartín\n\n`;
+    
+    message += `✈️ *VUELOS*\n`;
+    message += `*!vuelos* - Ver todas las terminales\n`;
+    message += `*!t1* - Solo Terminal 1\n`;
+    message += `*!t2* - Solo Terminal 2\n`;
+    message += `*!t4* - Solo Terminal 4\n`;
+    message += `*!t4s* - Solo Terminal 4S\n\n`;
+    
+    message += `📌 *OTROS*\n`;
+    message += `*!eventos* - Ver eventos activos\n`;
+    message += `*!ayuda* - Ver esta ayuda\n\n`;
+    
     message += `━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `📱 www.asdelvolante.es`;
     
