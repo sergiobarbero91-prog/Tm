@@ -4387,6 +4387,121 @@ export default function TransportMeter() {
     }
   };
 
+  // ===== WHATSAPP BOT FUNCTIONS =====
+  
+  const fetchWhatsAppBotStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/whatsapp/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setWhatsappBotStatus(response.data.data);
+      }
+    } catch (error) {
+      console.log('WhatsApp bot not available');
+      setWhatsappBotStatus(null);
+    }
+  }, []);
+
+  const fetchWhatsAppQR = async () => {
+    setWhatsappLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/whatsapp/qr`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success && response.data.qr) {
+        setWhatsappQR(response.data.qr);
+      } else {
+        setWhatsappQR(null);
+      }
+    } catch (error) {
+      console.error('Error fetching QR:', error);
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
+  const fetchWhatsAppGroups = async () => {
+    setWhatsappLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/whatsapp/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setWhatsappGroups(response.data.groups);
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
+  const setWhatsAppGroup = async (groupId: string) => {
+    setWhatsappLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/whatsapp/set-group`, 
+        { groupId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        Alert.alert('Éxito', response.data.message);
+        fetchWhatsAppBotStatus();
+      } else {
+        Alert.alert('Error', response.data.message);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Error al configurar grupo');
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
+  const sendWhatsAppTestMessage = async () => {
+    setWhatsappSending(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/whatsapp/send`, 
+        { message: '🚖 Test desde As del Volante - Panel de Admin' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        Alert.alert('Éxito', 'Mensaje de prueba enviado');
+        fetchWhatsAppBotStatus();
+      } else {
+        Alert.alert('Error', response.data.message);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Error al enviar mensaje');
+    } finally {
+      setWhatsappSending(false);
+    }
+  };
+
+  const sendWhatsAppHourlyUpdate = async () => {
+    setWhatsappSending(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/whatsapp/send-hourly-update`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        Alert.alert('Éxito', 'Actualización horaria enviada');
+        fetchWhatsAppBotStatus();
+      } else {
+        Alert.alert('Error', response.data.message);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Error al enviar actualización');
+    } finally {
+      setWhatsappSending(false);
+    }
+  };
+
   // ===== MODERATION & REPORTS FUNCTIONS =====
   
   // Create a new report
