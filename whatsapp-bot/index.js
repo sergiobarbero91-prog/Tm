@@ -192,6 +192,93 @@ async function fetchTrainsInfo() {
     }
 }
 
+// Función para obtener info de una estación específica
+async function fetchStationInfo(station) {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/trains`);
+        const trains = response.data;
+        const stationData = trains[station];
+        
+        const stationNames = {
+            'atocha': 'ATOCHA',
+            'chamartin': 'CHAMARTÍN'
+        };
+        
+        let message = `🚂 *TRENES - ${stationNames[station] || station.toUpperCase()}*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        if (stationData?.arrivals?.length > 0) {
+            const total30 = stationData.arrivals.filter(t => {
+                const mins = parseInt(t.minutes_until || '999');
+                return mins <= 30;
+            }).length;
+            
+            message += `📍 Próximos 30 min: *${total30} trenes*\n\n`;
+            
+            stationData.arrivals.slice(0, 12).forEach((t, i) => {
+                const trainType = t.train_type || t.type || 'Tren';
+                const origin = t.origin || 'Origen';
+                const time = t.time || t.arrival_time || '';
+                const minsUntil = t.minutes_until ? ` (${t.minutes_until} min)` : '';
+                
+                message += `*${i + 1}.* ${time}${minsUntil}\n`;
+                message += `   *${trainType}* desde ${origin}\n\n`;
+            });
+        } else {
+            message += `   Sin datos disponibles en este momento\n\n`;
+        }
+        
+        message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error(`Error fetching ${station}:`, error);
+        return `❌ Error al obtener datos de ${station}`;
+    }
+}
+
+// Función para obtener info de una terminal específica
+async function fetchTerminalInfo(terminal) {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/flights`);
+        const data = response.data;
+        const termData = data.terminals?.[terminal];
+        
+        let message = `✈️ *VUELOS - TERMINAL ${terminal}*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        if (termData?.arrivals?.length > 0) {
+            const count30 = termData.arrivals.filter(f => {
+                const mins = parseInt(f.minutes_until || '999');
+                return mins <= 30;
+            }).length;
+            
+            message += `📍 Próximos 30 min: *${count30} vuelos*\n\n`;
+            
+            termData.arrivals.slice(0, 12).forEach((f, i) => {
+                const time = f.scheduled_time || f.time || '';
+                const flight = f.flight_number || f.flight || '';
+                const origin = f.origin || '';
+                const minsUntil = f.minutes_until ? ` (${f.minutes_until} min)` : '';
+                
+                message += `*${i + 1}.* ${time}${minsUntil}\n`;
+                message += `   *${flight}* desde ${origin}\n\n`;
+            });
+        } else {
+            message += `   Sin vuelos programados en este momento\n\n`;
+        }
+        
+        message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error(`Error fetching terminal ${terminal}:`, error);
+        return `❌ Error al obtener datos de ${terminal}`;
+    }
+}
+
 async function fetchFlightsInfo() {
     try {
         const response = await axios.get(`${BACKEND_URL}/api/flights`);
