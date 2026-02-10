@@ -420,6 +420,23 @@ export default function TransportMeter() {
   const [showAdminSupport, setShowAdminSupport] = useState(false);
   const [adminSupportFilter, setAdminSupportFilter] = useState<'all' | 'open' | 'closed'>('open');
 
+  // WhatsApp Bot state
+  const [showWhatsAppBot, setShowWhatsAppBot] = useState(false);
+  const [whatsappBotStatus, setWhatsappBotStatus] = useState<{
+    isReady: boolean;
+    isAuthenticated: boolean;
+    hasQR: boolean;
+    groupId: string | null;
+    groupName: string | null;
+    lastMessageSent: string | null;
+    messagesCount: number;
+    error: string | null;
+  } | null>(null);
+  const [whatsappQR, setWhatsappQR] = useState<string | null>(null);
+  const [whatsappGroups, setWhatsappGroups] = useState<{id: string; name: string; participantsCount: number}[]>([]);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [whatsappSending, setWhatsappSending] = useState(false);
+
   // Delete user confirmation
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [deleteUserTarget, setDeleteUserTarget] = useState<{id: string, username: string} | null>(null);
