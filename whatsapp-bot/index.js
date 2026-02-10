@@ -109,7 +109,17 @@ client.on('message', async (message) => {
             '!todo': fetchAllInfo,
             '!resumen': fetchAllInfo,
             '!ayuda': showHelp,
-            '!help': showHelp
+            '!help': showHelp,
+            // Estaciones individuales
+            '!atocha': () => fetchStationInfo('atocha'),
+            '!chamartin': () => fetchStationInfo('chamartin'),
+            '!chamartín': () => fetchStationInfo('chamartin'),
+            // Terminales individuales
+            '!t1': () => fetchTerminalInfo('T1'),
+            '!t2': () => fetchTerminalInfo('T2'),
+            '!t3': () => fetchTerminalInfo('T3'),
+            '!t4': () => fetchTerminalInfo('T4'),
+            '!t4s': () => fetchTerminalInfo('T4S')
         };
         
         const handler = commands[text];
