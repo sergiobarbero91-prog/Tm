@@ -78,6 +78,38 @@ async def create_event(
         raise HTTPException(status_code=500, detail="Error al crear el evento")
 
 
+@router.get("/active")
+async def get_active_events():
+    """Get active events for today (public endpoint for WhatsApp bot)."""
+    try:
+        now = datetime.now(MADRID_TZ)
+        today = now.strftime("%Y-%m-%d")
+        current_time = now.strftime("%H:%M")
+        
+        # Get today's events that haven't passed yet
+        cursor = events_collection.find({
+            "date": today,
+            "event_time": {"$gte": current_time}
+        }).sort("event_time", 1).limit(10)
+        
+        events = []
+        for event in cursor:
+            events.append({
+                "id": event.get("id"),
+                "title": event.get("description", event.get("title", "")),
+                "location": event.get("location", ""),
+                "event_time": event.get("event_time", ""),
+                "event_type": event.get("event_type", "general"),
+                "likes": event.get("likes", 0)
+            })
+        
+        return {"events": events, "count": len(events)}
+        
+    except Exception as e:
+        logger.error(f"Error getting active events: {e}")
+        return {"events": [], "count": 0}
+
+
 @router.get("")
 async def get_events(
     shift: str = "all",  # "morning", "afternoon", "night", "all"
