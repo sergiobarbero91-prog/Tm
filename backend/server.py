@@ -893,7 +893,13 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"Error scraping ADIF HTML for station {station_id}: {e}")
     
-    logger.info(f"Station {station_id}: Scraped {len(arrivals)} media/larga distancia trains from HTML")
+    # If HTML scraping returned no results, try Google Script as last resort
+    if not arrivals:
+        logger.info(f"Station {station_id}: HTML scrape returned 0 trains, trying Google Script...")
+        arrivals = await fetch_trains_from_google_script(station_id)
+    else:
+        logger.info(f"Station {station_id}: Scraped {len(arrivals)} media/larga distancia trains from HTML")
+    
     return arrivals
 
 
