@@ -151,17 +151,36 @@ _Actualización automática de As del Volante_
 
 Los taxistas pueden escribir estos comandos en el grupo para obtener información:
 
+### Comandos Generales
 | Comando | Descripción |
 |---------|-------------|
-| `!trenes` o `!estaciones` | Ver llegadas de trenes a Atocha y Chamartín |
-| `!vuelos` o `!terminales` | Ver llegadas de vuelos por terminal |
-| `!eventos` | Ver eventos activos del día |
-| `!todo` o `!resumen` | Ver resumen completo (todo junto) |
+| `!todo` o `!resumen` | Ver resumen completo (trenes + vuelos + eventos) |
 | `!ayuda` o `!help` | Ver lista de comandos disponibles |
 
+### Comandos de Trenes
+| Comando | Descripción |
+|---------|-------------|
+| `!trenes` o `!estaciones` | Ver todas las estaciones |
+| `!atocha` | Ver solo llegadas a Atocha |
+| `!chamartin` | Ver solo llegadas a Chamartín |
+
+### Comandos de Vuelos
+| Comando | Descripción |
+|---------|-------------|
+| `!vuelos` o `!terminales` | Ver todas las terminales |
+| `!t1` | Ver solo Terminal 1 |
+| `!t2` | Ver solo Terminal 2 |
+| `!t4` | Ver solo Terminal 4 |
+| `!t4s` | Ver solo Terminal 4S |
+
+### Otros Comandos
+| Comando | Descripción |
+|---------|-------------|
+| `!eventos` | Ver eventos activos del día |
+
 ### Ejemplo de uso:
-1. Un taxista escribe `!trenes` en el grupo
-2. El bot responde con las próximas llegadas de trenes
+1. Un taxista escribe `!atocha` en el grupo
+2. El bot responde con las próximas llegadas de trenes a Atocha
 3. El taxista puede planificar su ruta
 
 ## 🔍 Solución de Problemas
