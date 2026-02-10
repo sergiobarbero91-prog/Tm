@@ -11899,12 +11899,15 @@ export default function TransportMeter() {
                       )}
                     </TouchableOpacity>
                     {whatsappQR && (
-                      <View style={{ marginTop: 16, padding: 12, backgroundColor: '#FFFFFF', borderRadius: 8 }}>
-                        <Text style={{ color: '#1F2937', fontSize: 10, textAlign: 'center', marginBottom: 8 }}>
-                          Copia este código y genera el QR en web.whatsapp.com
+                      <View style={{ marginTop: 16, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12, alignItems: 'center' }}>
+                        <Text style={{ color: '#1F2937', fontSize: 14, fontWeight: '600', marginBottom: 12 }}>
+                          Escanea con WhatsApp
                         </Text>
-                        <Text style={{ color: '#374151', fontSize: 8, fontFamily: 'monospace' }} selectable>
-                          {whatsappQR.substring(0, 100)}...
+                        <View style={{ padding: 8, backgroundColor: '#FFFFFF', borderRadius: 8 }}>
+                          <QRCode value={whatsappQR} size={200} level="M" />
+                        </View>
+                        <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 12, textAlign: 'center' }}>
+                          Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo
                         </Text>
                       </View>
                     )}
