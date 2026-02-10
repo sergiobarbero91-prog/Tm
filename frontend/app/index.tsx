@@ -4416,6 +4416,8 @@ export default function TransportMeter() {
         setWhatsappQR(response.data.qr);
       } else {
         setWhatsappQR(null);
+        // If already authenticated, refresh status
+        fetchWhatsAppBotStatus();
       }
     } catch (error) {
       console.error('Error fetching QR:', error);
@@ -4423,6 +4425,44 @@ export default function TransportMeter() {
       setWhatsappLoading(false);
     }
   };
+
+  // Auto-refresh QR code every 15 seconds while it's being displayed
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (whatsappQR && showWhatsAppBot && !whatsappBotStatus?.isAuthenticated) {
+      interval = setInterval(async () => {
+        try {
+          const token = await AsyncStorage.getItem('token');
+          const statusRes = await axios.get(`${API_BASE}/api/whatsapp/status`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          // If authenticated, clear QR and refresh status
+          if (statusRes.data?.data?.isAuthenticated) {
+            setWhatsappQR(null);
+            fetchWhatsAppBotStatus();
+            Alert.alert('Éxito', '¡WhatsApp conectado correctamente!');
+            return;
+          }
+          
+          // Otherwise refresh the QR
+          const response = await axios.get(`${API_BASE}/api/whatsapp/qr`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.data.success && response.data.qr) {
+            setWhatsappQR(response.data.qr);
+          }
+        } catch (error) {
+          console.error('Error refreshing QR:', error);
+        }
+      }, 15000); // Refresh every 15 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [whatsappQR, showWhatsAppBot, whatsappBotStatus?.isAuthenticated]);
 
   const fetchWhatsAppGroups = async () => {
     setWhatsappLoading(true);
