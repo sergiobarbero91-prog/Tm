@@ -1,82 +1,120 @@
 # TaxiMeter Madrid - PRD
 
 ## Descripción del Proyecto
-Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidades sociales, moderación y administración.
+Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye funcionalidades sociales, moderación, gamificación y herramientas de trabajo.
 
 ## Stack Tecnológico
 - **Frontend:** React Native Web (Expo), TypeScript
 - **Backend:** FastAPI (Python)
 - **Base de datos:** MongoDB
 - **Despliegue:** Clouding.io (España) con Docker
+- **Bot WhatsApp:** Node.js + whatsapp-web.js
 
 ## Estado Actual - Febrero 2026
 
 ### ✅ Completado
-- [x] Autocompletado GPS para ubicaciones en creación de posts
-- [x] Refactorización parcial: estilos extraídos a `styles.ts` (~8,000 líneas)
-- [x] Corrección de `.gitignore` para permitir archivos `.env` en despliegue
-- [x] Preparación para despliegue (configuración de variables de entorno)
-- [x] Fix del selector de pestañas con `useMemo` y `nativeID` dinámico
-- [x] **Configuración completa para Clouding.io:**
-  - `docker-compose.yml` - Orquestación de servicios
-  - `backend/Dockerfile` - Imagen Docker del backend
-  - `frontend/Dockerfile` - Imagen Docker del frontend
-  - `nginx/nginx.conf` - Reverse proxy con SSL
-  - `scripts/install-clouding.sh` - Script de instalación automática
-  - `CLOUDING_DEPLOY.md` - Guía completa en español
+- [x] Sistema de gamificación/puntos completo
+- [x] Sistema de moderación y reportes
+- [x] Funciones sociales (amigos, mensajes, grupos)
+- [x] Información de trenes en tiempo real (ADIF)
+- [x] Información de vuelos en tiempo real (AENA)
+- [x] Sistema de eventos y alertas
+- [x] Radio en tiempo real (WebSocket)
+- [x] Sistema de check-in/check-out
+- [x] **Bot de WhatsApp** - NUEVO
+  - Servicio Node.js con whatsapp-web.js
+  - Envío automático cada hora (6:00 - 23:00)
+  - Información de trenes, vuelos y eventos
+  - Script de gestión (`scripts/whatsapp-bot.sh`)
+  - Guía completa (`WHATSAPP_BOT_GUIDE.md`)
+- [x] Configuración completa para Clouding.io
 
-### 🚀 Próximo Paso
-1. Guardar en GitHub (botón "Save to Github")
-2. Crear servidor en [clouding.io](https://clouding.io)
-3. Seguir la guía `CLOUDING_DEPLOY.md`
+### 🚀 Bot de WhatsApp
+
+**Funcionalidades:**
+- Envío automático de actualizaciones cada hora
+- Información de trenes próximos (Atocha y Chamartín)
+- Información de vuelos próximos por terminal
+- Eventos activos en la ciudad
+- Gestión vía CLI o API REST
+
+**Archivos creados:**
+- `/app/whatsapp-bot/index.js` - Servicio principal
+- `/app/whatsapp-bot/package.json` - Dependencias
+- `/app/backend/routers/whatsapp.py` - API del backend
+- `/app/scripts/whatsapp-bot.sh` - Script de gestión
+- `/app/WHATSAPP_BOT_GUIDE.md` - Guía completa
+
+**Endpoints API:**
+- `GET /api/whatsapp/status` - Estado del bot
+- `GET /api/whatsapp/qr` - Código QR (solo admin)
+- `GET /api/whatsapp/groups` - Lista de grupos
+- `POST /api/whatsapp/set-group` - Configurar grupo
+- `POST /api/whatsapp/send` - Enviar mensaje
+- `POST /api/whatsapp/send-hourly-update` - Enviar actualización
 
 ### 📋 Backlog (P1)
-- [ ] Completar refactorización de `src/screens/index.tsx` (~16,000 líneas restantes)
+- [ ] Completar refactorización de `src/screens/index.tsx`
 
-## Arquitectura de Despliegue (Clouding.io)
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   CLOUDING.IO                        │
-│                  (Barcelona 🇪🇸)                      │
-│                                                      │
-│  ┌─────────────────────────────────────────────┐   │
-│  │                   NGINX                      │   │
-│  │            (Reverse Proxy + SSL)             │   │
-│  │                 :80 / :443                   │   │
-│  └─────────────┬───────────────┬───────────────┘   │
-│                │               │                    │
-│        /api/*  │               │  /*                │
-│                ▼               ▼                    │
-│  ┌─────────────────┐   ┌─────────────────┐        │
-│  │    BACKEND      │   │    FRONTEND     │        │
-│  │   (FastAPI)     │   │  (Expo Web)     │        │
-│  │     :8001       │   │     :3000       │        │
-│  └────────┬────────┘   └─────────────────┘        │
-│           │                                        │
-│           ▼                                        │
-│  ┌─────────────────┐                              │
-│  │    MONGODB      │                              │
-│  │     :27017      │                              │
-│  └─────────────────┘                              │
-└─────────────────────────────────────────────────────┘
-```
-
-## Archivos de Despliegue
+## Arquitectura con Bot de WhatsApp
 
 ```
-/app
-├── CLOUDING_DEPLOY.md      # Guía completa en español
-├── docker-compose.yml      # Orquestación Docker
-├── .env.example            # Variables de ejemplo
-├── nginx/
-│   └── nginx.conf          # Configuración Nginx
-├── scripts/
-│   └── install-clouding.sh # Instalación automática
-├── backend/
-│   └── Dockerfile          # Imagen backend
-└── frontend/
-    └── Dockerfile          # Imagen frontend
+┌─────────────────────────────────────────────────────────┐
+│                    CLOUDING.IO                           │
+│                   (Barcelona 🇪🇸)                         │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │                    NGINX                          │   │
+│  │             (Reverse Proxy + SSL)                 │   │
+│  │                  :80 / :443                       │   │
+│  └──────────────┬──────────────┬────────────────────┘   │
+│                 │              │                         │
+│         /api/*  │              │  /*                     │
+│                 ▼              ▼                         │
+│  ┌──────────────────┐  ┌──────────────────┐            │
+│  │     BACKEND      │  │    FRONTEND      │            │
+│  │    (FastAPI)     │  │   (Expo Web)     │            │
+│  │      :8001       │  │      :3000       │            │
+│  └────────┬─────────┘  └──────────────────┘            │
+│           │                                             │
+│           │ API calls                                   │
+│           ▼                                             │
+│  ┌──────────────────┐  ┌──────────────────┐            │
+│  │    MONGODB       │  │  WHATSAPP BOT    │            │
+│  │     :27017       │  │  (Node.js :3001) │            │
+│  └──────────────────┘  └──────────────────┘            │
+│                              │                          │
+│                              ▼                          │
+│                     ┌──────────────────┐               │
+│                     │   WhatsApp Web   │               │
+│                     │    (Chromium)    │               │
+│                     └──────────────────┘               │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Comandos del Bot de WhatsApp
+
+```bash
+# Iniciar bot
+/home/TM/scripts/whatsapp-bot.sh start
+
+# Ver estado
+/home/TM/scripts/whatsapp-bot.sh status
+
+# Ver código QR
+/home/TM/scripts/whatsapp-bot.sh qr
+
+# Listar grupos
+/home/TM/scripts/whatsapp-bot.sh groups
+
+# Configurar grupo
+/home/TM/scripts/whatsapp-bot.sh set-group "ID_GRUPO@g.us"
+
+# Enviar test
+/home/TM/scripts/whatsapp-bot.sh send-test
+
+# Enviar actualización
+/home/TM/scripts/whatsapp-bot.sh send-update
 ```
 
 ## Costes Estimados (España)
@@ -86,12 +124,5 @@ Aplicación móvil (React Native Web/Expo) para Madrid que incluye funcionalidad
 | Servidor Clouding.io (2GB RAM, Barcelona) | ~6€/mes |
 | Dominio .es | ~8€/año |
 | Certificado SSL (Let's Encrypt) | GRATIS |
+| Bot WhatsApp | GRATIS |
 | **TOTAL** | **~7€/mes** |
-
-## Ventajas de Clouding.io
-
-- ✅ Servidores en Barcelona (baja latencia)
-- ✅ 100% cumplimiento RGPD
-- ✅ Pago en euros (tarjeta española)
-- ✅ Soporte 24/7 en español
-- ✅ Facturación española con IVA
