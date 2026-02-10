@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { styles } from './styles/mainStyles';
+import QRCode from 'react-qr-code';
 import {
   View,
   Text,
