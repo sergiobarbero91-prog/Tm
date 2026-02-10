@@ -80,6 +80,7 @@ from routers import points as points_router
 from routers import moderation as moderation_router
 from routers import social as social_router
 from routers import release_notes as release_notes_router
+from routers import whatsapp as whatsapp_router
 
 # Import history collections from shared
 from shared import (
