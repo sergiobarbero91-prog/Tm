@@ -115,12 +115,11 @@ El bot está configurado para enviar actualizaciones automáticamente cada hora 
 
 Si el bot no está activo o no hay grupo configurado, las actualizaciones no se enviarán.
 
-## 📝 Ejemplo de Mensaje
+## 📝 Ejemplo de Mensaje Automático (cada hora)
 
 ```
 🚖 *RESUMEN HORARIO - 14:00*
 📅 lunes, 10 de febrero
-
 ━━━━━━━━━━━━━━━━━━━━━
 
 🚂 *TRENES PRÓXIMOS*
@@ -140,12 +139,30 @@ Si el bot no está activo o no hay grupo configurado, las actualizaciones no se 
    • 14:10 - IB3423 desde Londres
    • 14:25 - IB3156 desde París
 
-📌 *EVENTOS ACTIVOS*
-⚽ Real Madrid vs Barcelona - Santiago Bernabéu
+📌 *EVENTOS*
+   Sin eventos activos
 
 ━━━━━━━━━━━━━━━━━━━━━
+📱 *Más info en:* www.asdelvolante.es
 _Actualización automática de As del Volante_
 ```
+
+## 🤖 Comandos Interactivos
+
+Los taxistas pueden escribir estos comandos en el grupo para obtener información:
+
+| Comando | Descripción |
+|---------|-------------|
+| `!trenes` o `!estaciones` | Ver llegadas de trenes a Atocha y Chamartín |
+| `!vuelos` o `!terminales` | Ver llegadas de vuelos por terminal |
+| `!eventos` | Ver eventos activos del día |
+| `!todo` o `!resumen` | Ver resumen completo (todo junto) |
+| `!ayuda` o `!help` | Ver lista de comandos disponibles |
+
+### Ejemplo de uso:
+1. Un taxista escribe `!trenes` en el grupo
+2. El bot responde con las próximas llegadas de trenes
+3. El taxista puede planificar su ruta
 
 ## 🔍 Solución de Problemas
 
