@@ -11940,14 +11940,20 @@ export default function TransportMeter() {
                     </TouchableOpacity>
                     {whatsappQR && (
                       <View style={{ marginTop: 16, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12, alignItems: 'center' }}>
-                        <Text style={{ color: '#1F2937', fontSize: 14, fontWeight: '600', marginBottom: 12 }}>
+                        <Text style={{ color: '#1F2937', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>
                           Escanea con WhatsApp
+                        </Text>
+                        <Text style={{ color: '#EF4444', fontSize: 11, marginBottom: 12, textAlign: 'center' }}>
+                          ⚡ El código se actualiza cada 15 segundos
                         </Text>
                         <View style={{ padding: 8, backgroundColor: '#FFFFFF', borderRadius: 8 }}>
                           <QRCode value={whatsappQR} size={200} level="M" />
                         </View>
                         <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 12, textAlign: 'center' }}>
-                          Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo
+                          1. Abre WhatsApp en tu móvil{'\n'}
+                          2. Toca ⋮ → Dispositivos vinculados{'\n'}
+                          3. Toca "Vincular un dispositivo"{'\n'}
+                          4. Escanea este código QR
                         </Text>
                       </View>
                     )}
