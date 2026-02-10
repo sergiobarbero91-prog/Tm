@@ -93,10 +93,10 @@ async def get_bot_status(current_user: UserInDB = Depends(get_current_user)):
         }
 
 @router.get("/qr")
-async def get_qr_code(current_user: UserInDB = Depends(get_current_user)):
+async def get_qr_code(current_user: dict = Depends(get_current_user)):
     """Get QR code for WhatsApp authentication"""
     # Only admin can get QR code
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden autenticar el bot")
     
     result = await call_bot_api("GET", "/qr")
