@@ -90,6 +90,269 @@ client.on('ready', async () => {
     }
 });
 
+// ==================== Message Handler for Commands ====================
+
+client.on('message', async (message) => {
+    try {
+        // Only respond to messages from the configured group
+        if (!botState.groupId || message.from !== botState.groupId) return;
+        
+        const text = message.body.toLowerCase().trim();
+        
+        // Command list
+        const commands = {
+            '!trenes': fetchTrainsInfo,
+            '!estaciones': fetchTrainsInfo,
+            '!vuelos': fetchFlightsInfo,
+            '!terminales': fetchFlightsInfo,
+            '!eventos': fetchEventsInfo,
+            '!todo': fetchAllInfo,
+            '!resumen': fetchAllInfo,
+            '!ayuda': showHelp,
+            '!help': showHelp
+        };
+        
+        const handler = commands[text];
+        if (handler) {
+            console.log(`📥 Comando recibido: ${text}`);
+            const response = await handler();
+            await client.sendMessage(botState.groupId, response);
+            botState.lastMessageSent = new Date().toISOString();
+            botState.messagesCount++;
+            console.log(`📤 Respuesta enviada`);
+        }
+    } catch (error) {
+        console.error('Error handling message:', error);
+    }
+});
+
+// ==================== Command Handlers ====================
+
+async function fetchTrainsInfo() {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/trains`);
+        const trains = response.data;
+        
+        let message = `🚂 *TRENES - LLEGADAS*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        // Atocha
+        if (trains.atocha?.arrivals?.length > 0) {
+            const total30 = trains.atocha.arrivals.filter(t => {
+                const mins = parseInt(t.minutes_until || '999');
+                return mins <= 30;
+            }).length;
+            message += `📍 *ATOCHA* (próx. 30min: ${total30})\n\n`;
+            trains.atocha.arrivals.slice(0, 8).forEach(t => {
+                const trainType = t.train_type || t.type || 'Tren';
+                const origin = t.origin || 'Origen';
+                const time = t.time || t.arrival_time || '';
+                message += `   ${time} - *${trainType}*\n`;
+                message += `   └ desde ${origin}\n\n`;
+            });
+        } else {
+            message += `📍 *ATOCHA*\n   Sin datos disponibles\n\n`;
+        }
+        
+        // Chamartín
+        if (trains.chamartin?.arrivals?.length > 0) {
+            const total30 = trains.chamartin.arrivals.filter(t => {
+                const mins = parseInt(t.minutes_until || '999');
+                return mins <= 30;
+            }).length;
+            message += `📍 *CHAMARTÍN* (próx. 30min: ${total30})\n\n`;
+            trains.chamartin.arrivals.slice(0, 8).forEach(t => {
+                const trainType = t.train_type || t.type || 'Tren';
+                const origin = t.origin || 'Origen';
+                const time = t.time || t.arrival_time || '';
+                message += `   ${time} - *${trainType}*\n`;
+                message += `   └ desde ${origin}\n\n`;
+            });
+        } else {
+            message += `📍 *CHAMARTÍN*\n   Sin datos disponibles\n\n`;
+        }
+        
+        message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error('Error fetching trains:', error);
+        return `❌ Error al obtener datos de trenes`;
+    }
+}
+
+async function fetchFlightsInfo() {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/flights`);
+        const data = response.data;
+        
+        let message = `✈️ *VUELOS - LLEGADAS*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        if (data.terminals) {
+            const terminalOrder = ['T1', 'T2', 'T3', 'T4', 'T4S'];
+            
+            for (const terminal of terminalOrder) {
+                const termData = data.terminals[terminal];
+                if (termData?.arrivals?.length > 0) {
+                    const count30 = termData.arrivals.filter(f => {
+                        const mins = parseInt(f.minutes_until || '999');
+                        return mins <= 30;
+                    }).length;
+                    
+                    message += `📍 *${terminal}* (próx. 30min: ${count30})\n\n`;
+                    termData.arrivals.slice(0, 5).forEach(f => {
+                        const time = f.scheduled_time || f.time || '';
+                        const flight = f.flight_number || f.flight || '';
+                        const origin = f.origin || '';
+                        message += `   ${time} - *${flight}*\n`;
+                        message += `   └ desde ${origin}\n\n`;
+                    });
+                }
+            }
+        } else {
+            message += `   Sin datos de vuelos disponibles\n\n`;
+        }
+        
+        message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error('Error fetching flights:', error);
+        return `❌ Error al obtener datos de vuelos`;
+    }
+}
+
+async function fetchEventsInfo() {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/events/active`);
+        const data = response.data;
+        
+        let message = `📌 *EVENTOS ACTIVOS*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        if (data.events?.length > 0) {
+            data.events.forEach(event => {
+                const emoji = event.event_type === 'concert' ? '🎵' : 
+                              event.event_type === 'football' ? '⚽' : 
+                              event.event_type === 'basketball' ? '🏀' :
+                              event.event_type === 'convention' ? '🎪' : 
+                              event.event_type === 'theater' ? '🎭' : '📌';
+                
+                message += `${emoji} *${event.title || event.name || 'Evento'}*\n`;
+                if (event.location) message += `   📍 ${event.location}\n`;
+                if (event.event_time) message += `   🕐 ${event.event_time}\n`;
+                message += `\n`;
+            });
+        } else {
+            message += `   No hay eventos activos en este momento\n\n`;
+        }
+        
+        message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        return `❌ Error al obtener datos de eventos`;
+    }
+}
+
+async function fetchAllInfo() {
+    try {
+        const [trainsRes, flightsRes, eventsRes] = await Promise.all([
+            axios.get(`${BACKEND_URL}/api/trains`).catch(e => ({ data: null })),
+            axios.get(`${BACKEND_URL}/api/flights`).catch(e => ({ data: null })),
+            axios.get(`${BACKEND_URL}/api/events/active`).catch(e => ({ data: null }))
+        ]);
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+        
+        let message = `🚖 *RESUMEN COMPLETO - ${timeStr}*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        // Trains summary
+        message += `🚂 *TRENES*\n`;
+        if (trainsRes.data) {
+            const atocha = trainsRes.data.atocha?.arrivals?.slice(0, 3) || [];
+            const chamartin = trainsRes.data.chamartin?.arrivals?.slice(0, 3) || [];
+            
+            if (atocha.length > 0) {
+                message += `📍 Atocha:\n`;
+                atocha.forEach(t => {
+                    message += `   • ${t.time || ''} - ${t.train_type || 'Tren'} (${t.origin || ''})\n`;
+                });
+            }
+            if (chamartin.length > 0) {
+                message += `📍 Chamartín:\n`;
+                chamartin.forEach(t => {
+                    message += `   • ${t.time || ''} - ${t.train_type || 'Tren'} (${t.origin || ''})\n`;
+                });
+            }
+        } else {
+            message += `   Sin datos\n`;
+        }
+        message += `\n`;
+        
+        // Flights summary
+        message += `✈️ *VUELOS*\n`;
+        if (flightsRes.data?.terminals) {
+            ['T1', 'T4', 'T4S'].forEach(t => {
+                const termData = flightsRes.data.terminals[t];
+                if (termData?.arrivals?.length > 0) {
+                    const count = termData.arrivals.filter(f => parseInt(f.minutes_until || '999') <= 30).length;
+                    message += `   ${t}: ${count} en próx. 30min\n`;
+                }
+            });
+        } else {
+            message += `   Sin datos\n`;
+        }
+        message += `\n`;
+        
+        // Events summary
+        message += `📌 *EVENTOS*\n`;
+        if (eventsRes.data?.events?.length > 0) {
+            eventsRes.data.events.slice(0, 3).forEach(e => {
+                message += `   • ${e.title || e.name || 'Evento'}`;
+                if (e.event_time) message += ` (${e.event_time})`;
+                message += `\n`;
+            });
+        } else {
+            message += `   Sin eventos activos\n`;
+        }
+        
+        message += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 www.asdelvolante.es`;
+        
+        return message;
+    } catch (error) {
+        console.error('Error fetching all info:', error);
+        return `❌ Error al obtener datos`;
+    }
+}
+
+function showHelp() {
+    let message = `🤖 *COMANDOS DISPONIBLES*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `*!trenes* o *!estaciones*\n`;
+    message += `   Ver llegadas de trenes\n\n`;
+    message += `*!vuelos* o *!terminales*\n`;
+    message += `   Ver llegadas de vuelos\n\n`;
+    message += `*!eventos*\n`;
+    message += `   Ver eventos activos\n\n`;
+    message += `*!todo* o *!resumen*\n`;
+    message += `   Ver todo junto\n\n`;
+    message += `*!ayuda* o *!help*\n`;
+    message += `   Ver esta ayuda\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📱 www.asdelvolante.es`;
+    
+    return Promise.resolve(message);
+}
+
 client.on('disconnected', (reason) => {
     console.log('❌ Desconectado:', reason);
     botState.isReady = false;
