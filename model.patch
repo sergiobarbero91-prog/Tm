@@ -635,7 +635,7 @@ index 0000000..9592252
 +from datetime import datetime
 +
 +# Configuration
-+BASE_URL = "https://train-scraper-dev.preview.emergentagent.com/api"
++BASE_URL = "https://train-scraper-fix.preview.emergentagent.com/api"
 +ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
 +
 +def test_moderation_flow():
@@ -835,7 +835,7 @@ index 0000000..cc45f74
 +from typing import Dict, Any, Optional
 +
 +# Configuration
-+BASE_URL = "https://train-scraper-dev.preview.emergentagent.com/api"
++BASE_URL = "https://train-scraper-fix.preview.emergentagent.com/api"
 +ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
 +
 +class ModerationTester:

@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://train-scraper-dev.preview.emergentagent.com/api"
+BASE_URL = "https://train-scraper-fix.preview.emergentagent.com/api"
 ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
 
 def test_moderation_flow():
