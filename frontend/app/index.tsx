@@ -11835,6 +11835,182 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* WhatsApp Bot Section */}
+            <TouchableOpacity 
+              style={[styles.adminSupportButton, showWhatsAppBot && styles.adminSupportButtonActive, { backgroundColor: showWhatsAppBot ? '#25D366' : 'transparent', borderColor: '#25D366', marginTop: 12 }]}
+              onPress={() => {
+                setShowWhatsAppBot(!showWhatsAppBot);
+                if (!showWhatsAppBot) {
+                  fetchWhatsAppBotStatus();
+                }
+              }}
+            >
+              <View style={styles.adminSupportButtonContent}>
+                <Ionicons name="logo-whatsapp" size={22} color={showWhatsAppBot ? '#FFFFFF' : '#25D366'} />
+                <Text style={[styles.adminSupportButtonText, showWhatsAppBot && { color: '#FFFFFF' }, !showWhatsAppBot && { color: '#25D366' }]}>
+                  Bot de WhatsApp
+                </Text>
+                {whatsappBotStatus?.isReady && (
+                  <View style={[styles.adminSupportBadge, { backgroundColor: '#10B981' }]}>
+                    <Text style={styles.adminSupportBadgeText}>ON</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name={showWhatsAppBot ? "chevron-up" : "chevron-down"} size={20} color={showWhatsAppBot ? '#FFFFFF' : '#25D366'} />
+            </TouchableOpacity>
+
+            {showWhatsAppBot && (
+              <View style={[styles.adminSupportSection, { borderColor: '#25D36640' }]}>
+                {/* Bot Status */}
+                <View style={styles.blockedUsersStatsRow}>
+                  <View style={[styles.blockedUserStatCard, { backgroundColor: whatsappBotStatus?.isReady ? '#10B98120' : '#EF444420' }]}>
+                    <Ionicons name={whatsappBotStatus?.isReady ? "checkmark-circle" : "close-circle"} size={24} color={whatsappBotStatus?.isReady ? '#10B981' : '#EF4444'} />
+                    <Text style={styles.blockedUserStatLabel}>{whatsappBotStatus?.isReady ? 'Conectado' : 'Desconectado'}</Text>
+                  </View>
+                  <View style={[styles.blockedUserStatCard, { backgroundColor: whatsappBotStatus?.groupName ? '#6366F120' : '#F59E0B20' }]}>
+                    <Ionicons name="people" size={24} color={whatsappBotStatus?.groupName ? '#6366F1' : '#F59E0B'} />
+                    <Text style={[styles.blockedUserStatLabel, { fontSize: 10 }]} numberOfLines={1}>
+                      {whatsappBotStatus?.groupName || 'Sin grupo'}
+                    </Text>
+                  </View>
+                  <View style={[styles.blockedUserStatCard, { backgroundColor: '#8B5CF620' }]}>
+                    <Text style={styles.blockedUserStatNumber}>{whatsappBotStatus?.messagesCount || 0}</Text>
+                    <Text style={styles.blockedUserStatLabel}>Enviados</Text>
+                  </View>
+                </View>
+
+                {/* QR Code Section */}
+                {!whatsappBotStatus?.isAuthenticated && (
+                  <View style={{ padding: 16, backgroundColor: '#1F2937', borderRadius: 12, marginBottom: 12, alignItems: 'center' }}>
+                    <Ionicons name="qr-code" size={40} color="#9CA3AF" />
+                    <Text style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+                      Escanea el código QR con WhatsApp para conectar el bot
+                    </Text>
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#25D366', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginTop: 12 }}
+                      onPress={fetchWhatsAppQR}
+                      disabled={whatsappLoading}
+                    >
+                      {whatsappLoading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Obtener QR</Text>
+                      )}
+                    </TouchableOpacity>
+                    {whatsappQR && (
+                      <View style={{ marginTop: 16, padding: 12, backgroundColor: '#FFFFFF', borderRadius: 8 }}>
+                        <Text style={{ color: '#1F2937', fontSize: 10, textAlign: 'center', marginBottom: 8 }}>
+                          Copia este código y genera el QR en web.whatsapp.com
+                        </Text>
+                        <Text style={{ color: '#374151', fontSize: 8, fontFamily: 'monospace' }} selectable>
+                          {whatsappQR.substring(0, 100)}...
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Groups Section */}
+                {whatsappBotStatus?.isReady && (
+                  <>
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#374151', padding: 12, borderRadius: 8, marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                      onPress={fetchWhatsAppGroups}
+                      disabled={whatsappLoading}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="list" size={20} color="#9CA3AF" />
+                        <Text style={{ color: '#E5E7EB', fontWeight: '500' }}>Cargar Grupos Disponibles</Text>
+                      </View>
+                      {whatsappLoading ? (
+                        <ActivityIndicator color="#25D366" size="small" />
+                      ) : (
+                        <Ionicons name="refresh" size={20} color="#25D366" />
+                      )}
+                    </TouchableOpacity>
+
+                    {whatsappGroups.length > 0 && (
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#9CA3AF', marginBottom: 8, fontSize: 12 }}>Selecciona el grupo destino:</Text>
+                        <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                          {whatsappGroups.map((group) => (
+                            <TouchableOpacity
+                              key={group.id}
+                              style={{
+                                backgroundColor: whatsappBotStatus?.groupId === group.id ? '#25D36620' : '#1F2937',
+                                padding: 12,
+                                borderRadius: 8,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: whatsappBotStatus?.groupId === group.id ? '#25D366' : 'transparent',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                              }}
+                              onPress={() => setWhatsAppGroup(group.id)}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="people" size={20} color={whatsappBotStatus?.groupId === group.id ? '#25D366' : '#6B7280'} />
+                                <Text style={{ color: '#E5E7EB' }}>{group.name}</Text>
+                              </View>
+                              {whatsappBotStatus?.groupId === group.id && (
+                                <Ionicons name="checkmark-circle" size={20} color="#25D366" />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+
+                    {/* Action Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity
+                        style={{ flex: 1, backgroundColor: '#374151', padding: 12, borderRadius: 8, alignItems: 'center' }}
+                        onPress={sendWhatsAppTestMessage}
+                        disabled={whatsappSending || !whatsappBotStatus?.groupId}
+                      >
+                        {whatsappSending ? (
+                          <ActivityIndicator color="#25D366" />
+                        ) : (
+                          <>
+                            <Ionicons name="send" size={20} color={whatsappBotStatus?.groupId ? '#25D366' : '#6B7280'} />
+                            <Text style={{ color: whatsappBotStatus?.groupId ? '#E5E7EB' : '#6B7280', marginTop: 4, fontSize: 12 }}>Test</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ flex: 2, backgroundColor: '#25D366', padding: 12, borderRadius: 8, alignItems: 'center', opacity: whatsappBotStatus?.groupId ? 1 : 0.5 }}
+                        onPress={sendWhatsAppHourlyUpdate}
+                        disabled={whatsappSending || !whatsappBotStatus?.groupId}
+                      >
+                        {whatsappSending ? (
+                          <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <Ionicons name="paper-plane" size={20} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', marginTop: 4, fontSize: 12, fontWeight: '600' }}>Enviar Actualización</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    {whatsappBotStatus?.lastMessageSent && (
+                      <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+                        Último envío: {new Date(whatsappBotStatus.lastMessageSent).toLocaleString('es-ES')}
+                      </Text>
+                    )}
+                  </>
+                )}
+
+                {/* Info Text */}
+                <View style={{ marginTop: 12, padding: 12, backgroundColor: '#1F293720', borderRadius: 8 }}>
+                  <Text style={{ color: '#9CA3AF', fontSize: 11, textAlign: 'center' }}>
+                    El bot envía automáticamente actualizaciones cada hora (6:00 - 23:00) con información de trenes, vuelos y eventos.
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Users List (collapsible) */}
             {showUsersList && adminSearchQuery.length === 0 && (
               <>
