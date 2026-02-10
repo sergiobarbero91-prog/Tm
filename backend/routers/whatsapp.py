@@ -3,14 +3,14 @@ WhatsApp Bot Router - Controls the WhatsApp bot service
 """
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import aiohttp
 import os
 import logging
 from datetime import datetime
 import asyncio
 
-from shared import get_current_user, UserInDB
+from shared import get_current_user
 
 logger = logging.getLogger(__name__)
 
