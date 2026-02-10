@@ -297,40 +297,61 @@ app.post('/send-hourly-update', async (req, res) => {
         }
         
         // Flights section
+        let hasFlights = false;
         if (flightsRes.data?.terminals) {
-            message += `✈️ *VUELOS PRÓXIMOS*\n`;
             const terminals = flightsRes.data.terminals;
             
+            // Check each terminal
             Object.entries(terminals).forEach(([terminal, data]) => {
                 if (data.arrivals?.length > 0) {
+                    if (!hasFlights) {
+                        message += `✈️ *VUELOS PRÓXIMOS*\n`;
+                        hasFlights = true;
+                    }
                     const count30 = data.total_next_30min || data.arrivals.filter(f => {
                         const mins = parseInt(f.minutes_until || '999');
                         return mins <= 30;
                     }).length;
                     message += `\n📍 *${terminal}* (próx. 30min: ${count30})\n`;
-                    data.arrivals.slice(0, 2).forEach(f => {
-                        message += `   • ${f.scheduled_time || f.time} - ${f.flight_number} desde ${f.origin}\n`;
+                    data.arrivals.slice(0, 3).forEach(f => {
+                        const time = f.scheduled_time || f.time || '';
+                        const flight = f.flight_number || f.flight || '';
+                        const origin = f.origin || '';
+                        message += `   • ${time} - ${flight} desde ${origin}\n`;
                     });
                 }
             });
-            message += `\n`;
+            
+            if (hasFlights) message += `\n`;
+        }
+        
+        if (!hasFlights) {
+            message += `✈️ *VUELOS*\n`;
+            message += `   Sin datos de vuelos disponibles\n\n`;
         }
         
         // Events section
         if (eventsRes.data?.events?.length > 0) {
             message += `📌 *EVENTOS ACTIVOS*\n`;
-            eventsRes.data.events.slice(0, 3).forEach(event => {
+            eventsRes.data.events.slice(0, 5).forEach(event => {
                 const emoji = event.event_type === 'concert' ? '🎵' : 
                               event.event_type === 'football' ? '⚽' : 
-                              event.event_type === 'convention' ? '🎪' : '📌';
-                message += `${emoji} ${event.title}`;
-                if (event.location) message += ` - ${event.location}`;
+                              event.event_type === 'basketball' ? '🏀' :
+                              event.event_type === 'convention' ? '🎪' : 
+                              event.event_type === 'theater' ? '🎭' : '📌';
+                message += `${emoji} ${event.title || event.name}`;
+                if (event.location || event.venue) message += ` - ${event.location || event.venue}`;
+                if (event.start_time) message += ` (${event.start_time})`;
                 message += `\n`;
             });
             message += `\n`;
+        } else {
+            message += `📌 *EVENTOS*\n`;
+            message += `   Sin eventos activos\n\n`;
         }
         
         message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `📱 *Más info en:* www.asdelvolante.es\n`;
         message += `_Actualización automática de As del Volante_`;
         
         // Send message
