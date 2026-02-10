@@ -231,39 +231,69 @@ app.post('/send-hourly-update', async (req, res) => {
     try {
         // Fetch data from backend
         const [trainsRes, flightsRes, eventsRes] = await Promise.all([
-            axios.get(`${BACKEND_URL}/api/arrivals`).catch(e => ({ data: null })),
+            axios.get(`${BACKEND_URL}/api/trains`).catch(e => ({ data: null })),
             axios.get(`${BACKEND_URL}/api/flights`).catch(e => ({ data: null })),
             axios.get(`${BACKEND_URL}/api/events/active`).catch(e => ({ data: null }))
         ]);
         
         // Build message
         const now = new Date();
-        const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+        const dateStr = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' });
         
         let message = `🚖 *RESUMEN HORARIO - ${timeStr}*\n`;
         message += `📅 ${dateStr}\n`;
         message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
         
         // Trains section
+        let hasTrains = false;
         if (trainsRes.data) {
             const trains = trainsRes.data;
-            message += `🚂 *TRENES PRÓXIMOS*\n`;
             
+            // Check Atocha
             if (trains.atocha?.arrivals?.length > 0) {
-                message += `\n📍 *Atocha* (próx. 30min: ${trains.atocha.total_next_30min || 0})\n`;
-                trains.atocha.arrivals.slice(0, 3).forEach(t => {
-                    message += `   • ${t.time} - ${t.train_type} desde ${t.origin}\n`;
+                if (!hasTrains) {
+                    message += `🚂 *TRENES PRÓXIMOS*\n`;
+                    hasTrains = true;
+                }
+                const total30 = trains.atocha.total_next_30min || trains.atocha.arrivals.filter(t => {
+                    const mins = parseInt(t.minutes_until || '999');
+                    return mins <= 30;
+                }).length;
+                message += `\n📍 *Atocha* (próx. 30min: ${total30})\n`;
+                trains.atocha.arrivals.slice(0, 4).forEach(t => {
+                    const trainType = t.train_type || t.type || 'Tren';
+                    const origin = t.origin || 'Origen';
+                    const time = t.time || t.arrival_time || '';
+                    message += `   • ${time} - ${trainType} desde ${origin}\n`;
                 });
             }
             
+            // Check Chamartín
             if (trains.chamartin?.arrivals?.length > 0) {
-                message += `\n📍 *Chamartín* (próx. 30min: ${trains.chamartin.total_next_30min || 0})\n`;
-                trains.chamartin.arrivals.slice(0, 3).forEach(t => {
-                    message += `   • ${t.time} - ${t.train_type} desde ${t.origin}\n`;
+                if (!hasTrains) {
+                    message += `🚂 *TRENES PRÓXIMOS*\n`;
+                    hasTrains = true;
+                }
+                const total30 = trains.chamartin.total_next_30min || trains.chamartin.arrivals.filter(t => {
+                    const mins = parseInt(t.minutes_until || '999');
+                    return mins <= 30;
+                }).length;
+                message += `\n📍 *Chamartín* (próx. 30min: ${total30})\n`;
+                trains.chamartin.arrivals.slice(0, 4).forEach(t => {
+                    const trainType = t.train_type || t.type || 'Tren';
+                    const origin = t.origin || 'Origen';
+                    const time = t.time || t.arrival_time || '';
+                    message += `   • ${time} - ${trainType} desde ${origin}\n`;
                 });
             }
-            message += `\n`;
+            
+            if (hasTrains) message += `\n`;
+        }
+        
+        if (!hasTrains) {
+            message += `🚂 *TRENES*\n`;
+            message += `   Sin datos de trenes disponibles\n\n`;
         }
         
         // Flights section
