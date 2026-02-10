@@ -32,6 +32,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
+        executablePath: '/root/.cache/puppeteer/chrome/linux_arm-145.0.7632.46/chrome-linux64/chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -39,7 +40,8 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--single-process'
         ]
     }
 });
