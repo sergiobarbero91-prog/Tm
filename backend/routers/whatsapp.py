@@ -72,7 +72,7 @@ async def call_bot_api(method: str, endpoint: str, data: dict = None) -> dict:
 # ==================== Endpoints ====================
 
 @router.get("/status")
-async def get_bot_status(current_user: UserInDB = Depends(get_current_user)):
+async def get_bot_status(current_user: dict = Depends(get_current_user)):
     """Get WhatsApp bot status"""
     try:
         result = await call_bot_api("GET", "/status")
@@ -103,9 +103,9 @@ async def get_qr_code(current_user: dict = Depends(get_current_user)):
     return result
 
 @router.get("/groups")
-async def list_groups(current_user: UserInDB = Depends(get_current_user)):
+async def list_groups(current_user: dict = Depends(get_current_user)):
     """List available WhatsApp groups"""
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden ver los grupos")
     
     result = await call_bot_api("GET", "/groups")
@@ -114,10 +114,10 @@ async def list_groups(current_user: UserInDB = Depends(get_current_user)):
 @router.post("/set-group")
 async def set_target_group(
     request: SetGroupRequest,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """Set the target group for messages"""
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden configurar el grupo")
     
     result = await call_bot_api("POST", "/set-group", {"groupId": request.groupId})
@@ -126,10 +126,10 @@ async def set_target_group(
 @router.post("/send")
 async def send_message(
     request: SendMessageRequest,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """Send a custom message to the configured group"""
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden enviar mensajes")
     
     result = await call_bot_api("POST", "/send", {
@@ -139,18 +139,18 @@ async def send_message(
     return result
 
 @router.post("/send-hourly-update")
-async def trigger_hourly_update(current_user: UserInDB = Depends(get_current_user)):
+async def trigger_hourly_update(current_user: dict = Depends(get_current_user)):
     """Manually trigger an hourly update"""
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden enviar actualizaciones")
     
     result = await call_bot_api("POST", "/send-hourly-update")
     return result
 
 @router.post("/logout")
-async def logout_bot(current_user: UserInDB = Depends(get_current_user)):
+async def logout_bot(current_user: dict = Depends(get_current_user)):
     """Logout from WhatsApp and clear session"""
-    if current_user.role != "admin":
+    if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden cerrar sesión")
     
     result = await call_bot_api("POST", "/logout")
