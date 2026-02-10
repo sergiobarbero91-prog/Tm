@@ -32,7 +32,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        executablePath: '/root/.cache/puppeteer/chrome/linux_arm-145.0.7632.46/chrome-linux64/chrome',
+        executablePath: '/usr/bin/chromium',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
