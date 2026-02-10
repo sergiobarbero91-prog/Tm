@@ -21,22 +21,26 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 - [x] Sistema de eventos y alertas
 - [x] Radio en tiempo real (WebSocket)
 - [x] Sistema de check-in/check-out
-- [x] **Bot de WhatsApp** - NUEVO
+- [x] **Bot de WhatsApp** - NUEVO (Febrero 2026)
   - Servicio Node.js con whatsapp-web.js
   - Envío automático cada hora (6:00 - 23:00)
   - Información de trenes, vuelos y eventos
+  - Panel de administración en la app
   - Script de gestión (`scripts/whatsapp-bot.sh`)
   - Guía completa (`WHATSAPP_BOT_GUIDE.md`)
 - [x] Configuración completa para Clouding.io
 
 ### 🚀 Bot de WhatsApp
 
-**Funcionalidades:**
-- Envío automático de actualizaciones cada hora
-- Información de trenes próximos (Atocha y Chamartín)
-- Información de vuelos próximos por terminal
-- Eventos activos en la ciudad
-- Gestión vía CLI o API REST
+**Funcionalidades implementadas:**
+- Panel visual en Admin → "Bot de WhatsApp"
+- Estado del bot (Conectado/Desconectado)
+- Obtención de código QR para autenticación
+- Listado de grupos disponibles
+- Configuración de grupo destino
+- Envío de mensaje de prueba
+- Envío manual de actualización horaria
+- Envío automático cada hora (6:00 - 23:00)
 
 **Archivos creados:**
 - `/app/whatsapp-bot/index.js` - Servicio principal
