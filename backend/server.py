@@ -3162,6 +3162,59 @@ async def startup_db_client():
     # Start background refresh task
     asyncio.create_task(refresh_cache_periodically())
     logger.info("Background cache refresh task started")
+    
+    # Start WhatsApp hourly update task
+    asyncio.create_task(whatsapp_hourly_update_task())
+    logger.info("WhatsApp hourly update task started")
+
+async def whatsapp_hourly_update_task():
+    """Background task to send WhatsApp updates every hour."""
+    import aiohttp
+    
+    WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:3001")
+    
+    # Wait 60 seconds on startup before first check
+    await asyncio.sleep(60)
+    
+    while True:
+        try:
+            now = datetime.now(MADRID_TZ)
+            
+            # Only send between 6 AM and 11 PM Madrid time
+            if 6 <= now.hour <= 23:
+                # Calculate time until next hour
+                minutes_until_next_hour = 60 - now.minute
+                seconds_until_next_hour = minutes_until_next_hour * 60 - now.second
+                
+                # Wait until the start of next hour
+                if seconds_until_next_hour > 0:
+                    logger.info(f"WhatsApp: Waiting {minutes_until_next_hour} minutes until next hourly update")
+                    await asyncio.sleep(seconds_until_next_hour)
+                
+                # Send the update
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                            f"{WHATSAPP_BOT_URL}/send-hourly-update",
+                            timeout=aiohttp.ClientTimeout(total=60)
+                        ) as response:
+                            result = await response.json()
+                            if result.get("success"):
+                                logger.info(f"WhatsApp: Hourly update sent successfully at {datetime.now(MADRID_TZ).strftime('%H:%M')}")
+                            else:
+                                logger.warning(f"WhatsApp: Failed to send update - {result.get('message', 'Unknown error')}")
+                except aiohttp.ClientError as e:
+                    logger.debug(f"WhatsApp: Bot not available - {e}")
+                except Exception as e:
+                    logger.error(f"WhatsApp: Error sending update - {e}")
+            else:
+                # Outside operating hours, sleep for an hour
+                logger.info(f"WhatsApp: Outside operating hours ({now.hour}:00), sleeping until 6 AM")
+                await asyncio.sleep(3600)
+                
+        except Exception as e:
+            logger.error(f"WhatsApp hourly task error: {e}")
+            await asyncio.sleep(300)  # Wait 5 minutes before retrying
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
