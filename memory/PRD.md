@@ -16,7 +16,7 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 - [x] Sistema de gamificación/puntos completo
 - [x] Sistema de moderación y reportes
 - [x] Funciones sociales (amigos, mensajes, grupos)
-- [x] Información de trenes en tiempo real (ADIF)
+- [x] Información de trenes en tiempo real (ADIF) - **CORREGIDO Feb 10, 2026**
 - [x] Información de vuelos en tiempo real (AENA)
 - [x] Sistema de eventos y alertas
 - [x] Radio en tiempo real (WebSocket)
@@ -29,6 +29,26 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
   - Script de gestión (`scripts/whatsapp-bot.sh`)
   - Guía completa (`WHATSAPP_BOT_GUIDE.md`)
 - [x] Configuración completa para Clouding.io
+
+### 🔧 Corrección del Scraper de Trenes (Feb 10, 2026)
+
+**Problema resuelto:** El scraper de datos de ADIF estaba fallando debido a bloqueos anti-bot.
+
+**Solución implementada - Sistema de fallback en cascada:**
+1. **API de ADIF** → Primera opción (funciona intermitentemente)
+2. **HTML Scrape** → Fallback si la API falla
+3. **Google Apps Script** → Último recurso como proxy externo
+
+**Archivos modificados:**
+- `/app/backend/server.py` - Nueva función `fetch_trains_from_google_script()`
+- `/app/backend/.env` - Añadida variable `GOOGLE_SCRIPT_TRAINS_URL`
+
+**Estado actual de endpoints:**
+| Endpoint | Estado | Datos típicos |
+|----------|--------|---------------|
+| `/api/trains` | ✅ OK | Atocha: 20-25, Chamartín: 20-75 trenes |
+| `/api/flights` | ✅ OK | 50-180 vuelos |
+| `/api/health` | ✅ OK | healthy |
 
 ### 🚀 Bot de WhatsApp
 
