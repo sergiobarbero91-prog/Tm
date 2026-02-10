@@ -5980,7 +5980,8 @@ export default function TransportMeter() {
           fetchAdminStats(),
           fetchAdminReports(),
           fetchAdminPromotions(),
-          fetchAdminModerationStats()
+          fetchAdminModerationStats(),
+          fetchWhatsAppBotStatus()
         ]);
       }
     } catch (error) {
