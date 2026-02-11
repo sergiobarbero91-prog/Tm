@@ -948,6 +948,11 @@ async def fetch_trains_from_google_script(station_id: str) -> List[Dict]:
                     train_type = train.get("type", "TREN")
                     train_number = train.get("number", "")
                     
+                    # Filter out invalid train numbers (station IDs and asset IDs)
+                    invalid_numbers = ["17000", "60000", "30619", "30885", "30886", "3061911", "3088606"]
+                    if train_number in invalid_numbers:
+                        continue
+                    
                     # Only include valid media/larga distancia trains
                     if not is_valid_media_larga_distancia(train_type):
                         continue
