@@ -22,17 +22,25 @@ let botState = {
     groupId: GROUP_ID,
     groupName: null,
     error: null,
-    messagesCount: 0
+    messagesCount: 0,
+    reconnectAttempts: 0
 };
 
+// Max reconnection attempts before giving up
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY_MS = 10000; // 10 seconds
+
+// Auth data path - use environment variable or default
+const AUTH_DATA_PATH = process.env.AUTH_DATA_PATH || './.wwebjs_auth';
+
 // Initialize WhatsApp client with local authentication (saves session)
-const client = new Client({
+let client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: '/app/whatsapp-bot/.wwebjs_auth'
+        dataPath: AUTH_DATA_PATH
     }),
     puppeteer: {
         headless: true,
-        executablePath: '/usr/bin/chromium',
+        executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -45,6 +53,31 @@ const client = new Client({
         ]
     }
 });
+
+// Function to handle reconnection
+async function handleReconnect(reason) {
+    console.log(`⚠️ Desconectado: ${reason}`);
+    botState.isReady = false;
+    botState.error = reason;
+    
+    if (botState.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        botState.reconnectAttempts++;
+        console.log(`🔄 Intentando reconexión ${botState.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} en ${RECONNECT_DELAY_MS/1000}s...`);
+        
+        setTimeout(async () => {
+            try {
+                console.log('🔄 Reinicializando cliente...');
+                await client.initialize();
+            } catch (error) {
+                console.error('❌ Error al reinicializar:', error.message);
+                handleReconnect('Error de reinicialización');
+            }
+        }, RECONNECT_DELAY_MS);
+    } else {
+        console.error('❌ Máximo de intentos de reconexión alcanzado. El bot necesita reinicio manual.');
+        botState.error = 'Máximo de intentos de reconexión alcanzado';
+    }
+}
 
 // Express server for API
 const app = express();
