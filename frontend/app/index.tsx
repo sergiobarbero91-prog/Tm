@@ -4543,6 +4543,42 @@ export default function TransportMeter() {
     }
   };
 
+  const restartWhatsAppBot = async () => {
+    Alert.alert(
+      'Reiniciar Bot',
+      '¿Estás seguro de que quieres reiniciar el bot de WhatsApp? Esto puede tardar unos segundos.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Reiniciar',
+          style: 'destructive',
+          onPress: async () => {
+            setWhatsappSending(true);
+            try {
+              const token = await AsyncStorage.getItem('token');
+              const response = await axios.post(`${API_BASE}/api/whatsapp/restart`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (response.data.success) {
+                Alert.alert('Bot Reiniciando', 'El bot se está reiniciando. Espera unos segundos y verifica el estado.');
+                // Wait a bit before checking status
+                setTimeout(() => {
+                  fetchWhatsAppBotStatus();
+                }, 5000);
+              } else {
+                Alert.alert('Error', response.data.message || 'Error al reiniciar el bot');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Error al reiniciar el bot. Puede que necesite reiniciarse manualmente.');
+            } finally {
+              setWhatsappSending(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // ===== MODERATION & REPORTS FUNCTIONS =====
   
   // Create a new report
