@@ -197,3 +197,179 @@ async def bot_health():
         return {"success": True, "bot_status": result}
     except HTTPException as e:
         return {"success": False, "error": str(e.detail)}
+
+
+# ==================== Bot Monitor ====================
+
+async def check_bot_health_internal() -> dict:
+    """Internal function to check bot health without raising exceptions"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{WHATSAPP_BOT_URL}/status", 
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "reachable": True,
+                        "status": data.get("data", {}),
+                        "error": None
+                    }
+                else:
+                    return {
+                        "reachable": False,
+                        "status": None,
+                        "error": f"HTTP {response.status}"
+                    }
+    except Exception as e:
+        return {
+            "reachable": False,
+            "status": None,
+            "error": str(e)
+        }
+
+
+async def restart_bot_internal() -> bool:
+    """Internal function to restart the bot"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{WHATSAPP_BOT_URL}/restart",
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return result.get("success", False)
+                return False
+    except Exception as e:
+        logger.error(f"[Bot Monitor] Error restarting bot: {e}")
+        return False
+
+
+async def bot_monitor_task():
+    """Background task that monitors the bot and restarts it if needed"""
+    global monitor_state
+    
+    logger.info("[Bot Monitor] Monitor task started")
+    
+    while True:
+        try:
+            await asyncio.sleep(MONITOR_INTERVAL_SECONDS)
+            
+            if not MONITOR_ENABLED:
+                continue
+            
+            # Check bot health
+            health = await check_bot_health_internal()
+            monitor_state["last_check"] = datetime.now().isoformat()
+            monitor_state["last_status"] = health
+            
+            # Determine if bot needs restart
+            needs_restart = False
+            reason = ""
+            
+            if not health["reachable"]:
+                needs_restart = True
+                reason = f"Bot not reachable: {health['error']}"
+            elif health["status"]:
+                status = health["status"]
+                if not status.get("isReady", False):
+                    needs_restart = True
+                    reason = "Bot not ready"
+                elif not status.get("isAuthenticated", False):
+                    # Don't restart if just not authenticated - needs QR scan
+                    logger.warning("[Bot Monitor] Bot not authenticated - needs QR scan")
+            
+            if needs_restart:
+                logger.warning(f"[Bot Monitor] Bot needs restart: {reason}")
+                
+                # Check if we've exceeded max restart attempts
+                if monitor_state["restart_attempts"] >= MAX_RESTART_ATTEMPTS:
+                    logger.error("[Bot Monitor] Max restart attempts exceeded. Manual intervention required.")
+                    monitor_state["errors"].append({
+                        "time": datetime.now().isoformat(),
+                        "error": "Max restart attempts exceeded"
+                    })
+                    # Reset counter after some time (1 hour)
+                    if monitor_state["last_restart"]:
+                        last_restart = datetime.fromisoformat(monitor_state["last_restart"])
+                        if (datetime.now() - last_restart).total_seconds() > 3600:
+                            monitor_state["restart_attempts"] = 0
+                            logger.info("[Bot Monitor] Reset restart counter after 1 hour")
+                    continue
+                
+                # Attempt restart
+                logger.info("[Bot Monitor] Attempting to restart bot...")
+                success = await restart_bot_internal()
+                
+                if success:
+                    logger.info("[Bot Monitor] Bot restart initiated successfully")
+                    monitor_state["restart_attempts"] += 1
+                    monitor_state["last_restart"] = datetime.now().isoformat()
+                    # Wait a bit for bot to initialize
+                    await asyncio.sleep(30)
+                else:
+                    logger.error("[Bot Monitor] Failed to restart bot")
+                    monitor_state["errors"].append({
+                        "time": datetime.now().isoformat(),
+                        "error": f"Restart failed: {reason}"
+                    })
+            else:
+                # Bot is healthy, reset restart counter
+                if monitor_state["restart_attempts"] > 0:
+                    logger.info("[Bot Monitor] Bot is healthy, resetting restart counter")
+                    monitor_state["restart_attempts"] = 0
+                    
+        except Exception as e:
+            logger.error(f"[Bot Monitor] Error in monitor task: {e}")
+            monitor_state["errors"].append({
+                "time": datetime.now().isoformat(),
+                "error": str(e)
+            })
+    
+    # Keep only last 10 errors
+    monitor_state["errors"] = monitor_state["errors"][-10:]
+
+
+@router.get("/monitor/status")
+async def get_monitor_status(current_user: dict = Depends(get_current_user)):
+    """Get the bot monitor status"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden ver el estado del monitor")
+    
+    return {
+        "success": True,
+        "monitor_enabled": MONITOR_ENABLED,
+        "check_interval_seconds": MONITOR_INTERVAL_SECONDS,
+        "max_restart_attempts": MAX_RESTART_ATTEMPTS,
+        "state": monitor_state
+    }
+
+
+@router.post("/monitor/reset")
+async def reset_monitor(current_user: dict = Depends(get_current_user)):
+    """Reset the monitor state (clear errors and restart counter)"""
+    global monitor_state
+    
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden resetear el monitor")
+    
+    monitor_state = {
+        "last_check": None,
+        "last_status": None,
+        "restart_attempts": 0,
+        "last_restart": None,
+        "errors": []
+    }
+    
+    return {"success": True, "message": "Monitor state reset"}
+
+
+def start_bot_monitor():
+    """Start the bot monitor background task"""
+    if MONITOR_ENABLED:
+        asyncio.create_task(bot_monitor_task())
+        logger.info(f"[Bot Monitor] Started with {MONITOR_INTERVAL_SECONDS}s interval")
+    else:
+        logger.info("[Bot Monitor] Disabled via configuration")
