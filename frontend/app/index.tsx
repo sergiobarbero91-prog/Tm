@@ -12085,7 +12085,63 @@ export default function TransportMeter() {
                         Último envío: {new Date(whatsappBotStatus.lastMessageSent).toLocaleString('es-ES')}
                       </Text>
                     )}
+
+                    {/* Restart Bot Button */}
+                    <TouchableOpacity
+                      style={{ 
+                        marginTop: 12, 
+                        backgroundColor: '#EF444420', 
+                        padding: 12, 
+                        borderRadius: 8, 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        gap: 8,
+                        borderWidth: 1,
+                        borderColor: '#EF4444'
+                      }}
+                      onPress={restartWhatsAppBot}
+                      disabled={whatsappSending}
+                    >
+                      {whatsappSending ? (
+                        <ActivityIndicator color="#EF4444" />
+                      ) : (
+                        <>
+                          <Ionicons name="refresh-circle" size={20} color="#EF4444" />
+                          <Text style={{ color: '#EF4444', fontWeight: '600' }}>Reiniciar Bot</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                   </>
+                )}
+
+                {/* Restart Bot Button when disconnected */}
+                {!whatsappBotStatus?.isReady && (
+                  <TouchableOpacity
+                    style={{ 
+                      marginTop: 12, 
+                      backgroundColor: '#F59E0B20', 
+                      padding: 12, 
+                      borderRadius: 8, 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderWidth: 1,
+                      borderColor: '#F59E0B'
+                    }}
+                    onPress={restartWhatsAppBot}
+                    disabled={whatsappSending}
+                  >
+                    {whatsappSending ? (
+                      <ActivityIndicator color="#F59E0B" />
+                    ) : (
+                      <>
+                        <Ionicons name="refresh-circle" size={20} color="#F59E0B" />
+                        <Text style={{ color: '#F59E0B', fontWeight: '600' }}>Intentar Reconectar Bot</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 )}
 
                 {/* Info Text */}
