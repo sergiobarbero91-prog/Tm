@@ -19,6 +19,20 @@ router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 # WhatsApp bot service URL
 WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:3001")
 
+# Monitor configuration
+MONITOR_ENABLED = os.environ.get("WHATSAPP_MONITOR_ENABLED", "true").lower() == "true"
+MONITOR_INTERVAL_SECONDS = int(os.environ.get("WHATSAPP_MONITOR_INTERVAL", "300"))  # 5 minutes
+MAX_RESTART_ATTEMPTS = int(os.environ.get("WHATSAPP_MAX_RESTART_ATTEMPTS", "3"))
+
+# Monitor state
+monitor_state = {
+    "last_check": None,
+    "last_status": None,
+    "restart_attempts": 0,
+    "last_restart": None,
+    "errors": []
+}
+
 # ==================== Models ====================
 
 class GroupInfo(BaseModel):
