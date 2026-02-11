@@ -56,11 +56,30 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 1. **BACKEND_URL actualizado** - El bot ahora usa `https://asdelvolante.es` en lugar de `localhost:8001`
 2. **Endpoint de reinicio añadido** - Nuevo endpoint `POST /restart` para reiniciar el bot sin acceso SSH
 3. **Panel de Admin actualizado** - Botón "Reiniciar Bot" añadido en la sección de WhatsApp
+4. **Auto-reconexión implementada** - El bot intenta reconectarse automáticamente hasta 5 veces si se desconecta
+5. **Soporte PM2** - Configuración para PM2 que auto-reinicia el bot si falla
 
 **Archivos modificados:**
-- `/app/whatsapp-bot/index.js` - BACKEND_URL cambiado + endpoint `/restart`
+- `/app/whatsapp-bot/index.js` - BACKEND_URL, auto-reconnect, eventos de desconexión
+- `/app/whatsapp-bot/ecosystem.config.js` - Configuración PM2 (NUEVO)
 - `/app/backend/routers/whatsapp.py` - Endpoint `POST /api/whatsapp/restart`
 - `/app/frontend/app/index.tsx` - Función `restartWhatsAppBot()` + botón en UI
+- `/app/scripts/whatsapp-bot.sh` - Script mejorado con soporte PM2
+
+### Configuración PM2 (Recomendado)
+
+Para que el bot se reinicie automáticamente si falla, ejecuta en el servidor:
+
+```bash
+cd /home/TM/scripts
+./whatsapp-bot.sh install-pm2
+```
+
+Esto instalará PM2 y configurará:
+- Auto-reinicio si el bot falla
+- Reinicio si usa más de 500MB de memoria
+- Inicio automático al reiniciar el servidor
+- Logs organizados en `/home/TM/whatsapp-bot/logs/`
 
 ### 🚀 Bot de WhatsApp
 
