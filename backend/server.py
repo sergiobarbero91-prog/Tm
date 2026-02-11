@@ -3246,6 +3246,11 @@ async def startup_db_client():
     # Start WhatsApp hourly update task
     asyncio.create_task(whatsapp_hourly_update_task())
     logger.info("WhatsApp hourly update task started")
+    
+    # Start WhatsApp bot monitor task
+    from routers.whatsapp import start_bot_monitor
+    start_bot_monitor()
+    logger.info("WhatsApp bot monitor task started")
 
 async def whatsapp_hourly_update_task():
     """Background task to send WhatsApp updates every hour."""
