@@ -825,6 +825,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  POST /set-group       - Configurar grupo destino');
     console.log('  POST /send            - Enviar mensaje');
     console.log('  POST /send-hourly-update - Enviar actualización horaria');
+    console.log('  POST /restart         - Reiniciar el bot');
     console.log('  POST /logout          - Cerrar sesión');
 });
 
