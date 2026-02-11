@@ -102,6 +102,7 @@ client.on('ready', async () => {
     console.log('🚀 WhatsApp Bot listo!');
     botState.isReady = true;
     botState.error = null;
+    botState.reconnectAttempts = 0;  // Reset reconnect attempts on successful connection
     
     // List available groups
     const chats = await client.getChats();
@@ -121,6 +122,21 @@ client.on('ready', async () => {
             console.log(`\n⚠️ Grupo con ID ${botState.groupId} no encontrado`);
         }
     }
+});
+
+// Handle disconnection
+client.on('disconnected', (reason) => {
+    console.log('❌ Cliente desconectado:', reason);
+    botState.isReady = false;
+    botState.isAuthenticated = false;
+    handleReconnect(reason);
+});
+
+// Handle authentication failure
+client.on('auth_failure', (msg) => {
+    console.error('❌ Error de autenticación:', msg);
+    botState.isAuthenticated = false;
+    botState.error = 'Error de autenticación: ' + msg;
 });
 
 // ==================== Message Handler for Commands ====================
