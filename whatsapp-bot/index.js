@@ -761,6 +761,53 @@ app.post('/logout', async (req, res) => {
     }
 });
 
+// Restart the WhatsApp client (reconnect without losing session)
+app.post('/restart', async (req, res) => {
+    try {
+        console.log('🔄 Reiniciando cliente de WhatsApp...');
+        
+        // Store current config
+        const currentGroupId = botState.groupId;
+        const currentGroupName = botState.groupName;
+        const currentMessagesCount = botState.messagesCount;
+        
+        // Reset state
+        botState = {
+            isReady: false,
+            isAuthenticated: false,
+            qrCode: null,
+            lastMessageSent: botState.lastMessageSent,
+            groupId: currentGroupId,
+            groupName: currentGroupName,
+            error: null,
+            messagesCount: currentMessagesCount
+        };
+        
+        // Destroy and reinitialize client
+        try {
+            await client.destroy();
+        } catch (destroyError) {
+            console.log('⚠️ Error al destruir cliente (ignorado):', destroyError.message);
+        }
+        
+        // Wait a moment before reinitializing
+        setTimeout(() => {
+            console.log('🔄 Reinicializando cliente...');
+            client.initialize();
+        }, 2000);
+        
+        res.json({ 
+            success: true, 
+            message: 'Bot reiniciándose. Espera unos segundos y verifica el estado.',
+            note: 'El bot mantendrá la sesión de WhatsApp si está guardada.'
+        });
+        
+    } catch (error) {
+        console.error('Error reiniciando bot:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
