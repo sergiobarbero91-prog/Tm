@@ -81,6 +81,25 @@ Esto instalará PM2 y configurará:
 - Inicio automático al reiniciar el servidor
 - Logs organizados en `/home/TM/whatsapp-bot/logs/`
 
+### Monitor Automático del Bot (Backend)
+
+El backend incluye un monitor que:
+- Verifica el estado del bot cada 5 minutos
+- Si el bot no responde o está desconectado, intenta reiniciarlo
+- Máximo 3 intentos de reinicio antes de requerir intervención manual
+- Registra todos los eventos en logs
+
+**Endpoints del monitor:**
+- `GET /api/whatsapp/monitor/status` - Ver estado del monitor
+- `POST /api/whatsapp/monitor/reset` - Resetear contador de errores
+
+**Variables de entorno (opcionales):**
+```
+WHATSAPP_MONITOR_ENABLED=true
+WHATSAPP_MONITOR_INTERVAL=300
+WHATSAPP_MAX_RESTART_ATTEMPTS=3
+```
+
 ### 🚀 Bot de WhatsApp
 
 **Funcionalidades implementadas:**
