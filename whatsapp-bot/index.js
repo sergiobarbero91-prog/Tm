@@ -10,7 +10,7 @@ const axios = require('axios');
 
 // Configuration
 const PORT = process.env.WHATSAPP_BOT_PORT || 3001;
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://asdelvolante.es';
 const GROUP_ID = process.env.WHATSAPP_GROUP_ID || null;
 
 // Bot state
