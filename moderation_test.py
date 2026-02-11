@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://train-scraper-fix.preview.emergentagent.com/api"
+BASE_URL = "https://taximeter-prod.preview.emergentagent.com/api"
 ADMIN_CREDENTIALS = {"username": "admin", "password": "admin"}
 
 class ModerationTester:
