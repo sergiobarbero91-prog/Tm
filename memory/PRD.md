@@ -50,6 +50,18 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 | `/api/flights` | ✅ OK | 50-180 vuelos |
 | `/api/health` | ✅ OK | healthy |
 
+### 🔧 Mejoras del Bot de WhatsApp (Feb 11, 2026)
+
+**Cambios realizados:**
+1. **BACKEND_URL actualizado** - El bot ahora usa `https://asdelvolante.es` en lugar de `localhost:8001`
+2. **Endpoint de reinicio añadido** - Nuevo endpoint `POST /restart` para reiniciar el bot sin acceso SSH
+3. **Panel de Admin actualizado** - Botón "Reiniciar Bot" añadido en la sección de WhatsApp
+
+**Archivos modificados:**
+- `/app/whatsapp-bot/index.js` - BACKEND_URL cambiado + endpoint `/restart`
+- `/app/backend/routers/whatsapp.py` - Endpoint `POST /api/whatsapp/restart`
+- `/app/frontend/app/index.tsx` - Función `restartWhatsAppBot()` + botón en UI
+
 ### 🚀 Bot de WhatsApp
 
 **Funcionalidades implementadas:**
