@@ -156,6 +156,25 @@ async def logout_bot(current_user: dict = Depends(get_current_user)):
     result = await call_bot_api("POST", "/logout")
     return result
 
+
+@router.post("/restart")
+async def restart_bot(current_user: dict = Depends(get_current_user)):
+    """Restart the WhatsApp bot client"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden reiniciar el bot")
+    
+    try:
+        result = await call_bot_api("POST", "/restart")
+        return result
+    except HTTPException as e:
+        # If bot is not responding, return a helpful message
+        return {
+            "success": False,
+            "message": "El bot no responde. Puede que necesite reiniciarse manualmente en el servidor.",
+            "error": str(e.detail)
+        }
+
+
 @router.get("/health")
 async def bot_health():
     """Check if bot service is running (no auth required)"""
