@@ -737,10 +737,17 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
                                     success = True
                                     break
                                 
+                                # Log first train for debugging
+                                if horarios and page == 0:
+                                    logger.info(f"Station {station_id}: Sample train data: {horarios[0]}")
+                                
                                 for h in horarios:
                                     train_code = h.get("tren", "")
-                                    type_match = re.search(r'([A-Z]{2,})', train_code)
-                                    train_type = type_match.group(1) if type_match else "TREN"
+                                    # Try to get train type from multiple fields
+                                    train_type = h.get("tipoTren", "") or h.get("linea", "") or h.get("tipo", "")
+                                    if not train_type:
+                                        type_match = re.search(r'([A-Z]{2,})', train_code)
+                                        train_type = type_match.group(1) if type_match else "TREN"
                                     number_match = re.search(r'(\d{4,5})', train_code)
                                     train_number = number_match.group(1) if number_match else train_code
                                     
