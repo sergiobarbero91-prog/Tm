@@ -743,11 +743,23 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
                                 
                                 for h in horarios:
                                     train_code = h.get("tren", "")
-                                    # Try to get train type from multiple fields
-                                    train_type = h.get("tipoTren", "") or h.get("linea", "") or h.get("tipo", "")
+                                    # Try to get train type from trenDatosOp field (e.g., "RF - AVE", "IL - IRYO")
+                                    tren_datos_op = h.get("trenDatosOp", "")
+                                    train_type = ""
+                                    if tren_datos_op:
+                                        # Extract the train type after the dash (e.g., "AVE" from "RF - AVE")
+                                        if " - " in tren_datos_op:
+                                            train_type = tren_datos_op.split(" - ")[-1].strip()
+                                        else:
+                                            train_type = tren_datos_op.strip()
+                                    
+                                    # Fallback: try other fields or regex
+                                    if not train_type:
+                                        train_type = h.get("tipoTren", "") or h.get("linea", "") or h.get("tipo", "")
                                     if not train_type:
                                         type_match = re.search(r'([A-Z]{2,})', train_code)
                                         train_type = type_match.group(1) if type_match else "TREN"
+                                    
                                     number_match = re.search(r'(\d{4,5})', train_code)
                                     train_number = number_match.group(1) if number_match else train_code
                                     
