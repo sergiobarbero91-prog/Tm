@@ -1577,15 +1577,27 @@ async def get_train_comparison(
         
         logger.info(f"[Trains] PAST: Retrieved {len(atocha_arrivals_raw)} Atocha, {len(chamartin_arrivals_raw)} Chamartín from history")
     else:
-        # CURRENT or FUTURE: Fetch fresh data from API
-        logger.info("[Trains] CURRENT/FUTURE: Fetching from API")
-        atocha_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-        chamartin_arrivals_raw = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+        # CURRENT or FUTURE: Use cached data (updated every 15 minutes in background)
+        logger.info("[Trains] CURRENT/FUTURE: Using cached data")
         
-        # Save to history for future queries (non-blocking) - ALWAYS save current data
-        asyncio.create_task(save_train_history("atocha", atocha_arrivals_raw))
-        asyncio.create_task(save_train_history("chamartin", chamartin_arrivals_raw))
-        logger.info(f"[Trains] API: Retrieved {len(atocha_arrivals_raw)} Atocha, {len(chamartin_arrivals_raw)} Chamartín, saving to history")
+        # Use cached data - background task updates this every 15 minutes
+        cached_data = arrival_cache.get("trains", {}).get("data", {})
+        atocha_arrivals_raw = cached_data.get("atocha", [])
+        chamartin_arrivals_raw = cached_data.get("chamartin", [])
+        
+        cache_timestamp = arrival_cache.get("trains", {}).get("timestamp")
+        if cache_timestamp:
+            cache_age = (datetime.now() - cache_timestamp).total_seconds()
+            logger.info(f"[Trains] Cache age: {cache_age:.0f}s, Atocha: {len(atocha_arrivals_raw)}, Chamartín: {len(chamartin_arrivals_raw)}")
+        else:
+            logger.info("[Trains] No cache available yet, returning empty data")
+        
+        # Save to history for future queries (non-blocking) - only if we have data
+        if atocha_arrivals_raw:
+            asyncio.create_task(save_train_history("atocha", atocha_arrivals_raw))
+        if chamartin_arrivals_raw:
+            asyncio.create_task(save_train_history("chamartin", chamartin_arrivals_raw))
+        logger.info(f"[Trains] Returning cached data: {len(atocha_arrivals_raw)} Atocha, {len(chamartin_arrivals_raw)} Chamartín")
     
     # Filter arrivals by shift
     atocha_arrivals_shift = filter_arrivals_by_shift(atocha_arrivals_raw, shift)
