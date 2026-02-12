@@ -110,8 +110,8 @@ arrival_cache = {
     "trains": {"data": {}, "timestamp": None, "last_successful": None},
     "flights": {"data": {}, "timestamp": None, "last_successful": None}
 }
-CACHE_TTL_SECONDS = 30  # Cache data for 30 seconds for more real-time updates
-CACHE_FALLBACK_TTL_SECONDS = 300  # Use stale data for up to 5 minutes if API fails
+CACHE_TTL_SECONDS = 900  # Cache data for 15 minutes to avoid API bans
+CACHE_FALLBACK_TTL_SECONDS = 1800  # Use stale data for up to 30 minutes if API fails
 
 # Flag to prevent concurrent cache refreshes
 cache_refresh_in_progress = {
