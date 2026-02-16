@@ -6623,7 +6623,7 @@ export default function TransportMeter() {
                               {isHot ? '🔥 ' : ''}{terminal.name}
                             </Text>
                             <Text style={{ color: isHot ? '#22D3EE' : '#94A3B8', fontSize: 10, fontWeight: '600' }}>
-                              {terminal.arrivals_30min} en 30m
+                              {terminal.arrivals_60min} en 60m
                             </Text>
                           </View>
                           {terminal.flights.slice(0, 1).map((flight: any, idx: number) => (
