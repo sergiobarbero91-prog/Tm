@@ -2060,10 +2060,11 @@ def filter_strictly_future_arrivals(arrivals: List[Dict]) -> List[Dict]:
 
 @api_router.get("/public/summary")
 async def get_public_summary():
-    """Public endpoint for login page - shows summary of hot spots and upcoming arrivals.
-    No authentication required."""
+    """Public endpoint for login page - shows summary of ALL stations and terminals.
+    Highlights the hottest ones. No authentication required."""
     
     now = datetime.now(MADRID_TZ)
+    current_hour = now.hour
     
     # Get cached train data
     train_cache = arrival_cache.get("trains", {}).get("data", {})
@@ -2074,32 +2075,43 @@ async def get_public_summary():
     atocha_filtered = filter_strictly_future_arrivals(atocha_arrivals)[:3]
     chamartin_filtered = filter_strictly_future_arrivals(chamartin_arrivals)[:3]
     
-    # Determine hot station (more arrivals in next 30 min)
-    atocha_30min = len([a for a in atocha_filtered if is_within_minutes(a.get("time", ""), 30)])
-    chamartin_30min = len([a for a in chamartin_filtered if is_within_minutes(a.get("time", ""), 30)])
+    # Count arrivals in next 30 min for each station
+    atocha_30min = len([a for a in filter_strictly_future_arrivals(atocha_arrivals) if is_within_minutes(a.get("time", ""), 30)])
+    chamartin_30min = len([a for a in filter_strictly_future_arrivals(chamartin_arrivals) if is_within_minutes(a.get("time", ""), 30)])
     
-    hot_station = {
-        "name": "Atocha" if atocha_30min >= chamartin_30min else "Chamartín",
-        "arrivals_30min": max(atocha_30min, chamartin_30min),
-        "trains": atocha_filtered if atocha_30min >= chamartin_30min else chamartin_filtered
+    # Determine which station is hottest
+    hottest_station = "atocha" if atocha_30min >= chamartin_30min else "chamartin"
+    
+    # Build stations data
+    stations = {
+        "atocha": {
+            "name": "Atocha",
+            "arrivals_30min": atocha_30min,
+            "trains": atocha_filtered,
+            "is_hot": hottest_station == "atocha"
+        },
+        "chamartin": {
+            "name": "Chamartín",
+            "arrivals_30min": chamartin_30min,
+            "trains": chamartin_filtered,
+            "is_hot": hottest_station == "chamartin"
+        }
     }
     
     # Get cached flight data - structure is {terminal: [flights]}
     flight_cache = arrival_cache.get("flights", {}).get("data", {})
     
-    # Group by terminal and find hottest
-    terminal_counts = {}
-    terminal_flights = {}
+    # Process all terminals
+    terminals = {}
+    max_terminal_count = 0
+    hottest_terminal = "T4"
     
-    current_hour = now.hour
-    
-    # Iterate through terminals
-    for terminal_name, arrivals in flight_cache.items() if flight_cache else []:
-        if not isinstance(arrivals, list):
-            continue
-            
-        terminal_counts[terminal_name] = 0
-        terminal_flights[terminal_name] = []
+    for terminal_name in ["T1", "T2", "T3", "T4", "T4S"]:
+        arrivals = flight_cache.get(terminal_name, []) if flight_cache else []
+        
+        # Filter future flights only
+        future_flights = []
+        count_30min = 0
         
         for flight in arrivals:
             flight_time = flight.get("time", "")
@@ -2109,38 +2121,48 @@ async def get_public_summary():
                 continue
             
             # Skip flights that are "tomorrow" (after midnight when we're before midnight)
-            # If current hour is >= 12 and flight hour is < 6, it's tomorrow
             if current_hour >= 12 and flight_hour < 6:
                 continue
             
-            # Count arrivals in next 30 min (only today's flights)
-            if is_within_minutes(flight_time, 30):
-                terminal_counts[terminal_name] += 1
+            # Check if flight is in the future
+            if is_within_minutes(flight_time, 1440):  # Within 24 hours
+                if len(future_flights) < 3:
+                    future_flights.append(flight)
             
-            # Add to display list (only today's flights)
-            if len(terminal_flights[terminal_name]) < 3:
-                terminal_flights[terminal_name].append(flight)
+            # Count arrivals in next 30 min
+            if is_within_minutes(flight_time, 30):
+                count_30min += 1
+        
+        terminals[terminal_name] = {
+            "name": terminal_name,
+            "arrivals_30min": count_30min,
+            "flights": future_flights,
+            "is_hot": False  # Will be set after finding max
+        }
+        
+        if count_30min > max_terminal_count:
+            max_terminal_count = count_30min
+            hottest_terminal = terminal_name
     
-    # Find hottest terminal
-    hot_terminal_name = max(terminal_counts.keys(), key=lambda t: terminal_counts.get(t, 0)) if terminal_counts else "T4"
-    hot_terminal = {
-        "name": hot_terminal_name,
-        "arrivals_30min": terminal_counts.get(hot_terminal_name, 0),
-        "flights": terminal_flights.get(hot_terminal_name, [])[:3]
-    }
+    # Mark hottest terminal
+    if hottest_terminal in terminals:
+        terminals[hottest_terminal]["is_hot"] = True
     
     # Get hottest street
     hottest_street = await get_cached_hottest_street(60)
     
     return {
         "timestamp": now.isoformat(),
-        "hot_station": hot_station,
-        "hot_terminal": hot_terminal,
+        "stations": stations,
+        "terminals": terminals,
+        "hottest_station": hottest_station,
+        "hottest_terminal": hottest_terminal,
         "hot_street": {
             "name": hottest_street.get("street_name") if hottest_street else None,
             "activity_count": hottest_street.get("activity_count", 0) if hottest_street else 0,
             "percentage": hottest_street.get("percentage", 0) if hottest_street else 0
-        }
+        },
+        "disclaimer": "Horarios orientativos de Renfe y AENA. Susceptibles a retrasos."
     }
 
 def is_within_minutes(time_str: str, minutes: int) -> bool:
