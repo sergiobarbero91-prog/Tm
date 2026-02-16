@@ -2128,7 +2128,7 @@ async def get_public_summary():
         
         # Filter future flights only
         future_flights = []
-        count_30min = 0
+        count_60min = 0
         
         for flight in arrivals:
             flight_time = flight.get("time", "")
