@@ -3289,8 +3289,9 @@ async def refresh_cache_periodically():
             if not cache_refresh_in_progress["trains"]:
                 cache_refresh_in_progress["trains"] = True
                 try:
-                    atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-                    chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+                    # Use combined data source (ADIF + Renfe GTFS fallback)
+                    atocha_arrivals = await fetch_train_arrivals_combined(STATION_IDS["atocha"])
+                    chamartin_arrivals = await fetch_train_arrivals_combined(STATION_IDS["chamartin"])
                     
                     # Get previous cached data
                     prev_data = arrival_cache["trains"]["data"] or {"atocha": [], "chamartin": []}
