@@ -1939,6 +1939,88 @@ async def get_subscriptions():
     subs = await db.notification_subscriptions.find().to_list(1000)
     return [{"push_token": s["push_token"], "train_alerts": s.get("train_alerts", True), "flight_alerts": s.get("flight_alerts", True)} for s in subs]
 
+@api_router.get("/public/summary")
+async def get_public_summary():
+    """Public endpoint for login page - shows summary of hot spots and upcoming arrivals.
+    No authentication required."""
+    
+    now = datetime.now(MADRID_TZ)
+    
+    # Get cached train data
+    train_cache = arrival_cache.get("trains", {}).get("data", {})
+    atocha_arrivals = train_cache.get("atocha", [])
+    chamartin_arrivals = train_cache.get("chamartin", [])
+    
+    # Filter to only future arrivals and get first 3
+    atocha_filtered = filter_future_arrivals(atocha_arrivals, "train")[:3]
+    chamartin_filtered = filter_future_arrivals(chamartin_arrivals, "train")[:3]
+    
+    # Determine hot station (more arrivals in next 30 min)
+    atocha_30min = len([a for a in atocha_filtered if is_within_minutes(a.get("time", ""), 30)])
+    chamartin_30min = len([a for a in chamartin_filtered if is_within_minutes(a.get("time", ""), 30)])
+    
+    hot_station = {
+        "name": "Atocha" if atocha_30min >= chamartin_30min else "Chamartín",
+        "arrivals_30min": max(atocha_30min, chamartin_30min),
+        "trains": atocha_filtered if atocha_30min >= chamartin_30min else chamartin_filtered
+    }
+    
+    # Get cached flight data
+    flight_cache = arrival_cache.get("flights", {}).get("data", {})
+    all_flights = flight_cache.get("all_flights", []) if flight_cache else []
+    
+    # Group by terminal and find hottest
+    terminal_counts = {}
+    terminal_flights = {}
+    for flight in all_flights:
+        terminal = flight.get("terminal", "T4")
+        if terminal not in terminal_counts:
+            terminal_counts[terminal] = 0
+            terminal_flights[terminal] = []
+        # Count arrivals in next 30 min
+        if is_within_minutes(flight.get("time", ""), 30):
+            terminal_counts[terminal] += 1
+        if len(terminal_flights[terminal]) < 3:
+            terminal_flights[terminal].append(flight)
+    
+    # Find hottest terminal
+    hot_terminal_name = max(terminal_counts.keys(), key=lambda t: terminal_counts.get(t, 0)) if terminal_counts else "T4"
+    hot_terminal = {
+        "name": hot_terminal_name,
+        "arrivals_30min": terminal_counts.get(hot_terminal_name, 0),
+        "flights": terminal_flights.get(hot_terminal_name, [])[:3]
+    }
+    
+    # Get hottest street
+    hottest_street = await get_hottest_street_cached(60)
+    
+    return {
+        "timestamp": now.isoformat(),
+        "hot_station": hot_station,
+        "hot_terminal": hot_terminal,
+        "hot_street": {
+            "name": hottest_street.get("street_name") if hottest_street else None,
+            "activity_count": hottest_street.get("activity_count", 0) if hottest_street else 0,
+            "percentage": hottest_street.get("percentage", 0) if hottest_street else 0
+        }
+    }
+
+def is_within_minutes(time_str: str, minutes: int) -> bool:
+    """Check if a time string (HH:MM) is within the next N minutes."""
+    try:
+        now = datetime.now(MADRID_TZ)
+        h, m = map(int, time_str.split(':'))
+        arrival_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        
+        # Handle day rollover
+        if arrival_time < now - timedelta(hours=2):
+            arrival_time += timedelta(days=1)
+        
+        diff = (arrival_time - now).total_seconds() / 60
+        return 0 <= diff <= minutes
+    except:
+        return False
+
 @api_router.get("/health")
 async def health_check():
     """Health check endpoint."""
