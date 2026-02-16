@@ -2010,15 +2010,18 @@ async def get_public_summary():
     }
 
 def is_within_minutes(time_str: str, minutes: int) -> bool:
-    """Check if a time string (HH:MM) is within the next N minutes."""
+    """Check if a time string (HH:MM) is within the next N minutes.
+    Does NOT include times from the next day (after midnight)."""
     try:
         now = datetime.now(MADRID_TZ)
         h, m = map(int, time_str.split(':'))
         arrival_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
         
-        # Handle day rollover
-        if arrival_time < now - timedelta(hours=2):
-            arrival_time += timedelta(days=1)
+        # If the arrival time is earlier than now, it might be tomorrow
+        # But for the public summary, we only want TODAY's arrivals
+        if arrival_time < now:
+            # This is either past or tomorrow - skip it for "within minutes" check
+            return False
         
         diff = (arrival_time - now).total_seconds() / 60
         return 0 <= diff <= minutes
