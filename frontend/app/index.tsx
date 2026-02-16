@@ -6494,34 +6494,47 @@ export default function TransportMeter() {
   // Show login screen if not authenticated
   if (!currentUser) {
     // Ad space component for Google AdSense
-    const AdSpace = ({ position }: { position: 'top' | 'middle' | 'bottom' }) => (
-      <View 
-        style={{
-          width: '100%',
-          minHeight: 90,
-          backgroundColor: 'rgba(30, 41, 59, 0.5)',
-          borderRadius: 8,
-          borderWidth: 1,
-          borderColor: 'rgba(71, 85, 105, 0.3)',
-          borderStyle: 'dashed',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginVertical: 12,
-          padding: 8,
-        }}
-        data-testid={`ad-space-${position}`}
-      >
-        {/* Google AdSense container - replace with actual ad code */}
+    const AdSpace = ({ position }: { position: 'top' | 'middle' | 'bottom' }) => {
+      // Use useEffect to initialize ads after component mounts
+      React.useEffect(() => {
+        try {
+          // @ts-ignore - adsbygoogle is loaded from external script
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.log('AdSense error:', e);
+        }
+      }, []);
+
+      return (
         <View 
-          id={`adsense-${position}`}
-          style={{ width: '100%', minHeight: 70 }}
+          style={{
+            width: '100%',
+            minHeight: 100,
+            backgroundColor: 'rgba(30, 41, 59, 0.3)',
+            borderRadius: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginVertical: 12,
+            overflow: 'hidden',
+          }}
+          data-testid={`ad-space-${position}`}
         >
-          <Text style={{ color: '#64748B', fontSize: 11, textAlign: 'center' }}>
-            Espacio publicitario
-          </Text>
+          {/* Google AdSense Ad Unit */}
+          <ins 
+            className="adsbygoogle"
+            style={{ 
+              display: 'block',
+              width: '100%',
+              minHeight: 90,
+            }}
+            data-ad-client="ca-pub-5598896168990208"
+            data-ad-slot="auto"
+            data-ad-format="auto"
+            data-full-width-responsive="true"
+          />
         </View>
-      </View>
-    );
+      );
+    };
 
     return (
       <SafeAreaView style={styles.container}>
