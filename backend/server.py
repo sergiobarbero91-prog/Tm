@@ -2029,6 +2029,35 @@ async def get_subscriptions():
     subs = await db.notification_subscriptions.find().to_list(1000)
     return [{"push_token": s["push_token"], "train_alerts": s.get("train_alerts", True), "flight_alerts": s.get("flight_alerts", True)} for s in subs]
 
+def filter_strictly_future_arrivals(arrivals: List[Dict]) -> List[Dict]:
+    """Filter arrivals to ONLY include future arrivals (not past).
+    Used for public summary where we only want upcoming trains/flights."""
+    now = datetime.now(MADRID_TZ)
+    filtered = []
+    
+    for arrival in arrivals:
+        try:
+            time_str = arrival.get("time", "")
+            arrival_time = datetime.strptime(time_str, "%H:%M")
+            arrival_time = MADRID_TZ.localize(arrival_time.replace(
+                year=now.year, month=now.month, day=now.day
+            ))
+            
+            # Handle day rollover (early morning times when it's late night)
+            if arrival_time < now - timedelta(hours=6):
+                arrival_time += timedelta(days=1)
+            
+            # Only include if arrival is in the future (>= now)
+            if arrival_time >= now:
+                filtered.append(arrival)
+        except:
+            pass
+    
+    # Sort by time
+    filtered.sort(key=lambda x: x.get("time", "99:99"))
+    return filtered
+
+
 @api_router.get("/public/summary")
 async def get_public_summary():
     """Public endpoint for login page - shows summary of hot spots and upcoming arrivals.
@@ -2041,9 +2070,9 @@ async def get_public_summary():
     atocha_arrivals = train_cache.get("atocha", [])
     chamartin_arrivals = train_cache.get("chamartin", [])
     
-    # Filter to only future arrivals and get first 3
-    atocha_filtered = filter_future_arrivals(atocha_arrivals, "train")[:3]
-    chamartin_filtered = filter_future_arrivals(chamartin_arrivals, "train")[:3]
+    # Filter to ONLY future arrivals (strictly, no past) and get first 3
+    atocha_filtered = filter_strictly_future_arrivals(atocha_arrivals)[:3]
+    chamartin_filtered = filter_strictly_future_arrivals(chamartin_arrivals)[:3]
     
     # Determine hot station (more arrivals in next 30 min)
     atocha_30min = len([a for a in atocha_filtered if is_within_minutes(a.get("time", ""), 30)])
