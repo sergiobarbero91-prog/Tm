@@ -808,6 +808,31 @@ export default function TransportMeter() {
     };
   }, []);
 
+  // Fetch public summary when not authenticated (for login page)
+  useEffect(() => {
+    const fetchPublicSummary = async () => {
+      if (!currentUser) {
+        try {
+          const response = await axios.get(`${API_BASE}/api/public/summary`);
+          setPublicSummary(response.data);
+        } catch (error) {
+          console.log('Error fetching public summary:', error);
+        }
+      }
+    };
+    
+    fetchPublicSummary();
+    
+    // Refresh every 2 minutes when on login page
+    const interval = setInterval(() => {
+      if (!currentUser) {
+        fetchPublicSummary();
+      }
+    }, 120000);
+    
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   // License Alerts states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [showCreateLicenseAlertModal, setShowCreateLicenseAlertModal] = useState(false);
