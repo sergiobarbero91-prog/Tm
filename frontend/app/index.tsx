@@ -335,6 +335,13 @@ export default function TransportMeter() {
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
   
+  // Public summary for login page (no auth required)
+  const [publicSummary, setPublicSummary] = useState<{
+    hot_station: { name: string; arrivals_30min: number; trains: any[] };
+    hot_terminal: { name: string; arrivals_30min: number; flights: any[] };
+    hot_street: { name: string | null; activity_count: number; percentage: number };
+  } | null>(null);
+  
   // Router for navigation
   const router = useRouter();
   
