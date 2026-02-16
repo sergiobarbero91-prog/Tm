@@ -337,9 +337,17 @@ export default function TransportMeter() {
   
   // Public summary for login page (no auth required)
   const [publicSummary, setPublicSummary] = useState<{
-    hot_station: { name: string; arrivals_30min: number; trains: any[] };
-    hot_terminal: { name: string; arrivals_30min: number; flights: any[] };
+    stations: {
+      atocha: { name: string; arrivals_30min: number; trains: any[]; is_hot: boolean };
+      chamartin: { name: string; arrivals_30min: number; trains: any[]; is_hot: boolean };
+    };
+    terminals: {
+      [key: string]: { name: string; arrivals_30min: number; flights: any[]; is_hot: boolean };
+    };
+    hottest_station: string;
+    hottest_terminal: string;
     hot_street: { name: string | null; activity_count: number; percentage: number };
+    disclaimer: string;
   } | null>(null);
   
   // Router for navigation
