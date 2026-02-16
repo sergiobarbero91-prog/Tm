@@ -909,7 +909,8 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
                                             "train_type": train_type.upper(),
                                             "train_number": train_number,
                                             "platform": platform if platform else "-",
-                                            "status": "En hora"
+                                            "status": "En hora",
+                                            "source": "ADIF"
                                         })
                                 except Exception as e:
                                     logger.debug(f"Error parsing row: {e}")
