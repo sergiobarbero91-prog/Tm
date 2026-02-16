@@ -918,92 +918,11 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"Error scraping ADIF HTML for station {station_id}: {e}")
     
-    # If HTML scraping returned no results, try Google Script as last resort
-    if not arrivals:
-        logger.info(f"Station {station_id}: HTML scrape returned 0 trains, trying Google Script...")
-        arrivals = await fetch_trains_from_google_script(station_id)
-    else:
+    if arrivals:
         logger.info(f"Station {station_id}: Scraped {len(arrivals)} media/larga distancia trains from HTML")
+    else:
+        logger.info(f"Station {station_id}: HTML scrape returned 0 trains")
     
-    return arrivals
-
-
-# Google Apps Script URL for train data (fallback when ADIF blocks requests)
-GOOGLE_SCRIPT_TRAINS_URL = os.environ.get("GOOGLE_SCRIPT_TRAINS_URL", "")
-
-
-async def fetch_trains_from_google_script(station_id: str) -> List[Dict]:
-    """Fetch train arrivals from Google Apps Script proxy.
-    
-    This is used as a fallback when ADIF blocks direct requests.
-    The script returns basic train info (type, number) without times.
-    """
-    if not GOOGLE_SCRIPT_TRAINS_URL:
-        logger.warning("GOOGLE_SCRIPT_TRAINS_URL not configured")
-        return []
-    
-    arrivals = []
-    now = datetime.now(MADRID_TZ)
-    
-    try:
-        url = f"{GOOGLE_SCRIPT_TRAINS_URL}?station={station_id}"
-        logger.info(f"Station {station_id}: Fetching from Google Script: {url}")
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=30, allow_redirects=True) as response:
-                if response.status != 200:
-                    logger.warning(f"Google Script returned status {response.status}")
-                    return []
-                
-                result = await response.json()
-                
-                if not result.get("success"):
-                    logger.warning(f"Google Script returned error: {result}")
-                    return []
-                
-                trains = result.get("trains", [])
-                logger.info(f"Station {station_id}: Google Script returned {len(trains)} trains")
-                
-                # Convert to our format
-                # Note: Google Script only returns type and number, no times
-                # We'll generate estimated times based on typical intervals
-                base_time = now + timedelta(minutes=5)  # Start 5 min from now
-                
-                for i, train in enumerate(trains):
-                    train_type = train.get("type", "TREN")
-                    train_number = train.get("number", "")
-                    
-                    # Filter out invalid train numbers (station IDs and asset IDs)
-                    invalid_numbers = ["17000", "60000", "30619", "30885", "30886", "3061911", "3088606"]
-                    if train_number in invalid_numbers:
-                        continue
-                    
-                    # Only include valid media/larga distancia trains
-                    if not is_valid_media_larga_distancia(train_type):
-                        continue
-                    
-                    # Estimate arrival time (spread trains over the next few hours)
-                    estimated_time = base_time + timedelta(minutes=i * 3)
-                    time_str = estimated_time.strftime("%H:%M")
-                    
-                    arrivals.append({
-                        "time": time_str,
-                        "scheduled_time": time_str,
-                        "origin": "Via Google Script",  # Origin unknown from this source
-                        "train_type": train_type.upper(),
-                        "train_number": train_number,
-                        "platform": "-",
-                        "status": "Previsto",
-                        "delay_minutes": None,
-                        "source": "Google Script"
-                    })
-                    
-    except asyncio.TimeoutError:
-        logger.warning(f"Station {station_id}: Google Script timeout")
-    except Exception as e:
-        logger.error(f"Station {station_id}: Error fetching from Google Script: {e}")
-    
-    logger.info(f"Station {station_id}: Got {len(arrivals)} trains from Google Script")
     return arrivals
 
 
