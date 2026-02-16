@@ -7085,6 +7085,9 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* Ad Space - BOTTOM */}
+            <AdSpace position="bottom" />
+
             {/* Footer */}
             <Text style={styles.loginFooter}>
               {showRegister ? '* Campos obligatorios' : 'Acceso solo para usuarios registrados'}
