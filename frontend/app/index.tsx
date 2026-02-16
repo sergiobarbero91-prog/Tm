@@ -6507,6 +6507,81 @@ export default function TransportMeter() {
               </Text>
             </View>
 
+            {/* Public Summary - Hot Spots */}
+            {!showRegister && publicSummary && (
+              <View style={{
+                backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(71, 85, 105, 0.5)',
+              }}>
+                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 12, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  En tiempo real
+                </Text>
+                
+                {/* Hot Station */}
+                <View style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Ionicons name="train" size={18} color="#F59E0B" />
+                    <Text style={{ color: '#F59E0B', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
+                      Estación {publicSummary.hot_station.name}
+                    </Text>
+                    <View style={{ backgroundColor: '#F59E0B', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
+                      <Text style={{ color: '#0F172A', fontSize: 11, fontWeight: '700' }}>
+                        {publicSummary.hot_station.arrivals_30min} en 30min
+                      </Text>
+                    </View>
+                  </View>
+                  {publicSummary.hot_station.trains.slice(0, 3).map((train: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingLeft: 26 }}>
+                      <Text style={{ color: '#CBD5E1', fontSize: 13, width: 45 }}>{train.time}</Text>
+                      <Text style={{ color: '#818CF8', fontSize: 13, fontWeight: '600', width: 55 }}>{train.train_type}</Text>
+                      <Text style={{ color: '#64748B', fontSize: 12, flex: 1 }} numberOfLines={1}>{train.origin}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Hot Terminal */}
+                <View style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Ionicons name="airplane" size={18} color="#22D3EE" />
+                    <Text style={{ color: '#22D3EE', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
+                      Terminal {publicSummary.hot_terminal.name}
+                    </Text>
+                    <View style={{ backgroundColor: '#22D3EE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
+                      <Text style={{ color: '#0F172A', fontSize: 11, fontWeight: '700' }}>
+                        {publicSummary.hot_terminal.arrivals_30min} en 30min
+                      </Text>
+                    </View>
+                  </View>
+                  {publicSummary.hot_terminal.flights.slice(0, 3).map((flight: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingLeft: 26 }}>
+                      <Text style={{ color: '#CBD5E1', fontSize: 13, width: 45 }}>{flight.time}</Text>
+                      <Text style={{ color: '#22D3EE', fontSize: 13, fontWeight: '600', width: 65 }}>{flight.flight_number || flight.airline}</Text>
+                      <Text style={{ color: '#64748B', fontSize: 12, flex: 1 }} numberOfLines={1}>{flight.origin}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Hot Street */}
+                {publicSummary.hot_street.name && (
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="location" size={18} color="#34D399" />
+                      <Text style={{ color: '#34D399', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
+                        Calle caliente
+                      </Text>
+                    </View>
+                    <Text style={{ color: '#CBD5E1', fontSize: 13, marginTop: 4, paddingLeft: 26 }}>
+                      {publicSummary.hot_street.name} ({publicSummary.hot_street.percentage}% actividad)
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {!showRegister ? (
               /* Login Form */
               <View style={styles.loginFormContainer}>
