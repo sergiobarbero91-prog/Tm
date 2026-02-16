@@ -994,7 +994,8 @@ async def fetch_trains_from_google_script(station_id: str) -> List[Dict]:
                         "train_number": train_number,
                         "platform": "-",
                         "status": "Previsto",
-                        "delay_minutes": None
+                        "delay_minutes": None,
+                        "source": "Google Script"
                     })
                     
     except asyncio.TimeoutError:
