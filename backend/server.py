@@ -2031,30 +2031,47 @@ async def get_subscriptions():
 
 def filter_strictly_future_arrivals(arrivals: List[Dict]) -> List[Dict]:
     """Filter arrivals to ONLY include future arrivals (not past).
-    Used for public summary where we only want upcoming trains/flights."""
+    Used for public summary where we only want upcoming trains/flights.
+    Correctly handles day rollover (times after midnight)."""
     now = datetime.now(MADRID_TZ)
     filtered = []
     
     for arrival in arrivals:
         try:
             time_str = arrival.get("time", "")
-            arrival_time = datetime.strptime(time_str, "%H:%M")
-            arrival_time = MADRID_TZ.localize(arrival_time.replace(
-                year=now.year, month=now.month, day=now.day
-            ))
+            h, m = map(int, time_str.split(':'))
+            arrival_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
             
             # Handle day rollover (early morning times when it's late night)
-            if arrival_time < now - timedelta(hours=6):
-                arrival_time += timedelta(days=1)
+            # If arrival time appears to be in the past but is within 6 hours ago,
+            # it's actually tomorrow
+            if arrival_time < now:
+                # Check if it's an early morning time (0-6 AM) and we're late at night
+                if h < 6 and now.hour >= 18:
+                    arrival_time += timedelta(days=1)
+                else:
+                    # It's truly in the past, skip it
+                    continue
             
-            # Only include if arrival is in the future (>= now)
-            if arrival_time >= now:
-                filtered.append(arrival)
+            # Calculate minutes until arrival for sorting
+            diff_minutes = (arrival_time - now).total_seconds() / 60
+            
+            # Only include arrivals that are genuinely in the future
+            if diff_minutes >= 0:
+                # Store the actual datetime for proper sorting
+                arrival_copy = arrival.copy()
+                arrival_copy['_sort_key'] = diff_minutes
+                filtered.append(arrival_copy)
         except:
             pass
     
-    # Sort by time
-    filtered.sort(key=lambda x: x.get("time", "99:99"))
+    # Sort by actual time until arrival (not alphabetically by time string)
+    filtered.sort(key=lambda x: x.get('_sort_key', 9999))
+    
+    # Remove the sort key before returning
+    for arr in filtered:
+        arr.pop('_sort_key', None)
+    
     return filtered
 
 
