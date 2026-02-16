@@ -43,10 +43,34 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 - `/app/backend/server.py` - Nueva función `fetch_trains_from_google_script()`
 - `/app/backend/.env` - Añadida variable `GOOGLE_SCRIPT_TRAINS_URL`
 
+### 🔧 Integración Renfe Open Data GTFS (Feb 16, 2026)
+
+**Objetivo:** Añadir Renfe Open Data como fuente secundaria de datos de trenes para aumentar la fiabilidad.
+
+**Solución implementada:**
+1. **Módulo `renfe_gtfs.py`** - Descarga y parsea datos GTFS estáticos de Renfe
+2. **Función `fetch_train_arrivals_combined()`** - Combina ADIF + Renfe GTFS inteligentemente
+3. **Carga en background** - Los datos GTFS se cargan en background al iniciar el servidor
+
+**Lógica de fallback:**
+- Si ADIF devuelve suficientes trenes (>=5), usa solo ADIF
+- Si ADIF falla o devuelve pocos trenes, complementa con Renfe GTFS
+- Deduplicación automática por número de tren + hora
+- Campo `source` añadido a todos los trenes (ADIF, Renfe GTFS, Google Script)
+
+**Datos GTFS cargados:**
+- 622 rutas
+- 5914 viajes
+- 771 estaciones
+
+**Archivos modificados:**
+- `/app/backend/renfe_gtfs.py` - Módulo para Renfe GTFS (existía, ahora integrado)
+- `/app/backend/server.py` - Nueva función `fetch_train_arrivals_combined()`, import de módulo GTFS
+
 **Estado actual de endpoints:**
 | Endpoint | Estado | Datos típicos |
 |----------|--------|---------------|
-| `/api/trains` | ✅ OK | Atocha: 20-25, Chamartín: 20-75 trenes |
+| `/api/trains` | ✅ OK | Atocha: 20-75, Chamartín: 20-75 trenes |
 | `/api/flights` | ✅ OK | 50-180 vuelos |
 | `/api/health` | ✅ OK | healthy |
 
