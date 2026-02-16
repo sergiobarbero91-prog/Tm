@@ -133,6 +133,7 @@ queue_status_collection = db['queue_status']  # People waiting at stations/termi
 active_checkins_collection = db['active_checkins']  # Persistent active check-ins
 emergency_alerts_collection = db['emergency_alerts']  # Emergency SOS alerts
 hottest_street_cache_collection = db['hottest_street_cache']  # Persistent hottest street cache
+trains_cache_collection = db['trains_cache']  # Persistent train cache to survive restarts
 events_collection = db['events']  # User-created events
 chat_messages_collection = db['chat_messages']  # Chat messages for all channels
 license_alerts_collection = db['license_alerts']  # Alerts between taxi drivers by license number
