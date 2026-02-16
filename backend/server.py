@@ -1972,6 +1972,8 @@ async def get_public_summary():
     terminal_counts = {}
     terminal_flights = {}
     
+    current_hour = now.hour
+    
     # Iterate through terminals
     for terminal_name, arrivals in flight_cache.items() if flight_cache else []:
         if not isinstance(arrivals, list):
@@ -1981,9 +1983,22 @@ async def get_public_summary():
         terminal_flights[terminal_name] = []
         
         for flight in arrivals:
-            # Count arrivals in next 30 min
-            if is_within_minutes(flight.get("time", ""), 30):
+            flight_time = flight.get("time", "")
+            try:
+                flight_hour = int(flight_time.split(':')[0])
+            except:
+                continue
+            
+            # Skip flights that are "tomorrow" (after midnight when we're before midnight)
+            # If current hour is >= 12 and flight hour is < 6, it's tomorrow
+            if current_hour >= 12 and flight_hour < 6:
+                continue
+            
+            # Count arrivals in next 30 min (only today's flights)
+            if is_within_minutes(flight_time, 30):
                 terminal_counts[terminal_name] += 1
+            
+            # Add to display list (only today's flights)
             if len(terminal_flights[terminal_name]) < 3:
                 terminal_flights[terminal_name].append(flight)
     
