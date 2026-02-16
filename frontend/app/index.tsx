@@ -338,11 +338,11 @@ export default function TransportMeter() {
   // Public summary for login page (no auth required)
   const [publicSummary, setPublicSummary] = useState<{
     stations: {
-      atocha: { name: string; arrivals_30min: number; trains: any[]; is_hot: boolean };
-      chamartin: { name: string; arrivals_30min: number; trains: any[]; is_hot: boolean };
+      atocha: { name: string; arrivals_60min: number; trains: any[]; is_hot: boolean };
+      chamartin: { name: string; arrivals_60min: number; trains: any[]; is_hot: boolean };
     };
     terminals: {
-      [key: string]: { name: string; arrivals_30min: number; flights: any[]; is_hot: boolean };
+      [key: string]: { name: string; arrivals_60min: number; flights: any[]; is_hot: boolean };
     };
     hottest_station: string;
     hottest_terminal: string;
