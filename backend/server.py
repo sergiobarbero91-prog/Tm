@@ -1305,6 +1305,7 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
         arrival_type: "flight" or "train" to determine status keywords
     """
     now = datetime.now(MADRID_TZ)
+    current_date = now.date()
     filtered = []
     
     # Status keywords to exclude
@@ -1328,13 +1329,16 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
                 year=now.year, month=now.month, day=now.day
             ))
             
-            # Handle day rollover
-            if arrival_time < now - timedelta(hours=2):
+            # Handle day rollover (for late night arrivals showing as early morning)
+            if arrival_time < now - timedelta(hours=6):
                 arrival_time += timedelta(days=1)
             
-            # Only include future arrivals (within next 4 hours buffer for delays)
-            time_diff = (arrival_time - now).total_seconds() / 60
-            if time_diff >= -30:  # Allow 30 min buffer for recently arrived
+            # Check if arrival is within valid time window
+            # Allow arrivals from 30 min ago (recently arrived) to 24 hours ahead
+            time_diff_minutes = (arrival_time - now).total_seconds() / 60
+            
+            # Only include arrivals within reasonable time window
+            if -30 <= time_diff_minutes <= 1440:  # -30 min to +24 hours
                 filtered.append(arrival)
         except (ValueError, TypeError, KeyError):
             pass
