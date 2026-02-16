@@ -1992,7 +1992,7 @@ async def get_public_summary():
     }
     
     # Get hottest street
-    hottest_street = await get_hottest_street_cached(60)
+    hottest_street = await get_cached_hottest_street(60)
     
     return {
         "timestamp": now.isoformat(),
