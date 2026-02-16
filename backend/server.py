@@ -1967,21 +1967,25 @@ async def get_public_summary():
     
     # Get cached flight data
     flight_cache = arrival_cache.get("flights", {}).get("data", {})
-    all_flights = flight_cache.get("all_flights", []) if flight_cache else []
     
-    # Group by terminal and find hottest
+    # Group by terminal and find hottest - flights are stored by terminal
     terminal_counts = {}
     terminal_flights = {}
-    for flight in all_flights:
-        terminal = flight.get("terminal", "T4")
-        if terminal not in terminal_counts:
-            terminal_counts[terminal] = 0
-            terminal_flights[terminal] = []
-        # Count arrivals in next 30 min
-        if is_within_minutes(flight.get("time", ""), 30):
-            terminal_counts[terminal] += 1
-        if len(terminal_flights[terminal]) < 3:
-            terminal_flights[terminal].append(flight)
+    
+    # Get terminals from the cached data structure
+    terminals_data = flight_cache.get("terminals", {}) if flight_cache else {}
+    
+    for terminal_name, terminal_data in terminals_data.items():
+        arrivals = terminal_data.get("arrivals", []) if isinstance(terminal_data, dict) else []
+        terminal_counts[terminal_name] = 0
+        terminal_flights[terminal_name] = []
+        
+        for flight in arrivals:
+            # Count arrivals in next 30 min
+            if is_within_minutes(flight.get("time", ""), 30):
+                terminal_counts[terminal_name] += 1
+            if len(terminal_flights[terminal_name]) < 3:
+                terminal_flights[terminal_name].append(flight)
     
     # Find hottest terminal
     hot_terminal_name = max(terminal_counts.keys(), key=lambda t: terminal_counts.get(t, 0)) if terminal_counts else "T4"
