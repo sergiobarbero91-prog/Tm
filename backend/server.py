@@ -3492,8 +3492,9 @@ async def startup_db_client():
         
         # Fetch fresh data if no valid cache
         if not cached_trains or cache_age_hours >= 1:
-            atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-            chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+            # Use combined data source (ADIF + Renfe GTFS fallback)
+            atocha_arrivals = await fetch_train_arrivals_combined(STATION_IDS["atocha"])
+            chamartin_arrivals = await fetch_train_arrivals_combined(STATION_IDS["chamartin"])
             
             # If fresh fetch returns 0, try to use MongoDB cache as fallback
             if not atocha_arrivals and cached_trains:
