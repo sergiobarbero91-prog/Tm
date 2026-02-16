@@ -41,7 +41,12 @@
       "description": "Monitor de llegadas a estaciones de tren y terminales de aeropuerto para taxistas de Madrid",
       "lang": "es",
       "themeColor": "#1F2937",
-      "backgroundColor": "#111827"
+      "backgroundColor": "#111827",
+      "build": {
+        "babel": {
+          "include": ["@expo/html-elements"]
+        }
+      }
     },
     "plugins": [
       "expo-router",
