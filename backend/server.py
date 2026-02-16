@@ -2092,24 +2092,24 @@ async def get_public_summary():
     atocha_filtered = filter_strictly_future_arrivals(atocha_arrivals)[:3]
     chamartin_filtered = filter_strictly_future_arrivals(chamartin_arrivals)[:3]
     
-    # Count arrivals in next 30 min for each station
-    atocha_30min = len([a for a in filter_strictly_future_arrivals(atocha_arrivals) if is_within_minutes(a.get("time", ""), 30)])
-    chamartin_30min = len([a for a in filter_strictly_future_arrivals(chamartin_arrivals) if is_within_minutes(a.get("time", ""), 30)])
+    # Count arrivals in next 60 min for each station
+    atocha_60min = len([a for a in filter_strictly_future_arrivals(atocha_arrivals) if is_within_minutes(a.get("time", ""), 60)])
+    chamartin_60min = len([a for a in filter_strictly_future_arrivals(chamartin_arrivals) if is_within_minutes(a.get("time", ""), 60)])
     
     # Determine which station is hottest
-    hottest_station = "atocha" if atocha_30min >= chamartin_30min else "chamartin"
+    hottest_station = "atocha" if atocha_60min >= chamartin_60min else "chamartin"
     
     # Build stations data
     stations = {
         "atocha": {
             "name": "Atocha",
-            "arrivals_30min": atocha_30min,
+            "arrivals_60min": atocha_60min,
             "trains": atocha_filtered,
             "is_hot": hottest_station == "atocha"
         },
         "chamartin": {
             "name": "Chamartín",
-            "arrivals_30min": chamartin_30min,
+            "arrivals_60min": chamartin_60min,
             "trains": chamartin_filtered,
             "is_hot": hottest_station == "chamartin"
         }
