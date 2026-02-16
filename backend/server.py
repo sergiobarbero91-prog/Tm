@@ -3096,14 +3096,34 @@ async def refresh_cache_periodically():
                     atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
                     chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
                     
+                    # Get previous cached data
+                    prev_data = arrival_cache["trains"]["data"] or {"atocha": [], "chamartin": []}
+                    prev_atocha = prev_data.get("atocha", [])
+                    prev_chamartin = prev_data.get("chamartin", [])
+                    
+                    # Smart cache update: preserve previous data if new data is empty
+                    # This prevents showing 0 trains when API temporarily fails
+                    final_atocha = atocha_arrivals if atocha_arrivals else prev_atocha
+                    final_chamartin = chamartin_arrivals if chamartin_arrivals else prev_chamartin
+                    
+                    # Log what happened
+                    if not atocha_arrivals and prev_atocha:
+                        logger.warning(f"Background: Atocha returned 0 trains, keeping {len(prev_atocha)} previous cached")
+                    if not chamartin_arrivals and prev_chamartin:
+                        logger.warning(f"Background: Chamartín returned 0 trains, keeping {len(prev_chamartin)} previous cached")
+                    
+                    # Update cache
+                    arrival_cache["trains"]["data"] = {
+                        "atocha": final_atocha,
+                        "chamartin": final_chamartin
+                    }
+                    arrival_cache["trains"]["timestamp"] = datetime.now()
+                    
+                    # Only update last_successful if we got real new data
                     if atocha_arrivals or chamartin_arrivals:
-                        arrival_cache["trains"]["data"] = {
-                            "atocha": atocha_arrivals,
-                            "chamartin": chamartin_arrivals
-                        }
-                        arrival_cache["trains"]["timestamp"] = datetime.now()
                         arrival_cache["trains"]["last_successful"] = datetime.now()
-                        logger.info(f"Background: Train cache refreshed - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
+                    
+                    logger.info(f"Background: Train cache refreshed - Atocha: {len(final_atocha)}, Chamartin: {len(final_chamartin)}")
                 except Exception as e:
                     logger.error(f"Background: Error refreshing train cache: {e}")
                 finally:
