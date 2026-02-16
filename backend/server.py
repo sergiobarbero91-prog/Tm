@@ -3125,6 +3125,21 @@ async def refresh_cache_periodically():
                         arrival_cache["trains"]["last_successful"] = datetime.now()
                     
                     logger.info(f"Background: Train cache refreshed - Atocha: {len(final_atocha)}, Chamartin: {len(final_chamartin)}")
+                    
+                    # Save to MongoDB for persistence
+                    try:
+                        await trains_cache_collection.update_one(
+                            {"_id": "current"},
+                            {"$set": {
+                                "atocha": final_atocha,
+                                "chamartin": final_chamartin,
+                                "timestamp": datetime.now(),
+                                "last_successful": arrival_cache["trains"]["last_successful"]
+                            }},
+                            upsert=True
+                        )
+                    except Exception as db_err:
+                        logger.error(f"Background: Error saving train cache to MongoDB: {db_err}")
                 except Exception as e:
                     logger.error(f"Background: Error refreshing train cache: {e}")
                 finally:
