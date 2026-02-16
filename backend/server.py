@@ -82,6 +82,9 @@ from routers import social as social_router
 from routers import release_notes as release_notes_router
 from routers import whatsapp as whatsapp_router
 
+# Import Renfe GTFS module for fallback train data
+from renfe_gtfs import get_arrivals_from_renfe, ensure_gtfs_loaded
+
 # Import history collections from shared
 from shared import (
     trains_history_collection, 
