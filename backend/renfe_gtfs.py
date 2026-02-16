@@ -187,10 +187,6 @@ async def get_arrivals_from_renfe(station_id: str, hours_ahead: int = 3) -> List
     for st in stop_times:
         trip_id = st['trip_id']
         
-        # Only today's trips
-        if today not in trip_id:
-            continue
-        
         # Only arrivals (not the origin station)
         origin_stop = gtfs_cache["trip_origins"].get(trip_id, '')
         if origin_stop == station_id:
