@@ -5983,43 +5983,19 @@ export default function TransportMeter() {
       }
       
       if (activeTab === 'trains') {
-        // Fetch trains with retry for Chamartín
-        let retryCount = 0;
-        const maxRetries = 5;
-        let trainResponse: TrainComparison | null = null;
+        // Fetch trains from cache (backend updates cache every 15 minutes)
+        // No retries needed - cache always returns immediately
+        const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
+          params: { shift, ...timeParams }
+        });
         
-        while (retryCount < maxRetries) {
-          const response = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, {
-            params: { shift, ...timeParams }
-          });
-          
-          trainResponse = response.data;
-          
-          // Check if Chamartín has data (for real-time queries, retry if no data)
-          const chamartinHasData = response.data.chamartin?.arrivals?.length > 0;
-          
-          // For historical queries, don't retry if no data (data may simply not exist)
-          if (chamartinHasData || isHistorical) {
-            console.log(`[Trains] Chamartín data received (${response.data.chamartin?.arrivals?.length || 0} trains)`);
-            break;
-          }
-          
-          retryCount++;
-          console.log(`[Trains] Chamartín sin datos, reintentando (${retryCount}/${maxRetries})...`);
-          
-          if (retryCount < maxRetries) {
-            // Wait 2 seconds before retrying
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        }
+        setTrainData(response.data);
         
-        if (trainResponse) {
-          setTrainData(trainResponse);
-          
-          if (trainResponse.chamartin?.arrivals?.length === 0 && !isHistorical) {
-            console.log('[Trains] Chamartín: No se pudieron obtener datos después de varios intentos');
-          }
-        }
+        // Log status
+        const atochaCount = response.data.atocha?.arrivals?.length || 0;
+        const chamartinCount = response.data.chamartin?.arrivals?.length || 0;
+        console.log(`[Trains] Datos recibidos - Atocha: ${atochaCount}, Chamartín: ${chamartinCount}`);
+        
       } else if (activeTab === 'flights') {
         const response = await axios.get<FlightComparison>(`${API_BASE}/api/flights`, {
           params: timeParams
