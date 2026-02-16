@@ -2146,19 +2146,19 @@ async def get_public_summary():
                 if len(future_flights) < 3:
                     future_flights.append(flight)
             
-            # Count arrivals in next 30 min
-            if is_within_minutes(flight_time, 30):
-                count_30min += 1
+            # Count arrivals in next 60 min
+            if is_within_minutes(flight_time, 60):
+                count_60min += 1
         
         terminals[terminal_name] = {
             "name": terminal_name,
-            "arrivals_30min": count_30min,
+            "arrivals_60min": count_60min,
             "flights": future_flights,
             "is_hot": False  # Will be set after finding max
         }
         
-        if count_30min > max_terminal_count:
-            max_terminal_count = count_30min
+        if count_60min > max_terminal_count:
+            max_terminal_count = count_60min
             hottest_terminal = terminal_name
     
     # Mark hottest terminal
