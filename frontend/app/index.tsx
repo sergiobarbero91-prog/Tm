@@ -6692,6 +6692,9 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* Ad Space - MIDDLE (after summary) */}
+            {!showRegister && <AdSpace position="middle" />}
+
             {!showRegister ? (
               /* Login Form */
               <View style={styles.loginFormContainer}>
