@@ -6493,6 +6493,36 @@ export default function TransportMeter() {
 
   // Show login screen if not authenticated
   if (!currentUser) {
+    // Ad space component for Google AdSense
+    const AdSpace = ({ position }: { position: 'top' | 'middle' | 'bottom' }) => (
+      <View 
+        style={{
+          width: '100%',
+          minHeight: 90,
+          backgroundColor: 'rgba(30, 41, 59, 0.5)',
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: 'rgba(71, 85, 105, 0.3)',
+          borderStyle: 'dashed',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginVertical: 12,
+          padding: 8,
+        }}
+        data-testid={`ad-space-${position}`}
+      >
+        {/* Google AdSense container - replace with actual ad code */}
+        <View 
+          id={`adsense-${position}`}
+          style={{ width: '100%', minHeight: 70 }}
+        >
+          <Text style={{ color: '#64748B', fontSize: 11, textAlign: 'center' }}>
+            Espacio publicitario
+          </Text>
+        </View>
+      </View>
+    );
+
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
@@ -6504,6 +6534,9 @@ export default function TransportMeter() {
             contentContainerStyle={styles.loginScreenContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* Ad Space - TOP */}
+            <AdSpace position="top" />
+
             {/* Logo/Header */}
             <View style={styles.loginHeader}>
               <View style={styles.loginLogoContainer}>
