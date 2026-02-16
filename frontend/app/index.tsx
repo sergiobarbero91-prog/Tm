@@ -6553,7 +6553,7 @@ export default function TransportMeter() {
                       </Text>
                       <View style={{ backgroundColor: publicSummary.stations.atocha.is_hot ? '#F59E0B' : '#475569', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
                         <Text style={{ color: publicSummary.stations.atocha.is_hot ? '#0F172A' : '#CBD5E1', fontSize: 10, fontWeight: '700' }}>
-                          {publicSummary.stations.atocha.arrivals_30min} en 30min
+                          {publicSummary.stations.atocha.arrivals_60min} en 60min
                         </Text>
                       </View>
                     </View>
