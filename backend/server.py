@@ -3289,8 +3289,9 @@ async def startup_db_client():
     logger.info("WhatsApp bot monitor task started")
 
 async def whatsapp_hourly_update_task():
-    """Background task to send WhatsApp updates every hour."""
+    """Background task to send WhatsApp updates every hour at random minutes (1-30) to avoid patterns."""
     import aiohttp
+    import random
     
     WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:3001")
     
@@ -3303,14 +3304,23 @@ async def whatsapp_hourly_update_task():
             
             # Only send between 6 AM and 11 PM Madrid time
             if 6 <= now.hour <= 23:
-                # Calculate time until next hour
-                minutes_until_next_hour = 60 - now.minute
-                seconds_until_next_hour = minutes_until_next_hour * 60 - now.second
+                # Generate random minute between 1 and 30 for this hour
+                random_minute = random.randint(1, 30)
                 
-                # Wait until the start of next hour
-                if seconds_until_next_hour > 0:
-                    logger.info(f"WhatsApp: Waiting {minutes_until_next_hour} minutes until next hourly update")
-                    await asyncio.sleep(seconds_until_next_hour)
+                # Calculate seconds until the random minute of next hour
+                if now.minute >= random_minute:
+                    # Already passed this hour's random minute, wait for next hour
+                    minutes_until_target = 60 - now.minute + random_minute
+                else:
+                    # Still time this hour
+                    minutes_until_target = random_minute - now.minute
+                
+                seconds_until_target = minutes_until_target * 60 - now.second
+                
+                if seconds_until_target > 0:
+                    target_time = now + timedelta(seconds=seconds_until_target)
+                    logger.info(f"WhatsApp: Next update scheduled for {target_time.strftime('%H:%M')} (random minute: {random_minute})")
+                    await asyncio.sleep(seconds_until_target)
                 
                 # Send the update
                 try:
@@ -3328,6 +3338,11 @@ async def whatsapp_hourly_update_task():
                     logger.debug(f"WhatsApp: Bot not available - {e}")
                 except Exception as e:
                     logger.error(f"WhatsApp: Error sending update - {e}")
+                
+                # Wait until next hour before generating new random minute
+                # (minimum 30 minutes to avoid sending twice in same hour)
+                await asyncio.sleep(1800)  # 30 minutes minimum between messages
+                
             else:
                 # Outside operating hours, sleep for an hour
                 logger.info(f"WhatsApp: Outside operating hours ({now.hour}:00), sleeping until 6 AM")
