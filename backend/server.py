@@ -1965,18 +1965,18 @@ async def get_public_summary():
         "trains": atocha_filtered if atocha_30min >= chamartin_30min else chamartin_filtered
     }
     
-    # Get cached flight data
+    # Get cached flight data - structure is {terminal: [flights]}
     flight_cache = arrival_cache.get("flights", {}).get("data", {})
     
-    # Group by terminal and find hottest - flights are stored by terminal
+    # Group by terminal and find hottest
     terminal_counts = {}
     terminal_flights = {}
     
-    # Get terminals from the cached data structure
-    terminals_data = flight_cache.get("terminals", {}) if flight_cache else {}
-    
-    for terminal_name, terminal_data in terminals_data.items():
-        arrivals = terminal_data.get("arrivals", []) if isinstance(terminal_data, dict) else []
+    # Iterate through terminals
+    for terminal_name, arrivals in flight_cache.items() if flight_cache else []:
+        if not isinstance(arrivals, list):
+            continue
+            
         terminal_counts[terminal_name] = 0
         terminal_flights[terminal_name] = []
         
