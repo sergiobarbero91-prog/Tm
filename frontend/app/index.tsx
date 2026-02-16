@@ -6515,7 +6515,7 @@ export default function TransportMeter() {
               </Text>
             </View>
 
-            {/* Public Summary - Hot Spots */}
+            {/* Public Summary - All Stations & Terminals */}
             {!showRegister && publicSummary && (
               <View style={{
                 backgroundColor: 'rgba(30, 41, 59, 0.8)',
@@ -6526,56 +6526,120 @@ export default function TransportMeter() {
                 borderColor: 'rgba(71, 85, 105, 0.5)',
               }}>
                 <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 12, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1 }}>
-                  En tiempo real
+                  Llegadas en tiempo real
                 </Text>
                 
-                {/* Hot Station */}
+                {/* All Stations */}
                 <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                     <Ionicons name="train" size={18} color="#F59E0B" />
                     <Text style={{ color: '#F59E0B', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
-                      Estación {publicSummary.hot_station.name}
+                      Estaciones de tren
                     </Text>
-                    <View style={{ backgroundColor: '#F59E0B', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
-                      <Text style={{ color: '#0F172A', fontSize: 11, fontWeight: '700' }}>
-                        {publicSummary.hot_station.arrivals_30min} en 30min
-                      </Text>
-                    </View>
                   </View>
-                  {publicSummary.hot_station.trains.slice(0, 3).map((train: any, idx: number) => (
-                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingLeft: 26 }}>
-                      <Text style={{ color: '#CBD5E1', fontSize: 13, width: 45 }}>{train.time}</Text>
-                      <Text style={{ color: '#818CF8', fontSize: 13, fontWeight: '600', width: 55 }}>{train.train_type}</Text>
-                      <Text style={{ color: '#64748B', fontSize: 12, flex: 1 }} numberOfLines={1}>{train.origin}</Text>
+                  
+                  {/* Atocha */}
+                  <View style={{ 
+                    backgroundColor: publicSummary.stations.atocha.is_hot ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    borderRadius: 8,
+                    padding: 8,
+                    marginBottom: 8,
+                    borderWidth: publicSummary.stations.atocha.is_hot ? 1 : 0,
+                    borderColor: 'rgba(245, 158, 11, 0.3)',
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={{ color: publicSummary.stations.atocha.is_hot ? '#F59E0B' : '#CBD5E1', fontSize: 13, fontWeight: '600', flex: 1 }}>
+                        {publicSummary.stations.atocha.is_hot ? '🔥 ' : ''}Atocha
+                      </Text>
+                      <View style={{ backgroundColor: publicSummary.stations.atocha.is_hot ? '#F59E0B' : '#475569', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: publicSummary.stations.atocha.is_hot ? '#0F172A' : '#CBD5E1', fontSize: 10, fontWeight: '700' }}>
+                          {publicSummary.stations.atocha.arrivals_30min} en 30min
+                        </Text>
+                      </View>
                     </View>
-                  ))}
+                    {publicSummary.stations.atocha.trains.slice(0, 2).map((train: any, idx: number) => (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2, paddingLeft: 8 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, width: 42 }}>{train.time}</Text>
+                        <Text style={{ color: '#818CF8', fontSize: 12, fontWeight: '600', width: 50 }}>{train.train_type}</Text>
+                        <Text style={{ color: '#64748B', fontSize: 11, flex: 1 }} numberOfLines={1}>{train.origin}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  
+                  {/* Chamartín */}
+                  <View style={{ 
+                    backgroundColor: publicSummary.stations.chamartin.is_hot ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    borderRadius: 8,
+                    padding: 8,
+                    borderWidth: publicSummary.stations.chamartin.is_hot ? 1 : 0,
+                    borderColor: 'rgba(245, 158, 11, 0.3)',
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={{ color: publicSummary.stations.chamartin.is_hot ? '#F59E0B' : '#CBD5E1', fontSize: 13, fontWeight: '600', flex: 1 }}>
+                        {publicSummary.stations.chamartin.is_hot ? '🔥 ' : ''}Chamartín
+                      </Text>
+                      <View style={{ backgroundColor: publicSummary.stations.chamartin.is_hot ? '#F59E0B' : '#475569', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: publicSummary.stations.chamartin.is_hot ? '#0F172A' : '#CBD5E1', fontSize: 10, fontWeight: '700' }}>
+                          {publicSummary.stations.chamartin.arrivals_30min} en 30min
+                        </Text>
+                      </View>
+                    </View>
+                    {publicSummary.stations.chamartin.trains.slice(0, 2).map((train: any, idx: number) => (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2, paddingLeft: 8 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, width: 42 }}>{train.time}</Text>
+                        <Text style={{ color: '#818CF8', fontSize: 12, fontWeight: '600', width: 50 }}>{train.train_type}</Text>
+                        <Text style={{ color: '#64748B', fontSize: 11, flex: 1 }} numberOfLines={1}>{train.origin}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
 
-                {/* Hot Terminal */}
+                {/* All Terminals */}
                 <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                     <Ionicons name="airplane" size={18} color="#22D3EE" />
                     <Text style={{ color: '#22D3EE', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
-                      Terminal {publicSummary.hot_terminal.name}
+                      Aeropuerto Barajas
                     </Text>
-                    <View style={{ backgroundColor: '#22D3EE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
-                      <Text style={{ color: '#0F172A', fontSize: 11, fontWeight: '700' }}>
-                        {publicSummary.hot_terminal.arrivals_30min} en 30min
-                      </Text>
-                    </View>
                   </View>
-                  {publicSummary.hot_terminal.flights.slice(0, 3).map((flight: any, idx: number) => (
-                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingLeft: 26 }}>
-                      <Text style={{ color: '#CBD5E1', fontSize: 13, width: 45 }}>{flight.time}</Text>
-                      <Text style={{ color: '#22D3EE', fontSize: 13, fontWeight: '600', width: 65 }}>{flight.flight_number || flight.airline}</Text>
-                      <Text style={{ color: '#64748B', fontSize: 12, flex: 1 }} numberOfLines={1}>{flight.origin}</Text>
-                    </View>
-                  ))}
+                  
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {['T1', 'T2', 'T4', 'T4S'].map((terminalKey) => {
+                      const terminal = publicSummary.terminals[terminalKey];
+                      if (!terminal) return null;
+                      const isHot = terminal.is_hot;
+                      return (
+                        <View key={terminalKey} style={{ 
+                          backgroundColor: isHot ? 'rgba(34, 211, 238, 0.15)' : 'rgba(71, 85, 105, 0.3)',
+                          borderRadius: 8,
+                          padding: 8,
+                          minWidth: '47%',
+                          flex: 1,
+                          borderWidth: isHot ? 1 : 0,
+                          borderColor: 'rgba(34, 211, 238, 0.3)',
+                        }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ color: isHot ? '#22D3EE' : '#CBD5E1', fontSize: 12, fontWeight: '700' }}>
+                              {isHot ? '🔥 ' : ''}{terminal.name}
+                            </Text>
+                            <Text style={{ color: isHot ? '#22D3EE' : '#94A3B8', fontSize: 10, fontWeight: '600' }}>
+                              {terminal.arrivals_30min} en 30m
+                            </Text>
+                          </View>
+                          {terminal.flights.slice(0, 1).map((flight: any, idx: number) => (
+                            <Text key={idx} style={{ color: '#64748B', fontSize: 10 }} numberOfLines={1}>
+                              {flight.time} - {flight.origin}
+                            </Text>
+                          ))}
+                        </View>
+                      );
+                    })}
+                  </View>
                 </View>
 
                 {/* Hot Street */}
                 {publicSummary.hot_street.name && (
-                  <View>
+                  <View style={{ marginBottom: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Ionicons name="location" size={18} color="#34D399" />
                       <Text style={{ color: '#34D399', fontSize: 14, fontWeight: '700', marginLeft: 8 }}>
@@ -6587,6 +6651,11 @@ export default function TransportMeter() {
                     </Text>
                   </View>
                 )}
+                
+                {/* Disclaimer */}
+                <Text style={{ color: '#64748B', fontSize: 10, textAlign: 'center', fontStyle: 'italic', marginTop: 8 }}>
+                  {publicSummary.disclaimer || 'Horarios orientativos de Renfe y AENA. Susceptibles a retrasos.'}
+                </Text>
               </View>
             )}
 
