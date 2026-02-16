@@ -1004,6 +1004,90 @@ async def fetch_trains_from_google_script(station_id: str) -> List[Dict]:
     return arrivals
 
 
+async def fetch_train_arrivals_combined(station_id: str) -> List[Dict]:
+    """
+    Fetch train arrivals using multiple data sources with intelligent fallback.
+    
+    Strategy:
+    1. Try ADIF API first (most accurate, but often blocked/fails)
+    2. If ADIF fails or returns incomplete data, use Renfe GTFS as secondary source
+    3. Combine both sources, removing duplicates
+    
+    Args:
+        station_id: Station ID (17000 for Chamartín, 60000 for Atocha)
+        
+    Returns:
+        List of arrival dicts from combined sources
+    """
+    station_name = "Chamartín" if station_id == "17000" else "Atocha"
+    
+    # First try ADIF API
+    logger.info(f"[{station_name}] Fetching from ADIF API...")
+    adif_arrivals = await fetch_adif_arrivals_api(station_id)
+    
+    adif_count = len(adif_arrivals)
+    logger.info(f"[{station_name}] ADIF returned {adif_count} trains")
+    
+    # Check if ADIF data is complete - we expect at least 5-10 trains during active hours
+    now = datetime.now(MADRID_TZ)
+    is_active_hours = 6 <= now.hour <= 23
+    min_expected = 5 if is_active_hours else 2
+    
+    adif_insufficient = adif_count < min_expected
+    
+    # Try Renfe GTFS as secondary source
+    renfe_arrivals = []
+    if adif_insufficient or adif_count == 0:
+        logger.info(f"[{station_name}] ADIF insufficient ({adif_count} < {min_expected}), trying Renfe GTFS...")
+        try:
+            renfe_arrivals = await get_arrivals_from_renfe(station_id, hours_ahead=3)
+            logger.info(f"[{station_name}] Renfe GTFS returned {len(renfe_arrivals)} trains")
+        except Exception as e:
+            logger.error(f"[{station_name}] Renfe GTFS error: {e}")
+    
+    # If ADIF returned nothing, use Renfe only
+    if not adif_arrivals:
+        logger.info(f"[{station_name}] Using only Renfe GTFS data ({len(renfe_arrivals)} trains)")
+        return renfe_arrivals
+    
+    # If Renfe returned nothing, use ADIF only
+    if not renfe_arrivals:
+        logger.info(f"[{station_name}] Using only ADIF data ({len(adif_arrivals)} trains)")
+        return adif_arrivals
+    
+    # Combine both sources, avoiding duplicates
+    # Use train_number as key for deduplication
+    combined = []
+    seen_trains = set()
+    
+    # ADIF data takes priority (more accurate times)
+    for arr in adif_arrivals:
+        train_num = arr.get('train_number', '')
+        train_time = arr.get('time', '')
+        key = f"{train_num}_{train_time[:2]}"  # train_number + hour for dedup
+        if key not in seen_trains:
+            seen_trains.add(key)
+            combined.append(arr)
+    
+    # Add Renfe trains not in ADIF
+    added_from_renfe = 0
+    for arr in renfe_arrivals:
+        train_num = arr.get('train_number', '')
+        train_time = arr.get('time', '')
+        key = f"{train_num}_{train_time[:2]}"
+        if key not in seen_trains:
+            seen_trains.add(key)
+            combined.append(arr)
+            added_from_renfe += 1
+    
+    # Sort by time
+    combined.sort(key=lambda x: x.get('time', '99:99'))
+    
+    logger.info(f"[{station_name}] Combined data: {len(adif_arrivals)} ADIF + {added_from_renfe} Renfe = {len(combined)} total")
+    
+    return combined
+
+
 async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
     """Fetch real flight arrivals from aeropuertomadrid-barajas.com."""
     terminal_arrivals = {t: [] for t in TERMINALS}
