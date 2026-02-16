@@ -801,7 +801,8 @@ async def _fetch_adif_arrivals_single_attempt(station_id: str) -> List[Dict]:
                                         "train_number": train_number,
                                         "platform": h.get("via", "-") or "-",
                                         "status": status,
-                                        "delay_minutes": delay
+                                        "delay_minutes": delay,
+                                        "source": "ADIF"
                                     })
                                 
                                 success = True
