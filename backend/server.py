@@ -3256,23 +3256,66 @@ async def startup_db_client():
         # Index may already exist, which is fine
         logger.info(f"TTL indexes setup: {e}")
     
-    # Preload cache on startup
+    # Preload cache on startup - try to load from MongoDB first
     logger.info("Preloading arrival cache on startup...")
     try:
-        # Fetch train data
-        atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
-        chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
-        arrival_cache["trains"]["data"] = {
-            "atocha": atocha_arrivals,
-            "chamartin": chamartin_arrivals
-        }
-        arrival_cache["trains"]["timestamp"] = datetime.now()
-        arrival_cache["trains"]["last_successful"] = datetime.now()
-        logger.info(f"Preloaded train cache - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
+        # Try to load cached trains from MongoDB first
+        cached_trains = await trains_cache_collection.find_one({"_id": "current"})
+        
+        if cached_trains:
+            cache_age_hours = (datetime.now() - cached_trains.get("timestamp", datetime.min)).total_seconds() / 3600
+            logger.info(f"Found cached train data in MongoDB (age: {cache_age_hours:.1f} hours)")
+            
+            # Use cached data if less than 1 hour old
+            if cache_age_hours < 1:
+                arrival_cache["trains"]["data"] = {
+                    "atocha": cached_trains.get("atocha", []),
+                    "chamartin": cached_trains.get("chamartin", [])
+                }
+                arrival_cache["trains"]["timestamp"] = cached_trains.get("timestamp")
+                arrival_cache["trains"]["last_successful"] = cached_trains.get("last_successful")
+                logger.info(f"Loaded train cache from MongoDB - Atocha: {len(cached_trains.get('atocha', []))}, Chamartin: {len(cached_trains.get('chamartin', []))}")
+            else:
+                logger.info("Cached data too old, fetching fresh data...")
+                cached_trains = None  # Force fresh fetch
+        
+        # Fetch fresh data if no valid cache
+        if not cached_trains or cache_age_hours >= 1:
+            atocha_arrivals = await fetch_adif_arrivals_api(STATION_IDS["atocha"])
+            chamartin_arrivals = await fetch_adif_arrivals_api(STATION_IDS["chamartin"])
+            
+            # If fresh fetch returns 0, try to use MongoDB cache as fallback
+            if not atocha_arrivals and cached_trains:
+                atocha_arrivals = cached_trains.get("atocha", [])
+                logger.warning(f"Atocha API returned 0, using {len(atocha_arrivals)} cached")
+            if not chamartin_arrivals and cached_trains:
+                chamartin_arrivals = cached_trains.get("chamartin", [])
+                logger.warning(f"Chamartín API returned 0, using {len(chamartin_arrivals)} cached")
+            
+            arrival_cache["trains"]["data"] = {
+                "atocha": atocha_arrivals,
+                "chamartin": chamartin_arrivals
+            }
+            arrival_cache["trains"]["timestamp"] = datetime.now()
+            arrival_cache["trains"]["last_successful"] = datetime.now()
+            logger.info(f"Preloaded train cache - Atocha: {len(atocha_arrivals)}, Chamartin: {len(chamartin_arrivals)}")
+            
+            # Save to MongoDB for persistence
+            await trains_cache_collection.update_one(
+                {"_id": "current"},
+                {"$set": {
+                    "atocha": atocha_arrivals,
+                    "chamartin": chamartin_arrivals,
+                    "timestamp": datetime.now(),
+                    "last_successful": datetime.now()
+                }},
+                upsert=True
+            )
+            logger.info("Saved train cache to MongoDB")
         
         # Save initial data to history
-        await save_train_history("atocha", atocha_arrivals)
-        await save_train_history("chamartin", chamartin_arrivals)
+        await save_train_history("atocha", arrival_cache["trains"]["data"].get("atocha", []))
+        await save_train_history("chamartin", arrival_cache["trains"]["data"].get("chamartin", []))
         
         # Fetch flight data
         flight_data = await fetch_aena_arrivals()
