@@ -3469,6 +3469,14 @@ async def startup_db_client():
     
     # Preload cache on startup - try to load from MongoDB first
     logger.info("Preloading arrival cache on startup...")
+    
+    # Pre-load Renfe GTFS data in background (non-blocking)
+    logger.info("Loading Renfe GTFS data in background...")
+    try:
+        asyncio.create_task(ensure_gtfs_loaded())
+    except Exception as e:
+        logger.warning(f"Could not start GTFS background load: {e}")
+    
     try:
         # Try to load cached trains from MongoDB first
         cached_trains = await trains_cache_collection.find_one({"_id": "current"})
