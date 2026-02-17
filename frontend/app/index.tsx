@@ -3114,6 +3114,66 @@ export default function TransportMeter() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindow, selectedTimeRange, fetchLoadStatus]); // currentLocation excluded to prevent constant refetching - location is read at call time
 
+  // Fetch taxi needed zones
+  const fetchTaxiNeededZones = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const params: any = { max_distance_km: 10 };
+      if (currentLocation) {
+        params.user_lat = currentLocation.latitude;
+        params.user_lng = currentLocation.longitude;
+      }
+      const response = await axios.get(`${API_BASE}/api/taxi-needed-zones`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTaxiNeededZones(response.data.zones || []);
+    } catch (error) {
+      console.error('Error fetching taxi needed zones:', error);
+    }
+  }, [currentLocation]);
+
+  // Report taxi needed zone at current location
+  const reportTaxiNeededZone = async () => {
+    if (reportingTaxiZone || !currentLocation) return;
+    
+    setReportingTaxiZone(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_BASE}/api/taxi-needed-zones`, {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        if (Platform.OS === 'web') {
+          alert(`✅ ${response.data.message}`);
+        } else {
+          Alert.alert('Zona Reportada', response.data.message);
+        }
+        // Refresh zones list
+        await fetchTaxiNeededZones();
+      } else {
+        if (Platform.OS === 'web') {
+          alert(`⚠️ ${response.data.message}`);
+        } else {
+          Alert.alert('Aviso', response.data.message);
+        }
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Error al reportar zona';
+      if (Platform.OS === 'web') {
+        alert(`❌ ${message}`);
+      } else {
+        Alert.alert('Error', message);
+      }
+    } finally {
+      setReportingTaxiZone(false);
+    }
+  };
+
   // Fetch station alerts (sin taxis / barandilla)
   const fetchStationAlerts = useCallback(async () => {
     try {
