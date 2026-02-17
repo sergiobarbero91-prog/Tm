@@ -11508,6 +11508,8 @@ export default function TransportMeter() {
           </View>
         ) : activeTab === 'moderation' ? (
           <ScrollView style={styles.moderationContainer}>
+            {/* Ad Banner - Moderation Header */}
+            <AdBanner position="top" />
             {/* Moderation Header */}
             <View style={styles.moderationHeader}>
               <Ionicons name="shield-half" size={28} color="#F59E0B" />
