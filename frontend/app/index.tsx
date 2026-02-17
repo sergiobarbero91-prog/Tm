@@ -7174,7 +7174,7 @@ export default function TransportMeter() {
                 {/* Calculate Button */}
                 <TouchableOpacity
                   style={[styles.faresCalculateBtn, fareCalcLoading && styles.faresCalculateBtnDisabled]}
-                  onPress={calculateFare}
+                  onPress={calculatePublicFare}
                   disabled={fareCalcLoading}
                 >
                   {fareCalcLoading ? (
