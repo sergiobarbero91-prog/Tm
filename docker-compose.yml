@@ -23,6 +23,7 @@ services:
       - DB_NAME=taximeter_madrid
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_ORIGINS=*
+      - WHATSAPP_BOT_URL=http://172.17.0.1:3001
     depends_on:
       - mongodb
     networks:
