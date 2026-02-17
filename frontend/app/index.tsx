@@ -6203,14 +6203,14 @@ export default function TransportMeter() {
           fetchAdminModerationStats(),
           fetchWhatsAppBotStatus()
         ]);
-      }
+    }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, shift, currentUser, timeWindow, selectedTimeRange, getTimeRangeParams, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchEventsData, fetchAdminUsers, fetchAdminStats, fetchModerationReports, fetchModerationPromotions, fetchModerationStats, fetchAdminReports, fetchAdminPromotions, fetchAdminModerationStats, fetchFriends, fetchFriendRequests, fetchConversations, fetchGroups, fetchSocialUnreadCount, fetchWhatsAppBotStatus]);
+  }, [activeTab, shift, currentUser, timeWindow, selectedTimeRange, getTimeRangeParams, fetchStreetData, fetchTaxiStatus, fetchQueueStatus, fetchTaxiNeededZones, fetchEventsData, fetchAdminUsers, fetchAdminStats, fetchModerationReports, fetchModerationPromotions, fetchModerationStats, fetchAdminReports, fetchAdminPromotions, fetchAdminModerationStats, fetchFriends, fetchFriendRequests, fetchConversations, fetchGroups, fetchSocialUnreadCount, fetchWhatsAppBotStatus]);
 
   // Keep fetchDataRef updated with the latest fetchData function
   useEffect(() => {
