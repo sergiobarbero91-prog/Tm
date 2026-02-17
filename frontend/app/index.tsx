@@ -3334,24 +3334,23 @@ export default function TransportMeter() {
       // Apply fare rules
       if (isStation) {
         // TARIFA 7: Estación/IFEMA → Cualquier destino
-        // Franquicia de 1,4km (sin coste), resto con tarifa horaria SIN bajada de bandera
+        // Base 8€ (cubre primeros 1,4km), resto con tarifa horaria SIN bajada de bandera
+        const TARIFA_7_BASE = 8.00;
         const TARIFA_7_KM_FRANCHISE = 1.4;
         const extra_km = Math.max(0, distance_km - TARIFA_7_KM_FRANCHISE);
         // Solo km extra, sin bajada de bandera
-        const total = extra_km * per_km_rate;
+        const total = TARIFA_7_BASE + (extra_km * per_km_rate);
         fare_min = total;
         fare_max = total * 1.05;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 7 + ${tarifaBase}`;
-          details = `Franquicia 1,4km (sin coste) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
+          details = `Base 8€ (1,4km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         } else {
           tarifa = 'Tarifa 7';
-          details = 'Franquicia 1,4km (distancia incluida en franquicia)';
-          fare_min = 0;
-          fare_max = 0;
+          details = 'Base 8€ (primeros 1,4km incluidos)';
         }
-        suplemento = fare_min > 0 ? `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€` : 'Incluido en franquicia';
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       else if (isAirport && isDestInsideM30) {
         // TARIFA 4: Aeropuerto ↔ Dentro M30 = FIJO 33€
