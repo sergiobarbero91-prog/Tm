@@ -990,6 +990,22 @@ export default function TransportMeter() {
 
   // Support ticket system
   const [showSupportModal, setShowSupportModal] = useState(false);
+  
+  // Fare calculator states (for both logged and public users)
+  const [fareCalcOriginType, setFareCalcOriginType] = useState<'terminal' | 'station' | 'street'>('terminal');
+  const [fareCalcOrigin, setFareCalcOrigin] = useState<string>('T1'); // T1, T2, T3, T4, Atocha, Chamartin, or street address
+  const [fareCalcStreetAddress, setFareCalcStreetAddress] = useState<string>('');
+  const [fareCalcDestAddress, setFareCalcDestAddress] = useState<string>('');
+  const [fareCalcLoading, setFareCalcLoading] = useState(false);
+  const [fareCalcResult, setFareCalcResult] = useState<{
+    tarifa: string;
+    suplemento: string;
+    fare_min: number;
+    fare_max: number;
+    distance_km?: number;
+    details?: string;
+  } | null>(null);
+  
   const [supportTickets, setSupportTickets] = useState<Array<{
     id: string;
     user_id: string;
