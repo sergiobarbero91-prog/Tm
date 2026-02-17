@@ -2627,13 +2627,13 @@ export default function TransportMeter() {
   // Calculate fare from selected address (for terminal or station exit)
   const calculateFareFromAddress = async (address: { latitude: number; longitude: number; address: string; is_inside_m30: boolean }) => {
     // =============================================================
-    // TARIFAS OFICIALES DE TAXI MADRID (Junio 2025)
+    // TARIFAS OFICIALES DE TAXI MADRID
     // =============================================================
-    // Tarifa 1: Días laborables 06:00-21:00 → 2,55€ bajada + 1,40€/km
-    // Tarifa 2: Noches/Festivos → 3,20€ bajada + 1,60€/km
-    // Tarifa 3: Aeropuerto → Fuera M30 → 22€ (cubre 9km) + resto T1/T2 SIN bajada
-    // Tarifa 4: Aeropuerto ↔ M30 → 33€ FIJO
-    // Tarifa 7: Estaciones → Cualquier lugar (excepto aeropuerto) → 8€ (cubre 1,4km) + resto T1/T2 SIN bajada
+    // Tarifa 1: Días laborables 06:00-21:00 → 2,50€ bajada + 1,40€/km
+    // Tarifa 2: Noches/Festivos 21:00-6:00 → 3,20€ bajada + 1,60€/km
+    // Tarifa 3: Aeropuerto → Fuera M30 → Franquicia 9km, resto a T1/T2 SIN bajada
+    // Tarifa 4: Aeropuerto ↔ dentro M30 → 33€ FIJO
+    // Tarifa 7: Estaciones/IFEMA → Cualquier lugar → Franquicia 1,4km, resto a T1/T2 SIN bajada
     // =============================================================
     
     // Get current time and day to determine T1 or T2
@@ -3221,15 +3221,15 @@ export default function TransportMeter() {
     
     try {
       // Get current hour to determine T1 vs T2
-      // T1: Laborables 6:00-21:00 → 2.50€ bajada + 1.40€/km
-      // T2: Festivos y laborables 21:00-6:00 → 3.20€ bajada + 1.60€/km
+      // T1: Laborables 6:00-21:00 → 2,50€ bajada + 1,40€/km
+      // T2: Festivos y laborables 21:00-6:00 → 3,20€ bajada + 1,60€/km
       const now = new Date();
       const hour = now.getHours();
       const day = now.getDay();
       const isNight = hour >= 21 || hour < 6;
       const isWeekend = day === 0 || day === 6;
       const isTarifa2 = isNight || isWeekend;
-      const tarifaBase = isTarifa2 ? 'T2' : 'T1';
+      const tarifaBase = isTarifa2 ? 'Tarifa 2' : 'Tarifa 1';
       const per_km_rate = isTarifa2 ? 1.60 : 1.40;
       const bajada_bandera = isTarifa2 ? 3.20 : 2.50;
       
