@@ -792,6 +792,7 @@ export default function TransportMeter() {
       flights: 'Aviones',
       street: 'Calle',
       events: 'Eventos',
+      fares: 'Tarifas',
       social: 'Social',
       moderation: 'Moderación',
       admin: 'Admin'
@@ -801,11 +802,13 @@ export default function TransportMeter() {
       flights: 'airplane',
       street: 'car',
       events: 'calendar',
+      fares: 'calculator',
       social: 'people',
       moderation: 'shield-half',
       admin: 'shield-checkmark'
     };
     const colorMap: Record<string, string> = {
+      fares: '#10B981',
       social: '#EC4899',
       moderation: '#F59E0B',
       default: '#6366F1'
