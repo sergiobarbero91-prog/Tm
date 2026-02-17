@@ -10707,9 +10707,15 @@ export default function TransportMeter() {
             {renderTerminalCard(terminalGroups[1])}
             {/* T4-T4S */}
             {renderTerminalCard(terminalGroups[2])}
+            {/* Ad Banner - Flights Tab */}
+            <AdBanner position="inline" />
           </>
         ) : activeTab === 'street' ? (
-          renderStreetContent()
+          <>
+            {renderStreetContent()}
+            {/* Ad Banner - Street Tab */}
+            <AdBanner position="inline" />
+          </>
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
             {/* Add Event Button */}
