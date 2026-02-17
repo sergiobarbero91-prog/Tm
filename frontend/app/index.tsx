@@ -10832,6 +10832,8 @@ export default function TransportMeter() {
           </View>
         ) : activeTab === 'social' ? (
           <View style={styles.socialContainer}>
+            {/* Ad Banner - Social Header */}
+            <AdBanner position="top" />
             {/* Social Header with My Profile Button */}
             <View style={styles.socialHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
