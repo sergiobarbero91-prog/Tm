@@ -317,6 +317,47 @@ interface CheckInStatus {
 type GpsApp = 'google' | 'waze';
 
 export default function TransportMeter() {
+  // AdSpace component for Google AdSense - reusable across all tabs
+  const AdBanner = ({ position = 'inline' }: { position?: 'top' | 'middle' | 'bottom' | 'inline' }) => {
+    React.useEffect(() => {
+      try {
+        // @ts-ignore - adsbygoogle is loaded from external script
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.log('AdSense error:', e);
+      }
+    }, []);
+
+    return (
+      <View 
+        style={{
+          width: '100%',
+          minHeight: 90,
+          backgroundColor: 'rgba(30, 41, 59, 0.3)',
+          borderRadius: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginVertical: 10,
+          overflow: 'hidden',
+        }}
+        data-testid={`ad-banner-${position}`}
+      >
+        <ins 
+          className="adsbygoogle"
+          style={{ 
+            display: 'block',
+            width: '100%',
+            minHeight: 80,
+          }}
+          data-ad-client="ca-pub-5598896168990208"
+          data-ad-slot="auto"
+          data-ad-format="horizontal"
+          data-full-width-responsive="true"
+        />
+      </View>
+    );
+  };
+
   const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'social' | 'moderation' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
