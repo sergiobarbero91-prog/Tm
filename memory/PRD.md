@@ -67,6 +67,47 @@ Aplicación móvil (React Native Web/Expo) para taxistas de Madrid que incluye f
 - `/app/backend/renfe_gtfs.py` - Módulo para Renfe GTFS (existía, ahora integrado)
 - `/app/backend/server.py` - Nueva función `fetch_train_arrivals_combined()`, import de módulo GTFS
 
+### 🔥 Feature: Zonas Calientes / Taxi Needed Zones (Feb 17, 2026)
+
+**Objetivo:** Permitir a los taxistas reportar zonas donde se necesitan taxis (calles calientes) para ayudar a otros conductores a encontrar clientes.
+
+**Funcionalidades implementadas:**
+
+**Backend (server.py):**
+- `POST /api/taxi-needed-zones` - Reportar una zona caliente con coordenadas
+  - Geocodificación inversa para obtener nombre de calle
+  - Deduplicación: mismo usuario no puede reportar misma zona en 30 min
+  - Zonas expiran automáticamente después de 1 hora
+- `GET /api/taxi-needed-zones` - Obtener zonas activas
+  - Agregación por ubicación (~100m de tolerancia)
+  - Ordenación por distancia si se proporciona ubicación del usuario
+  - Lista de reporteros con número de licencia y hora
+- `DELETE /api/taxi-needed-zones/{zone_id}` - Eliminar zona (solo owner o admin)
+
+**Frontend (index.tsx):**
+- Botón "Reportar Calle Caliente" en tab Calle
+  - Icono de llama roja
+  - Deshabilitado sin permiso de ubicación
+  - Feedback visual durante el reporte
+- Sección "Zonas con demanda" mostrando zonas activas
+  - Contador de reportes
+  - Última hora de reporte
+  - Distancia al usuario (si ubicación disponible)
+  - Botón de navegación GPS
+- Modal "Ver todo" con lista completa de zonas
+  - Detalles de cada zona (calle, número)
+  - Lista de reporteros (licencia + hora)
+  - Botón "Ir con GPS" para navegación
+
+**Archivos modificados:**
+- `/app/backend/server.py` - Endpoints POST/GET/DELETE /api/taxi-needed-zones (líneas 2367-2549)
+- `/app/frontend/app/index.tsx` - Estados, funciones y UI
+- `/app/frontend/app/styles/mainStyles.ts` - Estilos nuevos
+
+**Tests:**
+- `/app/backend/tests/test_taxi_needed_zones.py` - 11 tests (100% passing)
+- Verificación completa de backend y frontend
+
 **Estado actual de endpoints:**
 | Endpoint | Estado | Datos típicos |
 |----------|--------|---------------|
