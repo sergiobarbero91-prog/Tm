@@ -3221,14 +3221,17 @@ export default function TransportMeter() {
     
     try {
       // Get current hour to determine T1 vs T2
+      // T1: Laborables 6:00-21:00 → 2.50€ bajada + 1.40€/km
+      // T2: Festivos y laborables 21:00-6:00 → 3.20€ bajada + 1.60€/km
       const now = new Date();
       const hour = now.getHours();
       const day = now.getDay();
-      const isNight = hour >= 21 || hour < 7;
+      const isNight = hour >= 21 || hour < 6;
       const isWeekend = day === 0 || day === 6;
-      const tarifaBase = (isNight || isWeekend) ? 'T2' : 'T1';
-      const per_km_rate = (isNight || isWeekend) ? 1.25 : 1.15;
-      const bajada_bandera = (isNight || isWeekend) ? 3.15 : 2.75;
+      const isTarifa2 = isNight || isWeekend;
+      const tarifaBase = isTarifa2 ? 'T2' : 'T1';
+      const per_km_rate = isTarifa2 ? 1.60 : 1.40;
+      const bajada_bandera = isTarifa2 ? 3.20 : 2.50;
       
       // Terminal coordinates
       const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
@@ -3238,15 +3241,11 @@ export default function TransportMeter() {
         'T4': { lat: 40.4719, lng: -3.5626 },
       };
       
-      // Station coordinates
+      // Station coordinates (includes IFEMA)
       const stationCoords: { [key: string]: { lat: number; lng: number } } = {
         'Atocha': { lat: 40.4055, lng: -3.6883 },
         'Chamartín': { lat: 40.4720, lng: -3.6822 },
       };
-      
-      // M30 center point for checking if inside
-      const M30_CENTER = { lat: 40.4168, lng: -3.7038 };
-      const M30_RADIUS_KM = 4.5;
       
       // Helper to calculate distance between two points
       const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
