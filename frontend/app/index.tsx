@@ -3193,6 +3193,223 @@ export default function TransportMeter() {
     }
   };
 
+  // Calculate fare based on origin type and destination
+  const calculateFare = async () => {
+    if (fareCalcLoading) return;
+    
+    // Validate inputs
+    if (fareCalcOriginType === 'street' && !fareCalcStreetAddress.trim()) {
+      if (Platform.OS === 'web') {
+        alert('⚠️ Introduce una dirección de origen');
+      } else {
+        Alert.alert('Error', 'Introduce una dirección de origen');
+      }
+      return;
+    }
+    
+    if (!fareCalcDestAddress.trim()) {
+      if (Platform.OS === 'web') {
+        alert('⚠️ Introduce una dirección de destino');
+      } else {
+        Alert.alert('Error', 'Introduce una dirección de destino');
+      }
+      return;
+    }
+    
+    setFareCalcLoading(true);
+    setFareCalcResult(null);
+    
+    try {
+      // Get current hour to determine T1 vs T2
+      const now = new Date();
+      const hour = now.getHours();
+      const day = now.getDay();
+      const isNight = hour >= 21 || hour < 7;
+      const isWeekend = day === 0 || day === 6;
+      const tarifaBase = (isNight || isWeekend) ? 'T2' : 'T1';
+      const per_km_rate = (isNight || isWeekend) ? 1.25 : 1.15;
+      const bajada_bandera = (isNight || isWeekend) ? 3.15 : 2.75;
+      
+      // Terminal coordinates
+      const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
+        'T1': { lat: 40.4676, lng: -3.5701 },
+        'T2': { lat: 40.4693, lng: -3.5660 },
+        'T3': { lat: 40.4654, lng: -3.5708 },
+        'T4': { lat: 40.4719, lng: -3.5626 },
+      };
+      
+      // Station coordinates
+      const stationCoords: { [key: string]: { lat: number; lng: number } } = {
+        'Atocha': { lat: 40.4055, lng: -3.6883 },
+        'Chamartín': { lat: 40.4720, lng: -3.6822 },
+      };
+      
+      // M30 center point for checking if inside
+      const M30_CENTER = { lat: 40.4168, lng: -3.7038 };
+      const M30_RADIUS_KM = 4.5;
+      
+      // Helper to calculate distance between two points
+      const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      };
+      
+      let originCoords: { lat: number; lng: number } | null = null;
+      let isAirport = false;
+      let isStation = false;
+      
+      // Get origin coordinates
+      if (fareCalcOriginType === 'terminal') {
+        originCoords = terminalCoords[fareCalcOrigin] || terminalCoords['T4'];
+        isAirport = true;
+      } else if (fareCalcOriginType === 'station') {
+        originCoords = stationCoords[fareCalcOrigin] || stationCoords['Atocha'];
+        isStation = true;
+      } else {
+        // Geocode street address
+        try {
+          const geocodeResponse = await axios.get(`${API_BASE}/api/geocode/forward`, {
+            params: { address: fareCalcStreetAddress + ', Madrid, Spain' },
+            timeout: 10000
+          });
+          if (geocodeResponse.data?.latitude && geocodeResponse.data?.longitude) {
+            originCoords = { lat: geocodeResponse.data.latitude, lng: geocodeResponse.data.longitude };
+          }
+        } catch (e) {
+          console.log('Geocode origin error:', e);
+        }
+      }
+      
+      if (!originCoords) {
+        throw new Error('No se pudo encontrar la dirección de origen');
+      }
+      
+      // Geocode destination
+      let destCoords: { lat: number; lng: number } | null = null;
+      try {
+        const geocodeResponse = await axios.get(`${API_BASE}/api/geocode/forward`, {
+          params: { address: fareCalcDestAddress + ', Madrid, Spain' },
+          timeout: 10000
+        });
+        if (geocodeResponse.data?.latitude && geocodeResponse.data?.longitude) {
+          destCoords = { lat: geocodeResponse.data.latitude, lng: geocodeResponse.data.longitude };
+        }
+      } catch (e) {
+        console.log('Geocode dest error:', e);
+      }
+      
+      if (!destCoords) {
+        throw new Error('No se pudo encontrar la dirección de destino');
+      }
+      
+      // Check if destination is inside M30
+      const destDistToM30Center = haversine(destCoords.lat, destCoords.lng, M30_CENTER.lat, M30_CENTER.lng);
+      const isDestInsideM30 = destDistToM30Center <= M30_RADIUS_KM;
+      
+      // Get route distance
+      let distance_km = 0;
+      try {
+        const routeResponse = await axios.post(`${API_BASE}/api/calculate-route-distance`, {
+          origin_lat: originCoords.lat,
+          origin_lng: originCoords.lng,
+          dest_lat: destCoords.lat,
+          dest_lng: destCoords.lng
+        }, { timeout: 15000 });
+        distance_km = routeResponse.data.distance_km || 0;
+      } catch (e) {
+        // Fallback to straight line distance * 1.3
+        distance_km = haversine(originCoords.lat, originCoords.lng, destCoords.lat, destCoords.lng) * 1.3;
+      }
+      
+      let tarifa = '';
+      let suplemento = '';
+      let fare_min = 0;
+      let fare_max = 0;
+      let details = '';
+      
+      // Apply fare rules
+      if (isStation) {
+        // TARIFA 7: Estación → Cualquier destino
+        const TARIFA_7_BASE = 8.00;
+        const TARIFA_7_KM_INCLUDED = 1.4;
+        const extra_km = Math.max(0, distance_km - TARIFA_7_KM_INCLUDED);
+        const extra_fare = extra_km * per_km_rate;
+        const base_total = TARIFA_7_BASE + extra_fare;
+        fare_min = base_total * 1.02;
+        fare_max = base_total * 1.07;
+        
+        if (extra_km > 0) {
+          tarifa = `Tarifa 7 + ${tarifaBase}`;
+          details = `Base 8€ (1,4km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+        } else {
+          tarifa = 'Tarifa 7';
+          details = 'Base 8€ (primeros 1,4km incluidos)';
+        }
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+      }
+      else if (isAirport && isDestInsideM30) {
+        // TARIFA 4: Aeropuerto → Dentro M30 = FIJO 33€
+        tarifa = 'Tarifa 4 (Fija)';
+        suplemento = '33,00€';
+        fare_min = 33;
+        fare_max = 33;
+        details = 'Tarifa fija aeropuerto ↔ M30';
+      }
+      else if (isAirport && !isDestInsideM30) {
+        // TARIFA 3: Aeropuerto → Fuera M30
+        const TARIFA_3_BASE = 22.00;
+        const TARIFA_3_KM_INCLUDED = 9;
+        const extra_km = Math.max(0, distance_km - TARIFA_3_KM_INCLUDED);
+        const extra_fare = extra_km * per_km_rate;
+        const base_total = TARIFA_3_BASE + extra_fare;
+        fare_min = base_total * 1.02;
+        fare_max = base_total * 1.07;
+        
+        if (extra_km > 0) {
+          tarifa = `Tarifa 3 + ${tarifaBase}`;
+          details = `Base 22€ (9km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+        } else {
+          tarifa = 'Tarifa 3';
+          details = 'Base 22€ (primeros 9km incluidos)';
+        }
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+      }
+      else {
+        // TARIFA 1/2: Calle normal
+        const base_fare = bajada_bandera + (distance_km * per_km_rate);
+        fare_min = base_fare * 1.02;
+        fare_max = base_fare * 1.07;
+        tarifa = tarifaBase;
+        details = `Bajada de bandera ${bajada_bandera.toFixed(2)}€ + ${distance_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
+      }
+      
+      setFareCalcResult({
+        tarifa,
+        suplemento,
+        fare_min,
+        fare_max,
+        distance_km,
+        details
+      });
+      
+    } catch (error: any) {
+      const message = error.message || 'Error al calcular la tarifa';
+      if (Platform.OS === 'web') {
+        alert(`❌ ${message}`);
+      } else {
+        Alert.alert('Error', message);
+      }
+    } finally {
+      setFareCalcLoading(false);
+    }
+  };
+
   // Fetch station alerts (sin taxis / barandilla)
   const fetchStationAlerts = useCallback(async () => {
     try {
