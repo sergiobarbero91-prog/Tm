@@ -192,8 +192,38 @@ WHATSAPP_MAX_RESTART_ATTEMPTS=3
 - `POST /api/whatsapp/send` - Enviar mensaje
 - `POST /api/whatsapp/send-hourly-update` - Enviar actualización
 
+### 💵 Calculadora de Tarifas (Feb 17, 2026)
+
+**Objetivo:** Calculadora pública de tarifas de taxi en la página de login para que usuarios no autenticados puedan estimar costes.
+
+**Tarifas implementadas:**
+- **Tarifa 1:** Laborables 6:00-21:00 → 2,50€ bajada + 1,40€/km
+- **Tarifa 2:** Noches/Festivos → 3,20€ bajada + 1,60€/km
+- **Tarifa 3:** Aeropuerto → Fuera M30 → Franquicia 9km (sin coste), resto a T1/T2 SIN bajada
+- **Tarifa 4:** Aeropuerto ↔ Dentro M30 → 33€ FIJO
+- **Tarifa 7:** Estaciones/IFEMA → Cualquier lugar → Franquicia 1,4km (sin coste), resto a T1/T2 SIN bajada
+
+**Funcionalidades:**
+- Selector de origen: Terminal (T1-T4), Estación (Atocha/Chamartín), Calle
+- Campo de destino con geocodificación
+- Detección automática de zona M30 usando polígono preciso
+- Cálculo de distancia por carretera (OSRM) con fallback a línea recta
+- Rango de precio estimado (+2% a +7% variación)
+- Detalles del cálculo (franquicia, km extra, tarifa aplicada)
+
+**Archivos modificados:**
+- `/app/frontend/app/index.tsx` - Función `calculatePublicFare()` (línea ~3196)
+- `/app/frontend/app/styles/mainStyles.ts` - Estilos `publicFaresContainer`
+- `/app/backend/routers/geocoding.py` - Endpoint `GET /api/geocode/forward` con `is_inside_m30`
+
+**Tests:**
+- `/app/backend/tests/test_fare_calculator.py` - 12 tests (100% passing)
+- Verificación de detección M30 para múltiples ubicaciones de Madrid
+
 ### 📋 Backlog (P1)
 - [ ] Completar refactorización de `src/screens/index.tsx`
+- [ ] Verificar botón "Reiniciar Bot" en producción
+- [ ] Implementar mejoras de accesibilidad
 
 ## Arquitectura con Bot de WhatsApp
 
