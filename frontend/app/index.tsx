@@ -10819,6 +10819,8 @@ export default function TransportMeter() {
                 </View>
               ))
             )}
+            {/* Ad Banner - Events Tab */}
+            <AdBanner position="inline" />
           </View>
         ) : activeTab === 'social' ? (
           <View style={styles.socialContainer}>
