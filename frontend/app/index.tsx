@@ -10661,6 +10661,8 @@ export default function TransportMeter() {
               </View>
             )}
             <View style={styles.comparisonContainer}>
+              {/* Ad Banner - Trains Header */}
+              <AdBanner position="top" />
               {renderStationCard(trainData.atocha, 'atocha')}
               <View style={styles.vsSeparator}>
                 <Text style={styles.vsText}>VS</Text>
