@@ -16987,6 +16987,102 @@ export default function TransportMeter() {
           </View>
         </Modal>
       )}
+
+      {/* Taxi Needed Zones Modal */}
+      {showTaxiZonesModal && (
+        <Modal
+          visible={showTaxiZonesModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowTaxiZonesModal(false)}
+        >
+          <View style={styles.taxiZonesModalOverlay}>
+            <View style={styles.taxiZonesModalContent}>
+              <View style={styles.taxiZonesModalHeader}>
+                <Text style={styles.taxiZonesModalTitle}>
+                  <Ionicons name="flame" size={20} color="#EF4444" /> Zonas con demanda de taxis
+                </Text>
+                <TouchableOpacity
+                  style={styles.taxiZonesModalCloseButton}
+                  onPress={() => setShowTaxiZonesModal(false)}
+                >
+                  <Ionicons name="close" size={24} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.taxiZonesModalList}>
+                {taxiNeededZones.length === 0 ? (
+                  <View style={{ alignItems: 'center', padding: 32 }}>
+                    <Ionicons name="flame-outline" size={48} color="#64748B" />
+                    <Text style={{ color: '#94A3B8', marginTop: 16, fontSize: 16, textAlign: 'center' }}>
+                      No hay zonas reportadas actualmente
+                    </Text>
+                    <Text style={{ color: '#64748B', marginTop: 8, fontSize: 14, textAlign: 'center' }}>
+                      Sé el primero en reportar una zona caliente
+                    </Text>
+                  </View>
+                ) : (
+                  taxiNeededZones.map((zone) => (
+                    <View key={zone.id} style={styles.taxiZoneModalCard}>
+                      <View style={styles.taxiZoneModalCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.taxiZoneModalStreet}>
+                            {zone.street_name}{zone.street_number ? ` #${zone.street_number}` : ''}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                            <View style={styles.taxiNeededZoneBadge}>
+                              <Ionicons name="people" size={14} color="#F59E0B" />
+                              <Text style={styles.taxiNeededZoneBadgeText}>{zone.report_count} reportes</Text>
+                            </View>
+                            {zone.distance_km !== undefined && (
+                              <View style={styles.taxiNeededZoneDistance}>
+                                <Ionicons name="location" size={14} color="#6366F1" />
+                                <Text style={styles.taxiNeededZoneDistanceText}>{zone.distance_km} km</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                      
+                      {/* Reporters list */}
+                      <View style={styles.taxiZoneModalReporters}>
+                        <Text style={styles.taxiZoneModalReportersTitle}>Reportado por:</Text>
+                        {zone.reporters.slice(0, 5).map((reporter, idx) => (
+                          <View key={idx} style={styles.taxiZoneModalReporter}>
+                            <Ionicons name="person" size={12} color="#94A3B8" />
+                            <Text style={styles.taxiZoneModalReporterText}>
+                              Licencia {reporter.license} a las {reporter.time}
+                            </Text>
+                          </View>
+                        ))}
+                        {zone.reporters.length > 5 && (
+                          <Text style={{ color: '#64748B', fontSize: 12, marginTop: 4 }}>
+                            +{zone.reporters.length - 5} más...
+                          </Text>
+                        )}
+                      </View>
+                      
+                      {/* Actions */}
+                      <View style={styles.taxiZoneModalActions}>
+                        <TouchableOpacity
+                          style={styles.taxiZoneModalNavigateBtn}
+                          onPress={() => {
+                            setShowTaxiZonesModal(false);
+                            openGpsNavigation(zone.latitude, zone.longitude, zone.street_name);
+                          }}
+                        >
+                          <Ionicons name="navigate" size={18} color="#FFFFFF" />
+                          <Text style={styles.taxiZoneModalNavigateBtnText}>Ir con GPS</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
