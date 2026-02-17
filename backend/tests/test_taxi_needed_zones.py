@@ -15,7 +15,7 @@ import uuid
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://taxi-hotzone.preview.emergentagent.com').rstrip('/')
+    BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://tariff-tool.preview.emergentagent.com').rstrip('/')
 
 # Test coordinates - Madrid center
 MADRID_CENTER_LAT = 40.4168
