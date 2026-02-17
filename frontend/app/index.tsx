@@ -10667,6 +10667,8 @@ export default function TransportMeter() {
               </View>
               {renderStationCard(trainData.chamartin, 'chamartin')}
             </View>
+            {/* Ad Banner - Trains Tab */}
+            <AdBanner position="inline" />
           </>
         ) : activeTab === 'flights' && flightData ? (
           <>
