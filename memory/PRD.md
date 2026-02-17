@@ -212,7 +212,9 @@ WHATSAPP_MAX_RESTART_ATTEMPTS=3
 - Detalles del cálculo (franquicia, km extra, tarifa aplicada)
 
 **Archivos modificados:**
-- `/app/frontend/app/index.tsx` - Función `calculatePublicFare()` (línea ~3196)
+- `/app/frontend/app/index.tsx` - Función `calculatePublicFare()` movida a componente separado
+- `/app/frontend/app/components/PublicFareCalculator.tsx` - **NUEVO** componente refactorizado (409 líneas)
+- `/app/frontend/app/components/AirportTerminalsGrouped.tsx` - **NUEVO** componente refactorizado (134 líneas)
 - `/app/frontend/app/styles/mainStyles.ts` - Estilos `publicFaresContainer`
 - `/app/backend/routers/geocoding.py` - Endpoint `GET /api/geocode/forward` con `is_inside_m30`
 
