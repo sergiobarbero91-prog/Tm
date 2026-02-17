@@ -10752,6 +10752,22 @@ export default function TransportMeter() {
               {activeTab === 'events' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
             
+            {/* Fares Tab */}
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, activeTab === 'fares' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'fares') {
+                  setLoading(false);
+                  setActiveTab('fares');
+                }
+                setShowPageDropdown(false);
+              }}
+            >
+              <Ionicons name="calculator" size={20} color={activeTab === 'fares' ? '#10B981' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'fares' && styles.dropdownMenuItemTextActive]}>Tarifas</Text>
+              {activeTab === 'fares' && <Ionicons name="checkmark" size={20} color="#10B981" />}
+            </TouchableOpacity>
+            
             {/* Social Tab */}
             <TouchableOpacity
               style={[styles.dropdownMenuItem, activeTab === 'social' && styles.dropdownMenuItemActive]}
