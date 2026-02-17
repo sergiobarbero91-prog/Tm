@@ -3193,8 +3193,8 @@ export default function TransportMeter() {
     }
   };
 
-  // Calculate fare based on origin type and destination
-  const calculateFare = async () => {
+  // Calculate fare based on origin type and destination (public fare calculator)
+  const calculatePublicFare = async () => {
     if (fareCalcLoading) return;
     
     // Validate inputs
