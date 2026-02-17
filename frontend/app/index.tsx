@@ -319,12 +319,32 @@ type GpsApp = 'google' | 'waze';
 export default function TransportMeter() {
   // AdSpace component for Google AdSense - reusable across all tabs
   const AdBanner = ({ position = 'inline' }: { position?: 'top' | 'middle' | 'bottom' | 'inline' }) => {
+    const adRef = React.useRef<HTMLDivElement>(null);
+    
     React.useEffect(() => {
-      try {
-        // @ts-ignore - adsbygoogle is loaded from external script
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.log('AdSense error:', e);
+      // Only run on web
+      if (typeof window !== 'undefined' && adRef.current) {
+        try {
+          // Create the ins element
+          const ins = document.createElement('ins');
+          ins.className = 'adsbygoogle';
+          ins.style.display = 'block';
+          ins.style.width = '100%';
+          ins.style.minHeight = '90px';
+          ins.setAttribute('data-ad-client', 'ca-pub-5598896168990208');
+          ins.setAttribute('data-ad-slot', '9700275205');
+          ins.setAttribute('data-ad-format', 'auto');
+          ins.setAttribute('data-full-width-responsive', 'true');
+          
+          // Clear and append
+          if (adRef.current.childNodes.length === 0) {
+            adRef.current.appendChild(ins);
+            // @ts-ignore
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+          }
+        } catch (e) {
+          console.log('AdSense error:', e);
+        }
       }
     }, []);
 
@@ -342,18 +362,7 @@ export default function TransportMeter() {
         }}
         data-testid={`ad-banner-${position}`}
       >
-        <ins 
-          className="adsbygoogle"
-          style={{ 
-            display: 'block',
-            width: '100%',
-            minHeight: 90,
-          }}
-          data-ad-client="ca-pub-5598896168990208"
-          data-ad-slot="9700275205"
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
+        <div ref={adRef} style={{ width: '100%', minHeight: 90 }} />
       </View>
     );
   };
