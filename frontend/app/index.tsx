@@ -6172,7 +6172,8 @@ export default function TransportMeter() {
         await Promise.all([
           fetchStreetData(),
           fetchTaxiStatus(),
-          fetchQueueStatus()
+          fetchQueueStatus(),
+          fetchTaxiNeededZones()
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
