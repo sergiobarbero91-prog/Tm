@@ -10724,6 +10724,8 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
+            {/* Ad Banner - Events Header */}
+            <AdBanner position="top" />
             {/* Add Event Button */}
             <TouchableOpacity 
               style={styles.addEventButton}
