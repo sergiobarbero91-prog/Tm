@@ -325,6 +325,33 @@ class StreetActivity(BaseModel):
     duration_minutes: Optional[int] = None  # Duration for completed activities (unload)
     distance_km: Optional[float] = None  # Distance traveled (for unload - from load point)
 
+# Taxi Needed Zone Models
+class TaxiNeededZone(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    license_number: str
+    latitude: float
+    longitude: float
+    street_name: str
+    street_number: Optional[str] = None  # Altura/número aproximado
+    created_at: datetime = Field(default_factory=lambda: datetime.now(MADRID_TZ))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(MADRID_TZ) + timedelta(hours=1))
+
+class TaxiNeededZoneCreate(BaseModel):
+    latitude: float
+    longitude: float
+
+class TaxiNeededZoneResponse(BaseModel):
+    id: str
+    street_name: str
+    street_number: Optional[str] = None
+    latitude: float
+    longitude: float
+    report_count: int
+    license_numbers: List[str]
+    last_report: str  # Hora formateada
+    reporters: List[dict]  # Lista de reporteros con hora
+
 class StreetActivityCreate(BaseModel):
     action: str  # "load" or "unload"
     latitude: float
