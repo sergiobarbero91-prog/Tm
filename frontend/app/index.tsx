@@ -11493,6 +11493,8 @@ export default function TransportMeter() {
                 )}
               </View>
             )}
+            {/* Ad Banner - Social Tab */}
+            <AdBanner position="inline" />
           </View>
         ) : activeTab === 'moderation' ? (
           <ScrollView style={styles.moderationContainer}>
