@@ -7071,6 +7071,151 @@ export default function TransportMeter() {
             {/* Ad Space - MIDDLE (after summary) */}
             {!showRegister && <AdSpace position="middle" />}
 
+            {/* Public Fare Calculator */}
+            {!showRegister && (
+              <View style={styles.publicFaresContainer} data-testid="public-fare-calculator">
+                <View style={styles.publicFaresHeader}>
+                  <Ionicons name="calculator" size={24} color="#10B981" />
+                  <Text style={styles.publicFaresTitle}>Calculadora de Tarifas</Text>
+                </View>
+                
+                {/* Origin Type Selector */}
+                <Text style={[styles.faresSectionTitle, { marginBottom: 8 }]}>Origen</Text>
+                <View style={styles.faresOriginTypeSelector}>
+                  <TouchableOpacity
+                    style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'terminal' && styles.faresOriginTypeBtnActive]}
+                    onPress={() => {
+                      setFareCalcOriginType('terminal');
+                      setFareCalcOrigin('T1');
+                      setFareCalcResult(null);
+                    }}
+                  >
+                    <Ionicons name="airplane" size={18} color={fareCalcOriginType === 'terminal' ? '#FFFFFF' : '#94A3B8'} />
+                    <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'terminal' && styles.faresOriginTypeBtnTextActive]}>Terminal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'station' && styles.faresOriginTypeBtnActive]}
+                    onPress={() => {
+                      setFareCalcOriginType('station');
+                      setFareCalcOrigin('Atocha');
+                      setFareCalcResult(null);
+                    }}
+                  >
+                    <Ionicons name="train" size={18} color={fareCalcOriginType === 'station' ? '#FFFFFF' : '#94A3B8'} />
+                    <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'station' && styles.faresOriginTypeBtnTextActive]}>Estación</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'street' && styles.faresOriginTypeBtnActive]}
+                    onPress={() => {
+                      setFareCalcOriginType('street');
+                      setFareCalcResult(null);
+                    }}
+                  >
+                    <Ionicons name="location" size={18} color={fareCalcOriginType === 'street' ? '#FFFFFF' : '#94A3B8'} />
+                    <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'street' && styles.faresOriginTypeBtnTextActive]}>Calle</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Location Selector */}
+                {fareCalcOriginType === 'terminal' && (
+                  <View style={[styles.faresLocationSelector, { marginTop: 10, marginBottom: 16 }]}>
+                    {['T1', 'T2', 'T3', 'T4'].map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.faresLocationBtn, fareCalcOrigin === t && styles.faresLocationBtnActive]}
+                        onPress={() => { setFareCalcOrigin(t); setFareCalcResult(null); }}
+                      >
+                        <Text style={[styles.faresLocationBtnText, fareCalcOrigin === t && styles.faresLocationBtnTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                
+                {fareCalcOriginType === 'station' && (
+                  <View style={[styles.faresLocationSelector, { marginTop: 10, marginBottom: 16 }]}>
+                    {['Atocha', 'Chamartín'].map((s) => (
+                      <TouchableOpacity
+                        key={s}
+                        style={[styles.faresLocationBtn, fareCalcOrigin === s && styles.faresLocationBtnActive]}
+                        onPress={() => { setFareCalcOrigin(s); setFareCalcResult(null); }}
+                      >
+                        <Text style={[styles.faresLocationBtnText, fareCalcOrigin === s && styles.faresLocationBtnTextActive]}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                
+                {fareCalcOriginType === 'street' && (
+                  <View style={[styles.faresInputContainer, { marginTop: 10, marginBottom: 16 }]}>
+                    <Ionicons name="location-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={styles.faresInput}
+                      placeholder="Dirección origen (ej: Gran Vía 32)"
+                      placeholderTextColor="#64748B"
+                      value={fareCalcStreetAddress}
+                      onChangeText={(text) => { setFareCalcStreetAddress(text); setFareCalcResult(null); }}
+                    />
+                  </View>
+                )}
+                
+                {/* Destination */}
+                <Text style={[styles.faresSectionTitle, { marginBottom: 8 }]}>Destino</Text>
+                <View style={[styles.faresInputContainer, { marginBottom: 16 }]}>
+                  <Ionicons name="flag-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.faresInput}
+                    placeholder="Dirección destino (ej: Calle Alcalá 100)"
+                    placeholderTextColor="#64748B"
+                    value={fareCalcDestAddress}
+                    onChangeText={(text) => { setFareCalcDestAddress(text); setFareCalcResult(null); }}
+                  />
+                </View>
+                
+                {/* Calculate Button */}
+                <TouchableOpacity
+                  style={[styles.faresCalculateBtn, fareCalcLoading && styles.faresCalculateBtnDisabled]}
+                  onPress={calculateFare}
+                  disabled={fareCalcLoading}
+                >
+                  {fareCalcLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="calculator" size={20} color="#FFFFFF" />
+                      <Text style={styles.faresCalculateBtnText}>Calcular</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                
+                {/* Result */}
+                {fareCalcResult && (
+                  <View style={[styles.faresResultCard, { marginTop: 16 }]}>
+                    <View style={styles.faresResultRow}>
+                      <Text style={styles.faresResultLabel}>Tarifa:</Text>
+                      <Text style={styles.faresResultValue}>{fareCalcResult.tarifa}</Text>
+                    </View>
+                    <View style={styles.faresResultDivider} />
+                    <View style={styles.faresResultRow}>
+                      <Text style={styles.faresResultLabel}>Precio:</Text>
+                      <Text style={styles.faresResultPrice}>{fareCalcResult.suplemento}</Text>
+                    </View>
+                    {fareCalcResult.distance_km && fareCalcResult.distance_km > 0 && (
+                      <>
+                        <View style={styles.faresResultDivider} />
+                        <View style={styles.faresResultRow}>
+                          <Text style={styles.faresResultLabel}>Distancia:</Text>
+                          <Text style={styles.faresResultValue}>{fareCalcResult.distance_km.toFixed(1)} km</Text>
+                        </View>
+                      </>
+                    )}
+                    {fareCalcResult.details && (
+                      <Text style={styles.faresResultDetails}>{fareCalcResult.details}</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
             {!showRegister ? (
               /* Login Form */
               <View style={styles.loginFormContainer}>
