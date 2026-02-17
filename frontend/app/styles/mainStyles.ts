@@ -8547,13 +8547,13 @@ export const styles = StyleSheet.create({
   },
   // Public Fare Calculator (Login page)
   publicFaresContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
     borderRadius: 16,
-    padding: 20,
-    marginTop: 24,
-    marginHorizontal: 16,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(71, 85, 105, 0.5)',
   },
   publicFaresHeader: {
     flexDirection: 'row',
