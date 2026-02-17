@@ -11613,6 +11613,8 @@ export default function TransportMeter() {
                 ))
               )}
             </View>
+            {/* Ad Banner - Moderation Tab */}
+            <AdBanner position="inline" />
           </ScrollView>
         ) : activeTab === 'admin' ? (
           <View style={styles.adminContainer}>
