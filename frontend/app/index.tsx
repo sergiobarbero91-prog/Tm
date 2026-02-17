@@ -971,6 +971,22 @@ export default function TransportMeter() {
   const [currentStreet, setCurrentStreet] = useState<string>('');
   const [streetLoading, setStreetLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
+  
+  // Taxi needed zones states
+  const [taxiNeededZones, setTaxiNeededZones] = useState<Array<{
+    id: string;
+    street_name: string;
+    street_number: string | null;
+    latitude: number;
+    longitude: number;
+    report_count: number;
+    license_numbers: string[];
+    last_report: string;
+    reporters: Array<{ license: string; time: string }>;
+    distance_km?: number;
+  }>>([]);
+  const [reportingTaxiZone, setReportingTaxiZone] = useState(false);
+  const [showTaxiZonesModal, setShowTaxiZonesModal] = useState(false);
 
   // Support ticket system
   const [showSupportModal, setShowSupportModal] = useState(false);
