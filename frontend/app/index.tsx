@@ -6569,7 +6569,7 @@ export default function TransportMeter() {
               minHeight: 90,
             }}
             data-ad-client="ca-pub-5598896168990208"
-            data-ad-slot="auto"
+            data-ad-slot="9700275205"
             data-ad-format="auto"
             data-full-width-responsive="true"
           />
