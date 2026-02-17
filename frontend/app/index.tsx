@@ -10674,6 +10674,8 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'flights' && flightData ? (
           <>
+            {/* Ad Banner - Flights Header */}
+            <AdBanner position="top" />
             <View style={styles.lastUpdateRow}>
               <View style={styles.lastUpdate}>
                 <Ionicons name="time-outline" size={14} color="#64748B" />
