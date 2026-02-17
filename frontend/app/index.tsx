@@ -332,7 +332,7 @@ export default function TransportMeter() {
       <View 
         style={{
           width: '100%',
-          minHeight: 90,
+          minHeight: 100,
           backgroundColor: 'rgba(30, 41, 59, 0.3)',
           borderRadius: 8,
           justifyContent: 'center',
@@ -347,11 +347,11 @@ export default function TransportMeter() {
           style={{ 
             display: 'block',
             width: '100%',
-            minHeight: 80,
+            minHeight: 90,
           }}
           data-ad-client="ca-pub-5598896168990208"
-          data-ad-slot="auto"
-          data-ad-format="horizontal"
+          data-ad-slot="9700275205"
+          data-ad-format="auto"
           data-full-width-responsive="true"
         />
       </View>
