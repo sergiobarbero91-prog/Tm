@@ -11237,6 +11237,202 @@ export default function TransportMeter() {
             {/* Ad Banner - Events Tab */}
             <AdBanner position="inline" />
           </View>
+        ) : activeTab === 'fares' ? (
+          /* ===== FARES TAB ===== */
+          <View style={styles.faresContainer} data-testid="fares-tab">
+            <AdBanner position="top" />
+            
+            {/* Header */}
+            <View style={styles.faresHeader}>
+              <Ionicons name="calculator" size={28} color="#10B981" />
+              <Text style={styles.faresTitle}>Calculadora de Tarifas</Text>
+            </View>
+            
+            {/* Origin Type Selector */}
+            <View style={styles.faresSection}>
+              <Text style={styles.faresSectionTitle}>Origen</Text>
+              <View style={styles.faresOriginTypeSelector}>
+                <TouchableOpacity
+                  style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'terminal' && styles.faresOriginTypeBtnActive]}
+                  onPress={() => {
+                    setFareCalcOriginType('terminal');
+                    setFareCalcOrigin('T1');
+                    setFareCalcResult(null);
+                  }}
+                >
+                  <Ionicons name="airplane" size={20} color={fareCalcOriginType === 'terminal' ? '#FFFFFF' : '#94A3B8'} />
+                  <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'terminal' && styles.faresOriginTypeBtnTextActive]}>Terminal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'station' && styles.faresOriginTypeBtnActive]}
+                  onPress={() => {
+                    setFareCalcOriginType('station');
+                    setFareCalcOrigin('Atocha');
+                    setFareCalcResult(null);
+                  }}
+                >
+                  <Ionicons name="train" size={20} color={fareCalcOriginType === 'station' ? '#FFFFFF' : '#94A3B8'} />
+                  <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'station' && styles.faresOriginTypeBtnTextActive]}>Estación</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.faresOriginTypeBtn, fareCalcOriginType === 'street' && styles.faresOriginTypeBtnActive]}
+                  onPress={() => {
+                    setFareCalcOriginType('street');
+                    setFareCalcResult(null);
+                  }}
+                >
+                  <Ionicons name="location" size={20} color={fareCalcOriginType === 'street' ? '#FFFFFF' : '#94A3B8'} />
+                  <Text style={[styles.faresOriginTypeBtnText, fareCalcOriginType === 'street' && styles.faresOriginTypeBtnTextActive]}>Calle</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Terminal/Station Selector or Street Input */}
+              {fareCalcOriginType === 'terminal' && (
+                <View style={styles.faresLocationSelector}>
+                  {['T1', 'T2', 'T3', 'T4'].map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.faresLocationBtn, fareCalcOrigin === t && styles.faresLocationBtnActive]}
+                      onPress={() => { setFareCalcOrigin(t); setFareCalcResult(null); }}
+                    >
+                      <Text style={[styles.faresLocationBtnText, fareCalcOrigin === t && styles.faresLocationBtnTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              
+              {fareCalcOriginType === 'station' && (
+                <View style={styles.faresLocationSelector}>
+                  {['Atocha', 'Chamartín'].map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.faresLocationBtn, fareCalcOrigin === s && styles.faresLocationBtnActive]}
+                      onPress={() => { setFareCalcOrigin(s); setFareCalcResult(null); }}
+                    >
+                      <Text style={[styles.faresLocationBtnText, fareCalcOrigin === s && styles.faresLocationBtnTextActive]}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              
+              {fareCalcOriginType === 'street' && (
+                <View style={styles.faresInputContainer}>
+                  <Ionicons name="location-outline" size={20} color="#64748B" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.faresInput}
+                    placeholder="Dirección de origen (ej: Gran Vía 32)"
+                    placeholderTextColor="#64748B"
+                    value={fareCalcStreetAddress}
+                    onChangeText={(text) => { setFareCalcStreetAddress(text); setFareCalcResult(null); }}
+                  />
+                </View>
+              )}
+            </View>
+            
+            {/* Destination Input */}
+            <View style={styles.faresSection}>
+              <Text style={styles.faresSectionTitle}>Destino</Text>
+              <View style={styles.faresInputContainer}>
+                <Ionicons name="flag-outline" size={20} color="#64748B" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.faresInput}
+                  placeholder="Dirección de destino (ej: Calle Alcalá 100)"
+                  placeholderTextColor="#64748B"
+                  value={fareCalcDestAddress}
+                  onChangeText={(text) => { setFareCalcDestAddress(text); setFareCalcResult(null); }}
+                />
+              </View>
+            </View>
+            
+            {/* Calculate Button */}
+            <TouchableOpacity
+              style={[styles.faresCalculateBtn, fareCalcLoading && styles.faresCalculateBtnDisabled]}
+              onPress={calculateFare}
+              disabled={fareCalcLoading}
+              data-testid="calculate-fare-btn"
+            >
+              {fareCalcLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="calculator" size={22} color="#FFFFFF" />
+                  <Text style={styles.faresCalculateBtnText}>Calcular Tarifa</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            
+            {/* Result */}
+            {fareCalcResult && (
+              <View style={styles.faresResultContainer} data-testid="fare-result">
+                <View style={styles.faresResultHeader}>
+                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                  <Text style={styles.faresResultTitle}>Resultado</Text>
+                </View>
+                
+                <View style={styles.faresResultCard}>
+                  <View style={styles.faresResultRow}>
+                    <Text style={styles.faresResultLabel}>Tarifa aplicable:</Text>
+                    <Text style={styles.faresResultValue}>{fareCalcResult.tarifa}</Text>
+                  </View>
+                  
+                  <View style={styles.faresResultDivider} />
+                  
+                  <View style={styles.faresResultRow}>
+                    <Text style={styles.faresResultLabel}>Precio estimado:</Text>
+                    <Text style={styles.faresResultPrice}>{fareCalcResult.suplemento}</Text>
+                  </View>
+                  
+                  {fareCalcResult.distance_km && fareCalcResult.distance_km > 0 && (
+                    <>
+                      <View style={styles.faresResultDivider} />
+                      <View style={styles.faresResultRow}>
+                        <Text style={styles.faresResultLabel}>Distancia:</Text>
+                        <Text style={styles.faresResultValue}>{fareCalcResult.distance_km.toFixed(1)} km</Text>
+                      </View>
+                    </>
+                  )}
+                  
+                  {fareCalcResult.details && (
+                    <>
+                      <View style={styles.faresResultDivider} />
+                      <Text style={styles.faresResultDetails}>{fareCalcResult.details}</Text>
+                    </>
+                  )}
+                </View>
+                
+                <Text style={styles.faresDisclaimer}>
+                  * Precio orientativo. Puede variar según tráfico y ruta exacta.
+                </Text>
+              </View>
+            )}
+            
+            {/* Fare Info */}
+            <View style={styles.faresInfoCard}>
+              <Text style={styles.faresInfoTitle}>Tarifas de Madrid</Text>
+              <View style={styles.faresInfoRow}>
+                <Text style={styles.faresInfoLabel}>T1 (Diurna L-V 7-21h):</Text>
+                <Text style={styles.faresInfoValue}>2,75€ + 1,15€/km</Text>
+              </View>
+              <View style={styles.faresInfoRow}>
+                <Text style={styles.faresInfoLabel}>T2 (Nocturna/Festivos):</Text>
+                <Text style={styles.faresInfoValue}>3,15€ + 1,25€/km</Text>
+              </View>
+              <View style={styles.faresInfoRow}>
+                <Text style={styles.faresInfoLabel}>T3 (Aeropuerto → fuera M30):</Text>
+                <Text style={styles.faresInfoValue}>22€ base (9km)</Text>
+              </View>
+              <View style={styles.faresInfoRow}>
+                <Text style={styles.faresInfoLabel}>T4 (Aeropuerto ↔ M30):</Text>
+                <Text style={styles.faresInfoValue}>33€ fijo</Text>
+              </View>
+              <View style={styles.faresInfoRow}>
+                <Text style={styles.faresInfoLabel}>T7 (Estaciones):</Text>
+                <Text style={styles.faresInfoValue}>8€ base (1,4km)</Text>
+              </View>
+            </View>
+            
+            <AdBanner position="inline" />
+          </View>
         ) : activeTab === 'social' ? (
           <View style={styles.socialContainer}>
             {/* Ad Banner - Social Header */}
