@@ -140,6 +140,7 @@ trains_cache_collection = db['trains_cache']  # Persistent train cache to surviv
 events_collection = db['events']  # User-created events
 chat_messages_collection = db['chat_messages']  # Chat messages for all channels
 license_alerts_collection = db['license_alerts']  # Alerts between taxi drivers by license number
+taxi_needed_zones_collection = db['taxi_needed_zones']  # Zones where taxis are needed
 
 # Create the main app without a prefix
 app = FastAPI()
