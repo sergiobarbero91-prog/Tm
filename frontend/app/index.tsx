@@ -7219,6 +7219,9 @@ export default function TransportMeter() {
               </View>
             )}
 
+            {/* Ad Space - Before Login Form */}
+            {!showRegister && <AdSpace position="bottom" />}
+
             {!showRegister ? (
               /* Login Form */
               <View style={styles.loginFormContainer}>
