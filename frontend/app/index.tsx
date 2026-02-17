@@ -367,7 +367,7 @@ export default function TransportMeter() {
     );
   };
 
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'social' | 'moderation' | 'admin'>('street');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'fares' | 'social' | 'moderation' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
   const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
