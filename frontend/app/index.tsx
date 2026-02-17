@@ -3333,58 +3333,62 @@ export default function TransportMeter() {
       
       // Apply fare rules
       if (isStation) {
-        // TARIFA 7: Estación → Cualquier destino
+        // TARIFA 7: Estación/bus/IFEMA → Cualquier destino
+        // Franquicia de 8€ (1.4km incluidos), luego km con tarifa horaria SIN bajada de bandera
         const TARIFA_7_BASE = 8.00;
         const TARIFA_7_KM_INCLUDED = 1.4;
         const extra_km = Math.max(0, distance_km - TARIFA_7_KM_INCLUDED);
+        // Solo km extra, sin bajada de bandera
         const extra_fare = extra_km * per_km_rate;
-        const base_total = TARIFA_7_BASE + extra_fare;
-        fare_min = base_total * 1.02;
-        fare_max = base_total * 1.07;
+        const total = TARIFA_7_BASE + extra_fare;
+        fare_min = total;
+        fare_max = total * 1.05;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 7 + ${tarifaBase}`;
-          details = `Base 8€ (1,4km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+          details = `Franquicia 8€ (1,4km) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         } else {
           tarifa = 'Tarifa 7';
-          details = 'Base 8€ (primeros 1,4km incluidos)';
+          details = 'Franquicia 8€ (primeros 1,4km incluidos)';
         }
         suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       else if (isAirport && isDestInsideM30) {
-        // TARIFA 4: Aeropuerto → Dentro M30 = FIJO 33€
+        // TARIFA 4: Aeropuerto ↔ Dentro M30 = FIJO 33€
         tarifa = 'Tarifa 4 (Fija)';
         suplemento = '33,00€';
         fare_min = 33;
         fare_max = 33;
-        details = 'Tarifa fija aeropuerto ↔ M30';
+        details = 'Tarifa fija aeropuerto ↔ dentro de M30';
       }
       else if (isAirport && !isDestInsideM30) {
         // TARIFA 3: Aeropuerto → Fuera M30
+        // Franquicia de 22€ (9km incluidos), luego km con tarifa horaria SIN bajada de bandera
         const TARIFA_3_BASE = 22.00;
         const TARIFA_3_KM_INCLUDED = 9;
         const extra_km = Math.max(0, distance_km - TARIFA_3_KM_INCLUDED);
+        // Solo km extra, sin bajada de bandera
         const extra_fare = extra_km * per_km_rate;
-        const base_total = TARIFA_3_BASE + extra_fare;
-        fare_min = base_total * 1.02;
-        fare_max = base_total * 1.07;
+        const total = TARIFA_3_BASE + extra_fare;
+        fare_min = total;
+        fare_max = total * 1.05;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 3 + ${tarifaBase}`;
-          details = `Base 22€ (9km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+          details = `Franquicia 22€ (9km) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         } else {
           tarifa = 'Tarifa 3';
-          details = 'Base 22€ (primeros 9km incluidos)';
+          details = 'Franquicia 22€ (primeros 9km incluidos)';
         }
         suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       else {
-        // TARIFA 1/2: Calle normal
-        const base_fare = bajada_bandera + (distance_km * per_km_rate);
-        fare_min = base_fare * 1.02;
-        fare_max = base_fare * 1.07;
+        // TARIFA 1/2: Calle normal - bajada de bandera + km
+        const total = bajada_bandera + (distance_km * per_km_rate);
+        fare_min = total;
+        fare_max = total * 1.05;
         tarifa = tarifaBase;
-        details = `Bajada de bandera ${bajada_bandera.toFixed(2)}€ + ${distance_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€`;
+        details = `Bajada bandera ${bajada_bandera.toFixed(2)}€ + ${distance_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       
