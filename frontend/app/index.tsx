@@ -3306,9 +3306,17 @@ export default function TransportMeter() {
         throw new Error('No se pudo encontrar la dirección de destino');
       }
       
-      // Check if destination is inside M30
-      const destDistToM30Center = haversine(destCoords.lat, destCoords.lng, M30_CENTER.lat, M30_CENTER.lng);
-      const isDestInsideM30 = destDistToM30Center <= M30_RADIUS_KM;
+      // Check if destination is inside M30 (use the is_inside_m30 from geocoding response)
+      let isDestInsideM30 = false;
+      try {
+        const geocodeCheckResponse = await axios.get(`${API_BASE}/api/geocode/forward`, {
+          params: { address: fareCalcDestAddress + ', Madrid, Spain' },
+          timeout: 10000
+        });
+        isDestInsideM30 = geocodeCheckResponse.data?.is_inside_m30 ?? false;
+      } catch (e) {
+        console.log('M30 check error, using default:', e);
+      }
       
       // Get route distance
       let distance_km = 0;
