@@ -28,6 +28,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import * as Linking from 'expo-linking';
 import { Audio } from 'expo-av';
+
+// Refactored components
+import { PublicFareCalculator } from './components/PublicFareCalculator';
+import { AirportTerminalsGrouped } from './components/AirportTerminalsGrouped';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
