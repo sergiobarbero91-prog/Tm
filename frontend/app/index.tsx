@@ -8131,6 +8131,75 @@ export default function TransportMeter() {
           )}
         </View>
 
+        {/* Report Taxi Needed Zone Button - justo debajo de Calle caliente */}
+        <TouchableOpacity
+          style={[styles.reportTaxiZoneButton, reportingTaxiZone && styles.reportTaxiZoneButtonDisabled]}
+          onPress={reportTaxiNeededZone}
+          disabled={reportingTaxiZone || !currentLocation}
+          data-testid="report-taxi-zone-btn"
+        >
+          {reportingTaxiZone ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Ionicons name="flame" size={24} color="#FFFFFF" />
+              <View style={styles.reportTaxiZoneTextContainer}>
+                <Text style={styles.reportTaxiZoneButtonText}>Reportar Calle Caliente</Text>
+                <Text style={styles.reportTaxiZoneButtonHint}>
+                  {currentLocation ? 'Se necesitan taxis aquí' : 'Esperando ubicación...'}
+                </Text>
+              </View>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Taxi Needed Zones List */}
+        {taxiNeededZones.length > 0 && (
+          <View style={styles.taxiNeededZonesContainer} data-testid="taxi-needed-zones-list">
+            <View style={styles.taxiNeededZonesHeader}>
+              <Ionicons name="flame" size={20} color="#EF4444" />
+              <Text style={styles.taxiNeededZonesTitle}>Zonas con demanda ({taxiNeededZones.length})</Text>
+              <TouchableOpacity 
+                onPress={() => setShowTaxiZonesModal(true)}
+                style={styles.viewAllZonesButton}
+              >
+                <Text style={styles.viewAllZonesText}>Ver todo</Text>
+                <Ionicons name="chevron-forward" size={16} color="#6366F1" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Show first 3 zones */}
+            {taxiNeededZones.slice(0, 3).map((zone, index) => (
+              <View key={zone.id} style={styles.taxiNeededZoneCard}>
+                <View style={styles.taxiNeededZoneInfo}>
+                  <Text style={styles.taxiNeededZoneStreet} numberOfLines={1}>
+                    {zone.street_name}{zone.street_number ? ` #${zone.street_number}` : ''}
+                  </Text>
+                  <View style={styles.taxiNeededZoneMeta}>
+                    <View style={styles.taxiNeededZoneBadge}>
+                      <Ionicons name="people" size={12} color="#F59E0B" />
+                      <Text style={styles.taxiNeededZoneBadgeText}>{zone.report_count}</Text>
+                    </View>
+                    <Text style={styles.taxiNeededZoneTime}>{zone.last_report}</Text>
+                    {zone.distance_km !== undefined && (
+                      <View style={styles.taxiNeededZoneDistance}>
+                        <Ionicons name="location" size={12} color="#6366F1" />
+                        <Text style={styles.taxiNeededZoneDistanceText}>{zone.distance_km} km</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.taxiNeededZoneNavigate}
+                  onPress={() => openGpsNavigation(zone.latitude, zone.longitude, zone.street_name)}
+                >
+                  <Ionicons name="navigate" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* === ESTACIÓN CALIENTE === */}
         <View style={[styles.hottestStreetCard, styles.stationHotCard, 
           // Apply alert styling if station has alerts
