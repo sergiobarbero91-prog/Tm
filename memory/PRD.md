@@ -201,7 +201,7 @@ WHATSAPP_MAX_RESTART_ATTEMPTS=3
 - **Tarifa 2:** Noches/Festivos → 3,20€ bajada + 1,60€/km
 - **Tarifa 3:** Aeropuerto → Fuera M30 → Franquicia 9km (sin coste), resto a T1/T2 SIN bajada
 - **Tarifa 4:** Aeropuerto ↔ Dentro M30 → 33€ FIJO
-- **Tarifa 7:** Estaciones/IFEMA → Cualquier lugar → Franquicia 1,4km (sin coste), resto a T1/T2 SIN bajada
+- **Tarifa 7:** Estaciones/IFEMA → Cualquier lugar → Base 8€ (1,4km incluidos), resto a T1/T2 SIN bajada
 
 **Funcionalidades:**
 - Selector de origen: Terminal (T1-T4), Estación (Atocha/Chamartín), Calle
