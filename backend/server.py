@@ -2366,6 +2366,233 @@ async def get_load_status(
     }
 
 
+# ============== TAXI NEEDED ZONES ENDPOINTS ==============
+
+@api_router.post("/taxi-needed-zones")
+async def report_taxi_needed_zone(
+    zone_request: TaxiNeededZoneCreate,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Report a zone where taxis are needed (calle caliente).
+    
+    Coordinates are converted to a street address using reverse geocoding.
+    Reports from the same user at the same location within 30 minutes are deduplicated.
+    Reports expire after 1 hour.
+    """
+    now = datetime.now(MADRID_TZ)
+    user_id = current_user["id"]
+    license_number = current_user.get("license_number", "Desconocido")
+    
+    # Get street name via reverse geocoding
+    street_name = "Calle desconocida"
+    street_number = None
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            nominatim_url = f"https://nominatim.openstreetmap.org/reverse"
+            params = {
+                "lat": zone_request.latitude,
+                "lon": zone_request.longitude,
+                "format": "json",
+                "addressdetails": 1
+            }
+            headers = {"User-Agent": "TaxiMadrid/1.0"}
+            
+            async with session.get(nominatim_url, params=params, headers=headers, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    address = data.get("address", {})
+                    
+                    # Try to get street name
+                    street_name = (
+                        address.get("road") or 
+                        address.get("pedestrian") or 
+                        address.get("square") or
+                        address.get("neighbourhood") or
+                        "Calle desconocida"
+                    )
+                    
+                    # Try to get street number (altura)
+                    street_number = address.get("house_number")
+                    
+    except Exception as e:
+        logger.error(f"Error in reverse geocoding for taxi zone: {e}")
+    
+    # Check for existing report from same user in same area (within ~100m) in last 30 min
+    thirty_min_ago = now - timedelta(minutes=30)
+    
+    # Use geospatial query if available, otherwise simple lat/lng comparison
+    lat_tolerance = 0.0009  # ~100m
+    lng_tolerance = 0.0012  # ~100m at Madrid latitude
+    
+    existing_report = await taxi_needed_zones_collection.find_one({
+        "user_id": user_id,
+        "latitude": {"$gte": zone_request.latitude - lat_tolerance, "$lte": zone_request.latitude + lat_tolerance},
+        "longitude": {"$gte": zone_request.longitude - lng_tolerance, "$lte": zone_request.longitude + lng_tolerance},
+        "created_at": {"$gte": thirty_min_ago}
+    })
+    
+    if existing_report:
+        return {
+            "success": False,
+            "message": "Ya has reportado esta zona recientemente. Espera 30 minutos.",
+            "existing_report_id": existing_report.get("id")
+        }
+    
+    # Create new report
+    zone_id = str(uuid.uuid4())
+    expires_at = now + timedelta(hours=1)
+    
+    zone_doc = {
+        "id": zone_id,
+        "user_id": user_id,
+        "license_number": license_number,
+        "latitude": zone_request.latitude,
+        "longitude": zone_request.longitude,
+        "street_name": street_name,
+        "street_number": street_number,
+        "created_at": now,
+        "expires_at": expires_at
+    }
+    
+    await taxi_needed_zones_collection.insert_one(zone_doc)
+    
+    logger.info(f"Taxi needed zone reported: {street_name} by license {license_number}")
+    
+    return {
+        "success": True,
+        "message": f"Zona reportada: {street_name}" + (f" #{street_number}" if street_number else ""),
+        "zone_id": zone_id,
+        "street_name": street_name,
+        "street_number": street_number,
+        "expires_at": expires_at.isoformat()
+    }
+
+
+@api_router.get("/taxi-needed-zones")
+async def get_taxi_needed_zones(
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None,
+    max_distance_km: float = 5.0,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Get active taxi needed zones (not expired).
+    
+    Returns zones aggregated by street, with list of reporters.
+    If user location provided, filters by distance and sorts by proximity.
+    """
+    now = datetime.now(MADRID_TZ)
+    
+    # Get all non-expired zones
+    cursor = taxi_needed_zones_collection.find(
+        {"expires_at": {"$gt": now}},
+        {"_id": 0}
+    ).sort("created_at", -1)
+    
+    zones = await cursor.to_list(500)
+    
+    if not zones:
+        return {"zones": [], "total_count": 0}
+    
+    # Aggregate by street (combine reports within ~100m)
+    aggregated = {}
+    lat_tolerance = 0.0009
+    lng_tolerance = 0.0012
+    
+    for zone in zones:
+        # Find if this zone matches an existing aggregated zone
+        matched_key = None
+        for key, agg_zone in aggregated.items():
+            if (abs(zone["latitude"] - agg_zone["latitude"]) < lat_tolerance and
+                abs(zone["longitude"] - agg_zone["longitude"]) < lng_tolerance):
+                matched_key = key
+                break
+        
+        if matched_key:
+            # Add to existing aggregation
+            aggregated[matched_key]["report_count"] += 1
+            if zone["license_number"] not in aggregated[matched_key]["license_numbers"]:
+                aggregated[matched_key]["license_numbers"].append(zone["license_number"])
+            
+            # Update last_report if this is more recent
+            zone_time = zone["created_at"]
+            if zone_time > aggregated[matched_key]["last_report_dt"]:
+                aggregated[matched_key]["last_report_dt"] = zone_time
+                aggregated[matched_key]["last_report"] = zone_time.strftime("%H:%M")
+            
+            # Add reporter info
+            aggregated[matched_key]["reporters"].append({
+                "license": zone["license_number"],
+                "time": zone["created_at"].strftime("%H:%M")
+            })
+        else:
+            # Create new aggregation
+            zone_time = zone["created_at"]
+            aggregated[zone["id"]] = {
+                "id": zone["id"],
+                "street_name": zone["street_name"],
+                "street_number": zone.get("street_number"),
+                "latitude": zone["latitude"],
+                "longitude": zone["longitude"],
+                "report_count": 1,
+                "license_numbers": [zone["license_number"]],
+                "last_report": zone_time.strftime("%H:%M"),
+                "last_report_dt": zone_time,  # For sorting
+                "reporters": [{
+                    "license": zone["license_number"],
+                    "time": zone_time.strftime("%H:%M")
+                }]
+            }
+    
+    # Convert to list and calculate distances if user location provided
+    result_zones = list(aggregated.values())
+    
+    if user_lat is not None and user_lng is not None:
+        for zone in result_zones:
+            zone["distance_km"] = round(haversine_distance(
+                user_lat, user_lng,
+                zone["latitude"], zone["longitude"]
+            ), 2)
+        
+        # Filter by max distance
+        result_zones = [z for z in result_zones if z["distance_km"] <= max_distance_km]
+        
+        # Sort by distance
+        result_zones.sort(key=lambda x: x["distance_km"])
+    else:
+        # Sort by report count (most reported first)
+        result_zones.sort(key=lambda x: (-x["report_count"], -x["last_report_dt"].timestamp()))
+    
+    # Clean up internal fields and format response
+    for zone in result_zones:
+        del zone["last_report_dt"]  # Remove internal datetime field
+    
+    return {
+        "zones": result_zones,
+        "total_count": len(result_zones)
+    }
+
+
+@api_router.delete("/taxi-needed-zones/{zone_id}")
+async def delete_taxi_needed_zone(
+    zone_id: str,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """Delete a taxi needed zone report (only by the user who created it or admin)."""
+    zone = await taxi_needed_zones_collection.find_one({"id": zone_id})
+    
+    if not zone:
+        raise HTTPException(status_code=404, detail="Zona no encontrada")
+    
+    # Check if user owns the zone or is admin
+    if zone["user_id"] != current_user["id"] and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta zona")
+    
+    await taxi_needed_zones_collection.delete_one({"id": zone_id})
+    
+    return {"success": True, "message": "Zona eliminada"}
+
+
 # ============== ROUTE DISTANCE CALCULATION ==============
 
 class RouteDistanceRequest(BaseModel):
