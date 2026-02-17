@@ -10716,6 +10716,8 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'street' ? (
           <>
+            {/* Ad Banner - Street Header */}
+            <AdBanner position="top" />
             {renderStreetContent()}
             {/* Ad Banner - Street Tab */}
             <AdBanner position="inline" />
