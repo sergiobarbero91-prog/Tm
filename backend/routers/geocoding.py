@@ -339,3 +339,47 @@ async def reverse_geocode(
     except Exception as e:
         logger.error(f"Error reverse geocoding: {e}")
         return {"street_name": "Error de geocodificación", "full_address": None}
+
+
+@router.get("/geocode/forward")
+async def forward_geocode(
+    address: str,
+    city: str = "Madrid"
+):
+    """Forward geocode an address to coordinates. Public endpoint for fare calculator."""
+    try:
+        from geopy.geocoders import Nominatim
+        
+        geolocator = Nominatim(user_agent="transport_meter_app")
+        
+        # Add city to search if not already included
+        search_address = address
+        if city.lower() not in address.lower():
+            search_address = f"{address}, {city}, España"
+        
+        location = geolocator.geocode(search_address, timeout=10)
+        
+        if not location:
+            # Try with just the address
+            location = geolocator.geocode(address, timeout=10)
+        
+        if not location:
+            raise HTTPException(status_code=404, detail="No se encontró la dirección")
+        
+        lat = location.latitude
+        lng = location.longitude
+        
+        # Check if inside M30
+        is_inside_m30 = point_in_polygon(lat, lng, M30_POLYGON)
+        
+        return {
+            "address": location.address,
+            "latitude": lat,
+            "longitude": lng,
+            "is_inside_m30": is_inside_m30
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error forward geocoding: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al geocodificar: {str(e)}")
