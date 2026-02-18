@@ -294,14 +294,14 @@ _daily_summary_cache = {
     "generated_at": None
 }
 
-EVENTS_PROMPT = """Actúa como un analista de movilidad urbana en Madrid. Tu objetivo es identificar los focos de mayor demanda de taxis para hoy.
+EVENTS_PROMPT = """Actúa como un analista de movilidad urbana en Madrid. Tu objetivo es identificar los focos de mayor demanda de taxis para hoy. Debes ser critica para evitar dar información errónea.
 Debes generar un informe estructurado con las siguientes secciones obligatorias:
 WiZink Center: Indica el evento, horario de inicio y fin, y aforo esperado.
 IFEMA Madrid: Enumera las ferias o congresos activos, pabellones implicados y nivel de afluencia (Baja/Media/Alta).
 Estadios de Fútbol: Revisa partidos en el Santiago Bernabéu y el Metropolitano. Indica competición y hora de salida de aficionados.
-Teatros y Musicales: Lista espectáculos con mayor éxito en la Gran Vía y alrededores con sus horarios de cierre.
+Teatros y Musicales: Lista los espectáculos con mayor éxito en la Gran Vía y alrededores con sus horarios de cierre.
 Sugerencias Estratégicas: Identifica zonas adicionales (estaciones, zonas de ocio nocturno o eventos culturales menores) donde habrá picos de demanda.
-Formato de salida: Usa una tabla para los eventos y puntos clave para las sugerencias. Prioriza la precisión en los horarios.
+Formato de salida: Usa un texto estructurado para los eventos y puntos clave para las sugerencias. Prioriza la precisión en los horarios y añade links completos para poder verificar la información.
 
 Fecha de hoy: {today_date}"""
 
