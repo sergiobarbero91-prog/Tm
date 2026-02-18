@@ -436,6 +436,11 @@ export default function TransportMeter() {
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
   const [eventLoading, setEventLoading] = useState(false);
+  
+  // AI Events Summary states
+  const [aiEventsSummary, setAiEventsSummary] = useState<string | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiSummaryExpanded, setAiSummaryExpanded] = useState(true);
 
   // Admin Panel states
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
