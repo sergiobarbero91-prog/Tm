@@ -3618,6 +3618,27 @@ export default function TransportMeter() {
     }
   }, [shift]);
 
+  // Fetch AI Events Summary
+  const fetchAiEventsSummary = useCallback(async (forceRefresh: boolean = false) => {
+    setAiSummaryLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/api/events/daily-summary`, {
+        params: { force_refresh: forceRefresh },
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 60000 // 60 second timeout for AI generation
+      });
+      if (response.data.success) {
+        setAiEventsSummary(response.data.summary);
+      }
+    } catch (error) {
+      console.error('Error fetching AI events summary:', error);
+      setAiEventsSummary('Error al cargar el resumen. Intenta de nuevo.');
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  }, []);
+
   // Create new event
   const createEvent = async () => {
     if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
