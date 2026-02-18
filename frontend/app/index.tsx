@@ -11142,6 +11142,69 @@ export default function TransportMeter() {
           </>
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
+            {/* AI Daily Summary */}
+            <View style={{
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(99, 102, 241, 0.3)',
+            }}>
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                onPress={() => setAiSummaryExpanded(!aiSummaryExpanded)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Ionicons name="sparkles" size={24} color="#6366F1" />
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginLeft: 10 }}>
+                    Resumen del Día (IA)
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {!aiSummaryLoading && (
+                    <TouchableOpacity
+                      onPress={() => fetchAiEventsSummary(true)}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="refresh" size={20} color="#6366F1" />
+                    </TouchableOpacity>
+                  )}
+                  <Ionicons 
+                    name={aiSummaryExpanded ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#6366F1" 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {aiSummaryExpanded && (
+                <View style={{ marginTop: 12 }}>
+                  {aiSummaryLoading ? (
+                    <View style={{ alignItems: 'center', padding: 20 }}>
+                      <ActivityIndicator size="large" color="#6366F1" />
+                      <Text style={{ color: '#94A3B8', marginTop: 10, fontSize: 12 }}>
+                        Generando análisis con IA...
+                      </Text>
+                    </View>
+                  ) : aiEventsSummary ? (
+                    <Text style={{ 
+                      color: '#CBD5E1', 
+                      fontSize: 13, 
+                      lineHeight: 20,
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {aiEventsSummary}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: '#64748B', fontSize: 13, fontStyle: 'italic' }}>
+                      Pulsa en actualizar para generar el resumen
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
             {/* Add Event Button */}
