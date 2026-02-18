@@ -275,3 +275,104 @@ async def delete_event(
     except Exception as e:
         logger.error(f"Error deleting event: {e}")
         raise HTTPException(status_code=500, detail="Error al eliminar evento")
+
+
+# =====================================================
+# AI-POWERED DAILY EVENTS SUMMARY
+# =====================================================
+
+import os
+from datetime import date
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Cache for daily summary
+_daily_summary_cache = {
+    "date": None,
+    "summary": None,
+    "generated_at": None
+}
+
+EVENTS_PROMPT = """Actúa como un analista de movilidad urbana en Madrid. Tu objetivo es identificar los focos de mayor demanda de taxis para hoy.
+Debes generar un informe estructurado con las siguientes secciones obligatorias:
+WiZink Center: Indica el evento, horario de inicio y fin, y aforo esperado.
+IFEMA Madrid: Enumera las ferias o congresos activos, pabellones implicados y nivel de afluencia (Baja/Media/Alta).
+Estadios de Fútbol: Revisa partidos en el Santiago Bernabéu y el Metropolitano. Indica competición y hora de salida de aficionados.
+Teatros y Musicales: Lista espectáculos con mayor éxito en la Gran Vía y alrededores con sus horarios de cierre.
+Sugerencias Estratégicas: Identifica zonas adicionales (estaciones, zonas de ocio nocturno o eventos culturales menores) donde habrá picos de demanda.
+Formato de salida: Usa una tabla para los eventos y puntos clave para las sugerencias. Prioriza la precisión en los horarios.
+
+Fecha de hoy: {today_date}"""
+
+
+async def generate_events_summary_ai() -> str:
+    """Generate AI-powered events summary using Gemini"""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not api_key:
+            logger.error("EMERGENT_LLM_KEY not found in environment")
+            return "Error: API key not configured"
+        
+        today = date.today().strftime("%d de %B de %Y")
+        prompt = EVENTS_PROMPT.format(today_date=today)
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"events-summary-{date.today().isoformat()}",
+            system_message="Eres un experto analista de movilidad urbana en Madrid, especializado en identificar puntos de alta demanda de taxis."
+        ).with_model("gemini", "gemini-3-flash-preview")
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        logger.info(f"Generated AI events summary for {today}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating events summary: {e}")
+        return f"Error al generar el resumen: {str(e)}"
+
+
+@router.get("/daily-summary")
+async def get_daily_summary(
+    force_refresh: bool = False,
+    current_user: dict = Depends(get_current_user_required)
+):
+    """
+    Get AI-generated daily events summary for taxi demand hotspots.
+    Cached for the day unless force_refresh=true.
+    """
+    global _daily_summary_cache
+    
+    today = date.today().isoformat()
+    
+    # Return cached if available and same day
+    if not force_refresh and _daily_summary_cache["date"] == today and _daily_summary_cache["summary"]:
+        return {
+            "success": True,
+            "date": today,
+            "summary": _daily_summary_cache["summary"],
+            "generated_at": _daily_summary_cache["generated_at"],
+            "cached": True
+        }
+    
+    # Generate new summary
+    summary = await generate_events_summary_ai()
+    
+    # Cache the result
+    _daily_summary_cache = {
+        "date": today,
+        "summary": summary,
+        "generated_at": datetime.now(MADRID_TZ).isoformat()
+    }
+    
+    return {
+        "success": True,
+        "date": today,
+        "summary": summary,
+        "generated_at": _daily_summary_cache["generated_at"],
+        "cached": False
+    }
