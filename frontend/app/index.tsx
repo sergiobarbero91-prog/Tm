@@ -6452,7 +6452,10 @@ export default function TransportMeter() {
           fetchTaxiNeededZones()
         ]);
       } else if (activeTab === 'events') {
-        await fetchEventsData();
+        await Promise.all([
+          fetchEventsData(),
+          fetchAiEventsSummary()
+        ]);
       } else if (activeTab === 'social') {
         await Promise.all([
           fetchFriends(),
