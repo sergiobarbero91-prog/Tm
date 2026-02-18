@@ -211,24 +211,23 @@ export const PublicFareCalculator: React.FC<PublicFareCalculatorProps> = ({ styl
       }
       else if (isAirport && !isDestInsideM30) {
         // TARIFA 3: Aeropuerto → Fuera M30
-        // Franquicia de 9km (sin coste), resto con tarifa horaria SIN bajada de bandera
+        // Base 22€ (cubre primeros 9km), resto con tarifa horaria SIN bajada de bandera
+        const TARIFA_3_BASE = 22.00;
         const TARIFA_3_KM_FRANCHISE = 9;
         const extra_km = Math.max(0, distance_km - TARIFA_3_KM_FRANCHISE);
         // Solo km extra, sin bajada de bandera
-        const total = extra_km * per_km_rate;
+        const total = TARIFA_3_BASE + (extra_km * per_km_rate);
         fare_min = total;
         fare_max = total * 1.05;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 3 + ${tarifaBase}`;
-          details = `Franquicia 9km (sin coste) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
+          details = `Base 22€ (9km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         } else {
           tarifa = 'Tarifa 3';
-          details = 'Franquicia 9km (distancia incluida en franquicia)';
-          fare_min = 0;
-          fare_max = 0;
+          details = 'Base 22€ (primeros 9km incluidos)';
         }
-        suplemento = fare_min > 0 ? `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€` : 'Incluido en franquicia';
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       else {
         // TARIFA 1/2: Calle normal - bajada de bandera + km

@@ -2812,36 +2812,40 @@ export default function TransportMeter() {
         const distance_km = routeResponse.data.distance_km || 0;
         console.log('[Fare] Distance from OSRM:', distance_km, 'km');
         
-        // T3: Franquicia de 9km (sin coste), resto a tarifa horaria SIN bajada
+        // T3: Base 22€ (cubre primeros 9km), resto a tarifa horaria SIN bajada
+        const TARIFA_3_BASE = 22.00;
         const TARIFA_3_KM_FRANCHISE = 9.0;
         
         const extra_km = Math.max(0, distance_km - TARIFA_3_KM_FRANCHISE);
         // Extra km charged at T1/T2 rate WITHOUT flag-down fee
         const extra_fare = extra_km * per_km_rate;
+        const total = TARIFA_3_BASE + extra_fare;
         
         console.log('[Fare] T3 calculation:', {
+          base: TARIFA_3_BASE,
           km_franchise: TARIFA_3_KM_FRANCHISE,
           total_distance: distance_km,
           extra_km,
           per_km_rate,
-          extra_fare
+          extra_fare,
+          total
         });
         
         // Calculate range: +2% to +7% for variation
-        const fare_min = extra_fare * 1.02;
-        const fare_max = extra_fare * 1.07;
+        const fare_min = total * 1.02;
+        const fare_max = total * 1.07;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 3 + ${tarifaBase}`;
           suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
         } else {
           tarifa = 'Tarifa 3';
-          suplemento = 'Incluido en franquicia (9km)';
+          suplemento = `${(TARIFA_3_BASE * 1.02).toFixed(2)}€ - ${(TARIFA_3_BASE * 1.07).toFixed(2)}€`;
         }
       } catch (error) {
         console.log('[Fare] Error calculating airport fare:', error);
         tarifa = `Tarifa 3 + ${tarifaBase}`;
-        suplemento = `${per_km_rate.toFixed(2)}€/km (después de franquicia 9km)`;
+        suplemento = `22€ + ${per_km_rate.toFixed(2)}€/km (después de 9km)`;
       }
     }
     // Fallback (should not happen)
