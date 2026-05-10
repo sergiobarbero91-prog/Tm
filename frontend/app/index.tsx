@@ -13004,6 +13004,33 @@ export default function TransportMeter() {
                   </TouchableOpacity>
                 )}
 
+                {/* Force Disconnect Button */}
+                <TouchableOpacity
+                  style={{ 
+                    marginTop: 12, 
+                    backgroundColor: '#7C3AED20', 
+                    padding: 12, 
+                    borderRadius: 8, 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    gap: 8,
+                    borderWidth: 1,
+                    borderColor: '#7C3AED'
+                  }}
+                  onPress={forceDisconnectWhatsAppBot}
+                  disabled={whatsappSending}
+                >
+                  {whatsappSending ? (
+                    <ActivityIndicator color="#7C3AED" />
+                  ) : (
+                    <>
+                      <Ionicons name="log-out-outline" size={20} color="#7C3AED" />
+                      <Text style={{ color: '#7C3AED', fontWeight: '600' }}>Forzar Desconexión</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
                 {/* Info Text */}
                 <View style={{ marginTop: 12, padding: 12, backgroundColor: '#1F293720', borderRadius: 8 }}>
                   <Text style={{ color: '#9CA3AF', fontSize: 11, textAlign: 'center' }}>
