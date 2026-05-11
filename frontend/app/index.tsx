@@ -435,6 +435,16 @@ export default function TransportMeter() {
 
   // Events states
   const [eventsData, setEventsData] = useState<any[]>([]);
+  // Daily AI summary states (eventos pestaña)
+  const [dailySummary, setDailySummary] = useState<{
+    summary: string | null;
+    success?: boolean;
+    error?: string | null;
+    generated_at?: string;
+    fallback_date?: string | null;
+    sources?: { uri: string; title: string }[];
+  } | null>(null);
+  const [dailySummaryLoading, setDailySummaryLoading] = useState(false);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [newEventLocation, setNewEventLocation] = useState('');
   const [newEventDescription, setNewEventDescription] = useState('');
@@ -3613,6 +3623,26 @@ export default function TransportMeter() {
     }
   }, [shift]);
 
+  // Fetch AI daily event summary
+  const fetchDailySummary = useCallback(async () => {
+    try {
+      setDailySummaryLoading(true);
+      const response = await axios.get(`${API_BASE}/api/events/daily-summary`, {
+        timeout: 120000,
+      });
+      setDailySummary(response.data);
+    } catch (error: any) {
+      console.error('Error fetching daily summary:', error);
+      setDailySummary({
+        summary: null,
+        success: false,
+        error: error?.message || 'Error de conexión',
+      });
+    } finally {
+      setDailySummaryLoading(false);
+    }
+  }, []);
+
   // Create new event
   const createEvent = async () => {
     if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
@@ -6427,6 +6457,8 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
+        // Cargar resumen IA del día (cacheado en servidor)
+        fetchDailySummary();
       } else if (activeTab === 'social') {
         await Promise.all([
           fetchFriends(),
@@ -7887,7 +7919,7 @@ export default function TransportMeter() {
           </Text>
           <View style={styles.scoreContainer}>
             <Ionicons name="analytics" size={14} color="#6366F1" />
-            <Text style={styles.scoreText}>Previsión Próxima Hora · Score {score.toFixed(1)}</Text>
+            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
 
           {/* === NUEVA: Demanda en este Momento === */}
@@ -11195,6 +11227,163 @@ export default function TransportMeter() {
           <View style={styles.eventsContainer}>
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
+
+            {/* === Resumen del Día (IA) === */}
+            <View
+              testID="ai-daily-summary-card"
+              style={{
+                backgroundColor: '#0F172A',
+                borderWidth: 1,
+                borderColor: 'rgba(99, 102, 241, 0.35)',
+                borderRadius: 14,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: 'rgba(99, 102, 241, 0.18)',
+                  alignItems: 'center', justifyContent: 'center', marginRight: 10,
+                }}>
+                  <Ionicons name="sparkles" size={18} color="#A5B4FC" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#F1F5F9', fontSize: 15, fontWeight: '700' }}>
+                    Resumen del Día
+                  </Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 1 }}>
+                    Eventos verificados · IA con Google Search
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  testID="ai-daily-summary-refresh-btn"
+                  onPress={() => fetchDailySummary()}
+                  disabled={dailySummaryLoading}
+                  style={{ padding: 8, borderRadius: 8, backgroundColor: 'rgba(99, 102, 241, 0.12)' }}
+                >
+                  <Ionicons
+                    name={dailySummaryLoading ? 'sync' : 'refresh'}
+                    size={16}
+                    color={dailySummaryLoading ? '#64748B' : '#A5B4FC'}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {dailySummaryLoading && !dailySummary ? (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#6366F1" />
+                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 8 }}>
+                    Consultando IFEMA, WiZink, agenda municipal...
+                  </Text>
+                </View>
+              ) : dailySummary?.summary ? (
+                <>
+                  {dailySummary.success === false && dailySummary.fallback_date && (
+                    <View style={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      borderLeftWidth: 3,
+                      borderLeftColor: '#F59E0B',
+                      padding: 8,
+                      borderRadius: 6,
+                      marginBottom: 10,
+                    }}>
+                      <Text style={{ color: '#FCD34D', fontSize: 12, fontWeight: '600' }}>
+                        ⚠ Mostrando resumen del {dailySummary.fallback_date} (no se ha podido actualizar hoy)
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    testID="ai-daily-summary-text"
+                    selectable
+                    style={{
+                      color: '#E2E8F0',
+                      fontSize: 13.5,
+                      lineHeight: 21,
+                    }}
+                  >
+                    {(() => {
+                      // Parse sections: [HEADER] or **bold** segments
+                      const lines = (dailySummary.summary || '').split('\n');
+                      return lines.map((line, idx) => {
+                        const trimmed = line.trim();
+                        if (!trimmed) return <Text key={idx}>{'\n'}</Text>;
+                        // Section header in brackets [GRANDES EVENTOS]
+                        if (/^\[.+\]$/.test(trimmed)) {
+                          return (
+                            <Text key={idx} style={{
+                              color: '#A5B4FC',
+                              fontWeight: '700',
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            }}>
+                              {(idx > 0 ? '\n\n' : '') + trimmed + '\n'}
+                            </Text>
+                          );
+                        }
+                        // Bullet lines
+                        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+                          // Process **bold** segments inline
+                          const cleaned = trimmed.replace(/^[-•]\s*/, '');
+                          const parts = cleaned.split(/(\*\*[^*]+\*\*)/);
+                          return (
+                            <Text key={idx} style={{ fontSize: 13.5, lineHeight: 21 }}>
+                              {'\n'}
+                              <Text style={{ color: '#A5B4FC' }}>{'•  '}</Text>
+                              {parts.map((p, j) => {
+                                if (/^\*\*[^*]+\*\*$/.test(p)) {
+                                  return (
+                                    <Text key={j} style={{ color: '#FCD34D', fontWeight: '700' }}>
+                                      {p.slice(2, -2)}
+                                    </Text>
+                                  );
+                                }
+                                return <Text key={j} style={{ color: '#F1F5F9' }}>{p}</Text>;
+                              })}
+                            </Text>
+                          );
+                        }
+                        // Regular paragraph (greeting / closing)
+                        const parts = trimmed.split(/(\*\*[^*]+\*\*)/);
+                        return (
+                          <Text key={idx} style={{ color: '#CBD5E1', fontSize: 13.5, lineHeight: 21 }}>
+                            {(idx > 0 ? '\n' : '')}
+                            {parts.map((p, j) => {
+                              if (/^\*\*[^*]+\*\*$/.test(p)) {
+                                return <Text key={j} style={{ color: '#FCD34D', fontWeight: '700' }}>{p.slice(2, -2)}</Text>;
+                              }
+                              return <Text key={j}>{p}</Text>;
+                            })}
+                          </Text>
+                        );
+                      });
+                    })()}
+                  </Text>
+                  {dailySummary.generated_at && (
+                    <Text style={{ color: '#64748B', fontSize: 10, marginTop: 10 }}>
+                      Actualizado: {new Date(dailySummary.generated_at).toLocaleString('es-ES', {
+                        timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                      {dailySummary.sources && dailySummary.sources.length > 0 &&
+                        ` · ${dailySummary.sources.length} fuente${dailySummary.sources.length !== 1 ? 's' : ''}`}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <View testID="ai-daily-summary-error" style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <Ionicons name="cloud-offline-outline" size={28} color="#64748B" />
+                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' }}>
+                    No se ha podido cargar el resumen del día.
+                  </Text>
+                  <Text style={{ color: '#64748B', fontSize: 11, marginTop: 4, textAlign: 'center' }}>
+                    Se reintentará automáticamente. Pulsa ↻ para reintentar ahora.
+                  </Text>
+                </View>
+              )}
+            </View>
+            {/* === /Resumen del Día === */}
+
             {/* Add Event Button */}
             <TouchableOpacity 
               style={styles.addEventButton}
