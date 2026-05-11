@@ -300,14 +300,6 @@ class TerminalData(BaseModel):
     grande: Optional[int] = None         # long-haul / wide-body flights in any bucket
     demand_pct: Optional[int] = None     # 0-200+%
     demand_level: Optional[str] = None   # 'baja' | 'media' | 'alta' | 'critica'
-    # Demand buckets (P/E/F/S/GRANDE) for the airport zone card
-    proximos: Optional[int] = None       # flights arriving in next 0-30 min
-    equipaje: Optional[int] = None       # flights landed 0-30 min ago (collecting bags)
-    finalizado: Optional[int] = None     # flights landed 30-60 min ago (already left)
-    siguientes: Optional[int] = None     # flights arriving in next 30-90 min
-    grande: Optional[int] = None         # long-haul / wide-body flights in any bucket
-    demand_pct: Optional[int] = None     # 0-200+%
-    demand_level: Optional[str] = None   # 'baja' | 'media' | 'alta' | 'critica'
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData

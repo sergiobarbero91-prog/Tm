@@ -8015,8 +8015,8 @@ export default function TransportMeter() {
               testID={`instant-pressure-${group.terminals[0]}`}
               style={{ marginTop: 14 }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginRight: 12 }}>
                   DEMANDA
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
