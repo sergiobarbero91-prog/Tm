@@ -56,46 +56,48 @@ def _build_prompt(today_human: str, today_iso: str, weekday_es: str) -> str:
     """Build the system + user prompt that forces real web search."""
     return f"""Eres un asistente que prepara un resumen diario de eventos en Madrid para taxistas profesionales.
 
-OBJETIVO: Identificar eventos REALES y VERIFICADOS que se celebran HOY ({weekday_es}, {today_human}) en Madrid, para que el taxista sepa dónde habrá demanda y dónde hay obras o cortes.
+OBJETIVO: Identificar los EVENTOS MÁS IMPORTANTES de HOY ({weekday_es}, {today_human}) en Madrid que generen demanda de taxi, para que el conductor sepa dónde habrá clientes.
 
 REGLAS DE BÚSQUEDA (OBLIGATORIO):
 1. Usa la herramienta Google Search MÚLTIPLES VECES antes de responder. No respondas de memoria.
-2. Realiza al menos UNA búsqueda específica POR CADA fuente de esta lista:
-   - Búsqueda 1: "WiZink Center conciertos {today_human}" o "WiZink Center hoy"
-   - Búsqueda 2: "Movistar Arena Madrid eventos {today_human}" o "Movistar Arena hoy"
-   - Búsqueda 3: "IFEMA Madrid ferias {today_human}" o "IFEMA hoy programa"
-   - Búsqueda 4: "esmadrid.com agenda {today_human}" o "Madrid eventos hoy {weekday_es}"
-   - Búsqueda 5: "Madrid cortes tráfico hoy {today_iso}" o "Madrid obras tráfico {today_human}"
-3. Si una primera búsqueda no da resultados claros, REFORMULA y vuelve a buscar con sinónimos (ej. "conciertos en Madrid esta noche", "qué hacer en Madrid hoy").
-4. Cada evento que menciones DEBE provenir de resultados reales de búsqueda con fecha verificada.
-5. Filtra estrictamente: solo eventos con fecha HOY ({today_iso}). Descarta cualquier evento de otro día.
-6. Si tras buscar no encuentras eventos en una fuente concreta, indícalo así: "(Sin eventos confirmados hoy en [fuente])".
+2. Realiza al menos UNA búsqueda específica POR CADA fuente:
+   - "WiZink Center conciertos {today_human}"
+   - "Movistar Arena Madrid eventos {today_human}"
+   - "IFEMA Madrid ferias {today_human}"
+   - "Madrid eventos hoy {today_human}" (agenda municipal esmadrid.com)
+   - "Madrid cortes tráfico hoy {today_iso}"
+   - "partido Real Madrid Atlético Madrid {today_iso}"
+3. Filtra estrictamente por fecha: solo eventos con fecha HOY ({today_iso}).
 
-QUÉ BUSCAR (en orden de prioridad para el taxista):
-- Conciertos y espectáculos en WiZink Center y Movistar Arena (con hora exacta y nombre del artista).
-- Ferias, congresos y exposiciones grandes en IFEMA (con horario y pabellón si lo encuentras).
-- Eventos masivos del Ayuntamiento (esmadrid.com / madrid.es): cabalgatas, manifestaciones convocadas, San Isidro, maratones, festivales, etc.
-- Obras importantes o cortes de tráfico en calles principales (Gran Vía, Castellana, Alcalá, M-30) si aparecen en madrid.es.
-- Partidos del Real Madrid en el Bernabéu o Atlético en el Metropolitano si se juegan hoy.
+QUÉ INCLUIR EN EL RESUMEN (PRIORIDAD ESTRICTA — máximo 6 eventos en total):
+1. Conciertos en WiZink Center o Movistar Arena (siempre incluir si los hay, con HORA exacta y artista).
+2. Partidos en el Bernabéu o Metropolitano (con HORA).
+3. Ferias grandes en IFEMA con nombre del evento (1 línea agrupada, NO listar pabellones).
+4. Festivales masivos del Ayuntamiento agrupados en UNA línea (ej: "San Isidro: actuaciones todo el día en Pradera de San Isidro"). NO listes cada actuación individualmente.
+5. Otros eventos masivos puntuales que afecten zonas concretas.
 
-FORMATO DE SALIDA (texto plano, sin markdown ni asteriscos):
-- Empieza con: "Buenos días, compañero. Esto es lo que te espera hoy en Madrid:"
-- Lista los eventos como bullets con guión:
-    - [HORA] · [EVENTO] en [LUGAR]. [Por qué te importa: zona caliente para recogidas tras el evento, etc.]
-- Si hay obra o corte importante: línea al final con "⚠ Atención: [calle/zona] — [motivo]."
-- Si tras buscar no hay nada confirmado en ninguna fuente, di literalmente:
-    "He revisado WiZink Center, Movistar Arena, IFEMA y la agenda municipal y hoy no aparecen eventos masivos confirmados. Día tranquilo de jornada habitual."
-- Termina con una línea motivadora corta y profesional (ej: "¡Buena jornada y buen turno!").
-- Máximo 1500 caracteres en total. Sé conciso pero útil.
+FORMATO DE SALIDA (texto plano, sin markdown, MÁXIMO 1200 CARACTERES, OBLIGATORIO terminar el mensaje correctamente):
+
+Línea 1 (saludo): "Buenos días, compañero. Esto es lo que te espera hoy en Madrid:"
+Línea en blanco.
+Bloque de eventos (máximo 6 líneas):
+- [HORA] · [EVENTO] en [LUGAR]. [Por qué te importa: zona caliente para recogidas tras evento, etc.]
+Línea en blanco.
+Bloque de avisos de tráfico (máximo 3 líneas, solo los más importantes):
+⚠ Atención: [calle/zona] — [motivo breve].
+Línea en blanco.
+Cierre obligatorio: "¡Buena jornada y buen turno!"
+
+REGLA CRÍTICA: el mensaje debe estar COMPLETO y terminar con la frase de cierre. Si no caben todos los eventos, prioriza WiZink/Movistar Arena/IFEMA/partidos sobre actuaciones de barrio. Si hay un festival con muchas actuaciones (como San Isidro), agrúpalas en UNA SOLA línea genérica, NO listes cada una.
 
 NO INCLUYAS:
-- Eventos de otros días (ni mañana ni ayer).
-- Eventos genéricos sin nombre concreto ni hora.
-- Disclaimers largos sobre IA.
+- Listados largos de actuaciones de un mismo festival (agrúpalas).
+- Eventos de otros días.
+- Disclaimers sobre IA.
 - URLs en el cuerpo del texto.
-- Listas vacías repetidas de "no he podido confirmar"; agrupa las fuentes sin resultados en una sola línea.
+- Markdown (* _ # etc.).
 
-TONO: Profesional pero cercano. Tutea al taxista. Lenguaje directo y práctico, sin coloquialismos excesivos.
+TONO: Profesional pero cercano. Tutea al taxista. Directo y práctico.
 """
 
 
@@ -144,8 +146,8 @@ async def generate_daily_summary() -> dict:
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
             tools=[grounding_tool],
-            temperature=0.7,
-            max_output_tokens=4096,
+            temperature=0.6,
+            max_output_tokens=8192,
         )
 
         # google-genai is sync; wrap in thread to avoid blocking event loop
@@ -191,6 +193,17 @@ async def generate_daily_summary() -> dict:
             return {
                 "success": False,
                 "error": "Gemini no realizó búsquedas web (sin grounding). Reintentar.",
+                "summary": None,
+                "raw_response": summary_text,
+            }
+
+        # Validate the response is not truncated (must end with punctuation/closing)
+        last_chars = summary_text.rstrip()[-3:]
+        if not any(c in last_chars for c in ['.', '!', '?', '"', ')']):
+            logger.warning(f"[DailySummary] Response appears truncated. Last chars: {last_chars!r}")
+            return {
+                "success": False,
+                "error": "Respuesta truncada por el modelo. Reintentar.",
                 "summary": None,
                 "raw_response": summary_text,
             }
