@@ -7935,9 +7935,43 @@ export default function TransportMeter() {
           <Text style={styles.arrivalLabel}>
             vuelos ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
           </Text>
-          <View style={styles.scoreContainer}>
-            <Ionicons name="analytics" size={14} color="#6366F1" />
-            <Text style={styles.scoreText}>Previsión Próxima Hora · Score {score.toFixed(1)}</Text>
+
+          {/* === Previsión Próxima Hora (barra horaria existente, redibujada) === */}
+          <View
+            testID={`hourly-forecast-${group.terminals[0]}`}
+            style={{
+              marginTop: 10,
+              paddingTop: 10,
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(99, 102, 241, 0.15)',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                <Ionicons name="analytics" size={14} color="#6366F1" />
+                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginRight: 8 }}>
+                  Previsión Próxima Hora
+                </Text>
+              </View>
+              <Text style={{ color: '#6366F1', fontSize: 14, fontWeight: '800' }}>
+                Score {score.toFixed(1)}
+              </Text>
+            </View>
+            <View style={{
+              width: '100%',
+              height: 8,
+              backgroundColor: 'rgba(100, 116, 139, 0.18)',
+              borderRadius: 4,
+              overflow: 'hidden',
+            }}>
+              <View style={{
+                height: '100%',
+                // Score normalizado: 10 puntos = 100% de la barra
+                width: `${Math.min((score / 10) * 100, 100)}%` as any,
+                backgroundColor: '#6366F1',
+                borderRadius: 4,
+              }} />
+            </View>
           </View>
 
           {/* === Demanda en este Momento (Instant Pressure) === */}
@@ -7969,7 +8003,6 @@ export default function TransportMeter() {
                   />
                 </View>
               </View>
-              {/* Bar */}
               <View style={{
                 width: '100%',
                 height: 8,
