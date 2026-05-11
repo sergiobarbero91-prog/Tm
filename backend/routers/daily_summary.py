@@ -62,7 +62,7 @@ PASO 1 — BÚSQUEDAS OBLIGATORIAS (haz TODAS estas búsquedas con Google Search
 1. "WiZink Center agenda eventos {today_human}"
 2. "Movistar Arena Madrid programación {today_human}"
 3. "IFEMA Madrid ferias hoy {today_human}"
-4. "Real Madrid Atlético Madrid partido hoy {today_iso}"
+4. "Real Madrid Atlético Madrid Rayo Vallecano Getafe partido hoy {today_iso}"
 5. "musicales Gran Vía Madrid funciones {today_human}"
 6. "cortes de tráfico hoy en Madrid {today_iso}"
 7. "manifestaciones Madrid hoy {today_iso}"
@@ -78,9 +78,10 @@ Buenos días, compañero. Briefing de hoy en Madrid:
 [Aquí 2-5 líneas. Cada línea con formato: - HH:MMh · NOMBRE_EVENTO en LUGAR]
 [Si no encuentras nada: - Sin eventos masivos confirmados hoy.]
 
-⚽ ESTADIOS (BERNABÉU · METROPOLITANO)
-[Aquí 1-3 líneas con partidos o eventos. Formato: - HH:MMh · COMPETICIÓN: EQUIPO vs EQUIPO en LUGAR]
-[Si no hay partidos: - Sin partidos ni eventos hoy en los estadios.]
+⚽ ESTADIOS (BERNABÉU · METROPOLITANO · VALLECAS · COLISEUM GETAFE)
+[Aquí 1-4 líneas con partidos o eventos. Formato: - HH:MMh · COMPETICIÓN: EQUIPO vs EQUIPO en LUGAR]
+[Verifica los 4 estadios: Santiago Bernabéu (Real Madrid), Cívitas Metropolitano (Atlético), Estadio de Vallecas (Rayo Vallecano) y Coliseum (Getafe).]
+[Si no hay partidos en ninguno: - Sin partidos ni eventos hoy en los estadios.]
 
 🎭 EJE GRAN VÍA · MUSICALES Y TEATROS
 [Aquí 2-4 líneas. Formato: - HH:MMh · OBRA en TEATRO]
