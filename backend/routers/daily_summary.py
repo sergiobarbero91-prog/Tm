@@ -48,56 +48,66 @@ GROUNDING_SOURCES = [
     "madrid.es",
 ]
 
-# Gemini model that supports Google Search grounding
-GEMINI_MODEL = "gemini-2.5-flash"
+# Gemini model that supports Google Search grounding (flash-lite has 500 RPD free vs 20 for flash)
+GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 
 def _build_prompt(today_human: str, today_iso: str, weekday_es: str) -> str:
     """Build the system + user prompt that forces real web search."""
-    return f"""Eres un asistente que prepara un resumen diario de eventos en Madrid para taxistas profesionales.
+    return f"""Eres un asistente que prepara un briefing zonal diario para taxistas de Madrid.
 
-OBJETIVO: Identificar los EVENTOS MÁS IMPORTANTES de HOY ({weekday_es}, {today_human}) en Madrid que generen demanda de taxi, para que el conductor sepa dónde habrá clientes.
+FECHA OBJETIVO: HOY → {weekday_es}, {today_human} ({today_iso})
 
-REGLAS DE BÚSQUEDA (OBLIGATORIO):
-1. Usa la herramienta Google Search MÚLTIPLES VECES antes de responder. No respondas de memoria.
-2. Realiza al menos UNA búsqueda específica POR CADA fuente:
-   - "WiZink Center conciertos {today_human}"
-   - "Movistar Arena Madrid eventos {today_human}"
-   - "IFEMA Madrid ferias {today_human}"
-   - "Madrid eventos hoy {today_human}" (agenda municipal esmadrid.com)
-   - "Madrid cortes tráfico hoy {today_iso}"
-   - "partido Real Madrid Atlético Madrid {today_iso}"
-3. Filtra estrictamente por fecha: solo eventos con fecha HOY ({today_iso}).
+PASO 1 — BÚSQUEDAS OBLIGATORIAS (haz TODAS estas búsquedas con Google Search ANTES de redactar):
+1. "WiZink Center agenda eventos {today_human}"
+2. "Movistar Arena Madrid programación {today_human}"
+3. "IFEMA Madrid ferias hoy {today_human}"
+4. "Real Madrid Atlético Madrid partido hoy {today_iso}"
+5. "musicales Gran Vía Madrid funciones {today_human}"
+6. "cortes de tráfico hoy en Madrid {today_iso}"
+7. "manifestaciones Madrid hoy {today_iso}"
+8. "agenda esmadrid.com {today_human}"
+9. "San Isidro Madrid programa {today_human}"
+10. "festivales barrios Madrid hoy {weekday_es}"
 
-QUÉ INCLUIR EN EL RESUMEN (PRIORIDAD ESTRICTA — máximo 6 eventos en total):
-1. Conciertos en WiZink Center o Movistar Arena (siempre incluir si los hay, con HORA exacta y artista).
-2. Partidos en el Bernabéu o Metropolitano (con HORA).
-3. Ferias grandes en IFEMA con nombre del evento (1 línea agrupada, NO listar pabellones).
-4. Festivales masivos del Ayuntamiento agrupados en UNA línea (ej: "San Isidro: actuaciones todo el día en Pradera de San Isidro"). NO listes cada actuación individualmente.
-5. Otros eventos masivos puntuales que afecten zonas concretas.
+PASO 2 — REDACTAR USANDO ESTA PLANTILLA EXACTA (rellena cada sección con datos REALES de las búsquedas; no inventes; si una sección no tiene resultados, usa el texto de "vacío" que indico):
 
-FORMATO DE SALIDA (texto plano, sin markdown, MÁXIMO 1200 CARACTERES, OBLIGATORIO terminar el mensaje correctamente):
+Buenos días, compañero. Briefing de hoy en Madrid:
 
-Línea 1 (saludo): "Buenos días, compañero. Esto es lo que te espera hoy en Madrid:"
-Línea en blanco.
-Bloque de eventos (máximo 6 líneas):
-- [HORA] · [EVENTO] en [LUGAR]. [Por qué te importa: zona caliente para recogidas tras evento, etc.]
-Línea en blanco.
-Bloque de avisos de tráfico (máximo 3 líneas, solo los más importantes):
-⚠ Atención: [calle/zona] — [motivo breve].
-Línea en blanco.
-Cierre obligatorio: "¡Buena jornada y buen turno!"
+🏟 GRANDES RECINTOS (IFEMA · WIZINK · MOVISTAR ARENA)
+[Aquí 2-5 líneas. Cada línea con formato: - HH:MMh · NOMBRE_EVENTO en LUGAR]
+[Si no encuentras nada: - Sin eventos masivos confirmados hoy.]
 
-REGLA CRÍTICA: el mensaje debe estar COMPLETO y terminar con la frase de cierre. Si no caben todos los eventos, prioriza WiZink/Movistar Arena/IFEMA/partidos sobre actuaciones de barrio. Si hay un festival con muchas actuaciones (como San Isidro), agrúpalas en UNA SOLA línea genérica, NO listes cada una.
+⚽ ESTADIOS (BERNABÉU · METROPOLITANO)
+[Aquí 1-3 líneas con partidos o eventos. Formato: - HH:MMh · COMPETICIÓN: EQUIPO vs EQUIPO en LUGAR]
+[Si no hay partidos: - Sin partidos ni eventos hoy en los estadios.]
 
-NO INCLUYAS:
-- Listados largos de actuaciones de un mismo festival (agrúpalas).
-- Eventos de otros días.
-- Disclaimers sobre IA.
-- URLs en el cuerpo del texto.
-- Markdown (* _ # etc.).
+🎭 EJE GRAN VÍA · MUSICALES Y TEATROS
+[Aquí 2-4 líneas. Formato: - HH:MMh · OBRA en TEATRO]
+[Si es lunes y muchos teatros descansan: - La mayoría de teatros descansan los lunes. Funciones confirmadas hoy: ... (listar las que sí tengan)]
+[Si no hay nada: - Sin funciones confirmadas hoy en Gran Vía.]
 
-TONO: Profesional pero cercano. Tutea al taxista. Directo y práctico.
+🚧 CORTES DE TRÁFICO Y MANIFESTACIONES
+[Aquí 2-5 líneas. Formato: - HH:MM-HH:MMh · CALLE/ZONA — MOTIVO]
+[Si no hay nada: - Sin cortes importantes reportados hoy.]
+
+🎉 EVENTOS DE DISTRITO Y FESTIVALES DE BARRIO
+[Aquí 2-5 líneas. Formato: - HH:MMh · EVENTO en BARRIO/ZONA]
+[Para San Isidro u otros festivales grandes con muchas actuaciones, agrupa: - Todo el día · Fiestas de San Isidro: actuaciones, conciertos y verbenas en Pradera de San Isidro y entorno.]
+[Si no hay nada: - Sin eventos de distrito relevantes hoy.]
+
+¡Buena jornada y buen turno!
+
+REGLAS:
+- LAS 5 SECCIONES (🏟, ⚽, 🎭, 🚧, 🎉) DEBEN APARECER SIEMPRE EN ESE ORDEN, aunque alguna esté vacía con su texto correspondiente.
+- Cada evento debe provenir de resultados REALES de tus búsquedas. No inventes. No uses datos de memoria.
+- Filtra estrictamente por fecha HOY ({today_iso}). Descarta eventos de otros días.
+- NO incluyas markdown (*, _, #, **).
+- NO incluyas URLs en el cuerpo.
+- NO incluyas disclaimers sobre IA.
+- TONO profesional, tutea al taxista, frases breves y útiles.
+- El mensaje DEBE terminar con "¡Buena jornada y buen turno!" (no te quedes a mitad).
+- Sustituye los textos entre [corchetes] por contenido real. NO dejes los corchetes en la respuesta final.
 """
 
 
@@ -146,18 +156,48 @@ async def generate_daily_summary() -> dict:
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
             tools=[grounding_tool],
-            temperature=0.6,
-            max_output_tokens=8192,
+            temperature=0.5,
+            max_output_tokens=12288,
         )
 
-        # google-genai is sync; wrap in thread to avoid blocking event loop
+        # google-genai is sync; wrap in thread to avoid blocking event loop.
+        # Retry on transient 503 (overloaded) / 429 (rate limit) with backoff.
         import asyncio
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=config,
-        )
+        last_error = None
+        response = None
+        for attempt in range(4):  # 4 attempts max
+            try:
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=GEMINI_MODEL,
+                    contents=prompt,
+                    config=config,
+                )
+                break  # success
+            except Exception as exc:
+                err_str = str(exc)
+                last_error = exc
+                err_upper = err_str.upper()
+                if "503" in err_str or "UNAVAILABLE" in err_upper or "overloaded" in err_str.lower():
+                    wait_s = [5, 15, 30][min(attempt, 2)]
+                    logger.warning(f"[DailySummary] Gemini 503 overloaded (attempt {attempt+1}/4). Waiting {wait_s}s...")
+                    if attempt < 3:
+                        await asyncio.sleep(wait_s)
+                        continue
+                elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_upper or "quota" in err_str.lower():
+                    # Per-minute rate limit: longer wait. Per-day quota: don't retry now, scheduler will retry in 1h.
+                    wait_s = [30, 60][min(attempt, 1)]
+                    logger.warning(f"[DailySummary] Gemini 429 quota/rate-limit (attempt {attempt+1}/4). Waiting {wait_s}s...")
+                    if attempt < 2:
+                        await asyncio.sleep(wait_s)
+                        continue
+                    # After 2 retries on 429, give up — likely daily quota exhausted.
+                    logger.error("[DailySummary] Daily quota likely exhausted. Hourly scheduler will retry.")
+                    raise
+                # Non-retryable error
+                raise
+        if response is None:
+            raise last_error or RuntimeError("Generation failed after retries")
 
         summary_text = (response.text or "").strip()
         if not summary_text:

@@ -11235,8 +11235,28 @@ export default function TransportMeter() {
                     {(() => {
                       // Parse the summary into structured lines for better visual rendering
                       const lines = (dailySummary.summary || '').split('\n').map(l => l.trim()).filter(Boolean);
+                      const SECTION_EMOJIS = ['🏟', '⚽', '🎭', '🚧', '🎉', '🎵', '🏛'];
                       return lines.map((line, idx) => {
-                        // Warning lines (obras / cortes)
+                        // Section header lines (start with emoji like 🏟 GRANDES RECINTOS)
+                        const startsWithSectionEmoji = SECTION_EMOJIS.some(e => line.startsWith(e));
+                        if (startsWithSectionEmoji) {
+                          return (
+                            <Text
+                              key={idx}
+                              style={{
+                                color: '#A5B4FC',
+                                fontWeight: '700',
+                                fontSize: 13.5,
+                                lineHeight: 22,
+                                textTransform: 'uppercase' as any,
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              {(idx > 0 ? '\n\n' : '') + line}
+                            </Text>
+                          );
+                        }
+                        // Warning lines (obras / cortes / atención)
                         if (line.startsWith('⚠')) {
                           return (
                             <Text
@@ -11248,13 +11268,29 @@ export default function TransportMeter() {
                                 lineHeight: 20,
                               }}
                             >
-                              {'\n' + line + '\n'}
+                              {'\n' + line}
+                            </Text>
+                          );
+                        }
+                        // "Sin eventos" / "Sin partidos" placeholder
+                        if (/^sin (eventos|partidos|cortes|musicales|funciones)/i.test(line) ||
+                            /muchos teatros (cerrados|descansan)/i.test(line)) {
+                          return (
+                            <Text
+                              key={idx}
+                              style={{
+                                color: '#64748B',
+                                fontStyle: 'italic' as any,
+                                fontSize: 13,
+                                lineHeight: 20,
+                              }}
+                            >
+                              {'\n' + line}
                             </Text>
                           );
                         }
                         // Bullet event lines
                         if (line.startsWith('-') || line.startsWith('•')) {
-                          // Try to extract the hour prefix (e.g. "20:30h ·" or "20:30 ·")
                           const cleaned = line.replace(/^[-•]\s*/, '');
                           const hourMatch = cleaned.match(/^(\d{1,2}[:h]\d{0,2}h?|Por la (mañana|tarde|noche)|Todo el día)\s*[·\-—]?\s*/i);
                           if (hourMatch) {
@@ -11279,7 +11315,7 @@ export default function TransportMeter() {
                           );
                         }
                         // Greeting / closing / paragraph
-                        const isGreeting = idx === 0 && /buenos|hola|compañero/i.test(line);
+                        const isGreeting = idx === 0 && /buenos|hola|compañero|briefing/i.test(line);
                         const isClosing = idx === lines.length - 1 && /(buena jornada|buen turno|suerte|caña)/i.test(line);
                         return (
                           <Text
