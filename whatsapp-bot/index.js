@@ -648,12 +648,11 @@ app.post('/send-hourly-update', async (req, res) => {
     }
     
     try {
-        // Fetch data from backend (incluye el resumen IA del día)
-        const [trainsRes, flightsRes, eventsRes, aiSummaryRes] = await Promise.all([
+        // Fetch data from backend
+        const [trainsRes, flightsRes, eventsRes] = await Promise.all([
             axios.get(`${BACKEND_URL}/api/trains`).catch(e => ({ data: null })),
             axios.get(`${BACKEND_URL}/api/flights`).catch(e => ({ data: null })),
-            axios.get(`${BACKEND_URL}/api/events/active`).catch(e => ({ data: null })),
-            axios.get(`${BACKEND_URL}/api/events/daily-summary`, { timeout: 30000 }).catch(e => ({ data: null }))
+            axios.get(`${BACKEND_URL}/api/events/active`).catch(e => ({ data: null }))
         ]);
         
         // Build message
@@ -664,17 +663,6 @@ app.post('/send-hourly-update', async (req, res) => {
         let message = `🚖 *RESUMEN HORARIO - ${timeStr}*\n`;
         message += `📅 ${dateStr}\n`;
         message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-        // AI Daily Summary (cabeza del mensaje)
-        if (aiSummaryRes.data && aiSummaryRes.data.summary) {
-            message += `🤖 *RESUMEN DEL DÍA (IA)*\n`;
-            const aiText = String(aiSummaryRes.data.summary).trim().slice(0, 1500);
-            message += `${aiText}\n`;
-            if (aiSummaryRes.data.success === false && aiSummaryRes.data.fallback_date) {
-                message += `_(Datos del ${aiSummaryRes.data.fallback_date}, no se ha podido actualizar hoy)_\n`;
-            }
-            message += `\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
-        }
         
         // Trains section
         let hasTrains = false;

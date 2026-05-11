@@ -81,7 +81,6 @@ from routers import moderation as moderation_router
 from routers import social as social_router
 from routers import release_notes as release_notes_router
 from routers import whatsapp as whatsapp_router
-from routers import daily_summary as daily_summary_router
 
 # Import Renfe GTFS module for fallback train data
 from renfe_gtfs import get_arrivals_from_renfe, ensure_gtfs_loaded
@@ -285,10 +284,6 @@ class TerminalData(BaseModel):
     score_60min: Optional[float] = None  # Weighted score for 60min window
     past_30min: Optional[int] = None     # Arrivals in past 15 min
     past_60min: Optional[int] = None     # Arrivals in past 30 min
-    # ===== Instant Demand (Demanda en este Momento) =====
-    instant_demand_pct: Optional[int] = None     # Saturation %, 0..200+
-    instant_demand_level: Optional[str] = None   # 'green'|'yellow'|'red'|'critical'
-    instant_demand_trend: Optional[str] = None   # 'up'|'down'|'flat'
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1392,115 +1387,6 @@ def filter_future_flights(arrivals: List[Dict]) -> List[Dict]:
     """Filter flights to only include those that haven't arrived yet (excluding 'Aterrizado')."""
     return filter_future_arrivals(arrivals, "flight")
 
-
-# ============================================================
-# INSTANT DEMAND (Demanda en este Momento) — airport flights.
-#
-# Per-flight pressure points by minutes since the flight's arrival time:
-#   - 0 to 5  min   → EN TIERRA (taxiing, deplaning):             +0.2
-#   - 5 to 15 min   → ENTREGANDO EQUIPO <15min:                   +0.4
-#   - 15 to 30 min  → ENTREGANDO EQUIPO >15min (peak outflow):    +0.8
-#   - 30 to 45 min  → FINALIZADO 0-15min (still many pax):        +1.0
-#   - 45 to 60 min  → FINALIZADO 16-30min (last stragglers):      +0.3
-# x1.5 multiplier for long-haul / wide-body aircraft.
-# Total × 10 = saturation %. Can exceed 100%.
-# ============================================================
-
-# Long-haul keywords (transatlantic/transpacific/intercontinental destinations)
-_LONG_HAUL_KEYWORDS = [
-    "new york", "nueva york", "newark", "jfk", "miami", "boston", "washington",
-    "chicago", "los angeles", "los ángeles", "dallas", "houston", "atlanta",
-    "san francisco", "philadelphia", "toronto", "montreal", "vancouver",
-    "buenos aires", "santiago de chile", "santiago chile", "lima", "bogota", "bogotá",
-    "caracas", "panama", "panamá", "quito", "guayaquil", "la habana", "habana",
-    "mexico", "méxico", "cancun", "cancún", "guadalajara", "monterrey",
-    "sao paulo", "são paulo", "rio de janeiro", "brasilia", "asunción", "asuncion",
-    "montevideo", "san salvador", "guatemala", "managua", "tegucigalpa",
-    "san juan", "punta cana", "santo domingo",
-    "dubai", "dubái", "doha", "abu dhabi", "tel aviv", "estambul", "istanbul",
-    "tokio", "tokyo", "pekin", "pekín", "beijing", "shanghai", "shanghái",
-    "hong kong", "seul", "seúl", "bangkok", "singapur", "singapore", "delhi",
-    "johannesburgo", "johannesburg", "cairo", "el cairo", "casablanca",
-    "addis abeba", "addis ababa", "nairobi", "lagos", "argel",
-]
-
-
-def _is_long_haul_flight(flight: Dict) -> bool:
-    origin = (flight.get("origin") or "").lower()
-    return any(kw in origin for kw in _LONG_HAUL_KEYWORDS)
-
-
-def _parse_flight_hhmm_to_dt(time_str: str, now: datetime) -> Optional[datetime]:
-    """Parse 'HH:MM' into a tz-aware datetime relative to `now`. Handles day rollover."""
-    try:
-        if not time_str or ":" not in time_str:
-            return None
-        h, m = time_str.split(":")
-        h, m = int(h), int(m)
-        dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
-        if (dt - now).total_seconds() > 12 * 3600:
-            dt -= timedelta(days=1)
-        elif (now - dt).total_seconds() > 20 * 3600:
-            dt += timedelta(days=1)
-        return dt
-    except (ValueError, AttributeError):
-        return None
-
-
-def calculate_instant_demand(arrivals: List[Dict], now: datetime) -> int:
-    """Compute the instant demand saturation % for an airport terminal."""
-    total_score = 0.0
-    for flight in arrivals:
-        dt = _parse_flight_hhmm_to_dt(flight.get("time", ""), now)
-        if dt is None:
-            continue
-        mins_since = (now - dt).total_seconds() / 60.0
-        if mins_since < 0 or mins_since > 60:
-            continue
-        if mins_since < 5:
-            pts = 0.2
-        elif mins_since < 15:
-            pts = 0.4
-        elif mins_since < 30:
-            pts = 0.8
-        elif mins_since < 45:
-            pts = 1.0
-        else:
-            pts = 0.3
-        if _is_long_haul_flight(flight):
-            pts *= 1.5
-        total_score += pts
-    return int(round(total_score * 10))
-
-
-def instant_demand_level(pct: int) -> str:
-    """Map saturation % to a color level."""
-    if pct > 100:
-        return "critical"
-    if pct >= 70:
-        return "red"
-    if pct >= 40:
-        return "yellow"
-    return "green"
-
-
-# In-memory previous values for trend computation (per terminal)
-_prev_instant_demand: Dict[str, int] = {}
-
-
-def instant_demand_trend(terminal: str, current_pct: int) -> str:
-    """Compare current % vs the previously-stored value for this terminal."""
-    prev = _prev_instant_demand.get(terminal)
-    _prev_instant_demand[terminal] = current_pct
-    if prev is None:
-        return "flat"
-    diff = current_pct - prev
-    if diff >= 5:
-        return "up"
-    if diff <= -5:
-        return "down"
-    return "flat"
-
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
     
@@ -2026,17 +1912,6 @@ async def get_flight_comparison(
             past_30min=score_30["past_count"],
             past_60min=score_60["past_count"]
         )
-
-        # ===== Instant Demand (Demanda en este Momento) =====
-        # Only meaningful for real-time view, NOT for custom past/future windows.
-        if not custom_time_window:
-            try:
-                instant_pct = calculate_instant_demand(raw_arrivals, now)
-                terminal_data[terminal].instant_demand_pct = instant_pct
-                terminal_data[terminal].instant_demand_level = instant_demand_level(instant_pct)
-                terminal_data[terminal].instant_demand_trend = instant_demand_trend(terminal, instant_pct)
-            except Exception as e:
-                logger.warning(f"[Flights] Instant demand calc failed for {terminal}: {e}")
     
     logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")
     
@@ -3518,7 +3393,6 @@ api_router.include_router(moderation_router.router)
 api_router.include_router(social_router.router)
 api_router.include_router(release_notes_router.router)
 api_router.include_router(whatsapp_router.router)
-api_router.include_router(daily_summary_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -3942,69 +3816,6 @@ async def startup_db_client():
     from routers.whatsapp import start_bot_monitor
     start_bot_monitor()
     logger.info("WhatsApp bot monitor task started")
-
-    # Start daily AI summary task (05:00 Madrid time + hourly retry on failure)
-    asyncio.create_task(daily_summary_task())
-    logger.info("Daily AI summary task started")
-
-
-async def daily_summary_task():
-    """Generate the daily AI event summary every day at 05:00 Madrid time.
-    On failure, retries every hour until success."""
-    from routers.daily_summary import (
-        generate_daily_summary, save_summary, get_cached_summary, MADRID_TZ as DS_TZ,
-    )
-
-    await asyncio.sleep(90)  # wait for app to be up
-
-    # Generate on startup if today has no summary
-    try:
-        today_iso = datetime.now(DS_TZ).strftime("%Y-%m-%d")
-        cached = await get_cached_summary(today_iso)
-        if not cached:
-            logger.info("[DailySummary] No summary for today, generating now...")
-            result = await generate_daily_summary()
-            if result.get("success"):
-                await save_summary(result)
-                logger.info("[DailySummary] Startup generation OK")
-            else:
-                logger.warning(f"[DailySummary] Startup failed: {result.get('error')}")
-    except Exception as e:
-        logger.error(f"[DailySummary] Startup check error: {e}")
-
-    while True:
-        try:
-            now_madrid = datetime.now(DS_TZ)
-            today_iso = now_madrid.strftime("%Y-%m-%d")
-            cached = await get_cached_summary(today_iso)
-
-            if cached:
-                tomorrow_5am = (now_madrid + timedelta(days=1)).replace(
-                    hour=5, minute=0, second=0, microsecond=0
-                )
-                sleep_s = (tomorrow_5am - now_madrid).total_seconds()
-                logger.info(f"[DailySummary] Have today. Sleep {int(sleep_s/60)}min till 05:00 tomorrow")
-                await asyncio.sleep(max(sleep_s, 60))
-                continue
-
-            if now_madrid.hour < 5:
-                target = now_madrid.replace(hour=5, minute=0, second=0, microsecond=0)
-                sleep_s = (target - now_madrid).total_seconds()
-                logger.info(f"[DailySummary] Waiting {int(sleep_s/60)}min until 05:00")
-                await asyncio.sleep(max(sleep_s, 60))
-                continue
-
-            logger.info("[DailySummary] Attempting generation...")
-            result = await generate_daily_summary()
-            if result.get("success"):
-                await save_summary(result)
-                logger.info("[DailySummary] Generation OK")
-            else:
-                logger.warning(f"[DailySummary] Generation failed: {result.get('error')}. Retry in 1h.")
-                await asyncio.sleep(3600)
-        except Exception as e:
-            logger.error(f"[DailySummary] Task error: {e}")
-            await asyncio.sleep(600)
 
 async def whatsapp_hourly_update_task():
     """Background task to send WhatsApp updates every hour at random minutes (1-30) to avoid patterns."""
