@@ -11148,7 +11148,7 @@ export default function TransportMeter() {
 
             {/* ====== AI Daily Summary Card ====== */}
             <View
-              data-testid="ai-daily-summary-card"
+              testID="ai-daily-summary-card"
               style={{
                 backgroundColor: '#0F172A',
                 borderWidth: 1,
@@ -11208,7 +11208,7 @@ export default function TransportMeter() {
                 <>
                   {!dailySummary.success && (
                     <View
-                      data-testid="ai-daily-summary-fallback-warning"
+                      testID="ai-daily-summary-fallback-warning"
                       style={{
                         backgroundColor: 'rgba(245, 158, 11, 0.12)',
                         borderLeftWidth: 3,
@@ -11225,7 +11225,7 @@ export default function TransportMeter() {
                     </View>
                   )}
                   <Text
-                    data-testid="ai-daily-summary-text"
+                    testID="ai-daily-summary-text"
                     numberOfLines={dailySummaryExpanded ? undefined : 8}
                     style={{
                       color: '#E2E8F0',
@@ -11238,7 +11238,7 @@ export default function TransportMeter() {
                   </Text>
                   {(dailySummary.summary?.length || 0) > 280 && (
                     <TouchableOpacity
-                      data-testid="ai-daily-summary-toggle-btn"
+                      testID="ai-daily-summary-toggle-btn"
                       onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
                       style={{ marginTop: 8 }}
                     >
@@ -11260,7 +11260,7 @@ export default function TransportMeter() {
                 </>
               ) : (
                 <View
-                  data-testid="ai-daily-summary-error"
+                  testID="ai-daily-summary-error"
                   style={{
                     paddingVertical: 12,
                     alignItems: 'center',
