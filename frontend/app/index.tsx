@@ -11226,27 +11226,78 @@ export default function TransportMeter() {
                   )}
                   <Text
                     testID="ai-daily-summary-text"
-                    numberOfLines={dailySummaryExpanded ? undefined : 8}
                     style={{
                       color: '#E2E8F0',
                       fontSize: 13.5,
                       lineHeight: 21,
-                      whiteSpace: 'pre-wrap' as any,
                     }}
                   >
-                    {dailySummary.summary}
+                    {(() => {
+                      // Parse the summary into structured lines for better visual rendering
+                      const lines = (dailySummary.summary || '').split('\n').map(l => l.trim()).filter(Boolean);
+                      return lines.map((line, idx) => {
+                        // Warning lines (obras / cortes)
+                        if (line.startsWith('⚠')) {
+                          return (
+                            <Text
+                              key={idx}
+                              style={{
+                                color: '#FCD34D',
+                                fontWeight: '600',
+                                fontSize: 13,
+                                lineHeight: 20,
+                              }}
+                            >
+                              {'\n' + line + '\n'}
+                            </Text>
+                          );
+                        }
+                        // Bullet event lines
+                        if (line.startsWith('-') || line.startsWith('•')) {
+                          // Try to extract the hour prefix (e.g. "20:30h ·" or "20:30 ·")
+                          const cleaned = line.replace(/^[-•]\s*/, '');
+                          const hourMatch = cleaned.match(/^(\d{1,2}[:h]\d{0,2}h?|Por la (mañana|tarde|noche)|Todo el día)\s*[·\-—]?\s*/i);
+                          if (hourMatch) {
+                            const hour = hourMatch[0].replace(/[·\-—\s]+$/, '').trim();
+                            const rest = cleaned.slice(hourMatch[0].length);
+                            return (
+                              <Text key={idx} style={{ fontSize: 13.5, lineHeight: 21 }}>
+                                {'\n'}
+                                <Text style={{ color: '#A5B4FC' }}>{'•  '}</Text>
+                                <Text style={{ color: '#FCD34D', fontWeight: '700' }}>{hour}</Text>
+                                <Text style={{ color: '#94A3B8' }}>{'  ·  '}</Text>
+                                <Text style={{ color: '#F1F5F9' }}>{rest}</Text>
+                              </Text>
+                            );
+                          }
+                          return (
+                            <Text key={idx} style={{ fontSize: 13.5, lineHeight: 21 }}>
+                              {'\n'}
+                              <Text style={{ color: '#A5B4FC' }}>{'•  '}</Text>
+                              <Text style={{ color: '#F1F5F9' }}>{cleaned}</Text>
+                            </Text>
+                          );
+                        }
+                        // Greeting / closing / paragraph
+                        const isGreeting = idx === 0 && /buenos|hola|compañero/i.test(line);
+                        const isClosing = idx === lines.length - 1 && /(buena jornada|buen turno|suerte|caña)/i.test(line);
+                        return (
+                          <Text
+                            key={idx}
+                            style={{
+                              color: isGreeting || isClosing ? '#A5B4FC' : '#CBD5E1',
+                              fontStyle: isClosing ? 'italic' : 'normal',
+                              fontWeight: isGreeting ? '600' : '400',
+                              fontSize: isGreeting ? 14 : 13.5,
+                              lineHeight: 21,
+                            }}
+                          >
+                            {(idx > 0 ? '\n\n' : '') + line}
+                          </Text>
+                        );
+                      });
+                    })()}
                   </Text>
-                  {(dailySummary.summary?.length || 0) > 280 && (
-                    <TouchableOpacity
-                      testID="ai-daily-summary-toggle-btn"
-                      onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
-                      style={{ marginTop: 8 }}
-                    >
-                      <Text style={{ color: '#A5B4FC', fontSize: 12, fontWeight: '600' }}>
-                        {dailySummaryExpanded ? 'Ver menos ↑' : 'Ver más ↓'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                   {dailySummary.generated_at && (
                     <Text style={{ color: '#64748B', fontSize: 10, marginTop: 10 }}>
                       Actualizado: {new Date(dailySummary.generated_at).toLocaleString('es-ES', {
