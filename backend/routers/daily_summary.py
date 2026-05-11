@@ -62,13 +62,18 @@ PASO 1 — BÚSQUEDAS OBLIGATORIAS (haz TODAS estas búsquedas con Google Search
 1. "WiZink Center agenda eventos {today_human}"
 2. "Movistar Arena Madrid programación {today_human}"
 3. "IFEMA Madrid ferias hoy {today_human}"
-4. "Real Madrid Atlético Madrid Rayo Vallecano Getafe partido hoy {today_iso}"
-5. "musicales Gran Vía Madrid funciones {today_human}"
-6. "cortes de tráfico hoy en Madrid {today_iso}"
-7. "manifestaciones Madrid hoy {today_iso}"
-8. "agenda esmadrid.com {today_human}"
-9. "San Isidro Madrid programa {today_human}"
-10. "festivales barrios Madrid hoy {weekday_es}"
+4. "Real Madrid partido hoy {today_iso} Bernabéu"
+5. "Atlético de Madrid partido hoy {today_iso} Metropolitano"
+6. "Rayo Vallecano partido hoy {today_iso} Vallecas"
+7. "Getafe CF partido hoy {today_iso} Coliseum"
+8. "musicales Gran Vía Madrid funciones {today_human}"
+9. "cortes de tráfico hoy en Madrid {today_iso}"
+10. "manifestaciones Madrid hoy {today_iso}"
+11. "agenda esmadrid.com {today_human}"
+12. "San Isidro Madrid programa {today_human}"
+13. "fiestas Rivas Vaciamadrid {today_human}"
+14. "fiestas patronales municipios Madrid hoy {today_human}" (Alcorcón, Móstoles, Leganés, Getafe, Coslada, Pozuelo, Alcobendas, San Sebastián de los Reyes, Rivas-Vaciamadrid, Las Rozas, Majadahonda, Fuenlabrada)
+15. "festivales barrios Madrid hoy {weekday_es}" (Carabanchel, Vallecas, Tetuán, Vicálvaro, Lavapiés)
 
 PASO 2 — REDACTAR USANDO ESTA PLANTILLA EXACTA (rellena cada sección con datos REALES de las búsquedas; no inventes; si una sección no tiene resultados, usa el texto de "vacío" que indico):
 
@@ -92,10 +97,12 @@ Buenos días, compañero. Briefing de hoy en Madrid:
 [Aquí 2-5 líneas. Formato: - HH:MM-HH:MMh · CALLE/ZONA — MOTIVO]
 [Si no hay nada: - Sin cortes importantes reportados hoy.]
 
-🎉 EVENTOS DE DISTRITO Y FESTIVALES DE BARRIO
-[Aquí 2-5 líneas. Formato: - HH:MMh · EVENTO en BARRIO/ZONA]
+🎉 EVENTOS DE DISTRITO Y FESTIVALES DE BARRIO/MUNICIPIOS
+[Aquí 2-6 líneas. Formato: - HH:MMh · EVENTO en BARRIO/MUNICIPIO]
+[OBLIGATORIO: Si una búsqueda devuelve fiestas patronales de algún municipio (Rivas-Vaciamadrid, Alcorcón, Móstoles, Leganés, Getafe, Pozuelo, Alcobendas, San Sebastián de los Reyes, Coslada, Las Rozas, Majadahonda, Fuenlabrada, etc.) MENCIÓNALAS con una línea por municipio. Formato: - Todo el día · Fiestas de [Municipio]: [evento destacado o "verbenas y conciertos"] en [zona/recinto].]
+[Incluye TANTO distritos de Madrid capital (Carabanchel, Vallecas, Lavapiés, Vicálvaro, Tetuán) COMO fiestas patronales de municipios del área metropolitana.]
 [Para San Isidro u otros festivales grandes con muchas actuaciones, agrupa: - Todo el día · Fiestas de San Isidro: actuaciones, conciertos y verbenas en Pradera de San Isidro y entorno.]
-[Si no hay nada: - Sin eventos de distrito relevantes hoy.]
+[Si tras buscar no encuentras NADA confirmado: - Sin eventos de distrito ni fiestas de municipios relevantes hoy.]
 
 ¡Buena jornada y buen turno!
 
