@@ -272,6 +272,8 @@ class FlightArrival(BaseModel):
     gate: Optional[str] = None
     status: Optional[str] = None
     delay_minutes: Optional[int] = None  # Minutos de retraso
+    status_tag: Optional[str] = None  # 'proximo'|'siguiente'|'equipaje'|'finalizado'|None
+    is_large: Optional[bool] = None  # True if long-haul / wide-body
 
 class TerminalData(BaseModel):
     terminal: str
@@ -290,6 +292,22 @@ class TerminalData(BaseModel):
     instant_pressure_level: Optional[str] = None   # 'green' | 'yellow' | 'red' | 'critical'
     instant_pressure_trend: Optional[str] = None   # 'up' | 'down' | 'flat'
     instant_pressure_breakdown: Optional[Dict[str, int]] = None  # counts per bucket
+    # Demand buckets (P/E/F/S/GRANDE) for the airport zone card
+    proximos: Optional[int] = None       # flights arriving in next 0-30 min
+    equipaje: Optional[int] = None       # flights landed 0-30 min ago (collecting bags)
+    finalizado: Optional[int] = None     # flights landed 30-60 min ago (already left)
+    siguientes: Optional[int] = None     # flights arriving in next 30-90 min
+    grande: Optional[int] = None         # long-haul / wide-body flights in any bucket
+    demand_pct: Optional[int] = None     # 0-200+%
+    demand_level: Optional[str] = None   # 'baja' | 'media' | 'alta' | 'critica'
+    # Demand buckets (P/E/F/S/GRANDE) for the airport zone card
+    proximos: Optional[int] = None       # flights arriving in next 0-30 min
+    equipaje: Optional[int] = None       # flights landed 0-30 min ago (collecting bags)
+    finalizado: Optional[int] = None     # flights landed 30-60 min ago (already left)
+    siguientes: Optional[int] = None     # flights arriving in next 30-90 min
+    grande: Optional[int] = None         # long-haul / wide-body flights in any bucket
+    demand_pct: Optional[int] = None     # 0-200+%
+    demand_level: Optional[str] = None   # 'baja' | 'media' | 'alta' | 'critica'
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1527,6 +1545,58 @@ def pressure_trend(terminal: str, current_pct: int) -> str:
         return "down"
     return "flat"
 
+
+def classify_flight_status_tag(flight: Dict, now: datetime) -> Optional[str]:
+    """Classify a single flight into P/E/F/S buckets based on time relative to now.
+
+    Returns one of: 'proximo' (within 30 min future), 'siguiente' (30-90 min future),
+    'equipaje' (within 30 min past), 'finalizado' (30-60 min past), or None (out of window).
+    """
+    dt = _parse_flight_time_to_dt(flight.get("time", ""), now)
+    if dt is None:
+        return None
+    delta_min = (dt - now).total_seconds() / 60.0
+    # delta_min > 0 → future, < 0 → past
+    if 0 <= delta_min <= 30:
+        return "proximo"
+    if 30 < delta_min <= 90:
+        return "siguiente"
+    if -30 <= delta_min < 0:
+        return "equipaje"
+    if -60 <= delta_min < -30:
+        return "finalizado"
+    return None
+
+
+def aggregate_demand_buckets(arrivals: List[Dict], now: datetime) -> Dict:
+    """Tag each flight and count totals per bucket (P/E/F/S) + GRANDE.
+
+    Returns:
+        {
+          "proximos": int, "equipaje": int, "finalizado": int, "siguientes": int,
+          "grande": int,  # how many tagged flights are long-haul
+          "tagged_arrivals": List[Dict],  # original arrivals enriched with `status_tag` (may be None)
+        }
+    """
+    counts = {"proximos": 0, "equipaje": 0, "finalizado": 0, "siguientes": 0, "grande": 0}
+    tagged = []
+    for flight in arrivals:
+        tag = classify_flight_status_tag(flight, now)
+        enriched = dict(flight)
+        enriched["status_tag"] = tag
+        if tag == "proximo":
+            counts["proximos"] += 1
+        elif tag == "siguiente":
+            counts["siguientes"] += 1
+        elif tag == "equipaje":
+            counts["equipaje"] += 1
+        elif tag == "finalizado":
+            counts["finalizado"] += 1
+        if tag is not None and _is_long_haul(flight):
+            counts["grande"] += 1
+        tagged.append(enriched)
+    return {**counts, "tagged_arrivals": tagged}
+
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
     
@@ -2063,6 +2133,35 @@ async def get_flight_comparison(
                 terminal_data[terminal].instant_pressure_level = pressure_level(pct)
                 terminal_data[terminal].instant_pressure_trend = pressure_trend(terminal, pct)
                 terminal_data[terminal].instant_pressure_breakdown = pressure["breakdown"]
+
+                # Demand buckets P/E/F/S/GRANDE + tag each flight
+                buckets = aggregate_demand_buckets(raw_arrivals, now)
+                terminal_data[terminal].proximos = buckets["proximos"]
+                terminal_data[terminal].equipaje = buckets["equipaje"]
+                terminal_data[terminal].finalizado = buckets["finalizado"]
+                terminal_data[terminal].siguientes = buckets["siguientes"]
+                terminal_data[terminal].grande = buckets["grande"]
+                terminal_data[terminal].demand_pct = pct
+                terminal_data[terminal].demand_level = (
+                    "critica" if pct > 100 else
+                    "alta" if pct >= 70 else
+                    "media" if pct >= 40 else
+                    "baja"
+                )
+
+                # Enrich the existing arrivals list with status_tag and is_large
+                tag_by_key = {
+                    f"{f.get('flight_number','')}-{f.get('time','')}": (
+                        f.get("status_tag"), _is_long_haul(f)
+                    )
+                    for f in buckets["tagged_arrivals"]
+                }
+                for fa in terminal_data[terminal].arrivals:
+                    key = f"{fa.flight_number}-{fa.time}"
+                    tag_info = tag_by_key.get(key)
+                    if tag_info:
+                        fa.status_tag = tag_info[0]
+                        fa.is_large = tag_info[1]
             except Exception as e:
                 logger.warning(f"[Flights] Could not compute instant pressure for {terminal}: {e}")
     

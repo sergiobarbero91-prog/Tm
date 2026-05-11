@@ -169,6 +169,8 @@ interface FlightArrival {
   gate?: string;
   status?: string;
   delay_minutes?: number;  // Minutos de retraso (negativo si adelantado)
+  status_tag?: 'proximo' | 'siguiente' | 'equipaje' | 'finalizado' | null;
+  is_large?: boolean;
 }
 
 interface TerminalData {
@@ -195,6 +197,14 @@ interface TerminalData {
     finalizado_16_30: number;
     long_haul_boost: number;
   };
+  // Demand buckets (P/E/F/S/GRANDE)
+  proximos?: number;
+  equipaje?: number;
+  finalizado?: number;
+  siguientes?: number;
+  grande?: number;
+  demand_pct?: number;
+  demand_level?: 'baja' | 'media' | 'alta' | 'critica';
 }
 
 interface FlightComparison {
@@ -7766,6 +7776,10 @@ export default function TransportMeter() {
     let instantTrendUp = 0;
     let instantTrendDown = 0;
     let instantHasData = false;
+    // Demand buckets aggregation across terminals in this group
+    let pSum = 0, eSum = 0, fSum = 0, sSum = 0, gSum = 0;
+    let demandPctSum = 0;
+    let demandHasData = false;
     
     group.terminals.forEach(terminalName => {
       const terminal = flightData.terminals[terminalName];
@@ -7783,8 +7797,37 @@ export default function TransportMeter() {
           if (terminal.instant_pressure_trend === 'up') instantTrendUp += 1;
           else if (terminal.instant_pressure_trend === 'down') instantTrendDown += 1;
         }
+        if (typeof terminal.demand_pct === 'number') {
+          demandHasData = true;
+          pSum += terminal.proximos || 0;
+          eSum += terminal.equipaje || 0;
+          fSum += terminal.finalizado || 0;
+          sSum += terminal.siguientes || 0;
+          gSum += terminal.grande || 0;
+          demandPctSum += terminal.demand_pct;
+        }
       }
     });
+    
+    // Aggregated demand: average across terminals
+    const demandPct = demandHasData ? Math.round(demandPctSum / group.terminals.length) : null;
+    const demandLevel: 'baja' | 'media' | 'alta' | 'critica' | null = (() => {
+      if (demandPct === null) return null;
+      if (demandPct > 100) return 'critica';
+      if (demandPct >= 70) return 'alta';
+      if (demandPct >= 40) return 'media';
+      return 'baja';
+    })();
+    const demandColor =
+      demandLevel === 'critica' ? '#DC2626' :
+      demandLevel === 'alta' ? '#EF4444' :
+      demandLevel === 'media' ? '#F59E0B' :
+      '#10B981';
+    const demandLabel =
+      demandLevel === 'critica' ? 'CRÍTICA' :
+      demandLevel === 'alta' ? 'ALTA' :
+      demandLevel === 'media' ? 'MEDIA' :
+      'BAJA';
     
     // Aggregated instant pressure: average pct of terminals in the group
     const instantPct = instantHasData
@@ -7921,113 +7964,116 @@ export default function TransportMeter() {
           </Text>
         </View>
         
-        {/* Formato: XA - YP (Anteriores - Posteriores) */}
+        {/* Cabecera P/E/F/S - Próximos / Equipaje / Finalizados / Siguientes */}
         <View style={styles.arrivalCount}>
-          <View style={styles.arrivalScoreRow}>
-            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
-              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: '#A78BFA' }}>
+              {pSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>P</Text>
             </Text>
-            <Text style={styles.arrivalDivider}> - </Text>
-            <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
-              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: '#F59E0B' }}>
+              {eSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>E</Text>
+            </Text>
+            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: '#EF4444' }}>
+              {fSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>F</Text>
+            </Text>
+            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: '#10B981' }}>
+              {sSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>S</Text>
             </Text>
           </View>
-          <Text style={styles.arrivalLabel}>
-            vuelos ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
+          <Text style={[styles.arrivalLabel, { textAlign: 'center', marginTop: 4 }]}>
+            Próximos / Equipaje / Finalizados / Siguientes (60min + 30min)
           </Text>
 
-          {/* === Previsión Próxima Hora (barra horaria existente, redibujada) === */}
-          <View
-            testID={`hourly-forecast-${group.terminals[0]}`}
-            style={{
-              marginTop: 10,
-              paddingTop: 10,
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(99, 102, 241, 0.15)',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                <Ionicons name="analytics" size={14} color="#6366F1" />
-                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginRight: 8 }}>
-                  Previsión Próxima Hora
-                </Text>
-              </View>
-              <Text style={{ color: '#6366F1', fontSize: 14, fontWeight: '800' }}>
-                Score {score.toFixed(1)}
-              </Text>
-            </View>
-            <View style={{
-              width: '100%',
-              height: 8,
-              backgroundColor: 'rgba(100, 116, 139, 0.18)',
-              borderRadius: 4,
-              overflow: 'hidden',
-            }}>
+          {/* Badge "X GRANDE" - long-haul / wide-body flights */}
+          {gSum > 0 && (
+            <View style={{ alignSelf: 'center', marginTop: 8 }}>
               <View style={{
-                height: '100%',
-                // Score normalizado: 10 puntos = 100% de la barra
-                width: `${Math.min((score / 10) * 100, 100)}%` as any,
-                backgroundColor: '#6366F1',
-                borderRadius: 4,
-              }} />
-            </View>
-          </View>
-
-          {/* === Demanda en este Momento (Instant Pressure) === */}
-          {instantPct !== null && (
-            <View
-              testID={`instant-pressure-${group.terminals[0]}`}
-              style={{
-                marginTop: 10,
-                paddingTop: 10,
-                borderTopWidth: 1,
-                borderTopColor: 'rgba(99, 102, 241, 0.15)',
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                  <Ionicons name="pulse" size={14} color={instantColor} />
-                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginRight: 8 }}>
-                    Demanda en este Momento
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: instantColor, fontSize: 14, fontWeight: '800' }}>
-                    {instantPct}%
-                  </Text>
-                  <Ionicons
-                    name={instantTrend === 'up' ? 'arrow-up' : instantTrend === 'down' ? 'arrow-down' : 'remove'}
-                    size={14}
-                    color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#64748B'}
-                  />
-                </View>
-              </View>
-              <View style={{
-                width: '100%',
-                height: 8,
-                backgroundColor: 'rgba(100, 116, 139, 0.18)',
-                borderRadius: 4,
-                overflow: 'hidden',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 12,
+                backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                borderWidth: 1,
+                borderColor: '#F59E0B',
               }}>
-                <View style={{
-                  height: '100%',
-                  width: `${Math.min(instantPct, 100)}%` as any,
-                  backgroundColor: instantColor,
-                  borderRadius: 4,
-                }} />
-                {instantPct > 100 && (
-                  <View style={{
-                    position: 'absolute',
-                    right: 2, top: 1, bottom: 1,
-                    width: 4,
-                    backgroundColor: '#FCA5A5',
-                    borderRadius: 2,
-                  }} />
-                )}
+                <Ionicons name="airplane" size={12} color="#F59E0B" />
+                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>
+                  {gSum} GRANDE{gSum !== 1 ? 'S' : ''}
+                </Text>
               </View>
             </View>
           )}
+
+          {/* === Barra DEMANDA con escala BAJA / MEDIA / ALTA === */}
+          {demandPct !== null && (
+            <View
+              testID={`instant-pressure-${group.terminals[0]}`}
+              style={{ marginTop: 14 }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
+                  DEMANDA
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: demandColor, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>
+                    {demandLabel}
+                  </Text>
+                  <Text style={{ color: demandColor, fontSize: 14, fontWeight: '800' }}>
+                    {demandPct}%
+                  </Text>
+                  {instantTrend && (
+                    <Ionicons
+                      name={instantTrend === 'up' ? 'arrow-up' : instantTrend === 'down' ? 'arrow-down' : 'remove'}
+                      size={12}
+                      color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#64748B'}
+                    />
+                  )}
+                </View>
+              </View>
+              {/* Bar with multi-zone gradient backdrop */}
+              <View style={{
+                width: '100%',
+                height: 10,
+                backgroundColor: 'rgba(100, 116, 139, 0.18)',
+                borderRadius: 5,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+                <View style={{
+                  height: '100%',
+                  width: `${Math.min(demandPct, 100)}%` as any,
+                  backgroundColor: demandColor,
+                  borderRadius: 5,
+                }} />
+                {demandPct > 100 && (
+                  <View style={{
+                    position: 'absolute', right: 2, top: 1, bottom: 1,
+                    width: 4, backgroundColor: '#FCA5A5', borderRadius: 2,
+                  }} />
+                )}
+                {/* Tick markers at 40% and 70% */}
+                <View style={{ position: 'absolute', left: '40%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+                <View style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+              </View>
+              {/* Scale labels */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ color: '#10B981', fontSize: 10 }}>Baja</Text>
+                <Text style={{ color: '#F59E0B', fontSize: 10 }}>Media</Text>
+                <Text style={{ color: '#EF4444', fontSize: 10 }}>Alta</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Score chip (Previsión Próxima Hora) */}
+          <View style={[styles.scoreContainer, { alignSelf: 'center', marginTop: 10 }]}>
+            <Ionicons name="analytics" size={14} color="#6366F1" />
+            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
+          </View>
         </View>
         
         {/* Alert buttons */}
@@ -8088,7 +8134,16 @@ export default function TransportMeter() {
         
         {/* Flight arrivals list */}
         <View style={styles.arrivalsList}>
-          {filteredArrivals.map((flight, index) => (
+          {filteredArrivals.map((flight, index) => {
+            // Badge config based on status_tag (P/E/F/S)
+            const tag = flight.status_tag;
+            const tagConfig: { label: string; bg: string; fg: string } | null =
+              tag === 'finalizado' ? { label: 'Finalizado', bg: 'rgba(239, 68, 68, 0.18)', fg: '#EF4444' } :
+              tag === 'equipaje'   ? { label: 'Equipaje',   bg: 'rgba(245, 158, 11, 0.18)', fg: '#F59E0B' } :
+              tag === 'proximo'    ? { label: 'Próximo',    bg: 'rgba(167, 139, 250, 0.18)', fg: '#A78BFA' } :
+              tag === 'siguiente'  ? { label: 'Siguiente',  bg: 'rgba(16, 185, 129, 0.18)', fg: '#10B981' } :
+              null;
+            return (
             <View key={index} style={styles.arrivalItem}>
               <View style={styles.arrivalTime}>
                 <Text style={[
@@ -8106,6 +8161,21 @@ export default function TransportMeter() {
               <View style={styles.arrivalInfo}>
                 <View style={styles.trainTypeRow}>
                   <Text style={styles.trainType}>{flight.flight_number}</Text>
+                  {flight.is_large && (
+                    <View style={{
+                      marginLeft: 6,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 8,
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 3,
+                    }}>
+                      <Ionicons name="airplane" size={9} color="#F59E0B" />
+                      <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '700' }}>GRANDE</Text>
+                    </View>
+                  )}
                   {flight.delay_minutes && flight.delay_minutes > 0 && (
                     <View style={styles.delayBadge}>
                       <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
@@ -8116,13 +8186,31 @@ export default function TransportMeter() {
                   {flight.origin}
                 </Text>
               </View>
-              <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
-                <Text style={[styles.platformText, { color: '#3B82F6' }]}>
-                  {flight.terminal}
-                </Text>
-              </View>
+              {/* Status tag badge (replaces terminal badge when tag exists) */}
+              {tagConfig ? (
+                <View
+                  testID={`flight-status-${flight.flight_number}`}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 12,
+                    backgroundColor: tagConfig.bg,
+                  }}
+                >
+                  <Text style={{ color: tagConfig.fg, fontSize: 11, fontWeight: '700' }}>
+                    {tagConfig.label}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
+                  <Text style={[styles.platformText, { color: '#3B82F6' }]}>
+                    {flight.terminal}
+                  </Text>
+                </View>
+              )}
             </View>
-          ))}
+            );
+          })}
         </View>
         
         {/* Check-in/Check-out Button */}
