@@ -60,6 +60,7 @@ support_tickets_collection = db['support_tickets']
 support_messages_collection = db['support_messages']
 points_history_collection = db['points_history']  # For tracking point transactions
 daily_summaries_collection = db['daily_summaries']  # AI-generated daily event summaries
+flights_tracked_collection = db['flights_tracked']  # Persistent tracking of finalized flights
 
 # ============== POINTS SYSTEM CONSTANTS ==============
 

@@ -74,7 +74,6 @@ from routers import geocoding as geocoding_router
 from routers import station_alerts as station_alerts_router
 from routers import buses as buses_router
 from routers import reservations as reservations_router
-from routers import daily_summary as daily_summary_router
 from routers import radio as radio_router
 from routers import games as games_router
 from routers import analytics as analytics_router
@@ -304,10 +303,6 @@ class TerminalData(BaseModel):
     saturation_60min: Optional[int] = 0  # Predicted demand level 0-100 for 60min window
     saturation_level_30min: Optional[str] = "baja"  # baja / media / alta
     saturation_level_60min: Optional[str] = "baja"
-    # Instant demand (taxi pressure RIGHT NOW, last 30 min only)
-    instant_demand_pct: Optional[float] = 0.0     # Can exceed 100
-    instant_demand_level: Optional[str] = "green"  # green / yellow / red / critical
-    instant_demand_points: Optional[float] = 0.0   # Raw points (debug/aggregation)
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1175,86 +1170,6 @@ def calculate_saturation(p: int, e: int, s: int, large: int, f: int = 0) -> tupl
     else:
         level = "baja"
     return saturation, level
-
-
-def calculate_instant_demand(arrivals: List[Dict]) -> dict:
-    """Compute the **instant** taxi-demand pressure for a terminal.
-
-    Spec (Demanda en este Momento, last 30 min window only):
-      - FINALIZADO  0-15 min ago:    +1.0
-      - FINALIZADO  16-30 min ago:   +0.3
-      - ENTREGANDO EQUIPAJE >15 min: +0.8  (passengers still waiting baggage)
-      - ENTREGANDO EQUIPAJE <15 min: +0.4  (just landed, baggage not out yet)
-      - EN TIERRA:                   +0.2  (taxiing, gate)
-      - Multiplier x1.5 for large/wide-body aircraft
-      - Saturation %: total_points * 10  (so 10 weighted flights = 100%, can exceed 100%)
-
-    Returns dict with pct (float, can be >100), level (green/yellow/red/critical),
-    and points (raw score) so the frontend can compute deltas/trends.
-    """
-    now = datetime.now(MADRID_TZ)
-    points = 0.0
-
-    for arr in arrivals:
-        status = (arr.get("status") or "").strip()
-        if status not in ("Finalizado", "Entregando equipaje", "En tierra"):
-            continue
-
-        # Determine how long ago the flight landed
-        minutes_ago: Optional[float] = None
-        time_str = arr.get("time", "")
-        if time_str:
-            try:
-                hh, mm = time_str.split(":")
-                arr_time = now.replace(hour=int(hh), minute=int(mm),
-                                       second=0, microsecond=0)
-                if arr_time > now + timedelta(hours=2):
-                    arr_time -= timedelta(days=1)
-                minutes_ago = (now - arr_time).total_seconds() / 60.0
-            except Exception:
-                minutes_ago = None
-
-        # Score per status
-        base = 0.0
-        if status == "Finalizado":
-            if minutes_ago is None or minutes_ago < 0:
-                base = 0.0  # already gone or unknown
-            elif minutes_ago <= 15:
-                base = 1.0
-            elif minutes_ago <= 30:
-                base = 0.3
-            else:
-                base = 0.0
-        elif status == "Entregando equipaje":
-            # Default to >15 (older arrivals are usually still in IBK when "old")
-            if minutes_ago is not None and minutes_ago < 15:
-                base = 0.4
-            else:
-                base = 0.8
-        elif status == "En tierra":
-            base = 0.2
-
-        if base == 0.0:
-            continue
-
-        # Large-aircraft multiplier
-        if is_large_aircraft(arr.get("aircraft")):
-            base *= 1.5
-
-        points += base
-
-    pct = round(points * 10.0, 1)  # can exceed 100
-
-    if pct < 40:
-        level = "green"
-    elif pct < 70:
-        level = "yellow"
-    elif pct <= 100:
-        level = "red"
-    else:
-        level = "critical"
-
-    return {"pct": pct, "level": level, "points": round(points, 2)}
 
 
 async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
@@ -2401,10 +2316,7 @@ async def get_flight_comparison(
         # Compute saturation predictions (demand 0-100)
         sat_30, sat_level_30 = calculate_saturation(count_30, delivering_30, next_after_30, large_30, past_30)
         sat_60, sat_level_60 = calculate_saturation(count_60, delivering_60, next_after_60, large_60, past_60)
-
-        # Compute instant demand (last 30 min, status-driven)
-        instant = calculate_instant_demand(arrivals)
-
+        
         terminal_data[terminal] = TerminalData(
             terminal=terminal,
             arrivals=[FlightArrival(**a) for a in arrivals],
@@ -2424,9 +2336,6 @@ async def get_flight_comparison(
             saturation_60min=sat_60,
             saturation_level_30min=sat_level_30,
             saturation_level_60min=sat_level_60,
-            instant_demand_pct=instant["pct"],
-            instant_demand_level=instant["level"],
-            instant_demand_points=instant["points"],
         )
     
     logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")
@@ -4009,10 +3918,6 @@ api_router.include_router(auth_router.router)
 api_router.include_router(chat_router.router)
 api_router.include_router(alerts_router.router)
 api_router.include_router(admin_router.router)
-# IMPORTANT: daily_summary uses prefix /events with literal sub-path
-# /daily-summary; it MUST be registered BEFORE events_router because the
-# latter has a `{event_id}` catch-all that would shadow our literal path.
-api_router.include_router(daily_summary_router.router)
 api_router.include_router(events_router.router)
 api_router.include_router(emergency_router.router)
 api_router.include_router(checkin_router.router)
@@ -4470,12 +4375,9 @@ async def startup_db_client():
     logger.info("WhatsApp bot monitor task started")
     
     # Start daily events summary scheduler (generates at 5 AM)
-    # NOTE: production used routers.events.daily_summary_scheduler. Replaced by
-    # the standalone daily_summary router which regenerates on the first GET of
-    # the day automatically (see routers/daily_summary.py).
-    # from routers.events import daily_summary_scheduler
-    # asyncio.create_task(daily_summary_scheduler())
-    logger.info("Daily events summary handled by routers/daily_summary.py (lazy generation)")
+    from routers.events import daily_summary_scheduler
+    asyncio.create_task(daily_summary_scheduler())
+    logger.info("Daily events summary scheduler started")
 
 async def whatsapp_hourly_update_task():
     """Background task to send WhatsApp updates every hour at random minutes (1-30) to avoid patterns."""

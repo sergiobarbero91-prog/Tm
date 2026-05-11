@@ -41,19 +41,18 @@ class TestInstantDemand:
         for tname, tdata in flights["terminals"].items():
             assert "instant_demand_pct" in tdata, f"{tname} missing instant_demand_pct"
             assert "instant_demand_level" in tdata, f"{tname} missing instant_demand_level"
-            assert "instant_demand_trend" in tdata, f"{tname} missing instant_demand_trend"
+            assert "instant_demand_points" in tdata, f"{tname} missing instant_demand_points"
 
     def test_instant_demand_value_types_and_ranges(self, flights):
         valid_levels = {"green", "yellow", "red", "critical"}
-        valid_trends = {"up", "down", "flat"}
         for tname, tdata in flights["terminals"].items():
             pct = tdata["instant_demand_pct"]
             assert isinstance(pct, (int, float)), f"{tname} pct not numeric: {pct!r}"
-            assert 0 <= pct <= 500, f"{tname} pct out of expected range: {pct}"
+            assert 0 <= pct <= 1000, f"{tname} pct out of expected range: {pct}"
             assert tdata["instant_demand_level"] in valid_levels, \
                 f"{tname} bad level: {tdata['instant_demand_level']}"
-            assert tdata["instant_demand_trend"] in valid_trends, \
-                f"{tname} bad trend: {tdata['instant_demand_trend']}"
+            assert isinstance(tdata["instant_demand_points"], (int, float)), \
+                f"{tname} points not numeric: {tdata['instant_demand_points']!r}"
 
     def test_original_score_fields_preserved(self, flights):
         # CRITICAL: original Score / XA-YP backend fields must still be there

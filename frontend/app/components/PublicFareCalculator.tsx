@@ -62,17 +62,17 @@ export const PublicFareCalculator: React.FC<PublicFareCalculatorProps> = ({ styl
     
     try {
       // Get current hour to determine T1 vs T2
-      // T1: Laborables 6:00-21:00 → 2,50€ bajada + 1,40€/km
-      // T2: Festivos y laborables 21:00-6:00 → 3,20€ bajada + 1,60€/km
+      // T1: Día Laborable 7h-21h → 2,55€ bajada + 1,40€/km
+      // T2: Noches, fines de semana y festivos → 3,20€ bajada + 1,60€/km
       const now = new Date();
       const hour = now.getHours();
       const day = now.getDay();
-      const isNight = hour >= 21 || hour < 6;
+      const isNight = hour >= 21 || hour < 7;
       const isWeekend = day === 0 || day === 6;
       const isTarifa2 = isNight || isWeekend;
       const tarifaBase = isTarifa2 ? 'Tarifa 2' : 'Tarifa 1';
       const per_km_rate = isTarifa2 ? 1.60 : 1.40;
-      const bajada_bandera = isTarifa2 ? 3.20 : 2.50;
+      const bajada_bandera = isTarifa2 ? 3.20 : 2.55;
       
       // Terminal coordinates
       const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
@@ -211,24 +211,23 @@ export const PublicFareCalculator: React.FC<PublicFareCalculatorProps> = ({ styl
       }
       else if (isAirport && !isDestInsideM30) {
         // TARIFA 3: Aeropuerto → Fuera M30
-        // Franquicia de 9km (sin coste), resto con tarifa horaria SIN bajada de bandera
+        // Base 22€ (cubre primeros 9km), resto con tarifa horaria SIN bajada de bandera
+        const TARIFA_3_BASE = 22.00;
         const TARIFA_3_KM_FRANCHISE = 9;
         const extra_km = Math.max(0, distance_km - TARIFA_3_KM_FRANCHISE);
         // Solo km extra, sin bajada de bandera
-        const total = extra_km * per_km_rate;
+        const total = TARIFA_3_BASE + (extra_km * per_km_rate);
         fare_min = total;
         fare_max = total * 1.05;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 3 + ${tarifaBase}`;
-          details = `Franquicia 9km (sin coste) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
+          details = `Base 22€ (9km incluidos) + ${extra_km.toFixed(1)}km × ${per_km_rate.toFixed(2)}€/km`;
         } else {
           tarifa = 'Tarifa 3';
-          details = 'Franquicia 9km (distancia incluida en franquicia)';
-          fare_min = 0;
-          fare_max = 0;
+          details = 'Base 22€ (primeros 9km incluidos)';
         }
-        suplemento = fare_min > 0 ? `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€` : 'Incluido en franquicia';
+        suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
       }
       else {
         // TARIFA 1/2: Calle normal - bajada de bandera + km

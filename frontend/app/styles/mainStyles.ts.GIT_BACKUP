@@ -821,6 +821,39 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  instantDemandContainer: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  instantDemandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  instantDemandLabel: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  instantDemandPct: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  instantDemandBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1E293B',
+    overflow: 'hidden',
+  },
+  instantDemandBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
   arrivalsList: {
     gap: 8,
   },

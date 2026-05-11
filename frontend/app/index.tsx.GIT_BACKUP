@@ -32,8 +32,6 @@ import { Audio } from 'expo-av';
 // Refactored components
 import { PublicFareCalculator } from './components/PublicFareCalculator';
 import { AirportTerminalsGrouped } from './components/AirportTerminalsGrouped';
-import { PublicEventsSummary } from './components/PublicEventsSummary';
-import { PublicBusArrivals } from './components/PublicBusArrivals';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -171,37 +169,24 @@ interface FlightArrival {
   gate?: string;
   status?: string;
   delay_minutes?: number;  // Minutos de retraso (negativo si adelantado)
-  belt?: string | null;  // Cinta de equipaje
-  aircraft?: string | null;  // Tipo de aeronave
-  is_large?: boolean;  // Wide-body (>250 pax)
 }
 
 interface TerminalData {
   terminal: string;
   arrivals: FlightArrival[];
-  total_next_30min: number;  // Próximos (En tierra, En vuelo, En hora...)
+  total_next_30min: number;
   total_next_60min: number;
   is_winner_30min: boolean;
   is_winner_60min: boolean;
-  delivering_30min?: number;  // Entregando equipaje
-  delivering_60min?: number;
   // Weighted score fields
   score_30min?: number;
   score_60min?: number;
-  past_30min?: number;  // Finalizados
+  past_30min?: number;
   past_60min?: number;
-  next_after_30min?: number;  // Lookahead: arrivals in [+30, +60]
-  next_after_60min?: number;  // Lookahead: arrivals in [+60, +90]
-  large_30min?: number;  // Wide-body flights in 30min window
-  large_60min?: number;
-  saturation_30min?: number;  // 0-100
-  saturation_60min?: number;
-  saturation_level_30min?: 'baja' | 'media' | 'alta';
-  saturation_level_60min?: 'baja' | 'media' | 'alta';
-  // Instant demand (taxi pressure RIGHT NOW, last 30 min)
-  instant_demand_pct?: number;     // 0-500 (can exceed 100)
+  // Instant demand (taxi pressure) fields
+  instant_demand_pct?: number;
   instant_demand_level?: 'green' | 'yellow' | 'red' | 'critical';
-  instant_demand_points?: number;  // Raw points for debug
+  instant_demand_trend?: 'up' | 'down' | 'flat';
 }
 
 interface FlightComparison {
@@ -390,10 +375,9 @@ export default function TransportMeter() {
     );
   };
 
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'buses' | 'street' | 'reservations' | 'events' | 'fares' | 'gestion' | 'social' | 'moderation' | 'admin'>('street');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'street' | 'events' | 'fares' | 'social' | 'moderation' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
-  const [busData, setBusData] = useState<any>(null);
   const [streetData, setStreetData] = useState<StreetWorkData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -408,43 +392,6 @@ export default function TransportMeter() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [taxiStatus, setTaxiStatus] = useState<TaxiStatusData>({});
   const [queueStatus, setQueueStatus] = useState<QueueStatusData>({});
-
-  // Reservations state
-  const [myReservations, setMyReservations] = useState<any[]>([]);
-  const [offeredReservations, setOfferedReservations] = useState<any[]>([]);
-
-  // Gestion (salary calculator) state
-  const [gestionPercentage, setGestionPercentage] = useState<40 | 45 | 50>(40);
-  const [gestionPagaGasolina, setGestionPagaGasolina] = useState<boolean>(false); // true = el taxista paga
-  const [gestionRecaudacion, setGestionRecaudacion] = useState<string>('');
-  const [gestionTarjeta, setGestionTarjeta] = useState<string>('');
-  const [gestionAplicacion, setGestionAplicacion] = useState<string>('');
-  const [gestionGasolina, setGestionGasolina] = useState<string>('');
-  const [gestionCalc, setGestionCalc] = useState<{
-    recaudacion: number;
-    tarjeta: number;
-    aplicacion: number;
-    gasolina: number;
-    miPorcentaje: number;
-    parteJefe: number;
-    resultado: number;
-    aFavorDelConductor: boolean;
-    cantidadAbs: number;
-    percentage: 40 | 45 | 50;
-    pagaGasolina: boolean;
-  } | null>(null);
-  const [acceptedReservations, setAcceptedReservations] = useState<any[]>([]);
-  const [reservationLogs, setReservationLogs] = useState<any[]>([]);
-  const [reservationView, setReservationView] = useState<'calendar' | 'offered' | 'logs'>('calendar');
-  const [showCreateReservation, setShowCreateReservation] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<any>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReservationId, setCancelReservationId] = useState<string | null>(null);
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [newReservation, setNewReservation] = useState({ date: '', time: '', pickup_address: '', destination: '', passenger_name: '', passenger_phone: '' });
-  const [reservationNotification, setReservationNotification] = useState<string | null>(null);
   
   // Public summary for login page (no auth required)
   const [publicSummary, setPublicSummary] = useState<{
@@ -480,9 +427,6 @@ export default function TransportMeter() {
   
   // Ref to hold the latest fetchData function for intervals
   const fetchDataRef = useRef<() => Promise<void>>();
-  // Per-group history of instant_demand_pct (used to compute the ⬆⬇➡ trend
-  // arrow in the "Demanda en este Momento" bar).
-  const lastInstantDemandRef = useRef<Record<string, number>>({});
   
   // Dropdown selector states
   const [showPageDropdown, setShowPageDropdown] = useState(false);
@@ -496,11 +440,6 @@ export default function TransportMeter() {
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
   const [eventLoading, setEventLoading] = useState(false);
-  
-  // AI Events Summary states
-  const [aiEventsSummary, setAiEventsSummary] = useState<string | null>(null);
-  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
-  const [aiSummaryExpanded, setAiSummaryExpanded] = useState(true);
 
   // Admin Panel states
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
@@ -859,9 +798,7 @@ export default function TransportMeter() {
     const labelMap: Record<string, string> = {
       trains: 'Trenes',
       flights: 'Aviones',
-      buses: 'Autobuses',
       street: 'Calle',
-      reservations: 'Reservas',
       events: 'Eventos',
       fares: 'Tarifas',
       social: 'Social',
@@ -871,7 +808,6 @@ export default function TransportMeter() {
     const iconMap: Record<string, string> = {
       trains: 'train',
       flights: 'airplane',
-      buses: 'bus',
       street: 'car',
       events: 'calendar',
       fares: 'calculator',
@@ -2701,12 +2637,11 @@ export default function TransportMeter() {
     // =============================================================
     // TARIFAS OFICIALES DE TAXI MADRID
     // =============================================================
-    // Tarifa 1: Día Laborable 7h-21h → 2,55€ bajada + 1,40€/km
-    // Tarifa 2: Noches, fines de semana y festivos → 3,20€ bajada + 1,60€/km
-    // Tarifa 3: Aeropuerto → Fuera M30 → 22€ primeros 9km, resto T1/T2 SIN bajada
+    // Tarifa 1: Días laborables 06:00-21:00 → 2,50€ bajada + 1,40€/km
+    // Tarifa 2: Noches/Festivos 21:00-6:00 → 3,20€ bajada + 1,60€/km
+    // Tarifa 3: Aeropuerto → Fuera M30 → Franquicia 9km, resto a T1/T2 SIN bajada
     // Tarifa 4: Aeropuerto ↔ dentro M30 → 33€ FIJO
-    // Tarifa 7: Estaciones/IFEMA → 8€ primer 1km, resto T1/T2 SIN bajada
-    // Suplemento Nochebuena/Fin de Año: 7€ (21:00-07:00h)
+    // Tarifa 7: Estaciones/IFEMA → Cualquier lugar → Franquicia 1,4km, resto a T1/T2 SIN bajada
     // =============================================================
     
     // Get current time and day to determine T1 or T2
@@ -2714,12 +2649,12 @@ export default function TransportMeter() {
     const hour = now.getHours();
     const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const isDaytime = hour >= 7 && hour < 21; // T1: 7h-21h
+    const isDaytime = hour >= 6 && hour < 21;
     const isNightOrWeekend = isWeekend || !isDaytime;
     
     // Rates for T1 and T2 (WITHOUT flag-down fee for supplements)
     const per_km_rate = isNightOrWeekend ? 1.60 : 1.40;
-    const tarifaBase = isNightOrWeekend ? 'Tarifa 2' : 'Tarifa 1';
+    const tarifaBase = isNightOrWeekend ? 'T2' : 'T1';
     
     const locationType = pendingCheckOut?.locationType || 'terminal';
     const isAirport = locationType === 'terminal';
@@ -2763,7 +2698,7 @@ export default function TransportMeter() {
       console.log('[Fare] T4: Fixed 33€ (Station to Airport)');
     }
     // =====================================================
-    // TARIFA 7: ESTACIONES (Atocha, Chamartín) / IFEMA → Cualquier destino
+    // TARIFA 7: ESTACIONES (Atocha, Chamartín) → Cualquier destino (excepto aeropuerto)
     // Base: 8€ (cubre primeros 1,4 km)
     // Resto: T1 o T2 SIN bajada de bandera
     // =====================================================
@@ -2793,7 +2728,7 @@ export default function TransportMeter() {
         const distance_km = routeResponse.data.distance_km || 0;
         console.log('[Fare] Distance from OSRM:', distance_km, 'km');
         
-        // T7: Base 8€ (cubre primeros 1,4km), resto a tarifa horaria SIN bajada
+        // T7: Base 8€ (cubre primeros 1.4km), resto a tarifa horaria SIN bajada
         const TARIFA_7_BASE = 8.00;
         const TARIFA_7_KM_FRANCHISE = 1.4;
         
@@ -2881,40 +2816,36 @@ export default function TransportMeter() {
         const distance_km = routeResponse.data.distance_km || 0;
         console.log('[Fare] Distance from OSRM:', distance_km, 'km');
         
-        // T3: Base 22€ (cubre primeros 9km), resto a tarifa horaria SIN bajada
-        const TARIFA_3_BASE = 22.00;
+        // T3: Franquicia de 9km (sin coste), resto a tarifa horaria SIN bajada
         const TARIFA_3_KM_FRANCHISE = 9.0;
         
         const extra_km = Math.max(0, distance_km - TARIFA_3_KM_FRANCHISE);
         // Extra km charged at T1/T2 rate WITHOUT flag-down fee
         const extra_fare = extra_km * per_km_rate;
-        const total = TARIFA_3_BASE + extra_fare;
         
         console.log('[Fare] T3 calculation:', {
-          base: TARIFA_3_BASE,
           km_franchise: TARIFA_3_KM_FRANCHISE,
           total_distance: distance_km,
           extra_km,
           per_km_rate,
-          extra_fare,
-          total
+          extra_fare
         });
         
         // Calculate range: +2% to +7% for variation
-        const fare_min = total * 1.02;
-        const fare_max = total * 1.07;
+        const fare_min = extra_fare * 1.02;
+        const fare_max = extra_fare * 1.07;
         
         if (extra_km > 0) {
           tarifa = `Tarifa 3 + ${tarifaBase}`;
           suplemento = `${fare_min.toFixed(2)}€ - ${fare_max.toFixed(2)}€`;
         } else {
           tarifa = 'Tarifa 3';
-          suplemento = `${(TARIFA_3_BASE * 1.02).toFixed(2)}€ - ${(TARIFA_3_BASE * 1.07).toFixed(2)}€`;
+          suplemento = 'Incluido en franquicia (9km)';
         }
       } catch (error) {
         console.log('[Fare] Error calculating airport fare:', error);
         tarifa = `Tarifa 3 + ${tarifaBase}`;
-        suplemento = `22€ + ${per_km_rate.toFixed(2)}€/km (después de 9km)`;
+        suplemento = `${per_km_rate.toFixed(2)}€/km (después de franquicia 9km)`;
       }
     }
     // Fallback (should not happen)
@@ -3294,17 +3225,17 @@ export default function TransportMeter() {
     
     try {
       // Get current hour to determine T1 vs T2
-      // T1: Día Laborable 7h-21h → 2,55€ bajada + 1,40€/km
-      // T2: Noches, fines de semana y festivos → 3,20€ bajada + 1,60€/km
+      // T1: Laborables 6:00-21:00 → 2,50€ bajada + 1,40€/km
+      // T2: Festivos y laborables 21:00-6:00 → 3,20€ bajada + 1,60€/km
       const now = new Date();
       const hour = now.getHours();
       const day = now.getDay();
-      const isNight = hour >= 21 || hour < 7;
+      const isNight = hour >= 21 || hour < 6;
       const isWeekend = day === 0 || day === 6;
       const isTarifa2 = isNight || isWeekend;
       const tarifaBase = isTarifa2 ? 'Tarifa 2' : 'Tarifa 1';
       const per_km_rate = isTarifa2 ? 1.60 : 1.40;
-      const bajada_bandera = isTarifa2 ? 3.20 : 2.55;
+      const bajada_bandera = isTarifa2 ? 3.20 : 2.50;
       
       // Terminal coordinates
       const terminalCoords: { [key: string]: { lat: number; lng: number } } = {
@@ -3668,135 +3599,6 @@ export default function TransportMeter() {
     return `${secs}s`;
   };
 
-
-  // ====== RESERVATIONS FUNCTIONS ======
-  const fetchReservationsData = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      const [myRes, offeredRes, acceptedRes, logsRes, calendarRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/reservations`, { headers }).catch(() => ({ data: { reservations: [] } })),
-        axios.get(`${API_BASE}/api/reservations/offered`, { headers }).catch(() => ({ data: { reservations: [] } })),
-        axios.get(`${API_BASE}/api/reservations/accepted`, { headers }).catch(() => ({ data: { reservations: [] } })),
-        axios.get(`${API_BASE}/api/reservations/logs`, { headers }).catch(() => ({ data: { logs: [] } })),
-        axios.get(`${API_BASE}/api/reservations/calendar/${calendarYear}/${calendarMonth + 1}`, { headers }).catch(() => ({ data: { reservations: [] } })),
-      ]);
-      setMyReservations(myRes.data.reservations || []);
-      setOfferedReservations(offeredRes.data.reservations || []);
-      setAcceptedReservations(acceptedRes.data.reservations || []);
-      setReservationLogs(logsRes.data.logs || []);
-    } catch (e) { console.error('Error fetching reservations:', e); }
-  }, [calendarMonth, calendarYear]);
-
-  const createReservation = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.post(`${API_BASE}/api/reservations`, newReservation, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-      setShowCreateReservation(false);
-      setNewReservation({ date: '', time: '', pickup_address: '', destination: '', passenger_name: '', passenger_phone: '' });
-      await fetchReservationsData();
-      setReservationNotification('Reserva creada correctamente');
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al crear la reserva'); }
-  };
-
-  const offerReservation = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.put(`${API_BASE}/api/reservations/${id}/offer`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchReservationsData();
-      setReservationNotification('Reserva ofertada correctamente');
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al ofertar'); }
-  };
-
-  const acceptReservation = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const res = await axios.put(`${API_BASE}/api/reservations/${id}/accept`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchReservationsData();
-      const notif = res.data.notification;
-      setReservationNotification(`Reserva aceptada de ${notif?.creator_name || 'conductor'}`);
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al aceptar'); }
-  };
-
-  const cancelReservation = async (id: string, reason: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const res = await axios.put(`${API_BASE}/api/reservations/${id}/cancel`, { reason }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-      setShowCancelModal(false);
-      setCancelReservationId(null);
-      await fetchReservationsData();
-      setReservationNotification(res.data.message);
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al cancelar'); }
-  };
-
-  const completeReservation = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.put(`${API_BASE}/api/reservations/${id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchReservationsData();
-      setReservationNotification('Reserva completada');
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al completar'); }
-  };
-
-  const unofferReservation = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.put(`${API_BASE}/api/reservations/${id}/unoffer`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchReservationsData();
-      setReservationNotification('Oferta retirada');
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al retirar oferta'); }
-  };
-
-  const deleteReservation = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.delete(`${API_BASE}/api/reservations/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchReservationsData();
-      setSelectedReservation(null);
-      setReservationNotification('Reserva eliminada');
-      setTimeout(() => setReservationNotification(null), 3000);
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Error al eliminar'); }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'pendiente': return '#6366F1';
-      case 'ofertada': return '#F59E0B';
-      case 'aceptada': return '#10B981';
-      case 'completada': return '#6B7280';
-      case 'cancelada': return '#EF4444';
-      default: return '#9CA3AF';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch(status) {
-      case 'pendiente': return 'Pendiente';
-      case 'ofertada': return 'Ofertada';
-      case 'aceptada': return 'Aceptada';
-      case 'completada': return 'Completada';
-      case 'cancelada': return 'Cancelada';
-      default: return status;
-    }
-  };
-
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => (new Date(year, month, 1).getDay() + 6) % 7; // Monday first
-
-  const allMyReservations = [...myReservations, ...acceptedReservations].filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
-  const calendarReservations = allMyReservations.filter(r => {
-    const prefix = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}`;
-    return r.date?.startsWith(prefix);
-  });
-
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
   // Fetch events data
   const fetchEventsData = useCallback(async () => {
     try {
@@ -3810,27 +3612,6 @@ export default function TransportMeter() {
       console.error('Error fetching events:', error);
     }
   }, [shift]);
-
-  // Fetch AI Events Summary
-  const fetchAiEventsSummary = useCallback(async (forceRefresh: boolean = false) => {
-    setAiSummaryLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/events/daily-summary`, {
-        params: { force_refresh: forceRefresh },
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 60000 // 60 second timeout for AI generation
-      });
-      if (response.data.success) {
-        setAiEventsSummary(response.data.summary);
-      }
-    } catch (error) {
-      console.error('Error fetching AI events summary:', error);
-      setAiEventsSummary('Error al cargar el resumen. Intenta de nuevo.');
-    } finally {
-      setAiSummaryLoading(false);
-    }
-  }, []);
 
   // Create new event
   const createEvent = async () => {
@@ -5205,41 +4986,6 @@ export default function TransportMeter() {
               }
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || 'Error al reiniciar el bot. Puede que necesite reiniciarse manualmente.');
-            } finally {
-              setWhatsappSending(false);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const forceDisconnectWhatsApp = async () => {
-    Alert.alert(
-      'Forzar Desconexión',
-      '¿Estás seguro? Esto cerrará la sesión de WhatsApp por completo y eliminará los datos de sesión. Necesitarás escanear un nuevo QR para reconectar.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Desconectar',
-          style: 'destructive',
-          onPress: async () => {
-            setWhatsappSending(true);
-            try {
-              const token = await AsyncStorage.getItem('token');
-              const response = await axios.post(`${API_BASE}/api/whatsapp/logout`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (response.data.success) {
-                Alert.alert('Desconexión Forzada', response.data.message || 'Sesión cerrada. Escanea un nuevo QR para reconectar.');
-                setTimeout(() => {
-                  fetchWhatsAppBotStatus();
-                }, 5000);
-              } else {
-                Alert.alert('Error', response.data.message || 'Error al forzar la desconexión');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Error al forzar la desconexión.');
             } finally {
               setWhatsappSending(false);
             }
@@ -6671,25 +6417,16 @@ export default function TransportMeter() {
           params: timeParams
         });
         setFlightData(response.data);
-      } else if (activeTab === 'buses') {
-        const response = await axios.get(`${API_BASE}/api/buses`);
-        setBusData(response.data);
       } else if (activeTab === 'street') {
         // Fetch all street data in parallel for faster loading
         await Promise.all([
           fetchStreetData(),
           fetchTaxiStatus(),
           fetchQueueStatus(),
-          fetchTaxiNeededZones(),
-          axios.get(`${API_BASE}/api/buses`).then(r => setBusData(r.data)).catch(() => {})
+          fetchTaxiNeededZones()
         ]);
-      } else if (activeTab === 'reservations') {
-        await fetchReservationsData();
       } else if (activeTab === 'events') {
-        await Promise.all([
-          fetchEventsData(),
-          fetchAiEventsSummary()
-        ]);
+        await fetchEventsData();
       } else if (activeTab === 'social') {
         await Promise.all([
           fetchFriends(),
@@ -7283,9 +7020,6 @@ export default function TransportMeter() {
                 {/* All Terminals - Grouped like inside app */}
                 <AirportTerminalsGrouped publicSummary={publicSummary} />
 
-                {/* Bus Stations */}
-                <PublicBusArrivals />
-
                 {/* Hot Street */}
                 {publicSummary.hot_street.name && (
                   <View style={{ marginBottom: 12 }}>
@@ -7308,15 +7042,7 @@ export default function TransportMeter() {
               </View>
             )}
 
-            {/* Ad Space - MIDDLE (after arrivals) */}
-            {!showRegister && <AdSpace position="middle" />}
-
-            {/* Public Events / AI Summary */}
-            {!showRegister && (
-              <PublicEventsSummary />
-            )}
-
-            {/* Ad Space - After events */}
+            {/* Ad Space - MIDDLE (after summary) */}
             {!showRegister && <AdSpace position="middle" />}
 
             {/* Public Fare Calculator */}
@@ -7988,36 +7714,53 @@ export default function TransportMeter() {
     // Calculate totals for the group
     let total30min = 0;
     let total60min = 0;
-    let delivering30min = 0;
-    let delivering60min = 0;
     let past30min = 0;
     let past60min = 0;
     let score30min = 0;
     let score60min = 0;
-    let large30min = 0;
-    let large60min = 0;
-    let nextAfter30 = 0;
-    let nextAfter60 = 0;
     let allArrivals: FlightArrival[] = [];
-    
+    // Instant demand aggregation across the group's terminals
+    const levelRank: Record<string, number> = { green: 0, yellow: 1, red: 2, critical: 3 };
+    const rankLevel = ['green', 'yellow', 'red', 'critical'] as const;
+    let demandPctSum = 0;
+    let demandCount = 0;
+    let demandWorstRank = 0;
+    let demandTrendCounts: { up: number; down: number; flat: number } = { up: 0, down: 0, flat: 0 };
+
     group.terminals.forEach(terminalName => {
       const terminal = flightData.terminals[terminalName];
       if (terminal) {
         total30min += terminal.total_next_30min;
         total60min += terminal.total_next_60min;
-        delivering30min += terminal.delivering_30min || 0;
-        delivering60min += terminal.delivering_60min || 0;
         past30min += terminal.past_30min || 0;
         past60min += terminal.past_60min || 0;
         score30min += terminal.score_30min || 0;
         score60min += terminal.score_60min || 0;
-        large30min += terminal.large_30min || 0;
-        large60min += terminal.large_60min || 0;
-        nextAfter30 += terminal.next_after_30min || 0;
-        nextAfter60 += terminal.next_after_60min || 0;
         allArrivals = [...allArrivals, ...terminal.arrivals];
+        if (typeof terminal.instant_demand_pct === 'number') {
+          demandPctSum += terminal.instant_demand_pct;
+          demandCount += 1;
+        }
+        const lvl = terminal.instant_demand_level;
+        if (lvl && levelRank[lvl] > demandWorstRank) {
+          demandWorstRank = levelRank[lvl];
+        }
+        const trn = terminal.instant_demand_trend;
+        if (trn === 'up' || trn === 'down' || trn === 'flat') {
+          demandTrendCounts[trn] += 1;
+        }
       }
     });
+
+    // Group-level instant demand (avg pct, worst level, dominant trend)
+    const instantDemandPct = demandCount > 0 ? demandPctSum / demandCount : 0;
+    const instantDemandLevel = rankLevel[demandWorstRank];
+    const instantDemandTrend: 'up' | 'down' | 'flat' =
+      demandTrendCounts.up >= demandTrendCounts.down && demandTrendCounts.up >= demandTrendCounts.flat
+        ? 'up'
+        : demandTrendCounts.down >= demandTrendCounts.flat
+        ? 'down'
+        : 'flat';
     
     // Filter arrivals to only show those within the selected time window
     // If a specific time range is selected (not "now"), the backend already filters, so we show all
@@ -8031,12 +7774,7 @@ export default function TransportMeter() {
     } else {
       // Real-time mode: filter arrivals based on current time and timeWindow
       const now = new Date();
-      const landedStatuses = ['En tierra', 'Entregando equipaje', 'Finalizado'];
       filteredArrivals = allArrivals.filter(arrival => {
-        // Always show landed flights (they have past times but are still relevant)
-        if (landedStatuses.includes(arrival.status || '')) {
-          return true;
-        }
         try {
           const [hours, minutes] = arrival.time.split(':').map(Number);
           const arrivalDate = new Date();
@@ -8048,7 +7786,7 @@ export default function TransportMeter() {
           }
           
           const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-          return diffMinutes >= -60 && diffMinutes <= timeWindow;
+          return diffMinutes >= 0 && diffMinutes <= timeWindow;
         } catch {
           return false;
         }
@@ -8059,68 +7797,8 @@ export default function TransportMeter() {
     filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
     const futureArrivals = timeWindow === 30 ? total30min : total60min;
-    const deliveringArrivals = timeWindow === 30 ? delivering30min : delivering60min;
     const pastArrivals = timeWindow === 30 ? past30min : past60min;
     const score = timeWindow === 30 ? score30min : score60min;
-    const largeArrivals = timeWindow === 30 ? large30min : large60min;
-    const nextAfterArrivals = timeWindow === 30 ? nextAfter30 : nextAfter60;
-    
-    // Compute saturation locally from aggregated counters (mirrors backend calculate_saturation)
-    // Calibrated: 50 points = 100% (≈ rush hour with 30P + 7E)
-    const saturationPoints =
-      (futureArrivals * 1.0) +
-      (deliveringArrivals * 2.0) +
-      (pastArrivals * 0.3) +
-      (nextAfterArrivals * 0.5) +
-      (largeArrivals * 1.5);
-    const saturationPct = Math.min(100, Math.round(saturationPoints * 2));
-    let saturationLevel: 'baja' | 'media' | 'alta' = 'baja';
-    let saturationColor = '#10B981';
-    let saturationLabel = 'BAJA';
-    if (saturationPct >= 60) {
-      saturationLevel = 'alta';
-      saturationColor = '#EF4444';
-      saturationLabel = 'ALTA';
-    } else if (saturationPct >= 25) {
-      saturationLevel = 'media';
-      saturationColor = '#F59E0B';
-      saturationLabel = 'MEDIA';
-    }
-
-    // ─── DEMANDA EN ESTE MOMENTO (instant_demand from backend) ───
-    // Aggregate per-group: average pct, worst level, sum of points.
-    const levelRank: Record<string, number> = { green: 0, yellow: 1, red: 2, critical: 3 };
-    const rankToLevel = ['green', 'yellow', 'red', 'critical'] as const;
-    let instantPctSum = 0;
-    let instantCount = 0;
-    let instantWorstRank = 0;
-    group.terminals.forEach(tn => {
-      const t = flightData.terminals[tn];
-      if (t && typeof t.instant_demand_pct === 'number') {
-        instantPctSum += t.instant_demand_pct;
-        instantCount += 1;
-        const lvl = t.instant_demand_level;
-        if (lvl && levelRank[lvl] > instantWorstRank) instantWorstRank = levelRank[lvl];
-      }
-    });
-    const instantDemandPct = instantCount > 0 ? instantPctSum / instantCount : 0;
-    const instantDemandLevel = rankToLevel[instantWorstRank];
-
-    // Color according to spec: green<40, yellow 40-70, red 70-100, critical>100
-    let instantColor = '#10B981';
-    if (instantDemandPct > 100) instantColor = '#DC2626';        // alerta intenso
-    else if (instantDemandPct >= 70) instantColor = '#EF4444';   // rojo
-    else if (instantDemandPct >= 40) instantColor = '#F59E0B';   // amarillo
-
-    // Trend arrow vs previous tick
-    const prevInstant = lastInstantDemandRef.current[group.name];
-    let instantTrend: 'up' | 'down' | 'flat' = 'flat';
-    if (typeof prevInstant === 'number') {
-      const delta = instantDemandPct - prevInstant;
-      if (delta > 2) instantTrend = 'up';
-      else if (delta < -2) instantTrend = 'down';
-    }
-    lastInstantDemandRef.current[group.name] = instantDemandPct;
     
     // Determine if this group is the winner based on weighted score
     const groupTotals = terminalGroups.map(g => {
@@ -8199,179 +7877,70 @@ export default function TransportMeter() {
           </Text>
         </View>
         
-        {/* Formato: XP - YE - ZF - WS (Próximos - Equipaje - Finalizados - Siguiente media hora) */}
+        {/* Formato: XA - YP (Anteriores - Posteriores) */}
         <View style={styles.arrivalCount}>
           <View style={styles.arrivalScoreRow}>
+            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
+              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
+            </Text>
+            <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
               {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
             </Text>
-            <Text style={styles.arrivalDivider}> - </Text>
-            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
-              {deliveringArrivals}<Text style={styles.arrivalSuffix}>E</Text>
-            </Text>
-            <Text style={styles.arrivalDivider}> - </Text>
-            <Text style={[styles.arrivalNumberSmall, { color: '#94A3B8' }]}>
-              {pastArrivals}<Text style={styles.arrivalSuffix}>F</Text>
-            </Text>
-            <Text style={styles.arrivalDivider}> - </Text>
-            <Text style={[styles.arrivalNumberSmall, { color: '#A78BFA' }]}>
-              {nextAfterArrivals}<Text style={styles.arrivalSuffix}>S</Text>
-            </Text>
           </View>
           <Text style={styles.arrivalLabel}>
-            Próximos / Equipaje / Finalizados / Siguientes ({timeWindow}min + 30min)
+            vuelos ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
           </Text>
-          {largeArrivals > 0 && (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                alignSelf: 'center',
-                marginTop: 6,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                backgroundColor: '#F59E0B22',
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#F59E0B',
-              }}
-              data-testid={`large-aircraft-counter-${group.name}`}
-            >
-              <Ionicons name="airplane" size={13} color="#F59E0B" />
-              <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 12, marginLeft: 4 }}>
-                {largeArrivals} {largeArrivals === 1 ? 'GRANDE' : 'GRANDES'}
-              </Text>
-            </View>
-          )}
-          
-          {/* Saturation gauge - taxi demand prediction */}
-          <View
-            style={{
-              marginTop: 12,
-              paddingHorizontal: 12,
-              alignSelf: 'stretch',
-            }}
-            data-testid={`saturation-gauge-${group.name}`}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', letterSpacing: 0.4 }}>
-                PREVISIÓN PRÓXIMA HORA
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: saturationColor, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>
-                  {saturationLabel}
-                </Text>
-                <Text style={{ color: '#64748B', fontSize: 11, fontWeight: '600', marginLeft: 6 }}>
-                  {saturationPct}%
-                </Text>
-              </View>
-            </View>
-            {/* Bar with zone markers */}
-            <View
-              style={{
-                height: 10,
-                backgroundColor: '#1E293B',
-                borderRadius: 5,
-                overflow: 'hidden',
-                position: 'relative',
-                borderWidth: 1,
-                borderColor: '#334155',
-              }}
-            >
-              {/* Filled portion */}
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: `${saturationPct}%`,
-                  backgroundColor: saturationColor,
-                  borderRadius: 5,
-                }}
-              />
-              {/* Zone divider lines (35% and 65%) */}
-              <View style={{ position: 'absolute', left: '35%', top: 0, bottom: 0, width: 1, backgroundColor: '#475569', opacity: 0.5 }} />
-              <View style={{ position: 'absolute', left: '65%', top: 0, bottom: 0, width: 1, backgroundColor: '#475569', opacity: 0.5 }} />
-            </View>
-            {/* Legend */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 }}>
-              <Text style={{ color: '#475569', fontSize: 9 }}>Baja</Text>
-              <Text style={{ color: '#475569', fontSize: 9, marginLeft: -20 }}>Media</Text>
-              <Text style={{ color: '#475569', fontSize: 9 }}>Alta</Text>
-            </View>
-          </View>
-
-          {/* ─── DEMANDA EN ESTE MOMENTO (instant) ─── */}
-          <View
-            style={{
-              marginTop: 10,
-              paddingHorizontal: 12,
-              alignSelf: 'stretch',
-            }}
-            data-testid={`instant-demand-gauge-${group.name}`}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="flash" size={12} color={instantColor} style={{ marginRight: 4 }} />
-                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', letterSpacing: 0.4 }}>
-                  DEMANDA EN ESTE MOMENTO
-                </Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text
-                  style={{ color: instantColor, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}
-                  data-testid={`instant-demand-pct-${group.name}`}
-                >
-                  {Math.round(instantDemandPct)}%
-                </Text>
-                <Ionicons
-                  name={instantTrend === 'up' ? 'trending-up' : instantTrend === 'down' ? 'trending-down' : 'remove'}
-                  size={14}
-                  color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#94A3B8'}
-                  style={{ marginLeft: 6 }}
-                />
-              </View>
-            </View>
-            {/* Bar (caps at 100% width visually, but text shows real % which can exceed 100) */}
-            <View
-              style={{
-                height: 10,
-                backgroundColor: '#1E293B',
-                borderRadius: 5,
-                overflow: 'hidden',
-                position: 'relative',
-                borderWidth: 1,
-                borderColor: '#334155',
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: `${Math.min(100, instantDemandPct)}%`,
-                  backgroundColor: instantColor,
-                  borderRadius: 5,
-                }}
-              />
-              {/* Zone markers (40% and 70%) */}
-              <View style={{ position: 'absolute', left: '40%', top: 0, bottom: 0, width: 1, backgroundColor: '#475569', opacity: 0.5 }} />
-              <View style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, backgroundColor: '#475569', opacity: 0.5 }} />
-            </View>
-            {/* Critical indicator (>100%) */}
-            {instantDemandPct > 100 && (
-              <Text style={{ color: '#DC2626', fontSize: 9, fontWeight: '700', marginTop: 2, letterSpacing: 0.3 }}>
-                SATURACIÓN CRÍTICA
-              </Text>
-            )}
-          </View>
           <View style={styles.scoreContainer}>
             <Ionicons name="analytics" size={14} color="#6366F1" />
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
         </View>
+
+        {/* Demanda Instantánea (Instant taxi-demand pressure) */}
+        <View style={styles.instantDemandContainer}>
+          <View style={styles.instantDemandHeader}>
+            <Ionicons
+              name="flash"
+              size={14}
+              color={
+                instantDemandLevel === 'critical' ? '#DC2626'
+                : instantDemandLevel === 'red' ? '#EF4444'
+                : instantDemandLevel === 'yellow' ? '#F59E0B'
+                : '#10B981'
+              }
+            />
+            <Text style={styles.instantDemandLabel}>Demanda Inst.</Text>
+            <Text style={[
+              styles.instantDemandPct,
+              instantDemandLevel === 'critical' && { color: '#DC2626' },
+              instantDemandLevel === 'red' && { color: '#EF4444' },
+              instantDemandLevel === 'yellow' && { color: '#F59E0B' },
+              instantDemandLevel === 'green' && { color: '#10B981' },
+            ]} data-testid={`flight-${group.name}-instant-demand-pct`}>
+              {Math.round(instantDemandPct)}%
+            </Text>
+            <Ionicons
+              name={instantDemandTrend === 'up' ? 'trending-up' : instantDemandTrend === 'down' ? 'trending-down' : 'remove'}
+              size={14}
+              color={instantDemandTrend === 'up' ? '#EF4444' : instantDemandTrend === 'down' ? '#10B981' : '#9CA3AF'}
+              style={{ marginLeft: 4 }}
+            />
+          </View>
+          <View style={styles.instantDemandBarTrack} data-testid={`flight-${group.name}-instant-demand-bar`}>
+            <View
+              style={[
+                styles.instantDemandBarFill,
+                { width: `${Math.min(100, instantDemandPct)}%` },
+                instantDemandLevel === 'critical' && { backgroundColor: '#DC2626' },
+                instantDemandLevel === 'red' && { backgroundColor: '#EF4444' },
+                instantDemandLevel === 'yellow' && { backgroundColor: '#F59E0B' },
+                instantDemandLevel === 'green' && { backgroundColor: '#10B981' },
+              ]}
+            />
+          </View>
+        </View>
+
         
         {/* Alert buttons */}
         <View style={styles.alertButtonsRow}>
@@ -8431,84 +8000,41 @@ export default function TransportMeter() {
         
         {/* Flight arrivals list */}
         <View style={styles.arrivalsList}>
-          {filteredArrivals.map((flight, index) => {
-            const statusColors: Record<string, { bg: string; text: string }> = {
-              'En tierra': { bg: '#10B98133', text: '#10B981' },
-              'En vuelo': { bg: '#3B82F622', text: '#3B82F6' },
-              'En hora': { bg: '#3B82F622', text: '#3B82F6' },
-              'Retrasado': { bg: '#EF444422', text: '#EF4444' },
-              'Adelantado': { bg: '#10B98122', text: '#10B981' },
-              'Entregando equipaje': { bg: '#F59E0B33', text: '#F59E0B' },
-              'Finalizado': { bg: '#64748B33', text: '#94A3B8' },
-            };
-            const statusColor = statusColors[flight.status || ''] || { bg: '#3B82F622', text: '#3B82F6' };
-            const statusLabel = flight.status === 'Entregando equipaje' ? 'Equipaje' : (flight.status || 'En hora');
-            const isLarge = flight.is_large === true;
-            
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.arrivalItem,
-                  isLarge && {
-                    borderLeftWidth: 4,
-                    borderLeftColor: '#F59E0B',
-                    backgroundColor: '#F59E0B11',
-                  },
-                ]}
-                data-testid={isLarge ? `flight-large-${flight.flight_number}` : undefined}
-              >
-                <View style={styles.arrivalTime}>
-                  <Text style={[
-                    styles.timeText,
-                    flight.delay_minutes !== undefined && flight.delay_minutes > 0 ? styles.delayedTimeText : undefined
-                  ]}>
-                    {flight.time}
+          {filteredArrivals.map((flight, index) => (
+            <View key={index} style={styles.arrivalItem}>
+              <View style={styles.arrivalTime}>
+                <Text style={[
+                  styles.timeText,
+                  flight.delay_minutes !== undefined && flight.delay_minutes > 0 ? styles.delayedTimeText : undefined
+                ]}>
+                  {flight.time}
+                </Text>
+                {flight.delay_minutes && flight.delay_minutes > 0 && flight.scheduled_time && (
+                  <Text style={styles.scheduledTimeText}>
+                    ({flight.scheduled_time})
                   </Text>
-                  {!!(flight.delay_minutes && flight.delay_minutes > 0 && flight.scheduled_time) && (
-                    <Text style={styles.scheduledTimeText}>
-                      ({flight.scheduled_time})
-                    </Text>
+                )}
+              </View>
+              <View style={styles.arrivalInfo}>
+                <View style={styles.trainTypeRow}>
+                  <Text style={styles.trainType}>{flight.flight_number}</Text>
+                  {flight.delay_minutes && flight.delay_minutes > 0 && (
+                    <View style={styles.delayBadge}>
+                      <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
+                    </View>
                   )}
                 </View>
-                <View style={[styles.arrivalInfo, { flex: 1 }]}>
-                  <View style={[styles.trainTypeRow, { flexWrap: 'wrap' }]}>
-                    {isLarge && (
-                      <Ionicons name="airplane" size={14} color="#F59E0B" />
-                    )}
-                    <Text style={[styles.trainType, isLarge && { color: '#F59E0B', fontWeight: '700' }]}>
-                      {flight.flight_number}
-                    </Text>
-                    {isLarge && (
-                      <View style={{
-                        backgroundColor: '#F59E0B',
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 4,
-                      }}>
-                        <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
-                          GRANDE{flight.aircraft ? ` · ${flight.aircraft}` : ''}
-                        </Text>
-                      </View>
-                    )}
-                    {!!(flight.delay_minutes && flight.delay_minutes > 0) && (
-                      <View style={styles.delayBadge}>
-                        <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.originText} numberOfLines={1}>
-                    {flight.origin}{flight.belt ? ` · Cinta ${flight.belt}` : ''}
-                  </Text>
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: statusColor.bg, minWidth: 70, paddingHorizontal: 6 }]}>
-                  <Text style={[styles.platformText, { color: statusColor.text, fontSize: 10 }]}>
-                    {statusLabel}
-                  </Text>
-                </View>
+                <Text style={styles.originText} numberOfLines={1}>
+                  {flight.origin}
+                </Text>
               </View>
-            );
-          })}
+              <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
+                <Text style={[styles.platformText, { color: '#3B82F6' }]}>
+                  {flight.terminal}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
         
         {/* Check-in/Check-out Button */}
@@ -8828,234 +8354,6 @@ export default function TransportMeter() {
       }
     }
   };
-
-
-  const renderBusStationCard = (stationData: any, stationKey: string) => {
-    if (!stationData) return null;
-    const isWinner = timeWindow === 30 ? stationData.is_winner_30min : stationData.is_winner_60min;
-    const futureArrivals = timeWindow === 30 ? stationData.total_next_30min : stationData.total_next_60min;
-    const pastArrivals = timeWindow === 30 ? (stationData.past_30min || 0) : (stationData.past_60min || 0);
-    const score = timeWindow === 30 ? (stationData.score_30min || 0) : (stationData.score_60min || 0);
-    const stationShortName = stationKey === 'avenida_america' ? 'Av. América' : 'Estación Sur';
-    const taxiExits = streetData?.exits_by_station?.[stationShortName] || 0;
-
-    const stationAlertsData = getLocationAlerts('station', stationKey);
-    const hasStationAlerts = stationAlertsData.length > 0;
-
-    return (
-      <View
-        key={stationKey}
-        style={[
-          styles.stationCard,
-          isWinner && styles.winnerCard,
-          hasStationAlerts && styles.stationAlertCard,
-        ]}
-      >
-        {hasStationAlerts && (
-          <View style={styles.alertBadgesContainer}>
-            {stationAlertsData.map((alert: any, idx: number) => (
-              <View key={idx} style={[
-                styles.alertBadge,
-                alert.alert_type === 'sin_taxis' ? styles.alertBadgeSinTaxis : styles.alertBadgeBarandilla
-              ]}>
-                <Ionicons 
-                  name={alert.alert_type === 'sin_taxis' ? 'car-outline' : 'warning'} 
-                  size={14} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.alertBadgeText}>
-                  {alert.alert_type === 'sin_taxis' ? 'SIN TAXIS' : 'BARANDILLA'}
-                </Text>
-                <Text style={styles.alertBadgeTime}>{formatSecondsAgo(alert.seconds_ago, alert.created_at)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        
-        {isWinner && (
-          <View style={styles.winnerBadge}>
-            <Ionicons name="trophy" size={16} color="#FFFFFF" />
-            <Text style={styles.winnerBadgeText}>MÁS FRECUENCIA</Text>
-          </View>
-        )}
-        <View style={styles.stationHeader}>
-          <Ionicons name="bus" size={28} color={hasStationAlerts ? '#EF4444' : (isWinner ? '#F59E0B' : '#6366F1')} />
-          <Text style={[styles.stationName, isWinner && styles.winnerText, hasStationAlerts && { color: '#EF4444' }]}>
-            {stationShortName}
-          </Text>
-        </View>
-        
-        <View style={styles.arrivalCount}>
-          <View style={styles.arrivalScoreRow}>
-            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
-              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
-            </Text>
-            <Text style={styles.arrivalDivider}> - </Text>
-            <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
-              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
-            </Text>
-          </View>
-          <Text style={styles.arrivalLabel}>
-            autobuses ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
-          </Text>
-          <View style={styles.scoreContainer}>
-            <Ionicons name="analytics" size={14} color="#6366F1" />
-            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
-          </View>
-        </View>
-        
-        {/* Alert buttons */}
-        <View style={styles.alertButtonsRow}>
-          <TouchableOpacity 
-            style={[styles.alertButton, styles.alertButtonSinTaxis]}
-            onPress={() => reportStationAlert('station', stationKey, 'sin_taxis')}
-            disabled={reportingAlert}
-          >
-            <Ionicons name="car-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.alertButtonText}>Sin taxis</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.alertButton, styles.alertButtonBarandilla]}
-            onPress={() => reportStationAlert('station', stationKey, 'barandilla')}
-            disabled={reportingAlert}
-          >
-            <Ionicons name="warning" size={16} color="#FFFFFF" />
-            <Text style={styles.alertButtonText}>Barandilla</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Salidas de taxistas en ventana anterior */}
-        <View style={styles.taxiExitsContainer}>
-          <Ionicons name="car" size={18} color="#10B981" />
-          <Text style={styles.taxiExitsText}>
-            {taxiExits} salidas taxi (vent. anterior)
-          </Text>
-        </View>
-        
-        {/* Lista de llegadas */}
-        <View style={styles.arrivalsList}>
-          {stationData.arrivals.map((arrival: any, index: number) => (
-            <View key={index} style={styles.arrivalItem}>
-              <View style={styles.arrivalTime}>
-                <Text style={styles.timeText}>{arrival.time}</Text>
-              </View>
-              <View style={styles.arrivalInfo}>
-                <View style={styles.trainTypeRow}>
-                  <Text style={styles.trainType}>{arrival.bus_company}</Text>
-                </View>
-                <Text style={styles.originText} numberOfLines={1}>
-                  {arrival.origin}
-                </Text>
-              </View>
-              <View style={styles.platformBadge}>
-                <Text style={styles.platformText}>
-                  {arrival.status || 'Prog.'}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-        
-        {/* Tunnel entry button */}
-        {checkInStatus?.is_checked_in && checkInStatus.location_type === 'station' && checkInStatus.location_name === stationShortName ? (
-          <TouchableOpacity
-            style={[styles.checkInButton, styles.checkOutButton]}
-            onPress={() => handleCheckIn('station', stationShortName, 'exit')}
-            disabled={checkInLoading}
-          >
-            <Ionicons name="exit-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.checkInButtonText}>
-              {checkInLoading ? 'Registrando...' : 'SALIR DE ESTACIÓN'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.checkInButton}
-            onPress={() => handleCheckIn('station', stationShortName, 'entry')}
-            disabled={checkInLoading || (checkInStatus?.is_checked_in || false)}
-          >
-            <Ionicons name="enter-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.checkInButtonText}>
-              {checkInLoading ? 'Registrando...' : 'ENTRAR EN ESTACIÓN'}
-            </Text>
-          </TouchableOpacity>
-        )}
-        
-        {/* Taxi status */}
-        {taxiStatus[`station_${stationShortName}`] && (
-          <View style={styles.taxiStatusContainer}>
-            <Ionicons name="car" size={16} color="#F59E0B" />
-            <Text style={styles.taxiStatusText}>
-              Taxis: {taxiStatus[`station_${stationShortName}`].taxi_status === 'poco' ? 'Pocos' : 
-                     taxiStatus[`station_${stationShortName}`].taxi_status === 'normal' ? 'Normal' : 'Muchos'}
-            </Text>
-          </View>
-        )}
-        
-        {/* Queue status */}
-        {queueStatus[`station_${stationShortName}`] && (
-          <View style={styles.queueStatusContainer}>
-            <Ionicons name="people" size={16} color="#6366F1" />
-            <Text style={styles.taxiStatusText}>
-              Gente: {queueStatus[`station_${stationShortName}`].queue_status === 'poco' ? 'Poca' : 
-                     queueStatus[`station_${stationShortName}`].queue_status === 'normal' ? 'Normal' : 'Mucha'}
-            </Text>
-          </View>
-        )}
-
-        {/* Calcular tarifa - Tarifa 7 */}
-        <TouchableOpacity
-          style={{
-            backgroundColor: '#6366F1',
-            borderRadius: 12,
-            padding: 12,
-            marginTop: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-          onPress={() => {
-            setActiveTab('fares');
-          }}
-        >
-          <Ionicons name="calculator" size={18} color="#FFFFFF" />
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>Calcular tarifa (Tarifa 7)</Text>
-        </TouchableOpacity>
-
-        {/* Navegar a la estación */}
-        <TouchableOpacity
-          style={{
-            backgroundColor: 'rgba(99, 102, 241, 0.15)',
-            borderRadius: 12,
-            padding: 10,
-            marginTop: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            borderWidth: 1,
-            borderColor: 'rgba(99, 102, 241, 0.3)',
-          }}
-          onPress={() => {
-            const coords = stationKey === 'avenida_america' 
-              ? '40.4381,-3.6773' 
-              : '40.3928,-3.6932';
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&travelmode=driving`;
-            if (typeof window !== 'undefined') {
-              window.open(url, '_blank');
-            } else {
-              Linking.openURL(url);
-            }
-          }}
-        >
-          <Ionicons name="navigate" size={16} color="#6366F1" />
-          <Text style={{ color: '#6366F1', fontWeight: '600', fontSize: 13 }}>Navegar a estación</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
 
   const renderStreetContent = () => {
     // Safety check - if no streetData yet, show loading
@@ -9523,77 +8821,6 @@ export default function TransportMeter() {
             );
           })()}
         </View>
-
-        {/* === ESTACIÓN DE BUSES CALIENTE === */}
-        {busData && (
-        <View style={[styles.hottestStreetCard, { borderColor: '#F97316', borderWidth: 1 }]}>
-          <View style={styles.hottestStreetHeader}>
-            <Ionicons name="bus" size={24} color="#F97316" />
-            <Text style={styles.hottestStreetTitle}>Estación buses caliente</Text>
-            {(() => {
-              const winnerKey = busData.winner_30min;
-              const winnerData = winnerKey === 'avenida_america' ? busData.avenida_america : busData.estacion_sur;
-              const score = winnerData?.score_30min || 0;
-              const maxScore = Math.max(busData.avenida_america?.score_30min || 0, busData.estacion_sur?.score_30min || 0);
-              const pct = maxScore > 0 ? Math.round((score / (maxScore * 1.5)) * 100) : 0;
-              return pct > 0 ? (
-                <View style={[styles.scoreBadge, { backgroundColor: '#F97316' }]}>
-                  <Text style={styles.scoreBadgeText}>{pct}%</Text>
-                </View>
-              ) : null;
-            })()}
-          </View>
-          <Text style={styles.hottestStreetName}>
-            {busData.winner_30min === 'avenida_america' ? 'Av. América (ALSA)' : 'Estación Sur (Avanza)'}
-          </Text>
-          <View style={styles.scoreDetailsContainer}>
-            <View style={styles.scoreDetailItem}>
-              <Ionicons name="bus-outline" size={14} color="#9CA3AF" />
-              <Text style={styles.scoreDetailText}>
-                {busData.winner_30min === 'avenida_america' 
-                  ? busData.avenida_america?.total_next_30min || 0
-                  : busData.estacion_sur?.total_next_30min || 0} en 30min
-              </Text>
-            </View>
-            <View style={styles.scoreDetailItem}>
-              <Ionicons name="time-outline" size={14} color="#9CA3AF" />
-              <Text style={styles.scoreDetailText}>
-                {busData.winner_30min === 'avenida_america' 
-                  ? busData.avenida_america?.total_next_60min || 0
-                  : busData.estacion_sur?.total_next_60min || 0} en 60min
-              </Text>
-            </View>
-            <View style={styles.scoreDetailItem}>
-              <Ionicons name="swap-horizontal-outline" size={14} color="#9CA3AF" />
-              <Text style={styles.scoreDetailText}>
-                {busData.winner_30min === 'avenida_america' 
-                  ? (busData.avenida_america?.arrivals?.length || 0)
-                  : (busData.estacion_sur?.arrivals?.length || 0)} total
-              </Text>
-            </View>
-          </View>
-          {/* Show both stations summary */}
-          <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ color: busData.winner_30min === 'avenida_america' ? '#F97316' : '#9CA3AF', fontSize: 12, fontWeight: busData.winner_30min === 'avenida_america' ? '700' : '400' }}>
-                Av. América: {busData.avenida_america?.total_next_30min || 0} buses/30min
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: busData.winner_30min === 'estacion_sur' ? '#F97316' : '#9CA3AF', fontSize: 12, fontWeight: busData.winner_30min === 'estacion_sur' ? '700' : '400' }}>
-                Est. Sur: {busData.estacion_sur?.total_next_30min || 0} buses/30min
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.navigateButton, { backgroundColor: '#F97316', marginTop: 10 }]}
-            onPress={() => openGpsAppOnly()}
-          >
-            <Ionicons name="navigate" size={20} color="#FFFFFF" />
-            <Text style={styles.navigateButtonText}>Ir con GPS</Text>
-          </TouchableOpacity>
-        </View>
-        )}
 
         {/* Map */}
         {renderMap()}
@@ -11552,21 +10779,6 @@ export default function TransportMeter() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.dropdownMenuItem, activeTab === 'buses' && styles.dropdownMenuItemActive]}
-              onPress={() => {
-                if (activeTab !== 'buses') {
-                  setLoading(true);
-                  setActiveTab('buses');
-                }
-                setShowPageDropdown(false);
-              }}
-            >
-              <Ionicons name="bus" size={20} color={activeTab === 'buses' ? '#6366F1' : '#94A3B8'} />
-              <Text style={[styles.dropdownMenuItemText, activeTab === 'buses' && styles.dropdownMenuItemTextActive]}>Autobuses</Text>
-              {activeTab === 'buses' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
-            </TouchableOpacity>
-            
-            <TouchableOpacity
               style={[styles.dropdownMenuItem, activeTab === 'street' && styles.dropdownMenuItemActive]}
               onPress={() => {
                 if (activeTab !== 'street') {
@@ -11579,22 +10791,6 @@ export default function TransportMeter() {
               <Ionicons name="car" size={20} color={activeTab === 'street' ? '#6366F1' : '#94A3B8'} />
               <Text style={[styles.dropdownMenuItemText, activeTab === 'street' && styles.dropdownMenuItemTextActive]}>Calle</Text>
               {activeTab === 'street' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
-            </TouchableOpacity>
-            
-            {/* Reservations Tab */}
-            <TouchableOpacity
-              style={[styles.dropdownMenuItem, activeTab === 'reservations' && styles.dropdownMenuItemActive]}
-              onPress={() => {
-                if (activeTab !== 'reservations') {
-                  setLoading(true);
-                  setActiveTab('reservations');
-                }
-                setShowPageDropdown(false);
-              }}
-            >
-              <Ionicons name="bookmark" size={20} color={activeTab === 'reservations' ? '#6366F1' : '#94A3B8'} />
-              <Text style={[styles.dropdownMenuItemText, activeTab === 'reservations' && styles.dropdownMenuItemTextActive]}>Reservas</Text>
-              {activeTab === 'reservations' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -11626,23 +10822,6 @@ export default function TransportMeter() {
               <Ionicons name="calculator" size={20} color={activeTab === 'fares' ? '#10B981' : '#94A3B8'} />
               <Text style={[styles.dropdownMenuItemText, activeTab === 'fares' && styles.dropdownMenuItemTextActive]}>Tarifas</Text>
               {activeTab === 'fares' && <Ionicons name="checkmark" size={20} color="#10B981" />}
-            </TouchableOpacity>
-            
-            {/* Gestion Tab - Salary calculator */}
-            <TouchableOpacity
-              style={[styles.dropdownMenuItem, activeTab === 'gestion' && styles.dropdownMenuItemActive]}
-              onPress={() => {
-                if (activeTab !== 'gestion') {
-                  setLoading(false);
-                  setActiveTab('gestion');
-                }
-                setShowPageDropdown(false);
-              }}
-              data-testid="dropdown-tab-gestion"
-            >
-              <Ionicons name="cash" size={20} color={activeTab === 'gestion' ? '#10B981' : '#94A3B8'} />
-              <Text style={[styles.dropdownMenuItemText, activeTab === 'gestion' && styles.dropdownMenuItemTextActive]}>Gestión</Text>
-              {activeTab === 'gestion' && <Ionicons name="checkmark" size={20} color="#10B981" />}
             </TouchableOpacity>
             
             {/* Social Tab */}
@@ -11998,43 +11177,6 @@ export default function TransportMeter() {
             {/* Ad Banner - Flights Tab */}
             <AdBanner position="inline" />
           </>
-        ) : activeTab === 'buses' && busData ? (
-          <>
-            {/* Ad Banner - Buses Header */}
-            <AdBanner position="top" />
-            
-            <View style={styles.timeWindowContainer}>
-              <Text style={styles.timeWindowLabel}>Ventana temporal:</Text>
-              <View style={styles.timeWindowButtons}>
-                <TouchableOpacity
-                  style={[styles.timeWindowButton, timeWindow === 30 && styles.timeWindowButtonActive]}
-                  onPress={() => setTimeWindow(30)}
-                >
-                  <Text style={[styles.timeWindowButtonText, timeWindow === 30 && styles.timeWindowButtonTextActive]}>30 min</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.timeWindowButton, timeWindow === 60 && styles.timeWindowButtonActive]}
-                  onPress={() => setTimeWindow(60)}
-                >
-                  <Text style={[styles.timeWindowButtonText, timeWindow === 60 && styles.timeWindowButtonTextActive]}>60 min</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {renderBusStationCard(busData.avenida_america, 'avenida_america')}
-            {renderBusStationCard(busData.estacion_sur, 'estacion_sur')}
-
-            {busData.message && (
-              <View style={{ backgroundColor: 'rgba(99,102,241,0.1)', borderRadius: 8, padding: 10, marginTop: 8 }}>
-                <Text style={{ color: '#94A3B8', fontSize: 11, textAlign: 'center', fontStyle: 'italic' }}>
-                  {busData.message}
-                </Text>
-              </View>
-            )}
-            
-            {/* Ad Banner - Buses Tab */}
-            <AdBanner position="inline" />
-          </>
         ) : activeTab === 'street' ? (
           <>
             {/* Ad Banner - Street Header */}
@@ -12043,448 +11185,8 @@ export default function TransportMeter() {
             {/* Ad Banner - Street Tab */}
             <AdBanner position="inline" />
           </>
-        ) : activeTab === 'reservations' ? (
-          <View style={{ padding: 16 }}>
-            {/* Notification banner */}
-            {reservationNotification && (
-              <View style={{ backgroundColor: '#10B981', borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="checkmark-circle" size={18} color="#FFF" />
-                <Text style={{ color: '#FFF', marginLeft: 8, fontWeight: '600', fontSize: 14 }}>{reservationNotification}</Text>
-              </View>
-            )}
-
-            {/* Create reservation button */}
-            <TouchableOpacity
-              style={{ backgroundColor: '#6366F1', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}
-              onPress={() => setShowCreateReservation(true)}
-            >
-              <Ionicons name="add-circle" size={22} color="#FFF" />
-              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16, marginLeft: 8 }}>Nueva Reserva</Text>
-            </TouchableOpacity>
-
-            {/* Create reservation form */}
-            {showCreateReservation && (
-              <View style={{ backgroundColor: '#1E293B', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>Crear Reserva</Text>
-                  <TouchableOpacity onPress={() => setShowCreateReservation(false)}>
-                    <Ionicons name="close-circle" size={24} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Fecha</Text>
-                    <TextInput
-                      style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155' }}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#475569"
-                      value={newReservation.date}
-                      onChangeText={t => setNewReservation(p => ({...p, date: t}))}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Hora</Text>
-                    <TextInput
-                      style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155' }}
-                      placeholder="HH:MM"
-                      placeholderTextColor="#475569"
-                      value={newReservation.time}
-                      onChangeText={t => setNewReservation(p => ({...p, time: t}))}
-                    />
-                  </View>
-                </View>
-                <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Recogida</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155', marginBottom: 8 }}
-                  placeholder="Dirección de recogida"
-                  placeholderTextColor="#475569"
-                  value={newReservation.pickup_address}
-                  onChangeText={t => setNewReservation(p => ({...p, pickup_address: t}))}
-                />
-                <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Destino</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155', marginBottom: 8 }}
-                  placeholder="Dirección de destino"
-                  placeholderTextColor="#475569"
-                  value={newReservation.destination}
-                  onChangeText={t => setNewReservation(p => ({...p, destination: t}))}
-                />
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Pasajero</Text>
-                    <TextInput
-                      style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155' }}
-                      placeholder="Nombre"
-                      placeholderTextColor="#475569"
-                      value={newReservation.passenger_name}
-                      onChangeText={t => setNewReservation(p => ({...p, passenger_name: t}))}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Teléfono</Text>
-                    <TextInput
-                      style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155' }}
-                      placeholder="612345678"
-                      placeholderTextColor="#475569"
-                      value={newReservation.passenger_phone}
-                      onChangeText={t => setNewReservation(p => ({...p, passenger_phone: t}))}
-                      keyboardType="phone-pad"
-                    />
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#10B981', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 4 }}
-                  onPress={createReservation}
-                >
-                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Crear Reserva</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* View selector tabs */}
-            <View style={{ flexDirection: 'row', backgroundColor: '#1E293B', borderRadius: 12, padding: 4, marginBottom: 16 }}>
-              {[
-                { key: 'calendar' as const, label: 'Calendario', icon: 'calendar' as const },
-                { key: 'offered' as const, label: 'Ofertas', icon: 'megaphone' as const },
-                { key: 'logs' as const, label: 'Registro', icon: 'list' as const }
-              ].map(tab => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 10, backgroundColor: reservationView === tab.key ? '#6366F1' : 'transparent' }}
-                  onPress={() => setReservationView(tab.key)}
-                >
-                  <Ionicons name={tab.icon} size={16} color={reservationView === tab.key ? '#FFF' : '#94A3B8'} />
-                  <Text style={{ color: reservationView === tab.key ? '#FFF' : '#94A3B8', fontSize: 12, fontWeight: '600', marginLeft: 4 }}>{tab.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* CALENDAR VIEW */}
-            {reservationView === 'calendar' && (
-              <View>
-                {/* Month navigation */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <TouchableOpacity onPress={() => { setSelectedCalendarDate(null); if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); } else { setCalendarMonth(m => m - 1); } }} style={{ padding: 8 }}>
-                    <Ionicons name="chevron-back" size={24} color="#6366F1" />
-                  </TouchableOpacity>
-                  <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>{monthNames[calendarMonth]} {calendarYear}</Text>
-                  <TouchableOpacity onPress={() => { setSelectedCalendarDate(null); if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else { setCalendarMonth(m => m + 1); } }} style={{ padding: 8 }}>
-                    <Ionicons name="chevron-forward" size={24} color="#6366F1" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Day headers */}
-                <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-                  {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
-                    <View key={i} style={{ flex: 1, alignItems: 'center', padding: 6 }}>
-                      <Text style={{ color: '#64748B', fontSize: 12, fontWeight: '600' }}>{d}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Calendar grid */}
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  {Array.from({ length: getFirstDayOfMonth(calendarYear, calendarMonth) }).map((_, i) => (
-                    <View key={`empty-${i}`} style={{ width: '14.28%', aspectRatio: 1 }} />
-                  ))}
-                  {Array.from({ length: getDaysInMonth(calendarYear, calendarMonth) }).map((_, i) => {
-                    const day = i + 1;
-                    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const dayReservations = calendarReservations.filter(r => r.date === dateStr);
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
-                    return (
-                      <TouchableOpacity
-                        key={day}
-                        style={{ width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: selectedCalendarDate === dateStr ? '#6366F1' : isToday ? 'rgba(99,102,241,0.15)' : 'transparent' }}
-                        onPress={() => {
-                          setSelectedCalendarDate(selectedCalendarDate === dateStr ? null : dateStr);
-                        }}
-                      >
-                        <Text style={{ color: selectedCalendarDate === dateStr ? '#FFF' : dayReservations.length > 0 ? '#FFF' : '#94A3B8', fontSize: 14, fontWeight: isToday || selectedCalendarDate === dateStr ? '700' : '400' }}>{day}</Text>
-                        {dayReservations.length > 0 && (
-                          <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
-                            {dayReservations.slice(0, 3).map((r, j) => (
-                              <View key={j} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: getStatusColor(r.status) }} />
-                            ))}
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* My reservations list */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 12 }}>
-                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>
-                    {selectedCalendarDate ? `Reservas del ${selectedCalendarDate}` : 'Mis reservas'}
-                  </Text>
-                  {selectedCalendarDate && (
-                    <TouchableOpacity onPress={() => setSelectedCalendarDate(null)} style={{ backgroundColor: '#334155', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}>
-                      <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600' }}>Ver todas</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {myReservations.filter(r => r.status !== 'cancelada' && r.status !== 'completada').filter(r => !selectedCalendarDate || r.date === selectedCalendarDate).length === 0 ? (
-                  <View style={{ backgroundColor: '#1E293B', borderRadius: 12, padding: 20, alignItems: 'center' }}>
-                    <Ionicons name="calendar-outline" size={40} color="#475569" />
-                    <Text style={{ color: '#64748B', marginTop: 8 }}>{selectedCalendarDate ? 'No hay reservas para este día' : 'No tienes reservas activas'}</Text>
-                  </View>
-                ) : (
-                  myReservations.filter(r => r.status !== 'cancelada' && r.status !== 'completada').filter(r => !selectedCalendarDate || r.date === selectedCalendarDate).map(r => (
-                    <TouchableOpacity key={r.id} onPress={() => setSelectedReservation(r)} style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: getStatusColor(r.status) }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>{r.date} - {r.time}</Text>
-                        <View style={{ backgroundColor: getStatusColor(r.status), borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '600' }}>{getStatusLabel(r.status)}</Text>
-                        </View>
-                      </View>
-                      <Text style={{ color: '#94A3B8', fontSize: 13 }}>{r.pickup_address} → {r.destination}</Text>
-                      <Text style={{ color: '#64748B', fontSize: 12, marginTop: 2 }}>{r.passenger_name} - {r.passenger_phone}</Text>
-                      {/* Action buttons */}
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                        {r.status === 'pendiente' && (
-                          <>
-                            <TouchableOpacity style={{ flex: 1, backgroundColor: '#F59E0B', borderRadius: 10, padding: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }} onPress={() => offerReservation(r.id)}>
-                              <Ionicons name="megaphone" size={16} color="#FFF" />
-                              <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13, marginLeft: 4 }}>Ofertar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={{ flex: 1, backgroundColor: '#10B981', borderRadius: 10, padding: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }} onPress={() => completeReservation(r.id)}>
-                              <Ionicons name="checkmark-circle" size={16} color="#FFF" />
-                              <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13, marginLeft: 4 }}>Completar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={{ backgroundColor: '#EF4444', borderRadius: 10, padding: 10, paddingHorizontal: 12 }} onPress={() => deleteReservation(r.id)}>
-                              <Ionicons name="trash" size={16} color="#FFF" />
-                            </TouchableOpacity>
-                          </>
-                        )}
-                        {r.status === 'ofertada' && (
-                          <>
-                            <TouchableOpacity style={{ flex: 1, backgroundColor: '#64748B', borderRadius: 10, padding: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }} onPress={() => unofferReservation(r.id)}>
-                              <Ionicons name="close-circle" size={16} color="#FFF" />
-                              <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13, marginLeft: 4 }}>Retirar oferta</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={{ backgroundColor: '#EF4444', borderRadius: 10, padding: 10, paddingHorizontal: 12 }} onPress={() => deleteReservation(r.id)}>
-                              <Ionicons name="trash" size={16} color="#FFF" />
-                            </TouchableOpacity>
-                          </>
-                        )}
-                        {r.status === 'aceptada' && (
-                          <>
-                            <View style={{ flex: 1, backgroundColor: 'rgba(16,185,129,0.15)', borderRadius: 10, padding: 10, alignItems: 'center' }}>
-                              <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 12 }}>Aceptada por {r.accepted_by_name}</Text>
-                            </View>
-                            <TouchableOpacity style={{ backgroundColor: '#EF4444', borderRadius: 10, padding: 10, paddingHorizontal: 14 }} onPress={() => { setCancelReservationId(r.id); setShowCancelModal(true); }}>
-                              <Ionicons name="close" size={16} color="#FFF" />
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                )}
-
-                {/* Accepted reservations (from others) */}
-                {acceptedReservations.length > 0 && (
-                  <>
-                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginTop: 20, marginBottom: 12 }}>Reservas aceptadas</Text>
-                    {acceptedReservations.filter(r => r.status === 'aceptada').map(r => (
-                      <View key={r.id} style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#10B981' }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>{r.date} - {r.time}</Text>
-                          <View style={{ backgroundColor: '#10B981', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '600' }}>Aceptada</Text>
-                          </View>
-                        </View>
-                        <Text style={{ color: '#94A3B8', fontSize: 13 }}>{r.pickup_address} → {r.destination}</Text>
-                        <Text style={{ color: '#64748B', fontSize: 12, marginTop: 2 }}>{r.passenger_name} - {r.passenger_phone}</Text>
-                        <Text style={{ color: '#6366F1', fontSize: 12, marginTop: 4 }}>De: {r.creator_name}</Text>
-                      </View>
-                    ))}
-                  </>
-                )}
-              </View>
-            )}
-
-            {/* OFFERED VIEW */}
-            {reservationView === 'offered' && (
-              <View>
-                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Reservas disponibles</Text>
-                {offeredReservations.length === 0 ? (
-                  <View style={{ backgroundColor: '#1E293B', borderRadius: 12, padding: 20, alignItems: 'center' }}>
-                    <Ionicons name="megaphone-outline" size={40} color="#475569" />
-                    <Text style={{ color: '#64748B', marginTop: 8 }}>No hay reservas ofertadas disponibles</Text>
-                  </View>
-                ) : (
-                  offeredReservations.map(r => (
-                    <View key={r.id} style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#F59E0B' }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>{r.date} - {r.time}</Text>
-                        <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '600' }}>de {r.creator_name}</Text>
-                      </View>
-                      <Text style={{ color: '#94A3B8', fontSize: 13 }}>{r.pickup_address} → {r.destination}</Text>
-                      <Text style={{ color: '#64748B', fontSize: 12, marginTop: 2 }}>{r.passenger_name} - {r.passenger_phone}</Text>
-                      <TouchableOpacity
-                        style={{ backgroundColor: '#10B981', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 10, flexDirection: 'row', justifyContent: 'center' }}
-                        onPress={() => acceptReservation(r.id)}
-                      >
-                        <Ionicons name="checkmark-circle" size={18} color="#FFF" />
-                        <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14, marginLeft: 6 }}>Aceptar reserva</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))
-                )}
-              </View>
-            )}
-
-            {/* LOGS VIEW */}
-            {reservationView === 'logs' && (
-              <View>
-                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Registro de actividad</Text>
-                {reservationLogs.length === 0 ? (
-                  <View style={{ backgroundColor: '#1E293B', borderRadius: 12, padding: 20, alignItems: 'center' }}>
-                    <Ionicons name="document-text-outline" size={40} color="#475569" />
-                    <Text style={{ color: '#64748B', marginTop: 8 }}>Sin actividad reciente</Text>
-                  </View>
-                ) : (
-                  reservationLogs.map((log, i) => (
-                    <View key={i} style={{ backgroundColor: '#1E293B', borderRadius: 12, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name={log.action === 'accepted' ? 'checkmark-circle' : 'close-circle'} size={22} color={log.action === 'accepted' ? '#10B981' : '#EF4444'} />
-                      <View style={{ marginLeft: 10, flex: 1 }}>
-                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>{log.actor_name}</Text>
-                        <Text style={{ color: '#94A3B8', fontSize: 12 }}>{log.details}</Text>
-                        <Text style={{ color: '#475569', fontSize: 11, marginTop: 2 }}>{new Date(log.timestamp).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</Text>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </View>
-            )}
-
-            {/* Cancel Modal */}
-            {showCancelModal && (
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: 20 }}>
-                <View style={{ backgroundColor: '#1E293B', borderRadius: 20, padding: 24, width: '100%', maxWidth: 350 }}>
-                  <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>Cancelar reserva</Text>
-                  <Text style={{ color: '#94A3B8', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>Selecciona el motivo de la cancelación:</Text>
-                  <TouchableOpacity
-                    style={{ backgroundColor: '#F59E0B', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 10 }}
-                    onPress={() => cancelReservationId && cancelReservation(cancelReservationId, 'cliente_cancelo')}
-                  >
-                    <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Cliente canceló</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ backgroundColor: '#6366F1', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 10 }}
-                    onPress={() => cancelReservationId && cancelReservation(cancelReservationId, 'yo_me_encargo')}
-                  >
-                    <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Yo me encargo</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ backgroundColor: '#334155', borderRadius: 12, padding: 14, alignItems: 'center' }}
-                    onPress={() => { setShowCancelModal(false); setCancelReservationId(null); }}
-                  >
-                    <Text style={{ color: '#94A3B8', fontWeight: '600', fontSize: 15 }}>Volver</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Reservation Detail Modal */}
-            {selectedReservation && !showCancelModal && (
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 999, padding: 20 }}>
-                <View style={{ backgroundColor: '#1E293B', borderRadius: 20, padding: 24, width: '100%', maxWidth: 380 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Detalle reserva</Text>
-                    <TouchableOpacity onPress={() => setSelectedReservation(null)}>
-                      <Ionicons name="close-circle" size={28} color="#9CA3AF" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={{ backgroundColor: getStatusColor(selectedReservation.status), borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 12 }}>
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>{getStatusLabel(selectedReservation.status)}</Text>
-                  </View>
-                  {[
-                    { icon: 'calendar', label: 'Fecha', value: `${selectedReservation.date} a las ${selectedReservation.time}` },
-                    { icon: 'location', label: 'Recogida', value: selectedReservation.pickup_address },
-                    { icon: 'flag', label: 'Destino', value: selectedReservation.destination },
-                    { icon: 'person', label: 'Pasajero', value: selectedReservation.passenger_name },
-                    { icon: 'call', label: 'Teléfono', value: selectedReservation.passenger_phone },
-                    { icon: 'car', label: 'Creada por', value: selectedReservation.creator_name },
-                  ].map((item, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <Ionicons name={item.icon as any} size={18} color="#6366F1" />
-                      <View style={{ marginLeft: 10 }}>
-                        <Text style={{ color: '#64748B', fontSize: 11 }}>{item.label}</Text>
-                        <Text style={{ color: '#E2E8F0', fontSize: 14 }}>{item.value}</Text>
-                      </View>
-                    </View>
-                  ))}
-                  {selectedReservation.accepted_by_name && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <Ionicons name="person-add" size={18} color="#10B981" />
-                      <View style={{ marginLeft: 10 }}>
-                        <Text style={{ color: '#64748B', fontSize: 11 }}>Aceptada por</Text>
-                        <Text style={{ color: '#10B981', fontSize: 14 }}>{selectedReservation.accepted_by_name}</Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-          </View>
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
-            {/* AI Daily Summary */}
-            <View style={{
-              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: 'rgba(99, 102, 241, 0.3)',
-            }}>
-              <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                onPress={() => setAiSummaryExpanded(!aiSummaryExpanded)}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Ionicons name="sparkles" size={24} color="#6366F1" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginLeft: 10 }}>
-                    Resumen del Día (IA)
-                  </Text>
-                </View>
-                <Ionicons 
-                  name={aiSummaryExpanded ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color="#6366F1" 
-                />
-              </TouchableOpacity>
-              
-              {aiSummaryExpanded && (
-                <View style={{ marginTop: 12 }}>
-                  {aiSummaryLoading ? (
-                    <View style={{ alignItems: 'center', padding: 20 }}>
-                      <ActivityIndicator size="large" color="#6366F1" />
-                      <Text style={{ color: '#94A3B8', marginTop: 10, fontSize: 12 }}>
-                        Cargando resumen...
-                      </Text>
-                    </View>
-                  ) : aiEventsSummary ? (
-                    <Text style={{ 
-                      color: '#CBD5E1', 
-                      fontSize: 13, 
-                      lineHeight: 20,
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {aiEventsSummary}
-                    </Text>
-                  ) : (
-                    <Text style={{ color: '#64748B', fontSize: 13, fontStyle: 'italic' }}>
-                      El resumen se genera automáticamente a las 5:00 AM
-                    </Text>
-                  )}
-                </View>
-              )}
-            </View>
-
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
             {/* Add Event Button */}
@@ -12762,438 +11464,31 @@ export default function TransportMeter() {
             
             {/* Fare Info */}
             <View style={styles.faresInfoCard}>
-              <Text style={styles.faresInfoTitle}>Tarifas Oficiales de Madrid</Text>
+              <Text style={styles.faresInfoTitle}>Tarifas de Madrid</Text>
               <View style={styles.faresInfoRow}>
-                <Text style={styles.faresInfoLabel}>Tarifa 1 (Día Laborable 7h-21h):</Text>
-                <Text style={styles.faresInfoValue}>2,55€ bajada + 1,40€/km</Text>
+                <Text style={styles.faresInfoLabel}>T1 (Diurna L-V 7-21h):</Text>
+                <Text style={styles.faresInfoValue}>2,75€ + 1,15€/km</Text>
               </View>
               <View style={styles.faresInfoRow}>
-                <Text style={styles.faresInfoLabel}>Tarifa 2 (Noches/Fines semana/Festivos):</Text>
-                <Text style={styles.faresInfoValue}>3,20€ bajada + 1,60€/km</Text>
+                <Text style={styles.faresInfoLabel}>T2 (Nocturna/Festivos):</Text>
+                <Text style={styles.faresInfoValue}>3,15€ + 1,25€/km</Text>
               </View>
               <View style={styles.faresInfoRow}>
-                <Text style={styles.faresInfoLabel}>Tarifa 3 (Aeropuerto → fuera M30):</Text>
-                <Text style={styles.faresInfoValue}>22€ (9km) + T1/T2 sin bajada</Text>
+                <Text style={styles.faresInfoLabel}>T3 (Aeropuerto → fuera M30):</Text>
+                <Text style={styles.faresInfoValue}>22€ base (9km)</Text>
               </View>
               <View style={styles.faresInfoRow}>
-                <Text style={styles.faresInfoLabel}>Tarifa 4 (Aeropuerto ↔ Interior M30):</Text>
+                <Text style={styles.faresInfoLabel}>T4 (Aeropuerto ↔ M30):</Text>
                 <Text style={styles.faresInfoValue}>33€ fijo</Text>
               </View>
               <View style={styles.faresInfoRow}>
-                <Text style={styles.faresInfoLabel}>Tarifa 7 (Estaciones/IFEMA):</Text>
-                <Text style={styles.faresInfoValue}>8€ (1,4km) + T1/T2 sin bajada</Text>
-              </View>
-              <View style={[styles.faresInfoRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }]}>
-                <Text style={styles.faresInfoLabel}>Suplemento Nochebuena/Fin de Año:</Text>
-                <Text style={styles.faresInfoValue}>7€ (21:00-07:00h)</Text>
+                <Text style={styles.faresInfoLabel}>T7 (Estaciones):</Text>
+                <Text style={styles.faresInfoValue}>8€ base (1,4km)</Text>
               </View>
             </View>
             
             <AdBanner position="inline" />
           </View>
-        ) : activeTab === 'gestion' ? (
-          /* ===== GESTION TAB - Salary Calculator ===== */
-          (() => {
-            // Computed values: prefer last calculated state, fallback to live preview
-            const calc = gestionCalc;
-            const recaudacion = calc?.recaudacion ?? 0;
-            const tarjeta = calc?.tarjeta ?? 0;
-            const aplicacion = calc?.aplicacion ?? 0;
-            const gasolina = calc?.gasolina ?? 0;
-            const miPorcentaje = calc?.miPorcentaje ?? 0;
-            const resultado = calc?.resultado ?? 0;
-            const aFavorDelConductor = calc?.aFavorDelConductor ?? false;
-            const cantidadAbs = calc?.cantidadAbs ?? 0;
-            const calcPercentage = calc?.percentage ?? gestionPercentage;
-            const calcPagaGasolina = calc?.pagaGasolina ?? gestionPagaGasolina;
-            const hasResult = calc !== null && recaudacion > 0;
-            
-            return (
-              <View style={styles.faresContainer} data-testid="gestion-tab">
-                <AdBanner position="top" />
-                
-                {/* Header */}
-                <View style={styles.faresHeader}>
-                  <Ionicons name="cash" size={28} color="#10B981" />
-                  <Text style={styles.faresTitle}>Gestión / Salario</Text>
-                </View>
-                
-                {/* Porcentaje selector */}
-                <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>Porcentaje a cobrar</Text>
-                  <View style={styles.faresOriginTypeSelector}>
-                    {([40, 45, 50] as const).map(pct => (
-                      <TouchableOpacity
-                        key={pct}
-                        style={[styles.faresOriginTypeBtn, gestionPercentage === pct && styles.faresOriginTypeBtnActive]}
-                        onPress={() => setGestionPercentage(pct)}
-                        data-testid={`gestion-pct-${pct}`}
-                      >
-                        <Text style={[styles.faresOriginTypeBtnText, gestionPercentage === pct && styles.faresOriginTypeBtnTextActive, { fontSize: 18, fontWeight: '800' }]}>
-                          {pct}%
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                
-                {/* Gasolina toggle */}
-                <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>¿Pagas tú la gasolina?</Text>
-                  <View style={styles.faresOriginTypeSelector}>
-                    <TouchableOpacity
-                      style={[styles.faresOriginTypeBtn, gestionPagaGasolina === true && styles.faresOriginTypeBtnActive]}
-                      onPress={() => setGestionPagaGasolina(true)}
-                      data-testid="gestion-gas-yes"
-                    >
-                      <Ionicons name="checkmark-circle" size={20} color={gestionPagaGasolina === true ? '#FFFFFF' : '#94A3B8'} />
-                      <Text style={[styles.faresOriginTypeBtnText, gestionPagaGasolina === true && styles.faresOriginTypeBtnTextActive]}>Sí</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.faresOriginTypeBtn, gestionPagaGasolina === false && styles.faresOriginTypeBtnActive]}
-                      onPress={() => setGestionPagaGasolina(false)}
-                      data-testid="gestion-gas-no"
-                    >
-                      <Ionicons name="close-circle" size={20} color={gestionPagaGasolina === false ? '#FFFFFF' : '#94A3B8'} />
-                      <Text style={[styles.faresOriginTypeBtnText, gestionPagaGasolina === false && styles.faresOriginTypeBtnTextActive]}>No</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                
-                {/* Inputs */}
-                <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>Datos del turno</Text>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Recaudación total (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionRecaudacion}
-                      onChangeText={setGestionRecaudacion}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-recaudacion"
-                    />
-                  </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Cobrado con tarjeta (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionTarjeta}
-                      onChangeText={setGestionTarjeta}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-tarjeta"
-                    />
-                  </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Cobrado por aplicación (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionAplicacion}
-                      onChangeText={setGestionAplicacion}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-aplicacion"
-                    />
-                  </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Gasolina pagada (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionGasolina}
-                      onChangeText={setGestionGasolina}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-gasolina"
-                    />
-                  </View>
-                </View>
-                
-                {/* Calculate button - explicit user action to compute results */}
-                <TouchableOpacity
-                  style={{
-                    marginTop: 4,
-                    marginHorizontal: 16,
-                    paddingVertical: 16,
-                    borderRadius: 12,
-                    backgroundColor: '#10B981',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  onPress={() => {
-                    const rec = parseFloat(gestionRecaudacion.replace(',', '.')) || 0;
-                    const tar = parseFloat(gestionTarjeta.replace(',', '.')) || 0;
-                    const apl = parseFloat(gestionAplicacion.replace(',', '.')) || 0;
-                    const gas = parseFloat(gestionGasolina.replace(',', '.')) || 0;
-                    const miPct = rec * (gestionPercentage / 100);
-                    let parteJ = rec - miPct - tar - apl;
-                    if (!gestionPagaGasolina) {
-                      parteJ -= gas;
-                    }
-                    const res = parteJ;
-                    setGestionCalc({
-                      recaudacion: rec,
-                      tarjeta: tar,
-                      aplicacion: apl,
-                      gasolina: gas,
-                      miPorcentaje: miPct,
-                      parteJefe: rec - miPct,
-                      resultado: res,
-                      aFavorDelConductor: res < 0,
-                      cantidadAbs: Math.abs(res),
-                      percentage: gestionPercentage,
-                      pagaGasolina: gestionPagaGasolina,
-                    });
-                  }}
-                  data-testid="gestion-calculate-button"
-                >
-                  <Ionicons name="calculator" size={22} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '800', marginLeft: 10, letterSpacing: 0.5 }}>
-                    CALCULAR
-                  </Text>
-                </TouchableOpacity>
-                
-                {/* Result breakdown */}
-                <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>Desglose</Text>
-                  {!hasResult ? (
-                    <Text style={{ color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>
-                      Pulsa CALCULAR para ver el desglose
-                    </Text>
-                  ) : (
-                    <>
-                      <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>Tu parte ({calcPercentage}%):</Text>
-                        <Text style={[styles.faresInfoValue, { color: '#10B981' }]}>
-                          {miPorcentaje.toFixed(2)} €
-                        </Text>
-                      </View>
-                      <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>Parte del jefe (bruto):</Text>
-                        <Text style={styles.faresInfoValue}>
-                          {(recaudacion - miPorcentaje).toFixed(2)} €
-                        </Text>
-                      </View>
-                      <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>− Tarjeta:</Text>
-                        <Text style={styles.faresInfoValue}>{tarjeta.toFixed(2)} €</Text>
-                      </View>
-                      <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>− Aplicación:</Text>
-                        <Text style={styles.faresInfoValue}>{aplicacion.toFixed(2)} €</Text>
-                      </View>
-                      {!calcPagaGasolina && (
-                        <View style={[styles.faresInfoRow]}>
-                          <Text style={styles.faresInfoLabel}>− Gasolina (la paga el jefe):</Text>
-                          <Text style={styles.faresInfoValue}>{gasolina.toFixed(2)} €</Text>
-                        </View>
-                      )}
-                      {calcPagaGasolina && (
-                        <View style={[styles.faresInfoRow]}>
-                          <Text style={styles.faresInfoLabel}>Gasolina (la pagas tú):</Text>
-                          <Text style={[styles.faresInfoValue, { color: '#94A3B8', fontStyle: 'italic' }]}>
-                            no se descuenta
-                          </Text>
-                        </View>
-                      )}
-                    </>
-                  )}
-                </View>
-                
-                {/* Final result */}
-                <View
-                  style={{
-                    marginTop: 8,
-                    marginHorizontal: 16,
-                    padding: 18,
-                    borderRadius: 14,
-                    backgroundColor: aFavorDelConductor ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                    borderWidth: 2,
-                    borderColor: aFavorDelConductor ? '#10B981' : '#EF4444',
-                    opacity: hasResult ? 1 : 0.5,
-                  }}
-                  data-testid="gestion-result"
-                >
-                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 0.6, marginBottom: 6 }}>
-                    RESULTADO
-                  </Text>
-                  <Text
-                    style={{
-                      color: aFavorDelConductor ? '#10B981' : '#EF4444',
-                      fontSize: 28,
-                      fontWeight: '900',
-                    }}
-                  >
-                    {cantidadAbs.toFixed(2)} €
-                  </Text>
-                  <Text style={{ color: '#E2E8F0', fontSize: 14, marginTop: 6, fontWeight: '600' }}>
-                    {!hasResult
-                      ? 'Pulsa CALCULAR para ver el resultado'
-                      : aFavorDelConductor
-                        ? 'A favor del conductor'
-                        : 'A favor del dueño'}
-                  </Text>
-                </View>
-                
-                {/* PDF Download button */}
-                <TouchableOpacity
-                  style={{
-                    marginTop: 14,
-                    marginHorizontal: 16,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    backgroundColor: '#3B82F6',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: hasResult ? 1 : 0.5,
-                  }}
-                  disabled={!hasResult}
-                  onPress={async () => {
-                    try {
-                      const now = new Date();
-                      const dateStr = now.toLocaleDateString('es-ES');
-                      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                      const filename = `cuentas_turno_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                      const resultColor = aFavorDelConductor ? '#10B981' : '#EF4444';
-                      const resultText = aFavorDelConductor ? 'A favor del conductor' : 'A favor del dueño';
-                      
-                      const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8" />
-<title>${filename}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 26px; margin: 0 0 6px; }
-  .meta { color: #64748B; font-size: 12px; margin-bottom: 24px; }
-  hr { border: 0; border-top: 1px solid #E2E8F0; margin: 18px 0; }
-  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin: 18px 0 8px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  td { padding: 6px 0; font-size: 14px; }
-  td.label { color: #475569; }
-  td.value { text-align: right; font-weight: 600; }
-  td.value.green { color: #10B981; }
-  td.muted { color: #94A3B8; font-style: italic; }
-  .result-box { margin-top: 22px; padding: 22px; border: 2px solid ${resultColor}; border-radius: 12px; background: ${aFavorDelConductor ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'}; }
-  .result-label { font-size: 11px; letter-spacing: 1px; color: #64748B; font-weight: 700; }
-  .result-amount { font-size: 36px; font-weight: 900; color: ${resultColor}; margin: 6px 0; }
-  .result-text { font-size: 14px; color: #0F172A; font-weight: 600; }
-  footer { text-align: center; color: #94A3B8; font-size: 11px; margin-top: 32px; }
-  @media print { body { padding: 16px; } @page { margin: 16mm; } }
-</style>
-</head>
-<body>
-  <h1>Cuentas del Turno</h1>
-  <div class="meta">Fecha: ${dateStr} · Hora: ${timeStr}</div>
-  <hr />
-  <h2>Configuración</h2>
-  <table>
-    <tr><td class="label">Porcentaje a cobrar</td><td class="value">${calcPercentage}%</td></tr>
-    <tr><td class="label">¿Pagas tú la gasolina?</td><td class="value">${calcPagaGasolina ? 'Sí' : 'No'}</td></tr>
-  </table>
-  <h2>Datos del turno</h2>
-  <table>
-    <tr><td class="label">Recaudación total</td><td class="value">${recaudacion.toFixed(2)} €</td></tr>
-    <tr><td class="label">Cobrado con tarjeta</td><td class="value">${tarjeta.toFixed(2)} €</td></tr>
-    <tr><td class="label">Cobrado por aplicación</td><td class="value">${aplicacion.toFixed(2)} €</td></tr>
-    <tr><td class="label">Gasolina pagada</td><td class="value">${gasolina.toFixed(2)} €</td></tr>
-  </table>
-  <h2>Desglose</h2>
-  <table>
-    <tr><td class="label">Tu parte (${calcPercentage}%)</td><td class="value green">${miPorcentaje.toFixed(2)} €</td></tr>
-    <tr><td class="label">Parte del jefe (bruto)</td><td class="value">${(recaudacion - miPorcentaje).toFixed(2)} €</td></tr>
-    <tr><td class="label">− Tarjeta</td><td class="value">${tarjeta.toFixed(2)} €</td></tr>
-    <tr><td class="label">− Aplicación</td><td class="value">${aplicacion.toFixed(2)} €</td></tr>
-    ${calcPagaGasolina
-      ? '<tr><td class="label">Gasolina (la pagas tú)</td><td class="value muted">no se descuenta</td></tr>'
-      : `<tr><td class="label">− Gasolina (la paga el jefe)</td><td class="value">${gasolina.toFixed(2)} €</td></tr>`
-    }
-  </table>
-  <div class="result-box">
-    <div class="result-label">RESULTADO</div>
-    <div class="result-amount">${cantidadAbs.toFixed(2)} €</div>
-    <div class="result-text">${resultText}</div>
-  </div>
-  <footer>Generado por Reservas Taxi</footer>
-  <script>
-    window.addEventListener('load', () => {
-      setTimeout(() => { window.print(); }, 300);
-    });
-  </script>
-</body>
-</html>`;
-                      
-                      // Open in new window so user can use system print dialog → Save as PDF
-                      if (Platform.OS === 'web') {
-                        if (typeof window !== 'undefined') {
-                          const w = window.open('', '_blank', 'width=800,height=900');
-                          if (!w) {
-                            alert('Por favor, permite las ventanas emergentes para descargar el PDF.');
-                            return;
-                          }
-                          w.document.write(html);
-                          w.document.close();
-                          w.document.title = filename + '.pdf';
-                        }
-                      } else {
-                        // Mobile (iOS/Android): use expo-print to generate real PDF + share
-                        try {
-                          const Print = await import('expo-print');
-                          const Sharing = await import('expo-sharing');
-                          const { uri } = await Print.printToFileAsync({ html, base64: false });
-                          const canShare = await Sharing.isAvailableAsync();
-                          if (canShare) {
-                            await Sharing.shareAsync(uri, {
-                              UTI: 'com.adobe.pdf',
-                              mimeType: 'application/pdf',
-                              dialogTitle: 'Cuentas del turno',
-                            });
-                          } else {
-                            alert(`PDF guardado en: ${uri}`);
-                          }
-                        } catch (mobErr) {
-                          console.error('Mobile PDF error:', mobErr);
-                          alert('Error al generar el PDF en móvil. Probando alternativa...');
-                          // Fallback for mobile: try opening HTML directly
-                          await Linking.openURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-                        }
-                      }
-                    } catch (e) {
-                      console.error('PDF generation error:', e);
-                      alert('Error al generar el PDF: ' + (e as Error).message);
-                    }
-                  }}
-                  data-testid="gestion-pdf-button"
-                >
-                  <Ionicons name="document-text" size={20} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginLeft: 8 }}>
-                    Descargar PDF
-                  </Text>
-                </TouchableOpacity>
-                
-                <AdBanner position="inline" />
-              </View>
-            );
-          })()
         ) : activeTab === 'social' ? (
           <View style={styles.socialContainer}>
             {/* Ad Banner - Social Header */}
@@ -13993,7 +12288,7 @@ export default function TransportMeter() {
             <AdBanner position="inline" />
           </ScrollView>
         ) : activeTab === 'admin' ? (
-          <ScrollView style={styles.adminContainer} nestedScrollEnabled>
+          <View style={styles.adminContainer}>
             {/* Admin Header */}
             <View style={styles.adminHeader}>
               <View style={styles.adminHeaderTitle}>
@@ -14787,12 +13082,11 @@ export default function TransportMeter() {
                   </TouchableOpacity>
                 )}
 
-                {/* Force Disconnect Button - always visible for stuck sessions */}
+                {/* Force Disconnect Button */}
                 <TouchableOpacity
-                  data-testid="force-disconnect-whatsapp-btn"
                   style={{ 
-                    marginTop: 8, 
-                    backgroundColor: '#DC262620', 
+                    marginTop: 12, 
+                    backgroundColor: '#7C3AED20', 
                     padding: 12, 
                     borderRadius: 8, 
                     flexDirection: 'row', 
@@ -14800,18 +13094,17 @@ export default function TransportMeter() {
                     justifyContent: 'center',
                     gap: 8,
                     borderWidth: 1,
-                    borderColor: '#DC2626',
-                    borderStyle: 'dashed'
+                    borderColor: '#7C3AED'
                   }}
-                  onPress={forceDisconnectWhatsApp}
+                  onPress={forceDisconnectWhatsAppBot}
                   disabled={whatsappSending}
                 >
                   {whatsappSending ? (
-                    <ActivityIndicator color="#DC2626" />
+                    <ActivityIndicator color="#7C3AED" />
                   ) : (
                     <>
-                      <Ionicons name="log-out" size={20} color="#DC2626" />
-                      <Text style={{ color: '#DC2626', fontWeight: '600' }}>Forzar Desconexión</Text>
+                      <Ionicons name="log-out-outline" size={20} color="#7C3AED" />
+                      <Text style={{ color: '#7C3AED', fontWeight: '600' }}>Forzar Desconexión</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -14891,7 +13184,7 @@ export default function TransportMeter() {
                 )}
               </>
             )}
-          </ScrollView>
+          </View>
         ) : (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
