@@ -7859,28 +7859,34 @@ export default function TransportMeter() {
       // Backend already filtered by the selected time range, show all arrivals
       filteredArrivals = [...allArrivals];
     } else {
-      // Real-time mode: filter arrivals based on current time and timeWindow
+      // Real-time mode: show ALL flights within the P/E/F/S window
+      // (60 min in the past for Equipaje/Finalizado, 90 min in the future for Próximo/Siguiente).
+      // The 'timeWindow' (30/60) only affects header counters, NOT the list.
       const now = new Date();
       filteredArrivals = allArrivals.filter(arrival => {
         try {
           const [hours, minutes] = arrival.time.split(':').map(Number);
           const arrivalDate = new Date();
           arrivalDate.setHours(hours, minutes, 0, 0);
-          
-          // Handle day rollover (if arrival time is before current time by more than 2 hours, it's tomorrow)
-          if (arrivalDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000) {
-            arrivalDate.setDate(arrivalDate.getDate() + 1);
-          }
-          
+
           const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-          return diffMinutes >= 0 && diffMinutes <= timeWindow;
+          // Handle day rollover
+          if (diffMinutes < -12 * 60) {
+            arrivalDate.setDate(arrivalDate.getDate() + 1);
+          } else if (diffMinutes > 20 * 60) {
+            arrivalDate.setDate(arrivalDate.getDate() - 1);
+          }
+          const adjustedDiff = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
+
+          // Show the full P/E/F/S window: 60 min past to 90 min future
+          return adjustedDiff >= -60 && adjustedDiff <= 90;
         } catch {
           return false;
         }
       });
     }
     
-    // Sort filtered arrivals by time
+    // Sort filtered arrivals by time (chronological: earliest first)
     filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
     const futureArrivals = timeWindow === 30 ? total30min : total60min;

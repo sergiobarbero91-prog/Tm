@@ -2082,8 +2082,18 @@ async def get_flight_comparison(
             arrivals = filter_arrivals_by_hour_window(raw_arrivals, time_start, time_end)
             logger.info(f"[Flights] {terminal}: {len(arrivals)} arrivals in time window")
         else:
-            # No time window - filter out arrived flights
-            arrivals = filter_future_flights(raw_arrivals)
+            # Real-time mode: include the full P/E/F/S window (60 min past → 90 min future)
+            # so the UI can show 'Finalizado', 'Equipaje', 'Próximo', 'Siguiente' flights.
+            arrivals = []
+            for a in raw_arrivals:
+                dt = _parse_flight_time_to_dt(a.get("time", ""), now)
+                if dt is None:
+                    continue
+                delta_min = (dt - now).total_seconds() / 60.0
+                if -60 <= delta_min <= 90:
+                    arrivals.append(a)
+            # Sort chronologically (oldest first → most recent in the list = upcoming)
+            arrivals.sort(key=lambda x: x.get("time", ""))
         
         # Count arrivals
         if custom_time_window:
@@ -2106,7 +2116,7 @@ async def get_flight_comparison(
         
         terminal_data[terminal] = TerminalData(
             terminal=terminal,
-            arrivals=[FlightArrival(**a) for a in arrivals[:15]],
+            arrivals=[FlightArrival(**a) for a in arrivals[:25]],
             total_next_30min=count_30,
             total_next_60min=count_60,
             score_30min=weighted_30,
