@@ -284,6 +284,10 @@ class TerminalData(BaseModel):
     score_60min: Optional[float] = None  # Weighted score for 60min window
     past_30min: Optional[int] = None     # Arrivals in past 15 min
     past_60min: Optional[int] = None     # Arrivals in past 30 min
+    # Instant demand (taxi pressure) fields
+    instant_demand_pct: Optional[float] = None      # 0-500 pressure %
+    instant_demand_level: Optional[str] = None      # green | yellow | red | critical
+    instant_demand_trend: Optional[str] = None      # up | down | flat
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1330,6 +1334,63 @@ def calculate_weighted_score(arrivals: List[Dict], window_minutes: int) -> dict:
     }
 
 
+def calculate_instant_demand(arrivals: List[Dict]) -> dict:
+    """Calculate instant taxi demand pressure for a terminal.
+
+    Pressure points (taxi-need oriented):
+      - flight landing in next 0-15 min : 2.0 pts (passengers about to exit)
+      - flight landing in next 15-30 min: 1.0 pt  (planning window)
+      - flight that landed in past 0-15 min: 1.5 pts (passengers still in baggage hall)
+
+    pct = points / 10 * 100  → 10 weighted flights = 100% (saturation).
+    Capped at 500% so extreme bursts still surface but stay numeric.
+
+    Levels:
+      green   : pct < 40
+      yellow  : 40 <= pct < 80
+      red     : 80 <= pct < 150
+      critical: pct >= 150
+
+    Trend (compares imminent vs receding):
+      up   : next_15 > past_30_15 + 1
+      down : next_15 < past_30_15 - 1
+      flat : otherwise
+    """
+    next_15 = count_arrivals_in_window(arrivals, 15)
+    next_30 = count_arrivals_in_window(arrivals, 30)
+    next_15_30 = max(0, next_30 - next_15)
+    past_0_15 = count_arrivals_in_past_window(arrivals, 15, 0)
+    past_15_30 = count_arrivals_in_past_window(arrivals, 30, 15)
+
+    points = (next_15 * 2.0) + (next_15_30 * 1.0) + (past_0_15 * 1.5)
+    pct = round(min(500.0, points / 10.0 * 100.0), 1)
+
+    if pct < 40:
+        level = "green"
+    elif pct < 80:
+        level = "yellow"
+    elif pct < 150:
+        level = "red"
+    else:
+        level = "critical"
+
+    if next_15 > past_15_30 + 1:
+        trend = "up"
+    elif next_15 < past_15_30 - 1:
+        trend = "down"
+    else:
+        trend = "flat"
+
+    return {
+        "pct": pct,
+        "level": level,
+        "trend": trend,
+        "next_15": next_15,
+        "next_15_30": next_15_30,
+        "past_0_15": past_0_15,
+    }
+
+
 def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -> List[Dict]:
     """Filter arrivals to only include those that haven't arrived yet and aren't cancelled.
     Works for both flights and trains.
@@ -1873,6 +1934,9 @@ async def get_flight_comparison(
         # Calculate weighted scores for this terminal (50% future + 50% past)
         score_30 = calculate_weighted_score(raw_arrivals, 30)
         score_60 = calculate_weighted_score(raw_arrivals, 60)
+
+        # Instant demand pressure (taxi-need oriented) - always computed from raw arrivals
+        instant = calculate_instant_demand(raw_arrivals)
         
         # Filter arrivals based on time window
         if custom_time_window and time_start and time_end:
@@ -1910,7 +1974,10 @@ async def get_flight_comparison(
             score_30min=weighted_30,
             score_60min=weighted_60,
             past_30min=score_30["past_count"],
-            past_60min=score_60["past_count"]
+            past_60min=score_60["past_count"],
+            instant_demand_pct=instant["pct"],
+            instant_demand_level=instant["level"],
+            instant_demand_trend=instant["trend"],
         )
     
     logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")

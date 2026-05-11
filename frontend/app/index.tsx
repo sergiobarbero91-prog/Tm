@@ -183,6 +183,10 @@ interface TerminalData {
   score_60min?: number;
   past_30min?: number;
   past_60min?: number;
+  // Instant demand (taxi pressure) fields
+  instant_demand_pct?: number;
+  instant_demand_level?: 'green' | 'yellow' | 'red' | 'critical';
+  instant_demand_trend?: 'up' | 'down' | 'flat';
 }
 
 interface FlightComparison {
@@ -7715,7 +7719,14 @@ export default function TransportMeter() {
     let score30min = 0;
     let score60min = 0;
     let allArrivals: FlightArrival[] = [];
-    
+    // Instant demand aggregation across the group's terminals
+    const levelRank: Record<string, number> = { green: 0, yellow: 1, red: 2, critical: 3 };
+    const rankLevel = ['green', 'yellow', 'red', 'critical'] as const;
+    let demandPctSum = 0;
+    let demandCount = 0;
+    let demandWorstRank = 0;
+    let demandTrendCounts: { up: number; down: number; flat: number } = { up: 0, down: 0, flat: 0 };
+
     group.terminals.forEach(terminalName => {
       const terminal = flightData.terminals[terminalName];
       if (terminal) {
@@ -7726,8 +7737,30 @@ export default function TransportMeter() {
         score30min += terminal.score_30min || 0;
         score60min += terminal.score_60min || 0;
         allArrivals = [...allArrivals, ...terminal.arrivals];
+        if (typeof terminal.instant_demand_pct === 'number') {
+          demandPctSum += terminal.instant_demand_pct;
+          demandCount += 1;
+        }
+        const lvl = terminal.instant_demand_level;
+        if (lvl && levelRank[lvl] > demandWorstRank) {
+          demandWorstRank = levelRank[lvl];
+        }
+        const trn = terminal.instant_demand_trend;
+        if (trn === 'up' || trn === 'down' || trn === 'flat') {
+          demandTrendCounts[trn] += 1;
+        }
       }
     });
+
+    // Group-level instant demand (avg pct, worst level, dominant trend)
+    const instantDemandPct = demandCount > 0 ? demandPctSum / demandCount : 0;
+    const instantDemandLevel = rankLevel[demandWorstRank];
+    const instantDemandTrend: 'up' | 'down' | 'flat' =
+      demandTrendCounts.up >= demandTrendCounts.down && demandTrendCounts.up >= demandTrendCounts.flat
+        ? 'up'
+        : demandTrendCounts.down >= demandTrendCounts.flat
+        ? 'down'
+        : 'flat';
     
     // Filter arrivals to only show those within the selected time window
     // If a specific time range is selected (not "now"), the backend already filters, so we show all
@@ -7863,6 +7896,51 @@ export default function TransportMeter() {
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
         </View>
+
+        {/* Demanda Instantánea (Instant taxi-demand pressure) */}
+        <View style={styles.instantDemandContainer}>
+          <View style={styles.instantDemandHeader}>
+            <Ionicons
+              name="flash"
+              size={14}
+              color={
+                instantDemandLevel === 'critical' ? '#DC2626'
+                : instantDemandLevel === 'red' ? '#EF4444'
+                : instantDemandLevel === 'yellow' ? '#F59E0B'
+                : '#10B981'
+              }
+            />
+            <Text style={styles.instantDemandLabel}>Demanda Inst.</Text>
+            <Text style={[
+              styles.instantDemandPct,
+              instantDemandLevel === 'critical' && { color: '#DC2626' },
+              instantDemandLevel === 'red' && { color: '#EF4444' },
+              instantDemandLevel === 'yellow' && { color: '#F59E0B' },
+              instantDemandLevel === 'green' && { color: '#10B981' },
+            ]} data-testid={`flight-${group.name}-instant-demand-pct`}>
+              {Math.round(instantDemandPct)}%
+            </Text>
+            <Ionicons
+              name={instantDemandTrend === 'up' ? 'trending-up' : instantDemandTrend === 'down' ? 'trending-down' : 'remove'}
+              size={14}
+              color={instantDemandTrend === 'up' ? '#EF4444' : instantDemandTrend === 'down' ? '#10B981' : '#9CA3AF'}
+              style={{ marginLeft: 4 }}
+            />
+          </View>
+          <View style={styles.instantDemandBarTrack} data-testid={`flight-${group.name}-instant-demand-bar`}>
+            <View
+              style={[
+                styles.instantDemandBarFill,
+                { width: `${Math.min(100, instantDemandPct)}%` },
+                instantDemandLevel === 'critical' && { backgroundColor: '#DC2626' },
+                instantDemandLevel === 'red' && { backgroundColor: '#EF4444' },
+                instantDemandLevel === 'yellow' && { backgroundColor: '#F59E0B' },
+                instantDemandLevel === 'green' && { backgroundColor: '#10B981' },
+              ]}
+            />
+          </View>
+        </View>
+
         
         {/* Alert buttons */}
         <View style={styles.alertButtonsRow}>
