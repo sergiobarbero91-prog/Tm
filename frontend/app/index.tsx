@@ -437,6 +437,19 @@ export default function TransportMeter() {
   const [newEventTime, setNewEventTime] = useState('');
   const [eventLoading, setEventLoading] = useState(false);
 
+  // AI Daily Summary states
+  const [dailySummary, setDailySummary] = useState<{
+    summary: string | null;
+    sources?: { uri: string; title: string }[];
+    date?: string;
+    generated_at?: string;
+    success?: boolean;
+    error?: string | null;
+    fallback_date?: string | null;
+  } | null>(null);
+  const [dailySummaryLoading, setDailySummaryLoading] = useState(false);
+  const [dailySummaryExpanded, setDailySummaryExpanded] = useState(false);
+
   // Admin Panel states
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
@@ -3609,6 +3622,25 @@ export default function TransportMeter() {
     }
   }, [shift]);
 
+  // Fetch AI daily event summary (Madrid venues + city agenda)
+  const fetchDailySummary = useCallback(async (force: boolean = false) => {
+    try {
+      setDailySummaryLoading(true);
+      const url = `${API_BASE}/api/events/daily-summary${force ? `?t=${Date.now()}` : ''}`;
+      const response = await axios.get(url, { timeout: 120000 });
+      setDailySummary(response.data);
+    } catch (error: any) {
+      console.error('Error fetching daily summary:', error);
+      setDailySummary({
+        summary: null,
+        success: false,
+        error: error?.message || 'Error de conexión',
+      });
+    } finally {
+      setDailySummaryLoading(false);
+    }
+  }, []);
+
   // Create new event
   const createEvent = async () => {
     if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
@@ -6423,6 +6455,8 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
+        // Fetch AI daily summary (cached server-side; cheap call)
+        fetchDailySummary();
       } else if (activeTab === 'social') {
         await Promise.all([
           fetchFriends(),
@@ -11111,6 +11145,139 @@ export default function TransportMeter() {
           <View style={styles.eventsContainer}>
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
+
+            {/* ====== AI Daily Summary Card ====== */}
+            <View
+              data-testid="ai-daily-summary-card"
+              style={{
+                backgroundColor: '#0F172A',
+                borderWidth: 1,
+                borderColor: 'rgba(99, 102, 241, 0.35)',
+                borderRadius: 14,
+                padding: 16,
+                marginBottom: 16,
+                shadowColor: '#6366F1',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 4,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: 'rgba(99, 102, 241, 0.18)',
+                  alignItems: 'center', justifyContent: 'center',
+                  marginRight: 10,
+                }}>
+                  <Ionicons name="sparkles" size={18} color="#A5B4FC" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#F1F5F9', fontSize: 15, fontWeight: '700' }}>
+                    Resumen del día
+                  </Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 1 }}>
+                    Eventos verificados en Madrid · IA + Google Search
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  data-testid="ai-daily-summary-refresh-btn"
+                  onPress={() => fetchDailySummary(true)}
+                  disabled={dailySummaryLoading}
+                  style={{
+                    padding: 8, borderRadius: 8,
+                    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                  }}
+                >
+                  <Ionicons
+                    name={dailySummaryLoading ? 'sync' : 'refresh'}
+                    size={16}
+                    color={dailySummaryLoading ? '#64748B' : '#A5B4FC'}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {dailySummaryLoading && !dailySummary ? (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#6366F1" />
+                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 8 }}>
+                    Consultando IFEMA, WiZink, Movistar Arena y agenda municipal...
+                  </Text>
+                </View>
+              ) : dailySummary?.summary ? (
+                <>
+                  {!dailySummary.success && (
+                    <View
+                      data-testid="ai-daily-summary-fallback-warning"
+                      style={{
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        borderLeftWidth: 3,
+                        borderLeftColor: '#F59E0B',
+                        padding: 8,
+                        borderRadius: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text style={{ color: '#FCD34D', fontSize: 12, fontWeight: '600' }}>
+                        ⚠ No he podido actualizar el resumen hoy. Mostrando el del{' '}
+                        {dailySummary.fallback_date || 'día anterior'}.
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    data-testid="ai-daily-summary-text"
+                    numberOfLines={dailySummaryExpanded ? undefined : 8}
+                    style={{
+                      color: '#E2E8F0',
+                      fontSize: 13.5,
+                      lineHeight: 21,
+                      whiteSpace: 'pre-wrap' as any,
+                    }}
+                  >
+                    {dailySummary.summary}
+                  </Text>
+                  {(dailySummary.summary?.length || 0) > 280 && (
+                    <TouchableOpacity
+                      data-testid="ai-daily-summary-toggle-btn"
+                      onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
+                      style={{ marginTop: 8 }}
+                    >
+                      <Text style={{ color: '#A5B4FC', fontSize: 12, fontWeight: '600' }}>
+                        {dailySummaryExpanded ? 'Ver menos ↑' : 'Ver más ↓'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {dailySummary.generated_at && (
+                    <Text style={{ color: '#64748B', fontSize: 10, marginTop: 10 }}>
+                      Actualizado: {new Date(dailySummary.generated_at).toLocaleString('es-ES', {
+                        timeZone: 'Europe/Madrid',
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                      })}
+                      {dailySummary.sources && dailySummary.sources.length > 0 &&
+                        ` · ${dailySummary.sources.length} fuente${dailySummary.sources.length !== 1 ? 's' : ''}`}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <View
+                  data-testid="ai-daily-summary-error"
+                  style={{
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Ionicons name="cloud-offline-outline" size={28} color="#64748B" />
+                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' }}>
+                    No se ha podido cargar el resumen del día.
+                  </Text>
+                  <Text style={{ color: '#64748B', fontSize: 11, marginTop: 4, textAlign: 'center' }}>
+                    Se reintentará automáticamente. Pulsa el botón ↻ para reintentar ahora.
+                  </Text>
+                </View>
+              )}
+            </View>
+            {/* ====== /AI Daily Summary Card ====== */}
+
             {/* Add Event Button */}
             <TouchableOpacity 
               style={styles.addEventButton}

@@ -1,0 +1,50 @@
+{
+  "summary": "Tested AI Daily Event Summary feature (backend + frontend). Backend 10/10 pytest tests passed: GET endpoint returns valid Spanish summary with 'Buenos días, compañero' opener, 15 search_queries (Google Search grounding active), 20 sources (citations), correct YYYY-MM-DD date for Madrid TZ, cached flag, MongoDB persistence verified. POST regenerate properly returns 401 unauth and 200 with admin JWT. Frontend AI Daily Summary card renders correctly on Eventos tab with title 'Resumen del día', subtitle 'Eventos verificados en Madrid · IA + Google Search', real events (Pradera de San Isidro concerts, etc.), refresh button, expand 'Ver más' and footer 'Actualizado · 5 fuentes'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AI Daily Summary card (and likely all View elements in app/index.tsx)",
+        "issue": "data-testid attributes on <View> are NOT forwarded to the DOM by React Native Web. The card visually renders correctly with all 'Resumen del día', 'Buenos días, compañero', refresh button etc., but querying [data-testid='ai-daily-summary-card'], [data-testid='ai-daily-summary-text'], [data-testid='ai-daily-summary-refresh-btn'] returns null in the DOM. Use the React Native `testID` prop (which RN-Web converts to data-testid automatically) instead of the raw `data-testid` JSX prop on <View>/<TouchableOpacity>.",
+        "selector": "[data-testid='ai-daily-summary-card']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_daily_summary.py",
+    "/app/test_reports/pytest/pytest_daily_summary_results.xml"
+  ],
+  "action_items": [
+    "Replace `data-testid=\"...\"` JSX prop with `testID=\"...\"` on <View> and <TouchableOpacity> elements in app/index.tsx for the AI summary card (lines 11151, 11184, 11211, 11228, 11241, 11263). React Native Web auto-converts testID to data-testid in the DOM; passing data-testid directly does not propagate on non-DOM components.",
+    "ENVIRONMENT NOTE for next agent: Metro is running in CI mode (reloads disabled per expo log: 'Metro is running in CI mode, reloads are disabled'). After editing frontend code, you MUST run `sudo supervisorctl restart expo` to force a fresh bundle. Without restart, the served bundle is the one cached at expo startup and code changes will NOT appear in the browser."
+  ],
+  "critical_code_review_comments": [
+    "routers/daily_summary.py is clean: uses Pydantic-free dict responses, properly async-wraps the sync google-genai client via asyncio.to_thread, validates grounding presence (anti-hallucination), upserts by date in MongoDB, excludes _id on reads.",
+    "Endpoint exposes Vertex AI redirect URIs in 'sources' (https://vertexaisearch.cloud.google.com/...). These are the raw grounding chunk URIs returned by Gemini. Consider resolving to final destination domain on backend so frontend can display real source names (ifema.es, wizinkcenter.es), though this is non-critical.",
+    "/app/frontend/app/index.tsx is 17708 lines (>700 line guideline) — long-standing structural issue, not in scope for this feature but worth flagging.",
+    "fetchDailySummary uses force timestamp cache-bust but the GET endpoint never re-generates if cached; force regeneration must go through POST /regenerate. The refresh button currently calls fetchDailySummary(true) which still hits the cached GET. If product intent is 'refresh button regenerates', the button should call the POST regenerate endpoint (requires admin token) — otherwise rename to a 'reload' icon."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_daily_summary.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 pytest cases passed)",
+    "frontend": "Functional 100% — card renders with all content (title, subtitle, summary text, refresh icon, expand, footer). Test-automation accessibility 0% — data-testid attributes missing from DOM."
+  },
+  "test_credentials": {
+    "username": "admin",
+    "password": "admin",
+    "login_endpoint": "POST /api/auth/login (JSON: username, password). Token returned in response."
+  },
+  "seed_data_creation": "None — relied on existing cached daily_summaries doc for today's Madrid date.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "1) Backend pytest at /app/backend/tests/test_daily_summary.py covers all GET/POST/persistence cases — re-run with `pytest /app/backend/tests/test_daily_summary.py -v`. 2) Frontend card RENDERS visually but data-testid selectors fail because RN-Web requires `testID` prop, not `data-testid`. If main agent fixes prop names, retest selectors via Playwright. 3) Metro is in CI mode — restart expo via supervisor after any frontend edit. 4) Admin login endpoint is POST /api/auth/login (not /api/admin/login). 5) The GET endpoint is genuinely public (no auth) and returns cached doc fast (<1s). POST /regenerate currently takes ~25s due to live Gemini call.",
+  "rca of the issue": "RCA for 'AI card not rendering' (initial false-positive): Metro bundler in /app/frontend was started with CI=true which disables file-watch and hot-reload. The Expo bundle served to the browser was the version compiled when the supervisor process first started, before the daily-summary feature code was added to app/index.tsx. After `sudo supervisorctl restart expo` and ~30s rebuild, the AI Daily Summary card began rendering with all expected content. The on-disk source (/app/frontend/app/index.tsx) always contained the correct JSX. Mitigation: any frontend code change must be followed by `sudo supervisorctl restart expo` to be visible in the browser, OR remove CI=true from the expo invocation to enable watch mode."
+}

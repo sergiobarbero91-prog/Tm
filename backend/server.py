@@ -81,6 +81,7 @@ from routers import moderation as moderation_router
 from routers import social as social_router
 from routers import release_notes as release_notes_router
 from routers import whatsapp as whatsapp_router
+from routers import daily_summary as daily_summary_router
 
 # Import Renfe GTFS module for fallback train data
 from renfe_gtfs import get_arrivals_from_renfe, ensure_gtfs_loaded
@@ -3393,6 +3394,7 @@ api_router.include_router(moderation_router.router)
 api_router.include_router(social_router.router)
 api_router.include_router(release_notes_router.router)
 api_router.include_router(whatsapp_router.router)
+api_router.include_router(daily_summary_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -3816,6 +3818,77 @@ async def startup_db_client():
     from routers.whatsapp import start_bot_monitor
     start_bot_monitor()
     logger.info("WhatsApp bot monitor task started")
+
+    # Start daily AI summary task (5 AM Madrid + hourly retries on failure)
+    asyncio.create_task(daily_summary_task())
+    logger.info("Daily AI summary task started")
+
+async def daily_summary_task():
+    """Background task: generate the daily AI event summary every day at 05:00 Madrid time.
+    If generation fails (network, Gemini error, no grounding), retries every hour until success."""
+    from routers.daily_summary import (
+        generate_daily_summary,
+        save_summary,
+        get_cached_summary,
+    )
+
+    # Wait 90s on startup so the rest of the app is up
+    await asyncio.sleep(90)
+
+    # Generate immediately on startup if today has no summary
+    try:
+        today_iso = datetime.now(MADRID_TZ).strftime("%Y-%m-%d")
+        cached = await get_cached_summary(today_iso)
+        if not cached:
+            logger.info("[DailySummary] No summary for today on startup, generating now...")
+            result = await generate_daily_summary()
+            if result.get("success"):
+                await save_summary(result)
+                logger.info("[DailySummary] Startup generation succeeded")
+            else:
+                logger.warning(f"[DailySummary] Startup generation failed: {result.get('error')}")
+    except Exception as e:
+        logger.error(f"[DailySummary] Startup check error: {e}")
+
+    while True:
+        try:
+            now = datetime.now(MADRID_TZ)
+            today_iso = now.strftime("%Y-%m-%d")
+            cached = await get_cached_summary(today_iso)
+
+            if cached:
+                # We already have today's summary. Sleep until 05:00 tomorrow.
+                tomorrow_5am = (now + timedelta(days=1)).replace(
+                    hour=5, minute=0, second=0, microsecond=0
+                )
+                sleep_seconds = (tomorrow_5am - now).total_seconds()
+                logger.info(
+                    f"[DailySummary] Have today's summary. Sleeping {int(sleep_seconds/60)} min until {tomorrow_5am.strftime('%Y-%m-%d %H:%M')}"
+                )
+                await asyncio.sleep(max(sleep_seconds, 60))
+                continue
+
+            # No summary for today yet
+            if now.hour < 5:
+                # Wait until 05:00 today
+                target = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                sleep_seconds = (target - now).total_seconds()
+                logger.info(f"[DailySummary] Waiting {int(sleep_seconds/60)} min until 05:00")
+                await asyncio.sleep(max(sleep_seconds, 60))
+                continue
+
+            # It's >= 05:00 and no summary → attempt now
+            logger.info("[DailySummary] Attempting generation...")
+            result = await generate_daily_summary()
+            if result.get("success"):
+                await save_summary(result)
+                logger.info("[DailySummary] Generation succeeded")
+            else:
+                logger.warning(f"[DailySummary] Generation failed: {result.get('error')}. Retrying in 1h.")
+                await asyncio.sleep(3600)
+        except Exception as e:
+            logger.error(f"[DailySummary] Task error: {e}")
+            await asyncio.sleep(600)
 
 async def whatsapp_hourly_update_task():
     """Background task to send WhatsApp updates every hour at random minutes (1-30) to avoid patterns."""
