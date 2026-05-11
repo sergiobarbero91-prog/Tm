@@ -7859,35 +7859,40 @@ export default function TransportMeter() {
       // Backend already filtered by the selected time range, show all arrivals
       filteredArrivals = [...allArrivals];
     } else {
-      // Real-time mode: show ALL flights within the P/E/F/S window
-      // (60 min in the past for Equipaje/Finalizado, 90 min in the future for Próximo/Siguiente).
-      // The 'timeWindow' (30/60) only affects header counters, NOT the list.
-      const now = new Date();
-      filteredArrivals = allArrivals.filter(arrival => {
-        try {
-          const [hours, minutes] = arrival.time.split(':').map(Number);
-          const arrivalDate = new Date();
-          arrivalDate.setHours(hours, minutes, 0, 0);
-
-          const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-          // Handle day rollover
-          if (diffMinutes < -12 * 60) {
-            arrivalDate.setDate(arrivalDate.getDate() + 1);
-          } else if (diffMinutes > 20 * 60) {
-            arrivalDate.setDate(arrivalDate.getDate() - 1);
+      // Real-time mode: trust the backend's status_tag (which uses Madrid TZ).
+      // Show ALL flights that have a P/E/F/S tag set.
+      // Falls back to time-based filtering if backend hasn't tagged them yet.
+      const hasTags = allArrivals.some(a => !!a.status_tag);
+      if (hasTags) {
+        filteredArrivals = allArrivals.filter(a => !!a.status_tag);
+      } else {
+        // Fallback (no tags from backend) — best-effort browser-side filter
+        const now = new Date();
+        filteredArrivals = allArrivals.filter(arrival => {
+          try {
+            const [hours, minutes] = arrival.time.split(':').map(Number);
+            const arrivalDate = new Date();
+            arrivalDate.setHours(hours, minutes, 0, 0);
+            const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
+            return diffMinutes >= -60 && diffMinutes <= 90;
+          } catch {
+            return false;
           }
-          const adjustedDiff = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-
-          // Show the full P/E/F/S window: 60 min past to 90 min future
-          return adjustedDiff >= -60 && adjustedDiff <= 90;
-        } catch {
-          return false;
-        }
-      });
+        });
+      }
     }
-    
-    // Sort filtered arrivals by time (chronological: earliest first)
-    filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
+
+    // Sort by status_tag order (finalizado → equipaje → proximo → siguiente),
+    // then by time within each bucket
+    const tagOrder: Record<string, number> = {
+      finalizado: 0, equipaje: 1, proximo: 2, siguiente: 3,
+    };
+    filteredArrivals.sort((a, b) => {
+      const aTag = a.status_tag ? (tagOrder[a.status_tag] ?? 99) : 99;
+      const bTag = b.status_tag ? (tagOrder[b.status_tag] ?? 99) : 99;
+      if (aTag !== bTag) return aTag - bTag;
+      return a.time.localeCompare(b.time);
+    });
     
     const futureArrivals = timeWindow === 30 ? total30min : total60min;
     const pastArrivals = timeWindow === 30 ? past30min : past60min;
