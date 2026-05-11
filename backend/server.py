@@ -285,6 +285,11 @@ class TerminalData(BaseModel):
     score_60min: Optional[float] = None  # Weighted score for 60min window
     past_30min: Optional[int] = None     # Arrivals in past 15 min
     past_60min: Optional[int] = None     # Arrivals in past 30 min
+    # Instant pressure (Demanda en este Momento) — saturation of passenger flow now
+    instant_pressure_pct: Optional[int] = None     # 0..200+ %
+    instant_pressure_level: Optional[str] = None   # 'green' | 'yellow' | 'red' | 'critical'
+    instant_pressure_trend: Optional[str] = None   # 'up' | 'down' | 'flat'
+    instant_pressure_breakdown: Optional[Dict[str, int]] = None  # counts per bucket
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1169,10 +1174,12 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                     except (ValueError, TypeError):
                                         pass
                                 
-                                # Avoid duplicates and filter out cancelled/landed flights
-                                # Only show flights that are still expected to arrive
-                                if status in ["Cancelado", "Aterrizado"]:
-                                    continue  # Skip cancelled and already landed flights
+                                # Avoid duplicates and filter out cancelled flights.
+                                # NOTE: "Aterrizado" flights are kept in raw data so the
+                                # instant-pressure calculation can count them. The display
+                                # filter `filter_future_flights` removes them from the UI.
+                                if status in ["Cancelado"]:
+                                    continue  # Skip cancelled flights only
                                     
                                 existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
@@ -1387,6 +1394,138 @@ def filter_future_arrivals(arrivals: List[Dict], arrival_type: str = "flight") -
 def filter_future_flights(arrivals: List[Dict]) -> List[Dict]:
     """Filter flights to only include those that haven't arrived yet (excluding 'Aterrizado')."""
     return filter_future_arrivals(arrivals, "flight")
+
+
+# ============================================================
+# INSTANT PRESSURE (Demanda en este Momento) for airport flights.
+#
+# Per-flight pressure points based on minutes since the flight's
+# real arrival time (now relative to the flight's `time` field):
+#   - 0 to 5  min  → EN TIERRA (taxiing, deplaning):             +0.2
+#   - 5 to 15 min  → ENTREGANDO EQUIPO (<15 min):                +0.4
+#   - 15 to 30 min → ENTREGANDO EQUIPO (>15 min, peak outflow):  +0.8
+#   - 30 to 45 min → FINALIZADO 0-15 min (still many pax):       +1.0
+#   - 45 to 60 min → FINALIZADO 16-30 min (last stragglers):     +0.3
+# x1.5 multiplier when the flight is a wide-body / long-haul jet.
+# Total points × 10 = saturation %, can exceed 100%.
+# ============================================================
+
+# Long-haul / wide-body origin keywords (transatlantic, transpacific, intercontinental)
+_LONG_HAUL_KEYWORDS = [
+    "new york", "nueva york", "newark", "jfk", "miami", "boston", "washington",
+    "chicago", "los angeles", "los ángeles", "dallas", "houston", "atlanta",
+    "san francisco", "philadelphia", "toronto", "montreal", "vancouver",
+    "buenos aires", "santiago de chile", "santiago chile", "lima", "bogota", "bogotá",
+    "caracas", "panama", "panamá", "quito", "guayaquil", "la habana", "habana",
+    "mexico", "méxico", "cancun", "cancún", "guadalajara", "monterrey",
+    "sao paulo", "são paulo", "rio de janeiro", "brasilia", "asunción", "asuncion",
+    "montevideo", "san salvador", "guatemala", "managua", "tegucigalpa",
+    "san juan", "punta cana", "santo domingo",
+    "dubai", "dubái", "doha", "abu dhabi", "tel aviv", "estambul", "istanbul",
+    "tokio", "tokyo", "pekin", "pekín", "beijing", "shanghai", "shanghái",
+    "hong kong", "seul", "seúl", "bangkok", "singapur", "singapore", "delhi",
+    "johannesburgo", "johannesburg", "cairo", "el cairo", "casablanca",
+    "addis abeba", "addis ababa", "nairobi", "lagos", "argel",
+]
+
+
+def _is_long_haul(flight: Dict) -> bool:
+    """Heuristic: classify flight as wide-body / long-haul by origin name."""
+    origin = (flight.get("origin") or "").lower()
+    return any(kw in origin for kw in _LONG_HAUL_KEYWORDS)
+
+
+def _parse_flight_time_to_dt(time_str: str, now: datetime) -> Optional[datetime]:
+    """Parse 'HH:MM' string into a tz-aware datetime relative to `now`.
+    Handles day rollover."""
+    try:
+        if not time_str or ":" not in time_str:
+            return None
+        h, m = time_str.split(":")
+        h, m = int(h), int(m)
+        dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if (dt - now).total_seconds() > 12 * 3600:
+            dt -= timedelta(days=1)
+        elif (now - dt).total_seconds() > 20 * 3600:
+            dt += timedelta(days=1)
+        return dt
+    except (ValueError, AttributeError):
+        return None
+
+
+def calculate_instant_pressure(arrivals: List[Dict], now: datetime) -> Dict:
+    """Compute instant passenger-outflow pressure for an airport terminal."""
+    total_score = 0.0
+    breakdown = {
+        "en_tierra": 0,
+        "entregando_equipo_lt15": 0,
+        "entregando_equipo_gt15": 0,
+        "finalizado_0_15": 0,
+        "finalizado_16_30": 0,
+        "long_haul_boost": 0,
+    }
+
+    for flight in arrivals:
+        dt = _parse_flight_time_to_dt(flight.get("time", ""), now)
+        if dt is None:
+            continue
+        mins_since = (now - dt).total_seconds() / 60.0
+        if mins_since < 0 or mins_since > 60:
+            continue
+
+        if mins_since < 5:
+            flight_pts = 0.2
+            breakdown["en_tierra"] += 1
+        elif mins_since < 15:
+            flight_pts = 0.4
+            breakdown["entregando_equipo_lt15"] += 1
+        elif mins_since < 30:
+            flight_pts = 0.8
+            breakdown["entregando_equipo_gt15"] += 1
+        elif mins_since < 45:
+            flight_pts = 1.0
+            breakdown["finalizado_0_15"] += 1
+        else:
+            flight_pts = 0.3
+            breakdown["finalizado_16_30"] += 1
+
+        if _is_long_haul(flight):
+            flight_pts *= 1.5
+            breakdown["long_haul_boost"] += 1
+
+        total_score += flight_pts
+
+    pct = int(round(total_score * 10))
+    return {"score": round(total_score, 2), "pct": pct, "breakdown": breakdown}
+
+
+def pressure_level(pct: int) -> str:
+    """Map saturation % to a color level."""
+    if pct > 100:
+        return "critical"
+    if pct >= 70:
+        return "red"
+    if pct >= 40:
+        return "yellow"
+    return "green"
+
+
+# In-memory cache for trend calculation (last pressure % per terminal)
+_prev_instant_pressure: Dict[str, int] = {}
+
+
+def pressure_trend(terminal: str, current_pct: int) -> str:
+    """Compare current % vs previously cached % for this terminal."""
+    prev = _prev_instant_pressure.get(terminal)
+    _prev_instant_pressure[terminal] = current_pct
+    if prev is None:
+        return "flat"
+    diff = current_pct - prev
+    if diff >= 5:
+        return "up"
+    if diff <= -5:
+        return "down"
+    return "flat"
 
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
@@ -1913,6 +2052,19 @@ async def get_flight_comparison(
             past_30min=score_30["past_count"],
             past_60min=score_60["past_count"]
         )
+
+        # Instant pressure (Demanda en este Momento) — only meaningful for real-time view,
+        # NOT for past/future custom time windows.
+        if not custom_time_window:
+            try:
+                pressure = calculate_instant_pressure(raw_arrivals, now)
+                pct = pressure["pct"]
+                terminal_data[terminal].instant_pressure_pct = pct
+                terminal_data[terminal].instant_pressure_level = pressure_level(pct)
+                terminal_data[terminal].instant_pressure_trend = pressure_trend(terminal, pct)
+                terminal_data[terminal].instant_pressure_breakdown = pressure["breakdown"]
+            except Exception as e:
+                logger.warning(f"[Flights] Could not compute instant pressure for {terminal}: {e}")
     
     logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")
     

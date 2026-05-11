@@ -183,6 +183,18 @@ interface TerminalData {
   score_60min?: number;
   past_30min?: number;
   past_60min?: number;
+  // Instant pressure (Demanda en este Momento)
+  instant_pressure_pct?: number;
+  instant_pressure_level?: 'green' | 'yellow' | 'red' | 'critical';
+  instant_pressure_trend?: 'up' | 'down' | 'flat';
+  instant_pressure_breakdown?: {
+    en_tierra: number;
+    entregando_equipo_lt15: number;
+    entregando_equipo_gt15: number;
+    finalizado_0_15: number;
+    finalizado_16_30: number;
+    long_haul_boost: number;
+  };
 }
 
 interface FlightComparison {
@@ -7749,6 +7761,11 @@ export default function TransportMeter() {
     let score30min = 0;
     let score60min = 0;
     let allArrivals: FlightArrival[] = [];
+    // Instant pressure aggregation across terminals in this group
+    let instantPctSum = 0;
+    let instantTrendUp = 0;
+    let instantTrendDown = 0;
+    let instantHasData = false;
     
     group.terminals.forEach(terminalName => {
       const terminal = flightData.terminals[terminalName];
@@ -7760,8 +7777,34 @@ export default function TransportMeter() {
         score30min += terminal.score_30min || 0;
         score60min += terminal.score_60min || 0;
         allArrivals = [...allArrivals, ...terminal.arrivals];
+        if (typeof terminal.instant_pressure_pct === 'number') {
+          instantHasData = true;
+          instantPctSum += terminal.instant_pressure_pct;
+          if (terminal.instant_pressure_trend === 'up') instantTrendUp += 1;
+          else if (terminal.instant_pressure_trend === 'down') instantTrendDown += 1;
+        }
       }
     });
+    
+    // Aggregated instant pressure: average pct of terminals in the group
+    const instantPct = instantHasData
+      ? Math.round(instantPctSum / group.terminals.length)
+      : null;
+    const instantLevel: 'green' | 'yellow' | 'red' | 'critical' | null = (() => {
+      if (instantPct === null) return null;
+      if (instantPct > 100) return 'critical';
+      if (instantPct >= 70) return 'red';
+      if (instantPct >= 40) return 'yellow';
+      return 'green';
+    })();
+    const instantTrend: 'up' | 'down' | 'flat' | null = instantHasData
+      ? (instantTrendUp > instantTrendDown ? 'up' : (instantTrendDown > instantTrendUp ? 'down' : 'flat'))
+      : null;
+    const instantColor =
+      instantLevel === 'critical' ? '#DC2626' :
+      instantLevel === 'red' ? '#EF4444' :
+      instantLevel === 'yellow' ? '#F59E0B' :
+      '#10B981';
     
     // Filter arrivals to only show those within the selected time window
     // If a specific time range is selected (not "now"), the backend already filters, so we show all
@@ -7894,8 +7937,64 @@ export default function TransportMeter() {
           </Text>
           <View style={styles.scoreContainer}>
             <Ionicons name="analytics" size={14} color="#6366F1" />
-            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
+            <Text style={styles.scoreText}>Previsión Próxima Hora · Score {score.toFixed(1)}</Text>
           </View>
+
+          {/* === Demanda en este Momento (Instant Pressure) === */}
+          {instantPct !== null && (
+            <View
+              testID={`instant-pressure-${group.terminals[0]}`}
+              style={{
+                marginTop: 10,
+                paddingTop: 10,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(99, 102, 241, 0.15)',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="pulse" size={14} color={instantColor} />
+                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600' }}>
+                    Demanda en este Momento
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: instantColor, fontSize: 14, fontWeight: '800' }}>
+                    {instantPct}%
+                  </Text>
+                  <Ionicons
+                    name={instantTrend === 'up' ? 'arrow-up' : instantTrend === 'down' ? 'arrow-down' : 'remove'}
+                    size={14}
+                    color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#64748B'}
+                  />
+                </View>
+              </View>
+              {/* Bar */}
+              <View style={{
+                width: '100%',
+                height: 8,
+                backgroundColor: 'rgba(100, 116, 139, 0.18)',
+                borderRadius: 4,
+                overflow: 'hidden',
+              }}>
+                <View style={{
+                  height: '100%',
+                  width: `${Math.min(instantPct, 100)}%` as any,
+                  backgroundColor: instantColor,
+                  borderRadius: 4,
+                }} />
+                {instantPct > 100 && (
+                  <View style={{
+                    position: 'absolute',
+                    right: 2, top: 1, bottom: 1,
+                    width: 4,
+                    backgroundColor: '#FCA5A5',
+                    borderRadius: 2,
+                  }} />
+                )}
+              </View>
+            </View>
+          )}
         </View>
         
         {/* Alert buttons */}

@@ -87,3 +87,4 @@ bleach==6.3.0
 limits==5.6.0
 slowapi==0.1.9
 google-genai==1.63.0
+brotli==1.1.0
