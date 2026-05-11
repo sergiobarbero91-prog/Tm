@@ -22,35 +22,24 @@ Spanish-speaking taxi drivers in Madrid. Tone: professional but close, tutea.
 
 ## Changelog (this session — Feb 2026)
 
-### ✅ SSL Auto-renewal (Done)
-- Fixed `nginx/nginx.conf` to allow `/.well-known/acme-challenge/` via HTTP before HTTPS redirect.
-- Updated `docker-compose.yml`: shared `certbot_webroot` volume + Nginx auto-reload every 6h + Certbot uses `--webroot` mode.
-- Provided user with manual one-time renewal commands for `asdelvolante.es`.
+### ✅ Instant Pressure (Demanda en este Momento) — airports (Done)
+- Backend `/api/flights` returns per-terminal: `instant_pressure_pct`, `instant_pressure_level` (green/yellow/red/critical), `instant_pressure_trend` (up/down/flat), `instant_pressure_breakdown` (counts per bucket).
+- Function `calculate_instant_pressure` in `/app/backend/server.py` (line ~1395-1530) maps minutes-since-arrival to points: <5min=+0.2, 5-15=+0.4, 15-30=+0.8, 30-45=+1.0, 45-60=+0.3 (×1.5 for long-haul). Total × 10 = saturation %.
+- Long-haul detection: heuristic by origin city keywords (transatlantic/transpacific/intercontinental).
+- Frontend: new bar in `renderTerminalCard` for each airport group below the hourly forecast (relabeled 'Previsión Próxima Hora · Score X.X'). New bar shows 'Demanda en este Momento' + % + trend arrow + colored progress bar.
+- Bonus: installed `brotli==1.1.0` so AENA HTML decoding works in preview too.
+- Tests: 9/9 pytest passing in `/app/backend/tests/test_instant_pressure.py`. Frontend testIDs `instant-pressure-T1/T2/T4` verified.
 
-### ✅ AI Daily Event Summary with Real Web Search (Done — eliminates hallucinations)
-- New router `/app/backend/routers/daily_summary.py`:
-  - `GET /api/events/daily-summary` (public) — cached, generates on-demand if missing.
-  - `POST /api/events/daily-summary/regenerate` (admin) — force regeneration.
-- Uses Gemini 2.5-flash + `google_search` tool (Google Search Grounding) via `google-genai` SDK.
-- Prompt forces 5+ specific searches: WiZink Center, Movistar Arena, IFEMA, esmadrid.com, madrid.es + EMT cortes.
-- Anti-hallucination: validates `grounding_metadata` is present; if Gemini doesn't search → rejected.
-- Cached in `daily_summaries` collection (upsert by date).
-- Scheduler in `server.py`: regenerates daily at 05:00 Madrid + hourly retries on failure.
-- Fallback: if regeneration fails, returns most recent successful summary with warning flag.
-- Validated with real call: 15 search queries, 20 grounded sources, real events (Arcángel WiZink 20:30h, WAH Show IFEMA, EMT line modifications).
-- 10/10 backend pytest tests passing (in `/app/backend/tests/test_daily_summary.py`).
+### ✅ AI Daily Summary upgrades (Done — earlier today)
+- Now zonal briefing: 🏟 GRANDES RECINTOS, ⚽ ESTADIOS (Bernabéu/Metropolitano/Vallecas/Coliseum), 🎭 GRAN VÍA, 🚧 CORTES TRÁFICO, 🎉 DISTRITOS Y MUNICIPIOS (Rivas, Alcorcón, Móstoles, Leganés, Getafe, Pozuelo, etc.).
+- 15 obligatory Google Search queries (one per team, per recinto, per source).
+- Model: `gemini-2.5-flash-lite` (500 RPD free tier vs 20 for flash).
+- Retries with backoff for 503/429.
+- Truncation guard: response must end with punctuation.
 
-### ✅ Frontend "Resumen del día" Card (Done)
-- Added AI summary card at top of "Eventos" tab in `frontend/app/index.tsx`.
-- States: `dailySummary`, `dailySummaryLoading`, `dailySummaryExpanded`.
-- Auto-fetched on entering Eventos tab.
-- Refresh button (calls public cached GET; full regeneration is admin-only and scheduled).
-- Expand/Collapse for long text.
-- Error state + fallback warning if generation failed.
-- All elements use `testID` prop (RN-Web auto-converts to data-testid in DOM).
-
-### ✅ WhatsApp Bot — AI Summary Injection (Done)
-- `/app/whatsapp-bot/index.js` `/send-hourly-update` now fetches `/api/events/daily-summary` and prepends it to the hourly broadcast under section "🤖 RESUMEN DEL DÍA (IA)".
+### ✅ SSL Auto-renewal (Done — earlier today)
+- `nginx/nginx.conf` allows `/.well-known/acme-challenge/` via HTTP.
+- `docker-compose.yml`: certbot_webroot shared volume + Nginx auto-reload every 6h + certbot `--webroot` mode.
 
 ## Dependencies Added
 - `google-genai==1.63.0` (added to `/app/backend/requirements.txt`)

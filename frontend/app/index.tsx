@@ -7952,9 +7952,9 @@ export default function TransportMeter() {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                   <Ionicons name="pulse" size={14} color={instantColor} />
-                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600' }}>
+                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginRight: 8 }}>
                     Demanda en este Momento
                   </Text>
                 </View>
