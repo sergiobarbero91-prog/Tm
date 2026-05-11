@@ -1,0 +1,34 @@
+{
+  "summary": "RE-TEST of two items from iteration_7.json. Initial run reproduced both failures (daily-summary card absent, Score chip showed OLD 'Previsión Próxima Hora · Score 2.0' text). Root cause was a STALE METRO BUNDLE cache: the on-disk source code at /app/frontend/app/index.tsx already contained the correct fixes (Score: X.X at lines 7595/7922; ai-daily-summary-card JSX with fetchDailySummary in useEffect deps at line 6495), but the served bundle still contained the pre-fix strings. Verified by inspecting the served entry.bundle directly: it contained 'Previsión Próxima Hora' (1 hit) and zero hits for 'ai-daily-summary-card' / 'Resumen del' / 'Demanda en este Momento'. After clearing /app/frontend/.metro-cache and restarting expo via supervisor, the rebuilt bundle has 0 hits for 'Previsi' and 1 hit each for ai-daily-summary-card / Resumen del / Demanda en este Momento, plus 2 hits for 'Score:'. Re-running the playwright test post-rebuild confirms BOTH items now PASS: (a) Eventos tab renders 'Resumen del Día' card with subtitle 'Eventos verificados · IA con Google Search', refresh button, and 2835-char summary containing all 4 section headers [GRANDES EVENTOS] / [TEATROS Y OCIO] / [ALERTAS DE TRÁFICO] / [PREVISIÓN MAÑANA], with **bold** segments highlighted in yellow and section headers in violet bold; (b) Aviones terminal cards (T1/T2-T3/T4-T4S) show exact 'Score: 2.0', 'Score: 7.0', 'Score: 7.0' chip text — colon present, NO 'Previsión' prefix — and the 'Demanda en este Momento' bar renders BELOW the Score chip with testIDs instant-demand-T1/T2/T4 confirmed in DOM.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_instant_demand_and_summary.py (from iteration_7, no changes)"
+  ],
+  "action_items": [
+    "RESOLVED — both regressions pass. Main agent should be aware that future frontend code changes may not appear in the served bundle until the Metro cache (/app/frontend/.metro-cache) is cleared and expo is restarted (sudo supervisorctl restart expo). This is a Metro/Expo dev-server behaviour, not a code bug.",
+    "Strong recommendation (carried over from iter 7): /app/frontend/app/index.tsx is ~17815 lines. Extract DailySummaryCard, terminal card, and other large components into separate files to make future regressions easier to debug."
+  ],
+  "critical_code_review_comments": [
+    "Bundle staleness root cause: Metro's transform cache under .metro-cache/ retained pre-fix module outputs for index.tsx. The HMR/hot-reload path was disabled in the served bundle URL (hot=false), so file edits since the last full bundle build were NOT reflected on the wire. The on-disk source was correct the whole time; the served JS was stale. Clearing .metro-cache + restarting expo rebuilt the bundle correctly.",
+    "Score chip JSX at /app/frontend/app/index.tsx lines 7595 and 7922 are duplicated — same structure (icon + 'Score: {score.toFixed(1)}') used in two render branches. Consider extracting into a <ScoreChip score={...} /> component to avoid future divergence.",
+    "Daily-summary card is correctly placed inside the eventos branch and fetchDailySummary is correctly in the useEffect dependency array (line 6495). No business-logic issues remain."
+  ],
+  "updated_files": [
+    "/app/frontend/.metro-cache (cleared)"
+  ],
+  "success_rate": {
+    "backend": "100% (carried from iter 7 — 11/11 pytest pass, not re-run as request scope was frontend-only)",
+    "frontend": "100% (2/2 items now pass: ai-daily-summary-card renders with all 4 sections; Score chip shows EXACTLY 'Score: X.X' with no prefix; Demanda bar below Score chip)"
+  },
+  "test_credentials": "admin / admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — live Gemini-grounded summary (cached server-side).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "If frontend changes appear to NOT be reflected in the rendered UI but the source code clearly contains the fix, suspect a stale Metro bundle. Quick check: curl the served entry.bundle (URL in index.html src attribute) and grep for the expected/old strings. Fix: rm -rf /app/frontend/.metro-cache/* && sudo supervisorctl restart expo, then wait ~50s for the first bundle request to trigger a full rebuild before re-testing. Login flow unchanged: inputs[0]=destino (skip), inputs[1]=admin, inputs[2]=admin, click 'Entrar', wait 10s. Daily-summary fetch was instant on the second run because backend MongoDB cache was warm — first user-load may take ~30s for Gemini call.",
+  "rca_of_the_issue": "Reproduction: Login admin/admin → switch to Eventos tab → daily-summary card absent; switch to Aviones → Score chip reads 'Previsión Próxima Hora · Score X.X'. Investigation: source code at /app/frontend/app/index.tsx already contained the correct 'Score: {score.toFixed(1)}' at lines 7595/7922 and the daily-summary card JSX inside the eventos branch with fetchDailySummary correctly in the useEffect dependency array at line 6495 — i.e. the main-agent's fixes WERE on disk. Direct inspection of the served bundle (curl https://tariff-tool.preview.emergentagent.com/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app) revealed 1 occurrence of 'Previsi' (old text) and 0 occurrences of 'ai-daily-summary-card' / 'Resumen del' / 'Demanda en este Momento' — meaning Metro was serving a stale pre-fix bundle. Mitigation applied: rm -rf /app/frontend/.metro-cache/* && sudo supervisorctl restart expo. After ~50s of bundle rebuild, the new bundle showed 0 'Previsi' hits and the expected new strings. Re-test confirmed both items PASS. Permanent fix recommendation: main agent or deployment pipeline should add a 'clear metro cache' step whenever index.tsx is edited in dev, or use HMR consistently (hot=true)."
+}
