@@ -169,8 +169,6 @@ interface FlightArrival {
   gate?: string;
   status?: string;
   delay_minutes?: number;  // Minutos de retraso (negativo si adelantado)
-  status_tag?: 'proximo' | 'siguiente' | 'equipaje' | 'finalizado' | null;
-  is_large?: boolean;
 }
 
 interface TerminalData {
@@ -185,26 +183,10 @@ interface TerminalData {
   score_60min?: number;
   past_30min?: number;
   past_60min?: number;
-  // Instant pressure (Demanda en este Momento)
-  instant_pressure_pct?: number;
-  instant_pressure_level?: 'green' | 'yellow' | 'red' | 'critical';
-  instant_pressure_trend?: 'up' | 'down' | 'flat';
-  instant_pressure_breakdown?: {
-    en_tierra: number;
-    entregando_equipo_lt15: number;
-    entregando_equipo_gt15: number;
-    finalizado_0_15: number;
-    finalizado_16_30: number;
-    long_haul_boost: number;
-  };
-  // Demand buckets (P/E/F/S/GRANDE)
-  proximos?: number;
-  equipaje?: number;
-  finalizado?: number;
-  siguientes?: number;
-  grande?: number;
-  demand_pct?: number;
-  demand_level?: 'baja' | 'media' | 'alta' | 'critica';
+  // Instant demand (Demanda en este Momento)
+  instant_demand_pct?: number;
+  instant_demand_level?: 'green' | 'yellow' | 'red' | 'critical';
+  instant_demand_trend?: 'up' | 'down' | 'flat';
 }
 
 interface FlightComparison {
@@ -458,19 +440,6 @@ export default function TransportMeter() {
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventTime, setNewEventTime] = useState('');
   const [eventLoading, setEventLoading] = useState(false);
-
-  // AI Daily Summary states
-  const [dailySummary, setDailySummary] = useState<{
-    summary: string | null;
-    sources?: { uri: string; title: string }[];
-    date?: string;
-    generated_at?: string;
-    success?: boolean;
-    error?: string | null;
-    fallback_date?: string | null;
-  } | null>(null);
-  const [dailySummaryLoading, setDailySummaryLoading] = useState(false);
-  const [dailySummaryExpanded, setDailySummaryExpanded] = useState(false);
 
   // Admin Panel states
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
@@ -3644,25 +3613,6 @@ export default function TransportMeter() {
     }
   }, [shift]);
 
-  // Fetch AI daily event summary (Madrid venues + city agenda)
-  const fetchDailySummary = useCallback(async (force: boolean = false) => {
-    try {
-      setDailySummaryLoading(true);
-      const url = `${API_BASE}/api/events/daily-summary${force ? `?t=${Date.now()}` : ''}`;
-      const response = await axios.get(url, { timeout: 120000 });
-      setDailySummary(response.data);
-    } catch (error: any) {
-      console.error('Error fetching daily summary:', error);
-      setDailySummary({
-        summary: null,
-        success: false,
-        error: error?.message || 'Error de conexión',
-      });
-    } finally {
-      setDailySummaryLoading(false);
-    }
-  }, []);
-
   // Create new event
   const createEvent = async () => {
     if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
@@ -6477,8 +6427,6 @@ export default function TransportMeter() {
         ]);
       } else if (activeTab === 'events') {
         await fetchEventsData();
-        // Fetch AI daily summary (cached server-side; cheap call)
-        fetchDailySummary();
       } else if (activeTab === 'social') {
         await Promise.all([
           fetchFriends(),
@@ -7771,15 +7719,11 @@ export default function TransportMeter() {
     let score30min = 0;
     let score60min = 0;
     let allArrivals: FlightArrival[] = [];
-    // Instant pressure aggregation across terminals in this group
+    // Instant demand aggregation across terminals in this group
     let instantPctSum = 0;
     let instantTrendUp = 0;
     let instantTrendDown = 0;
     let instantHasData = false;
-    // Demand buckets aggregation across terminals in this group
-    let pSum = 0, eSum = 0, fSum = 0, sSum = 0, gSum = 0;
-    let demandPctSum = 0;
-    let demandHasData = false;
     
     group.terminals.forEach(terminalName => {
       const terminal = flightData.terminals[terminalName];
@@ -7791,63 +7735,26 @@ export default function TransportMeter() {
         score30min += terminal.score_30min || 0;
         score60min += terminal.score_60min || 0;
         allArrivals = [...allArrivals, ...terminal.arrivals];
-        if (typeof terminal.instant_pressure_pct === 'number') {
+        if (typeof terminal.instant_demand_pct === 'number') {
           instantHasData = true;
-          instantPctSum += terminal.instant_pressure_pct;
-          if (terminal.instant_pressure_trend === 'up') instantTrendUp += 1;
-          else if (terminal.instant_pressure_trend === 'down') instantTrendDown += 1;
-        }
-        if (typeof terminal.demand_pct === 'number') {
-          demandHasData = true;
-          pSum += terminal.proximos || 0;
-          eSum += terminal.equipaje || 0;
-          fSum += terminal.finalizado || 0;
-          sSum += terminal.siguientes || 0;
-          gSum += terminal.grande || 0;
-          demandPctSum += terminal.demand_pct;
+          instantPctSum += terminal.instant_demand_pct;
+          if (terminal.instant_demand_trend === 'up') instantTrendUp += 1;
+          else if (terminal.instant_demand_trend === 'down') instantTrendDown += 1;
         }
       }
     });
-    
-    // Aggregated demand: average across terminals
-    const demandPct = demandHasData ? Math.round(demandPctSum / group.terminals.length) : null;
-    const demandLevel: 'baja' | 'media' | 'alta' | 'critica' | null = (() => {
-      if (demandPct === null) return null;
-      if (demandPct > 100) return 'critica';
-      if (demandPct >= 70) return 'alta';
-      if (demandPct >= 40) return 'media';
-      return 'baja';
-    })();
-    const demandColor =
-      demandLevel === 'critica' ? '#DC2626' :
-      demandLevel === 'alta' ? '#EF4444' :
-      demandLevel === 'media' ? '#F59E0B' :
-      '#10B981';
-    const demandLabel =
-      demandLevel === 'critica' ? 'CRÍTICA' :
-      demandLevel === 'alta' ? 'ALTA' :
-      demandLevel === 'media' ? 'MEDIA' :
-      'BAJA';
-    
-    // Aggregated instant pressure: average pct of terminals in the group
-    const instantPct = instantHasData
-      ? Math.round(instantPctSum / group.terminals.length)
-      : null;
-    const instantLevel: 'green' | 'yellow' | 'red' | 'critical' | null = (() => {
-      if (instantPct === null) return null;
-      if (instantPct > 100) return 'critical';
-      if (instantPct >= 70) return 'red';
-      if (instantPct >= 40) return 'yellow';
-      return 'green';
-    })();
-    const instantTrend: 'up' | 'down' | 'flat' | null = instantHasData
-      ? (instantTrendUp > instantTrendDown ? 'up' : (instantTrendDown > instantTrendUp ? 'down' : 'flat'))
-      : null;
+
+    // Aggregated instant demand: average pct across terminals in this group
+    const instantPct = instantHasData ? Math.round(instantPctSum / group.terminals.length) : null;
     const instantColor =
-      instantLevel === 'critical' ? '#DC2626' :
-      instantLevel === 'red' ? '#EF4444' :
-      instantLevel === 'yellow' ? '#F59E0B' :
+      instantPct === null ? '#10B981' :
+      instantPct > 100 ? '#DC2626' :
+      instantPct >= 70 ? '#EF4444' :
+      instantPct >= 40 ? '#F59E0B' :
       '#10B981';
+    const instantTrend: 'up' | 'down' | 'flat' = !instantHasData ? 'flat' :
+      instantTrendUp > instantTrendDown ? 'up' :
+      instantTrendDown > instantTrendUp ? 'down' : 'flat';
     
     // Filter arrivals to only show those within the selected time window
     // If a specific time range is selected (not "now"), the backend already filters, so we show all
@@ -7859,40 +7766,29 @@ export default function TransportMeter() {
       // Backend already filtered by the selected time range, show all arrivals
       filteredArrivals = [...allArrivals];
     } else {
-      // Real-time mode: trust the backend's status_tag (which uses Madrid TZ).
-      // Show ALL flights that have a P/E/F/S tag set.
-      // Falls back to time-based filtering if backend hasn't tagged them yet.
-      const hasTags = allArrivals.some(a => !!a.status_tag);
-      if (hasTags) {
-        filteredArrivals = allArrivals.filter(a => !!a.status_tag);
-      } else {
-        // Fallback (no tags from backend) — best-effort browser-side filter
-        const now = new Date();
-        filteredArrivals = allArrivals.filter(arrival => {
-          try {
-            const [hours, minutes] = arrival.time.split(':').map(Number);
-            const arrivalDate = new Date();
-            arrivalDate.setHours(hours, minutes, 0, 0);
-            const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
-            return diffMinutes >= -60 && diffMinutes <= 90;
-          } catch {
-            return false;
+      // Real-time mode: filter arrivals based on current time and timeWindow
+      const now = new Date();
+      filteredArrivals = allArrivals.filter(arrival => {
+        try {
+          const [hours, minutes] = arrival.time.split(':').map(Number);
+          const arrivalDate = new Date();
+          arrivalDate.setHours(hours, minutes, 0, 0);
+          
+          // Handle day rollover (if arrival time is before current time by more than 2 hours, it's tomorrow)
+          if (arrivalDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000) {
+            arrivalDate.setDate(arrivalDate.getDate() + 1);
           }
-        });
-      }
+          
+          const diffMinutes = (arrivalDate.getTime() - now.getTime()) / (1000 * 60);
+          return diffMinutes >= 0 && diffMinutes <= timeWindow;
+        } catch {
+          return false;
+        }
+      });
     }
-
-    // Sort by status_tag order (finalizado → equipaje → proximo → siguiente),
-    // then by time within each bucket
-    const tagOrder: Record<string, number> = {
-      finalizado: 0, equipaje: 1, proximo: 2, siguiente: 3,
-    };
-    filteredArrivals.sort((a, b) => {
-      const aTag = a.status_tag ? (tagOrder[a.status_tag] ?? 99) : 99;
-      const bTag = b.status_tag ? (tagOrder[b.status_tag] ?? 99) : 99;
-      if (aTag !== bTag) return aTag - bTag;
-      return a.time.localeCompare(b.time);
-    });
+    
+    // Sort filtered arrivals by time
+    filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
     const futureArrivals = timeWindow === 30 ? total30min : total60min;
     const pastArrivals = timeWindow === 30 ? past30min : past60min;
@@ -7975,116 +7871,81 @@ export default function TransportMeter() {
           </Text>
         </View>
         
-        {/* Cabecera P/E/F/S - Próximos / Equipaje / Finalizados / Siguientes */}
+        {/* Formato: XA - YP (Anteriores - Posteriores) */}
         <View style={styles.arrivalCount}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: '#A78BFA' }}>
-              {pSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>P</Text>
+          <View style={styles.arrivalScoreRow}>
+            <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
+              {pastArrivals}<Text style={styles.arrivalSuffix}>A</Text>
             </Text>
-            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: '#F59E0B' }}>
-              {eSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>E</Text>
-            </Text>
-            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: '#EF4444' }}>
-              {fSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>F</Text>
-            </Text>
-            <Text style={{ fontSize: 22, color: '#64748B' }}>-</Text>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: '#10B981' }}>
-              {sSum}<Text style={{ fontSize: 14, fontWeight: '700' }}>S</Text>
+            <Text style={styles.arrivalDivider}> - </Text>
+            <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
+              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
             </Text>
           </View>
-          <Text style={[styles.arrivalLabel, { textAlign: 'center', marginTop: 4 }]}>
-            Próximos / Equipaje / Finalizados / Siguientes (60min + 30min)
+          <Text style={styles.arrivalLabel}>
+            vuelos ({timeWindow === 30 ? '15' : '30'}min ant. / {timeWindow}min post.)
           </Text>
+          <View style={styles.scoreContainer}>
+            <Ionicons name="analytics" size={14} color="#6366F1" />
+            <Text style={styles.scoreText}>Previsión Próxima Hora · Score {score.toFixed(1)}</Text>
+          </View>
 
-          {/* Badge "X GRANDE" - long-haul / wide-body flights */}
-          {gSum > 0 && (
-            <View style={{ alignSelf: 'center', marginTop: 8 }}>
+          {/* === NUEVA: Demanda en este Momento === */}
+          {instantPct !== null && (
+            <View
+              testID={`instant-demand-${group.terminals[0]}`}
+              style={{
+                marginTop: 10,
+                paddingTop: 10,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(99, 102, 241, 0.15)',
+              }}
+            >
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 12,
-                backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                borderWidth: 1,
-                borderColor: '#F59E0B',
+                justifyContent: 'space-between',
+                marginBottom: 6,
               }}>
-                <Ionicons name="airplane" size={12} color="#F59E0B" />
-                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>
-                  {gSum} GRANDE{gSum !== 1 ? 'S' : ''}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* === Barra DEMANDA con escala BAJA / MEDIA / ALTA === */}
-          {demandPct !== null && (
-            <View
-              testID={`instant-pressure-${group.terminals[0]}`}
-              style={{ marginTop: 14 }}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginRight: 12 }}>
-                  DEMANDA
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Ionicons name="pulse" size={14} color={instantColor} />
+                  <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginRight: 8 }}>
+                    Demanda en este Momento
+                  </Text>
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: demandColor, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>
-                    {demandLabel}
+                  <Text style={{ color: instantColor, fontSize: 14, fontWeight: '800' }}>
+                    {instantPct}%
                   </Text>
-                  <Text style={{ color: demandColor, fontSize: 14, fontWeight: '800' }}>
-                    {demandPct}%
-                  </Text>
-                  {instantTrend && (
-                    <Ionicons
-                      name={instantTrend === 'up' ? 'arrow-up' : instantTrend === 'down' ? 'arrow-down' : 'remove'}
-                      size={12}
-                      color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#64748B'}
-                    />
-                  )}
+                  <Ionicons
+                    name={instantTrend === 'up' ? 'arrow-up' : instantTrend === 'down' ? 'arrow-down' : 'remove'}
+                    size={14}
+                    color={instantTrend === 'up' ? '#EF4444' : instantTrend === 'down' ? '#10B981' : '#64748B'}
+                  />
                 </View>
               </View>
-              {/* Bar with multi-zone gradient backdrop */}
               <View style={{
                 width: '100%',
-                height: 10,
+                height: 8,
                 backgroundColor: 'rgba(100, 116, 139, 0.18)',
-                borderRadius: 5,
+                borderRadius: 4,
                 overflow: 'hidden',
-                position: 'relative',
               }}>
                 <View style={{
                   height: '100%',
-                  width: `${Math.min(demandPct, 100)}%` as any,
-                  backgroundColor: demandColor,
-                  borderRadius: 5,
+                  width: `${Math.min(instantPct, 100)}%` as any,
+                  backgroundColor: instantColor,
+                  borderRadius: 4,
                 }} />
-                {demandPct > 100 && (
+                {instantPct > 100 && (
                   <View style={{
                     position: 'absolute', right: 2, top: 1, bottom: 1,
                     width: 4, backgroundColor: '#FCA5A5', borderRadius: 2,
                   }} />
                 )}
-                {/* Tick markers at 40% and 70% */}
-                <View style={{ position: 'absolute', left: '40%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.18)' }} />
-                <View style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.18)' }} />
-              </View>
-              {/* Scale labels */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={{ color: '#10B981', fontSize: 10 }}>Baja</Text>
-                <Text style={{ color: '#F59E0B', fontSize: 10 }}>Media</Text>
-                <Text style={{ color: '#EF4444', fontSize: 10 }}>Alta</Text>
               </View>
             </View>
           )}
-
-          {/* Score chip (Previsión Próxima Hora) */}
-          <View style={[styles.scoreContainer, { alignSelf: 'center', marginTop: 10 }]}>
-            <Ionicons name="analytics" size={14} color="#6366F1" />
-            <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
-          </View>
         </View>
         
         {/* Alert buttons */}
@@ -8145,16 +8006,7 @@ export default function TransportMeter() {
         
         {/* Flight arrivals list */}
         <View style={styles.arrivalsList}>
-          {filteredArrivals.map((flight, index) => {
-            // Badge config based on status_tag (P/E/F/S)
-            const tag = flight.status_tag;
-            const tagConfig: { label: string; bg: string; fg: string } | null =
-              tag === 'finalizado' ? { label: 'Finalizado', bg: 'rgba(239, 68, 68, 0.18)', fg: '#EF4444' } :
-              tag === 'equipaje'   ? { label: 'Equipaje',   bg: 'rgba(245, 158, 11, 0.18)', fg: '#F59E0B' } :
-              tag === 'proximo'    ? { label: 'Próximo',    bg: 'rgba(167, 139, 250, 0.18)', fg: '#A78BFA' } :
-              tag === 'siguiente'  ? { label: 'Siguiente',  bg: 'rgba(16, 185, 129, 0.18)', fg: '#10B981' } :
-              null;
-            return (
+          {filteredArrivals.map((flight, index) => (
             <View key={index} style={styles.arrivalItem}>
               <View style={styles.arrivalTime}>
                 <Text style={[
@@ -8172,21 +8024,6 @@ export default function TransportMeter() {
               <View style={styles.arrivalInfo}>
                 <View style={styles.trainTypeRow}>
                   <Text style={styles.trainType}>{flight.flight_number}</Text>
-                  {flight.is_large && (
-                    <View style={{
-                      marginLeft: 6,
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 8,
-                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 3,
-                    }}>
-                      <Ionicons name="airplane" size={9} color="#F59E0B" />
-                      <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '700' }}>GRANDE</Text>
-                    </View>
-                  )}
                   {flight.delay_minutes && flight.delay_minutes > 0 && (
                     <View style={styles.delayBadge}>
                       <Text style={styles.delayText}>+{flight.delay_minutes} min</Text>
@@ -8197,31 +8034,13 @@ export default function TransportMeter() {
                   {flight.origin}
                 </Text>
               </View>
-              {/* Status tag badge (replaces terminal badge when tag exists) */}
-              {tagConfig ? (
-                <View
-                  testID={`flight-status-${flight.flight_number}`}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 12,
-                    backgroundColor: tagConfig.bg,
-                  }}
-                >
-                  <Text style={{ color: tagConfig.fg, fontSize: 11, fontWeight: '700' }}>
-                    {tagConfig.label}
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
-                  <Text style={[styles.platformText, { color: '#3B82F6' }]}>
-                    {flight.terminal}
-                  </Text>
-                </View>
-              )}
+              <View style={[styles.platformBadge, { backgroundColor: '#3B82F622' }]}>
+                <Text style={[styles.platformText, { color: '#3B82F6' }]}>
+                  {flight.terminal}
+                </Text>
+              </View>
             </View>
-            );
-          })}
+          ))}
         </View>
         
         {/* Check-in/Check-out Button */}
@@ -11376,226 +11195,6 @@ export default function TransportMeter() {
           <View style={styles.eventsContainer}>
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
-
-            {/* ====== AI Daily Summary Card ====== */}
-            <View
-              testID="ai-daily-summary-card"
-              style={{
-                backgroundColor: '#0F172A',
-                borderWidth: 1,
-                borderColor: 'rgba(99, 102, 241, 0.35)',
-                borderRadius: 14,
-                padding: 16,
-                marginBottom: 16,
-                shadowColor: '#6366F1',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 12,
-                elevation: 4,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <View style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: 'rgba(99, 102, 241, 0.18)',
-                  alignItems: 'center', justifyContent: 'center',
-                  marginRight: 10,
-                }}>
-                  <Ionicons name="sparkles" size={18} color="#A5B4FC" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#F1F5F9', fontSize: 15, fontWeight: '700' }}>
-                    Resumen del día
-                  </Text>
-                  <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 1 }}>
-                    Eventos verificados en Madrid · IA + Google Search
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  data-testid="ai-daily-summary-refresh-btn"
-                  onPress={() => fetchDailySummary(true)}
-                  disabled={dailySummaryLoading}
-                  style={{
-                    padding: 8, borderRadius: 8,
-                    backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                  }}
-                >
-                  <Ionicons
-                    name={dailySummaryLoading ? 'sync' : 'refresh'}
-                    size={16}
-                    color={dailySummaryLoading ? '#64748B' : '#A5B4FC'}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {dailySummaryLoading && !dailySummary ? (
-                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color="#6366F1" />
-                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 8 }}>
-                    Consultando IFEMA, WiZink, Movistar Arena y agenda municipal...
-                  </Text>
-                </View>
-              ) : dailySummary?.summary ? (
-                <>
-                  {!dailySummary.success && (
-                    <View
-                      testID="ai-daily-summary-fallback-warning"
-                      style={{
-                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                        borderLeftWidth: 3,
-                        borderLeftColor: '#F59E0B',
-                        padding: 8,
-                        borderRadius: 6,
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Text style={{ color: '#FCD34D', fontSize: 12, fontWeight: '600' }}>
-                        ⚠ No he podido actualizar el resumen hoy. Mostrando el del{' '}
-                        {dailySummary.fallback_date || 'día anterior'}.
-                      </Text>
-                    </View>
-                  )}
-                  <Text
-                    testID="ai-daily-summary-text"
-                    style={{
-                      color: '#E2E8F0',
-                      fontSize: 13.5,
-                      lineHeight: 21,
-                    }}
-                  >
-                    {(() => {
-                      // Parse the summary into structured lines for better visual rendering
-                      const lines = (dailySummary.summary || '').split('\n').map(l => l.trim()).filter(Boolean);
-                      const SECTION_EMOJIS = ['🏟', '⚽', '🎭', '🚧', '🎉', '🎵', '🏛'];
-                      return lines.map((line, idx) => {
-                        // Section header lines (start with emoji like 🏟 GRANDES RECINTOS)
-                        const startsWithSectionEmoji = SECTION_EMOJIS.some(e => line.startsWith(e));
-                        if (startsWithSectionEmoji) {
-                          return (
-                            <Text
-                              key={idx}
-                              style={{
-                                color: '#A5B4FC',
-                                fontWeight: '700',
-                                fontSize: 13.5,
-                                lineHeight: 22,
-                                textTransform: 'uppercase' as any,
-                                letterSpacing: 0.5,
-                              }}
-                            >
-                              {(idx > 0 ? '\n\n' : '') + line}
-                            </Text>
-                          );
-                        }
-                        // Warning lines (obras / cortes / atención)
-                        if (line.startsWith('⚠')) {
-                          return (
-                            <Text
-                              key={idx}
-                              style={{
-                                color: '#FCD34D',
-                                fontWeight: '600',
-                                fontSize: 13,
-                                lineHeight: 20,
-                              }}
-                            >
-                              {'\n' + line}
-                            </Text>
-                          );
-                        }
-                        // "Sin eventos" / "Sin partidos" placeholder
-                        if (/^sin (eventos|partidos|cortes|musicales|funciones)/i.test(line) ||
-                            /muchos teatros (cerrados|descansan)/i.test(line)) {
-                          return (
-                            <Text
-                              key={idx}
-                              style={{
-                                color: '#64748B',
-                                fontStyle: 'italic' as any,
-                                fontSize: 13,
-                                lineHeight: 20,
-                              }}
-                            >
-                              {'\n' + line}
-                            </Text>
-                          );
-                        }
-                        // Bullet event lines
-                        if (line.startsWith('-') || line.startsWith('•')) {
-                          const cleaned = line.replace(/^[-•]\s*/, '');
-                          const hourMatch = cleaned.match(/^(\d{1,2}[:h]\d{0,2}h?|Por la (mañana|tarde|noche)|Todo el día)\s*[·\-—]?\s*/i);
-                          if (hourMatch) {
-                            const hour = hourMatch[0].replace(/[·\-—\s]+$/, '').trim();
-                            const rest = cleaned.slice(hourMatch[0].length);
-                            return (
-                              <Text key={idx} style={{ fontSize: 13.5, lineHeight: 21 }}>
-                                {'\n'}
-                                <Text style={{ color: '#A5B4FC' }}>{'•  '}</Text>
-                                <Text style={{ color: '#FCD34D', fontWeight: '700' }}>{hour}</Text>
-                                <Text style={{ color: '#94A3B8' }}>{'  ·  '}</Text>
-                                <Text style={{ color: '#F1F5F9' }}>{rest}</Text>
-                              </Text>
-                            );
-                          }
-                          return (
-                            <Text key={idx} style={{ fontSize: 13.5, lineHeight: 21 }}>
-                              {'\n'}
-                              <Text style={{ color: '#A5B4FC' }}>{'•  '}</Text>
-                              <Text style={{ color: '#F1F5F9' }}>{cleaned}</Text>
-                            </Text>
-                          );
-                        }
-                        // Greeting / closing / paragraph
-                        const isGreeting = idx === 0 && /buenos|hola|compañero|briefing/i.test(line);
-                        const isClosing = idx === lines.length - 1 && /(buena jornada|buen turno|suerte|caña)/i.test(line);
-                        return (
-                          <Text
-                            key={idx}
-                            style={{
-                              color: isGreeting || isClosing ? '#A5B4FC' : '#CBD5E1',
-                              fontStyle: isClosing ? 'italic' : 'normal',
-                              fontWeight: isGreeting ? '600' : '400',
-                              fontSize: isGreeting ? 14 : 13.5,
-                              lineHeight: 21,
-                            }}
-                          >
-                            {(idx > 0 ? '\n\n' : '') + line}
-                          </Text>
-                        );
-                      });
-                    })()}
-                  </Text>
-                  {dailySummary.generated_at && (
-                    <Text style={{ color: '#64748B', fontSize: 10, marginTop: 10 }}>
-                      Actualizado: {new Date(dailySummary.generated_at).toLocaleString('es-ES', {
-                        timeZone: 'Europe/Madrid',
-                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-                      })}
-                      {dailySummary.sources && dailySummary.sources.length > 0 &&
-                        ` · ${dailySummary.sources.length} fuente${dailySummary.sources.length !== 1 ? 's' : ''}`}
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <View
-                  testID="ai-daily-summary-error"
-                  style={{
-                    paddingVertical: 12,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Ionicons name="cloud-offline-outline" size={28} color="#64748B" />
-                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' }}>
-                    No se ha podido cargar el resumen del día.
-                  </Text>
-                  <Text style={{ color: '#64748B', fontSize: 11, marginTop: 4, textAlign: 'center' }}>
-                    Se reintentará automáticamente. Pulsa el botón ↻ para reintentar ahora.
-                  </Text>
-                </View>
-              )}
-            </View>
-            {/* ====== /AI Daily Summary Card ====== */}
-
             {/* Add Event Button */}
             <TouchableOpacity 
               style={styles.addEventButton}

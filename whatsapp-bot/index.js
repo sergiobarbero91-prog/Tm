@@ -668,7 +668,6 @@ app.post('/send-hourly-update', async (req, res) => {
         // AI Daily Summary (cabeza del mensaje)
         if (aiSummaryRes.data && aiSummaryRes.data.summary) {
             message += `🤖 *RESUMEN DEL DÍA (IA)*\n`;
-            // Limpia formato y trunca por seguridad
             const aiText = String(aiSummaryRes.data.summary).trim().slice(0, 1500);
             message += `${aiText}\n`;
             if (aiSummaryRes.data.success === false && aiSummaryRes.data.fallback_date) {

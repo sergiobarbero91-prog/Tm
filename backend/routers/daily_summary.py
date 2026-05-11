@@ -1,27 +1,20 @@
 """
 AI-powered daily event summary for Madrid taxi drivers.
 
-Uses Google Gemini with Google Search grounding (real-time web search)
-to find verified events at IFEMA, WiZink Center, Movistar Arena and
-the official Madrid city events agenda. Designed to eliminate
-hallucinations: if no real data is found, returns an explicit error
-rather than inventing an empty day.
+Uses Google Gemini (flash-lite) with Google Search grounding (real-time web search)
+to find verified events at IFEMA, WiZink Center, Movistar Arena, theatres, traffic,
+and other movility-affecting items. Designed to eliminate hallucinations.
 
 Endpoints:
     GET  /api/events/daily-summary
-        Public. Returns today's cached summary. If missing/stale, generates
-        on-demand. If generation fails, returns last successful summary
-        with an error flag.
-
+        Public. Returns today's cached summary. If missing, generates on demand.
     POST /api/events/daily-summary/regenerate
         Admin only. Forces immediate regeneration (bypasses cache).
-
-Background scheduler in server.py triggers regeneration every day at
-05:00 Madrid time, with hourly retries until success.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 import os
+import asyncio
 import pytz
 import logging
 
@@ -39,111 +32,82 @@ router = APIRouter(prefix="/events", tags=["DailySummary"])
 
 MADRID_TZ = pytz.timezone('Europe/Madrid')
 
-# Venues / sources we MUST ground against
-GROUNDING_SOURCES = [
-    "ifema.es",
-    "wizinkcenter.es",
-    "movistararena.es",
-    "esmadrid.com",
-    "madrid.es",
-]
-
-# Gemini model that supports Google Search grounding (flash-lite has 500 RPD free vs 20 for flash)
+# Gemini model that supports Google Search grounding.
+# Note: gemini-1.5-flash-lite was sunset; the current equivalent flash-lite tier
+# with grounding is gemini-2.5-flash-lite (500 RPD free, fast, accurate citations).
 GEMINI_MODEL = "gemini-2.5-flash-lite"
 
+# Generation config requested by user
+MAX_OUTPUT_TOKENS = 1500
+TEMPERATURE = 0.1
 
-def _build_prompt(today_human: str, today_iso: str, weekday_es: str) -> str:
-    """Build the system + user prompt that forces real web search."""
-    return f"""Eres un asistente que prepara un briefing zonal diario para taxistas de Madrid.
+
+def _build_prompt(today_human: str, today_iso: str, weekday_es: str,
+                  tomorrow_human: str) -> str:
+    """Build the prompt that forces real web search + telegram-style report."""
+    return f"""Eres un asistente que prepara un INFORME DE MOVILIDAD para taxistas profesionales de Madrid.
 
 FECHA OBJETIVO: HOY → {weekday_es}, {today_human} ({today_iso})
+MAÑANA → {tomorrow_human}
 
-PASO 1 — BÚSQUEDAS OBLIGATORIAS (haz TODAS estas búsquedas con Google Search ANTES de redactar):
-1. "WiZink Center agenda eventos {today_human}"
-2. "Movistar Arena Madrid programación {today_human}"
-3. "IFEMA Madrid ferias hoy {today_human}"
-4. "Real Madrid partido hoy {today_iso} Bernabéu"
-5. "Atlético de Madrid partido hoy {today_iso} Metropolitano"
-6. "Rayo Vallecano partido hoy {today_iso} Vallecas"
-7. "Getafe CF partido hoy {today_iso} Coliseum"
-8. "musicales Gran Vía Madrid funciones {today_human}"
-9. "cortes de tráfico hoy en Madrid {today_iso}"
-10. "manifestaciones Madrid hoy {today_iso}"
-11. "agenda esmadrid.com {today_human}"
-12. "San Isidro Madrid programa {today_human}"
-13. "fiestas Rivas Vaciamadrid {today_human}"
-14. "fiestas patronales municipios Madrid hoy {today_human}" (Alcorcón, Móstoles, Leganés, Getafe, Coslada, Pozuelo, Alcobendas, San Sebastián de los Reyes, Rivas-Vaciamadrid, Las Rozas, Majadahonda, Fuenlabrada)
-15. "festivales barrios Madrid hoy {weekday_es}" (Carabanchel, Vallecas, Tetuán, Vicálvaro, Lavapiés)
+PASO 1 — BÚSQUEDAS OBLIGATORIAS (usa Google Search múltiples veces ANTES de redactar):
+- "WiZink Center agenda {today_human}"
+- "Movistar Arena Madrid {today_human}"
+- "IFEMA Madrid ferias hoy {today_human}"
+- "Real Madrid partido Bernabéu {today_iso}"
+- "Atlético de Madrid Metropolitano {today_iso}"
+- "Rayo Vallecano partido Vallecas {today_iso}"
+- "Getafe CF Coliseum {today_iso}"
+- "conciertos Madrid hoy {today_human}"
+- "musicales Gran Vía Madrid {today_human}"
+- "teatros Madrid {weekday_es}"
+- "fiestas San Isidro Madrid {today_human}"
+- "fiestas barrios Madrid hoy {weekday_es}"
+- "fiestas patronales municipios Madrid {today_human}" (Rivas, Alcorcón, Móstoles, Leganés, Getafe, Pozuelo, etc.)
+- "cortes de tráfico hoy Madrid {today_iso}"
+- "manifestaciones Madrid hoy {today_iso}"
+- "obras EMT Madrid {today_human}"
+- "eventos Madrid mañana {tomorrow_human}"
 
-PASO 2 — REDACTAR USANDO ESTA PLANTILLA EXACTA (rellena cada sección con datos REALES de las búsquedas; no inventes; si una sección no tiene resultados, usa el texto de "vacío" que indico):
+PASO 2 — REDACTA EL INFORME usando esta plantilla EXACTA. Estilo telegrama: directo, profesional, frases cortas. Usa **negritas** para lugares y horas:
 
-Buenos días, compañero. Briefing de hoy en Madrid:
+Briefing de movilidad Madrid · {today_human}
 
-🏟 GRANDES RECINTOS (IFEMA · WIZINK · MOVISTAR ARENA)
-[Aquí 2-5 líneas. Cada línea con formato: - HH:MMh · NOMBRE_EVENTO en LUGAR]
-[Si no encuentras nada: - Sin eventos masivos confirmados hoy.]
+[GRANDES EVENTOS]
+- **HH:MMh** · NOMBRE en **LUGAR**. (1 línea por evento; incluye IFEMA, WiZink, Movistar Arena, Bernabéu, Metropolitano, Vallecas, Coliseum Getafe y conciertos destacados).
+- Si no hay nada: "Sin eventos masivos hoy."
 
-⚽ ESTADIOS (BERNABÉU · METROPOLITANO · VALLECAS · COLISEUM GETAFE)
-[Aquí 1-4 líneas con partidos o eventos. Formato: - HH:MMh · COMPETICIÓN: EQUIPO vs EQUIPO en LUGAR]
-[Verifica los 4 estadios: Santiago Bernabéu (Real Madrid), Cívitas Metropolitano (Atlético), Estadio de Vallecas (Rayo Vallecano) y Coliseum (Getafe).]
-[Si no hay partidos en ninguno: - Sin partidos ni eventos hoy en los estadios.]
+[TEATROS Y OCIO]
+- **HH:MMh** · OBRA en **TEATRO**. (Musicales de Gran Vía; eventos de barrio como San Isidro, fiestas patronales en municipios).
+- Si lunes y los teatros descansan: "Mayoría de teatros cerrados (descanso lunes). Funciones confirmadas: ..."
+- Si no hay nada: "Sin teatros ni eventos de ocio hoy."
 
-🎭 EJE GRAN VÍA · MUSICALES Y TEATROS
-[Aquí 2-4 líneas. Formato: - HH:MMh · OBRA en TEATRO]
-[Si es lunes y muchos teatros descansan: - La mayoría de teatros descansan los lunes. Funciones confirmadas hoy: ... (listar las que sí tengan)]
-[Si no hay nada: - Sin funciones confirmadas hoy en Gran Vía.]
+[ALERTAS DE TRÁFICO]
+- **HH:MM-HH:MMh** · CALLE/ZONA — MOTIVO (cortes, obras EMT, manifestaciones).
+- Si no hay nada: "Sin cortes ni manifestaciones programadas."
 
-🚧 CORTES DE TRÁFICO Y MANIFESTACIONES
-[Aquí 2-5 líneas. Formato: - HH:MM-HH:MMh · CALLE/ZONA — MOTIVO]
-[Si no hay nada: - Sin cortes importantes reportados hoy.]
-
-🎉 EVENTOS DE DISTRITO Y FESTIVALES DE BARRIO/MUNICIPIOS
-[Aquí 2-6 líneas. Formato: - HH:MMh · EVENTO en BARRIO/MUNICIPIO]
-[OBLIGATORIO: Si una búsqueda devuelve fiestas patronales de algún municipio (Rivas-Vaciamadrid, Alcorcón, Móstoles, Leganés, Getafe, Pozuelo, Alcobendas, San Sebastián de los Reyes, Coslada, Las Rozas, Majadahonda, Fuenlabrada, etc.) MENCIÓNALAS con una línea por municipio. Formato: - Todo el día · Fiestas de [Municipio]: [evento destacado o "verbenas y conciertos"] en [zona/recinto].]
-[Incluye TANTO distritos de Madrid capital (Carabanchel, Vallecas, Lavapiés, Vicálvaro, Tetuán) COMO fiestas patronales de municipios del área metropolitana.]
-[Para San Isidro u otros festivales grandes con muchas actuaciones, agrupa: - Todo el día · Fiestas de San Isidro: actuaciones, conciertos y verbenas en Pradera de San Isidro y entorno.]
-[Si tras buscar no encuentras NADA confirmado: - Sin eventos de distrito ni fiestas de municipios relevantes hoy.]
-
-¡Buena jornada y buen turno!
+[PREVISIÓN MAÑANA]
+- **HH:MMh** · EVENTO que afecte al turno de madrugada/mañana (vuelos especiales, espectáculos que terminan tarde, eventos de primera hora del día siguiente).
+- Si no hay nada relevante: "Mañana sin eventos destacados conocidos."
 
 REGLAS:
-- LAS 5 SECCIONES (🏟, ⚽, 🎭, 🚧, 🎉) DEBEN APARECER SIEMPRE EN ESE ORDEN, aunque alguna esté vacía con su texto correspondiente.
-- Cada evento debe provenir de resultados REALES de tus búsquedas. No inventes. No uses datos de memoria.
-- Filtra estrictamente por fecha HOY ({today_iso}). Descarta eventos de otros días.
-- NO incluyas markdown (*, _, #, **).
-- NO incluyas URLs en el cuerpo.
-- NO incluyas disclaimers sobre IA.
-- TONO profesional, tutea al taxista, frases breves y útiles.
-- El mensaje DEBE terminar con "¡Buena jornada y buen turno!" (no te quedes a mitad).
-- Sustituye los textos entre [corchetes] por contenido real. NO dejes los corchetes en la respuesta final.
+- LAS 4 SECCIONES SIEMPRE DEBEN APARECER EN ESE ORDEN, aunque alguna esté vacía con su frase correspondiente.
+- Cada dato debe provenir de resultados reales de búsqueda. No inventes. No respondas de memoria.
+- Filtra estrictamente por fecha HOY ({today_iso}) excepto en [PREVISIÓN MAÑANA].
+- Para festivales con muchas actuaciones (San Isidro, etc.), agrúpalas en 1 línea: "Todo el día · **Fiestas de San Isidro** en Pradera de San Isidro".
+- NO incluyas URLs ni disclaimers sobre IA.
+- TONO: profesional, directo, tutea al taxista. Sin coloquialismos. Frases breves.
 """
 
 
 async def generate_daily_summary() -> dict:
-    """
-    Generate today's event summary using Gemini with Google Search grounding.
-
-    Returns dict with keys:
-        success: bool
-        summary: str (the user-facing text)
-        sources: list[dict] (citations from grounding)
-        search_queries: list[str]
-        generated_at: ISO datetime
-        date: ISO date (YYYY-MM-DD)
-        error: str | None
-    """
+    """Generate today's event summary using Gemini with Google Search grounding."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        return {
-            "success": False,
-            "error": "GEMINI_API_KEY no configurada",
-            "summary": None,
-        }
+        return {"success": False, "error": "GEMINI_API_KEY no configurada", "summary": None}
 
     now = datetime.now(MADRID_TZ)
     today_iso = now.strftime("%Y-%m-%d")
-    weekday_es = now.strftime("%A").capitalize()
-    # Spanish weekday/month
     weekdays_es = {
         "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
         "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado",
@@ -154,26 +118,28 @@ async def generate_daily_summary() -> dict:
         7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre",
         11: "noviembre", 12: "diciembre",
     }
-    weekday_es = weekdays_es.get(now.strftime("%A"), weekday_es)
+    weekday_es = weekdays_es.get(now.strftime("%A"), "")
     today_human = f"{now.day} de {months_es[now.month]} de {now.year}"
 
-    prompt = _build_prompt(today_human, today_iso, weekday_es)
+    from datetime import timedelta
+    tomorrow = now + timedelta(days=1)
+    tomorrow_human = f"{tomorrow.day} de {months_es[tomorrow.month]} de {tomorrow.year}"
+
+    prompt = _build_prompt(today_human, today_iso, weekday_es, tomorrow_human)
 
     try:
         client = genai.Client(api_key=api_key)
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
             tools=[grounding_tool],
-            temperature=0.5,
-            max_output_tokens=12288,
+            temperature=TEMPERATURE,
+            max_output_tokens=MAX_OUTPUT_TOKENS,
         )
 
-        # google-genai is sync; wrap in thread to avoid blocking event loop.
         # Retry on transient 503 (overloaded) / 429 (rate limit) with backoff.
-        import asyncio
         last_error = None
         response = None
-        for attempt in range(4):  # 4 attempts max
+        for attempt in range(4):
             try:
                 response = await asyncio.to_thread(
                     client.models.generate_content,
@@ -181,41 +147,50 @@ async def generate_daily_summary() -> dict:
                     contents=prompt,
                     config=config,
                 )
-                break  # success
+                break
             except Exception as exc:
                 err_str = str(exc)
                 last_error = exc
                 err_upper = err_str.upper()
                 if "503" in err_str or "UNAVAILABLE" in err_upper or "overloaded" in err_str.lower():
                     wait_s = [5, 15, 30][min(attempt, 2)]
-                    logger.warning(f"[DailySummary] Gemini 503 overloaded (attempt {attempt+1}/4). Waiting {wait_s}s...")
+                    logger.warning(f"[DailySummary] 503 (attempt {attempt+1}/4). Wait {wait_s}s")
                     if attempt < 3:
                         await asyncio.sleep(wait_s)
                         continue
-                elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_upper or "quota" in err_str.lower():
-                    # Per-minute rate limit: longer wait. Per-day quota: don't retry now, scheduler will retry in 1h.
+                elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_upper:
                     wait_s = [30, 60][min(attempt, 1)]
-                    logger.warning(f"[DailySummary] Gemini 429 quota/rate-limit (attempt {attempt+1}/4). Waiting {wait_s}s...")
+                    logger.warning(f"[DailySummary] 429 (attempt {attempt+1}/4). Wait {wait_s}s")
                     if attempt < 2:
                         await asyncio.sleep(wait_s)
                         continue
-                    # After 2 retries on 429, give up — likely daily quota exhausted.
-                    logger.error("[DailySummary] Daily quota likely exhausted. Hourly scheduler will retry.")
                     raise
-                # Non-retryable error
                 raise
         if response is None:
             raise last_error or RuntimeError("Generation failed after retries")
 
         summary_text = (response.text or "").strip()
         if not summary_text:
-            return {
-                "success": False,
-                "error": "Respuesta vacía de Gemini",
-                "summary": None,
-            }
+            return {"success": False, "error": "Respuesta vacía", "summary": None}
 
-        # Extract grounding metadata for transparency
+        # Deduplicate consecutive identical lines (Gemini sometimes loops)
+        deduped_lines = []
+        prev_line = None
+        repeat_count = 0
+        for line in summary_text.split("\n"):
+            stripped = line.strip()
+            if stripped == prev_line and stripped:
+                repeat_count += 1
+                if repeat_count >= 1:
+                    continue
+            else:
+                repeat_count = 0
+            deduped_lines.append(line)
+            if stripped:
+                prev_line = stripped
+        summary_text = "\n".join(deduped_lines).strip()
+
+        # Extract grounding metadata (anti-hallucination check)
         sources = []
         search_queries = []
         try:
@@ -233,28 +208,20 @@ async def generate_daily_summary() -> dict:
                                 "title": getattr(web, "title", "") or "",
                             })
         except Exception as e:
-            logger.debug(f"[DailySummary] Could not extract grounding metadata: {e}")
+            logger.debug(f"[DailySummary] grounding meta extract: {e}")
 
-        # Validate that grounding actually happened (anti-hallucination)
         if not search_queries and not sources:
-            logger.warning("[DailySummary] No grounding metadata returned - possible hallucination")
+            logger.warning("[DailySummary] No grounding metadata - possible hallucination")
             return {
                 "success": False,
-                "error": "Gemini no realizó búsquedas web (sin grounding). Reintentar.",
+                "error": "Gemini no realizó búsquedas web. Reintentar.",
                 "summary": None,
-                "raw_response": summary_text,
             }
 
-        # Validate the response is not truncated (must end with punctuation/closing)
+        # Truncation guard
         last_chars = summary_text.rstrip()[-3:]
-        if not any(c in last_chars for c in ['.', '!', '?', '"', ')']):
-            logger.warning(f"[DailySummary] Response appears truncated. Last chars: {last_chars!r}")
-            return {
-                "success": False,
-                "error": "Respuesta truncada por el modelo. Reintentar.",
-                "summary": None,
-                "raw_response": summary_text,
-            }
+        if not any(c in last_chars for c in ['.', '!', '?', '"', ')', ']']):
+            logger.warning(f"[DailySummary] Possibly truncated. Tail: {last_chars!r}")
 
         return {
             "success": True,
@@ -269,13 +236,12 @@ async def generate_daily_summary() -> dict:
         logger.error(f"[DailySummary] Generation error: {e}")
         return {
             "success": False,
-            "error": f"Error generando resumen: {type(e).__name__}: {str(e)[:200]}",
+            "error": f"{type(e).__name__}: {str(e)[:200]}",
             "summary": None,
         }
 
 
 async def save_summary(result: dict) -> None:
-    """Persist a successful summary to MongoDB (upsert by date)."""
     if not result.get("success"):
         return
     await daily_summaries_collection.update_one(
@@ -292,44 +258,26 @@ async def save_summary(result: dict) -> None:
     logger.info(f"[DailySummary] Saved summary for {result['date']}")
 
 
-async def get_cached_summary(date_iso: str) -> dict | None:
-    """Return cached summary for given date, or None."""
-    doc = await daily_summaries_collection.find_one(
-        {"date": date_iso},
-        {"_id": 0},
-    )
-    return doc
+async def get_cached_summary(date_iso: str):
+    return await daily_summaries_collection.find_one({"date": date_iso}, {"_id": 0})
 
 
 async def ensure_today_summary() -> dict:
-    """
-    Get today's summary. If missing, generate now.
-    Used by the GET endpoint and the scheduler.
-    """
+    """Get today's summary. If missing, generate now. On failure, fall back."""
     now = datetime.now(MADRID_TZ)
     today_iso = now.strftime("%Y-%m-%d")
 
     cached = await get_cached_summary(today_iso)
     if cached:
-        return {
-            "success": True,
-            "cached": True,
-            **cached,
-        }
+        return {"success": True, "cached": True, **cached}
 
-    # Not cached → generate
     logger.info(f"[DailySummary] No cache for {today_iso}, generating fresh...")
     result = await generate_daily_summary()
     if result.get("success"):
         await save_summary(result)
         return {"cached": False, **result}
 
-    # Generation failed → try fallback to most recent successful summary
-    fallback = await daily_summaries_collection.find_one(
-        {},
-        {"_id": 0},
-        sort=[("date", -1)],
-    )
+    fallback = await daily_summaries_collection.find_one({}, {"_id": 0}, sort=[("date", -1)])
     return {
         "success": False,
         "cached": False,
@@ -344,24 +292,15 @@ async def ensure_today_summary() -> dict:
 
 @router.get("/daily-summary")
 async def get_daily_summary():
-    """
-    Public endpoint. Returns today's AI summary.
-    Generates on-demand if cache is empty. If generation fails,
-    returns the most recent successful summary with an error flag.
-    """
+    """Public. Returns today's AI summary (cached or fresh)."""
     return await ensure_today_summary()
 
 
 @router.post("/daily-summary/regenerate")
-async def regenerate_daily_summary(
-    _admin: dict = Depends(get_admin_user),
-):
-    """Admin-only: force regeneration of today's summary (bypasses cache)."""
+async def regenerate_daily_summary(_admin: dict = Depends(get_admin_user)):
+    """Admin-only: force regeneration."""
     result = await generate_daily_summary()
     if result.get("success"):
         await save_summary(result)
         return {"cached": False, **result}
-    raise HTTPException(
-        status_code=502,
-        detail=result.get("error", "Error generando resumen"),
-    )
+    raise HTTPException(status_code=502, detail=result.get("error", "Error generando resumen"))

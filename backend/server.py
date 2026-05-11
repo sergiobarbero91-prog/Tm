@@ -272,8 +272,6 @@ class FlightArrival(BaseModel):
     gate: Optional[str] = None
     status: Optional[str] = None
     delay_minutes: Optional[int] = None  # Minutos de retraso
-    status_tag: Optional[str] = None  # 'proximo'|'siguiente'|'equipaje'|'finalizado'|None
-    is_large: Optional[bool] = None  # True if long-haul / wide-body
 
 class TerminalData(BaseModel):
     terminal: str
@@ -287,19 +285,10 @@ class TerminalData(BaseModel):
     score_60min: Optional[float] = None  # Weighted score for 60min window
     past_30min: Optional[int] = None     # Arrivals in past 15 min
     past_60min: Optional[int] = None     # Arrivals in past 30 min
-    # Instant pressure (Demanda en este Momento) — saturation of passenger flow now
-    instant_pressure_pct: Optional[int] = None     # 0..200+ %
-    instant_pressure_level: Optional[str] = None   # 'green' | 'yellow' | 'red' | 'critical'
-    instant_pressure_trend: Optional[str] = None   # 'up' | 'down' | 'flat'
-    instant_pressure_breakdown: Optional[Dict[str, int]] = None  # counts per bucket
-    # Demand buckets (P/E/F/S/GRANDE) for the airport zone card
-    proximos: Optional[int] = None       # flights arriving in next 0-30 min
-    equipaje: Optional[int] = None       # flights landed 0-30 min ago (collecting bags)
-    finalizado: Optional[int] = None     # flights landed 30-60 min ago (already left)
-    siguientes: Optional[int] = None     # flights arriving in next 30-90 min
-    grande: Optional[int] = None         # long-haul / wide-body flights in any bucket
-    demand_pct: Optional[int] = None     # 0-200+%
-    demand_level: Optional[str] = None   # 'baja' | 'media' | 'alta' | 'critica'
+    # ===== Instant Demand (Demanda en este Momento) =====
+    instant_demand_pct: Optional[int] = None     # Saturation %, 0..200+
+    instant_demand_level: Optional[str] = None   # 'green'|'yellow'|'red'|'critical'
+    instant_demand_trend: Optional[str] = None   # 'up'|'down'|'flat'
 
 class TrainComparisonResponse(BaseModel):
     atocha: StationData
@@ -1184,12 +1173,10 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                     except (ValueError, TypeError):
                                         pass
                                 
-                                # Avoid duplicates and filter out cancelled flights.
-                                # NOTE: "Aterrizado" flights are kept in raw data so the
-                                # instant-pressure calculation can count them. The display
-                                # filter `filter_future_flights` removes them from the UI.
-                                if status in ["Cancelado"]:
-                                    continue  # Skip cancelled flights only
+                                # Avoid duplicates and filter out cancelled/landed flights
+                                # Only show flights that are still expected to arrive
+                                if status in ["Cancelado", "Aterrizado"]:
+                                    continue  # Skip cancelled and already landed flights
                                     
                                 existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
@@ -1407,20 +1394,19 @@ def filter_future_flights(arrivals: List[Dict]) -> List[Dict]:
 
 
 # ============================================================
-# INSTANT PRESSURE (Demanda en este Momento) for airport flights.
+# INSTANT DEMAND (Demanda en este Momento) — airport flights.
 #
-# Per-flight pressure points based on minutes since the flight's
-# real arrival time (now relative to the flight's `time` field):
-#   - 0 to 5  min  → EN TIERRA (taxiing, deplaning):             +0.2
-#   - 5 to 15 min  → ENTREGANDO EQUIPO (<15 min):                +0.4
-#   - 15 to 30 min → ENTREGANDO EQUIPO (>15 min, peak outflow):  +0.8
-#   - 30 to 45 min → FINALIZADO 0-15 min (still many pax):       +1.0
-#   - 45 to 60 min → FINALIZADO 16-30 min (last stragglers):     +0.3
-# x1.5 multiplier when the flight is a wide-body / long-haul jet.
-# Total points × 10 = saturation %, can exceed 100%.
+# Per-flight pressure points by minutes since the flight's arrival time:
+#   - 0 to 5  min   → EN TIERRA (taxiing, deplaning):             +0.2
+#   - 5 to 15 min   → ENTREGANDO EQUIPO <15min:                   +0.4
+#   - 15 to 30 min  → ENTREGANDO EQUIPO >15min (peak outflow):    +0.8
+#   - 30 to 45 min  → FINALIZADO 0-15min (still many pax):        +1.0
+#   - 45 to 60 min  → FINALIZADO 16-30min (last stragglers):      +0.3
+# x1.5 multiplier for long-haul / wide-body aircraft.
+# Total × 10 = saturation %. Can exceed 100%.
 # ============================================================
 
-# Long-haul / wide-body origin keywords (transatlantic, transpacific, intercontinental)
+# Long-haul keywords (transatlantic/transpacific/intercontinental destinations)
 _LONG_HAUL_KEYWORDS = [
     "new york", "nueva york", "newark", "jfk", "miami", "boston", "washington",
     "chicago", "los angeles", "los ángeles", "dallas", "houston", "atlanta",
@@ -1439,15 +1425,13 @@ _LONG_HAUL_KEYWORDS = [
 ]
 
 
-def _is_long_haul(flight: Dict) -> bool:
-    """Heuristic: classify flight as wide-body / long-haul by origin name."""
+def _is_long_haul_flight(flight: Dict) -> bool:
     origin = (flight.get("origin") or "").lower()
     return any(kw in origin for kw in _LONG_HAUL_KEYWORDS)
 
 
-def _parse_flight_time_to_dt(time_str: str, now: datetime) -> Optional[datetime]:
-    """Parse 'HH:MM' string into a tz-aware datetime relative to `now`.
-    Handles day rollover."""
+def _parse_flight_hhmm_to_dt(time_str: str, now: datetime) -> Optional[datetime]:
+    """Parse 'HH:MM' into a tz-aware datetime relative to `now`. Handles day rollover."""
     try:
         if not time_str or ":" not in time_str:
             return None
@@ -1463,53 +1447,33 @@ def _parse_flight_time_to_dt(time_str: str, now: datetime) -> Optional[datetime]
         return None
 
 
-def calculate_instant_pressure(arrivals: List[Dict], now: datetime) -> Dict:
-    """Compute instant passenger-outflow pressure for an airport terminal."""
+def calculate_instant_demand(arrivals: List[Dict], now: datetime) -> int:
+    """Compute the instant demand saturation % for an airport terminal."""
     total_score = 0.0
-    breakdown = {
-        "en_tierra": 0,
-        "entregando_equipo_lt15": 0,
-        "entregando_equipo_gt15": 0,
-        "finalizado_0_15": 0,
-        "finalizado_16_30": 0,
-        "long_haul_boost": 0,
-    }
-
     for flight in arrivals:
-        dt = _parse_flight_time_to_dt(flight.get("time", ""), now)
+        dt = _parse_flight_hhmm_to_dt(flight.get("time", ""), now)
         if dt is None:
             continue
         mins_since = (now - dt).total_seconds() / 60.0
         if mins_since < 0 or mins_since > 60:
             continue
-
         if mins_since < 5:
-            flight_pts = 0.2
-            breakdown["en_tierra"] += 1
+            pts = 0.2
         elif mins_since < 15:
-            flight_pts = 0.4
-            breakdown["entregando_equipo_lt15"] += 1
+            pts = 0.4
         elif mins_since < 30:
-            flight_pts = 0.8
-            breakdown["entregando_equipo_gt15"] += 1
+            pts = 0.8
         elif mins_since < 45:
-            flight_pts = 1.0
-            breakdown["finalizado_0_15"] += 1
+            pts = 1.0
         else:
-            flight_pts = 0.3
-            breakdown["finalizado_16_30"] += 1
-
-        if _is_long_haul(flight):
-            flight_pts *= 1.5
-            breakdown["long_haul_boost"] += 1
-
-        total_score += flight_pts
-
-    pct = int(round(total_score * 10))
-    return {"score": round(total_score, 2), "pct": pct, "breakdown": breakdown}
+            pts = 0.3
+        if _is_long_haul_flight(flight):
+            pts *= 1.5
+        total_score += pts
+    return int(round(total_score * 10))
 
 
-def pressure_level(pct: int) -> str:
+def instant_demand_level(pct: int) -> str:
     """Map saturation % to a color level."""
     if pct > 100:
         return "critical"
@@ -1520,14 +1484,14 @@ def pressure_level(pct: int) -> str:
     return "green"
 
 
-# In-memory cache for trend calculation (last pressure % per terminal)
-_prev_instant_pressure: Dict[str, int] = {}
+# In-memory previous values for trend computation (per terminal)
+_prev_instant_demand: Dict[str, int] = {}
 
 
-def pressure_trend(terminal: str, current_pct: int) -> str:
-    """Compare current % vs previously cached % for this terminal."""
-    prev = _prev_instant_pressure.get(terminal)
-    _prev_instant_pressure[terminal] = current_pct
+def instant_demand_trend(terminal: str, current_pct: int) -> str:
+    """Compare current % vs the previously-stored value for this terminal."""
+    prev = _prev_instant_demand.get(terminal)
+    _prev_instant_demand[terminal] = current_pct
     if prev is None:
         return "flat"
     diff = current_pct - prev
@@ -1536,58 +1500,6 @@ def pressure_trend(terminal: str, current_pct: int) -> str:
     if diff <= -5:
         return "down"
     return "flat"
-
-
-def classify_flight_status_tag(flight: Dict, now: datetime) -> Optional[str]:
-    """Classify a single flight into P/E/F/S buckets based on time relative to now.
-
-    Returns one of: 'proximo' (within 30 min future), 'siguiente' (30-90 min future),
-    'equipaje' (within 30 min past), 'finalizado' (30-60 min past), or None (out of window).
-    """
-    dt = _parse_flight_time_to_dt(flight.get("time", ""), now)
-    if dt is None:
-        return None
-    delta_min = (dt - now).total_seconds() / 60.0
-    # delta_min > 0 → future, < 0 → past
-    if 0 <= delta_min <= 30:
-        return "proximo"
-    if 30 < delta_min <= 90:
-        return "siguiente"
-    if -30 <= delta_min < 0:
-        return "equipaje"
-    if -60 <= delta_min < -30:
-        return "finalizado"
-    return None
-
-
-def aggregate_demand_buckets(arrivals: List[Dict], now: datetime) -> Dict:
-    """Tag each flight and count totals per bucket (P/E/F/S) + GRANDE.
-
-    Returns:
-        {
-          "proximos": int, "equipaje": int, "finalizado": int, "siguientes": int,
-          "grande": int,  # how many tagged flights are long-haul
-          "tagged_arrivals": List[Dict],  # original arrivals enriched with `status_tag` (may be None)
-        }
-    """
-    counts = {"proximos": 0, "equipaje": 0, "finalizado": 0, "siguientes": 0, "grande": 0}
-    tagged = []
-    for flight in arrivals:
-        tag = classify_flight_status_tag(flight, now)
-        enriched = dict(flight)
-        enriched["status_tag"] = tag
-        if tag == "proximo":
-            counts["proximos"] += 1
-        elif tag == "siguiente":
-            counts["siguientes"] += 1
-        elif tag == "equipaje":
-            counts["equipaje"] += 1
-        elif tag == "finalizado":
-            counts["finalizado"] += 1
-        if tag is not None and _is_long_haul(flight):
-            counts["grande"] += 1
-        tagged.append(enriched)
-    return {**counts, "tagged_arrivals": tagged}
 
 def is_hour_in_shift(hour: int, shift: str) -> bool:
     """Check if an hour belongs to the specified shift.
@@ -2082,18 +1994,8 @@ async def get_flight_comparison(
             arrivals = filter_arrivals_by_hour_window(raw_arrivals, time_start, time_end)
             logger.info(f"[Flights] {terminal}: {len(arrivals)} arrivals in time window")
         else:
-            # Real-time mode: include the full P/E/F/S window (60 min past → 90 min future)
-            # so the UI can show 'Finalizado', 'Equipaje', 'Próximo', 'Siguiente' flights.
-            arrivals = []
-            for a in raw_arrivals:
-                dt = _parse_flight_time_to_dt(a.get("time", ""), now)
-                if dt is None:
-                    continue
-                delta_min = (dt - now).total_seconds() / 60.0
-                if -60 <= delta_min <= 90:
-                    arrivals.append(a)
-            # Sort chronologically (oldest first → most recent in the list = upcoming)
-            arrivals.sort(key=lambda x: x.get("time", ""))
+            # No time window - filter out arrived flights
+            arrivals = filter_future_flights(raw_arrivals)
         
         # Count arrivals
         if custom_time_window:
@@ -2116,7 +2018,7 @@ async def get_flight_comparison(
         
         terminal_data[terminal] = TerminalData(
             terminal=terminal,
-            arrivals=[FlightArrival(**a) for a in arrivals[:25]],
+            arrivals=[FlightArrival(**a) for a in arrivals[:15]],
             total_next_30min=count_30,
             total_next_60min=count_60,
             score_30min=weighted_30,
@@ -2125,47 +2027,16 @@ async def get_flight_comparison(
             past_60min=score_60["past_count"]
         )
 
-        # Instant pressure (Demanda en este Momento) — only meaningful for real-time view,
-        # NOT for past/future custom time windows.
+        # ===== Instant Demand (Demanda en este Momento) =====
+        # Only meaningful for real-time view, NOT for custom past/future windows.
         if not custom_time_window:
             try:
-                pressure = calculate_instant_pressure(raw_arrivals, now)
-                pct = pressure["pct"]
-                terminal_data[terminal].instant_pressure_pct = pct
-                terminal_data[terminal].instant_pressure_level = pressure_level(pct)
-                terminal_data[terminal].instant_pressure_trend = pressure_trend(terminal, pct)
-                terminal_data[terminal].instant_pressure_breakdown = pressure["breakdown"]
-
-                # Demand buckets P/E/F/S/GRANDE + tag each flight
-                buckets = aggregate_demand_buckets(raw_arrivals, now)
-                terminal_data[terminal].proximos = buckets["proximos"]
-                terminal_data[terminal].equipaje = buckets["equipaje"]
-                terminal_data[terminal].finalizado = buckets["finalizado"]
-                terminal_data[terminal].siguientes = buckets["siguientes"]
-                terminal_data[terminal].grande = buckets["grande"]
-                terminal_data[terminal].demand_pct = pct
-                terminal_data[terminal].demand_level = (
-                    "critica" if pct > 100 else
-                    "alta" if pct >= 70 else
-                    "media" if pct >= 40 else
-                    "baja"
-                )
-
-                # Enrich the existing arrivals list with status_tag and is_large
-                tag_by_key = {
-                    f"{f.get('flight_number','')}-{f.get('time','')}": (
-                        f.get("status_tag"), _is_long_haul(f)
-                    )
-                    for f in buckets["tagged_arrivals"]
-                }
-                for fa in terminal_data[terminal].arrivals:
-                    key = f"{fa.flight_number}-{fa.time}"
-                    tag_info = tag_by_key.get(key)
-                    if tag_info:
-                        fa.status_tag = tag_info[0]
-                        fa.is_large = tag_info[1]
+                instant_pct = calculate_instant_demand(raw_arrivals, now)
+                terminal_data[terminal].instant_demand_pct = instant_pct
+                terminal_data[terminal].instant_demand_level = instant_demand_level(instant_pct)
+                terminal_data[terminal].instant_demand_trend = instant_demand_trend(terminal, instant_pct)
             except Exception as e:
-                logger.warning(f"[Flights] Could not compute instant pressure for {terminal}: {e}")
+                logger.warning(f"[Flights] Instant demand calc failed for {terminal}: {e}")
     
     logger.info(f"[Flights] Winner 30m: {winner_30} (score: {max_score_30}), Winner 60m: {winner_60} (score: {max_score_60})")
     
@@ -4072,72 +3943,64 @@ async def startup_db_client():
     start_bot_monitor()
     logger.info("WhatsApp bot monitor task started")
 
-    # Start daily AI summary task (5 AM Madrid + hourly retries on failure)
+    # Start daily AI summary task (05:00 Madrid time + hourly retry on failure)
     asyncio.create_task(daily_summary_task())
     logger.info("Daily AI summary task started")
 
+
 async def daily_summary_task():
-    """Background task: generate the daily AI event summary every day at 05:00 Madrid time.
-    If generation fails (network, Gemini error, no grounding), retries every hour until success."""
+    """Generate the daily AI event summary every day at 05:00 Madrid time.
+    On failure, retries every hour until success."""
     from routers.daily_summary import (
-        generate_daily_summary,
-        save_summary,
-        get_cached_summary,
+        generate_daily_summary, save_summary, get_cached_summary, MADRID_TZ as DS_TZ,
     )
 
-    # Wait 90s on startup so the rest of the app is up
-    await asyncio.sleep(90)
+    await asyncio.sleep(90)  # wait for app to be up
 
-    # Generate immediately on startup if today has no summary
+    # Generate on startup if today has no summary
     try:
-        today_iso = datetime.now(MADRID_TZ).strftime("%Y-%m-%d")
+        today_iso = datetime.now(DS_TZ).strftime("%Y-%m-%d")
         cached = await get_cached_summary(today_iso)
         if not cached:
-            logger.info("[DailySummary] No summary for today on startup, generating now...")
+            logger.info("[DailySummary] No summary for today, generating now...")
             result = await generate_daily_summary()
             if result.get("success"):
                 await save_summary(result)
-                logger.info("[DailySummary] Startup generation succeeded")
+                logger.info("[DailySummary] Startup generation OK")
             else:
-                logger.warning(f"[DailySummary] Startup generation failed: {result.get('error')}")
+                logger.warning(f"[DailySummary] Startup failed: {result.get('error')}")
     except Exception as e:
         logger.error(f"[DailySummary] Startup check error: {e}")
 
     while True:
         try:
-            now = datetime.now(MADRID_TZ)
-            today_iso = now.strftime("%Y-%m-%d")
+            now_madrid = datetime.now(DS_TZ)
+            today_iso = now_madrid.strftime("%Y-%m-%d")
             cached = await get_cached_summary(today_iso)
 
             if cached:
-                # We already have today's summary. Sleep until 05:00 tomorrow.
-                tomorrow_5am = (now + timedelta(days=1)).replace(
+                tomorrow_5am = (now_madrid + timedelta(days=1)).replace(
                     hour=5, minute=0, second=0, microsecond=0
                 )
-                sleep_seconds = (tomorrow_5am - now).total_seconds()
-                logger.info(
-                    f"[DailySummary] Have today's summary. Sleeping {int(sleep_seconds/60)} min until {tomorrow_5am.strftime('%Y-%m-%d %H:%M')}"
-                )
-                await asyncio.sleep(max(sleep_seconds, 60))
+                sleep_s = (tomorrow_5am - now_madrid).total_seconds()
+                logger.info(f"[DailySummary] Have today. Sleep {int(sleep_s/60)}min till 05:00 tomorrow")
+                await asyncio.sleep(max(sleep_s, 60))
                 continue
 
-            # No summary for today yet
-            if now.hour < 5:
-                # Wait until 05:00 today
-                target = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                sleep_seconds = (target - now).total_seconds()
-                logger.info(f"[DailySummary] Waiting {int(sleep_seconds/60)} min until 05:00")
-                await asyncio.sleep(max(sleep_seconds, 60))
+            if now_madrid.hour < 5:
+                target = now_madrid.replace(hour=5, minute=0, second=0, microsecond=0)
+                sleep_s = (target - now_madrid).total_seconds()
+                logger.info(f"[DailySummary] Waiting {int(sleep_s/60)}min until 05:00")
+                await asyncio.sleep(max(sleep_s, 60))
                 continue
 
-            # It's >= 05:00 and no summary → attempt now
             logger.info("[DailySummary] Attempting generation...")
             result = await generate_daily_summary()
             if result.get("success"):
                 await save_summary(result)
-                logger.info("[DailySummary] Generation succeeded")
+                logger.info("[DailySummary] Generation OK")
             else:
-                logger.warning(f"[DailySummary] Generation failed: {result.get('error')}. Retrying in 1h.")
+                logger.warning(f"[DailySummary] Generation failed: {result.get('error')}. Retry in 1h.")
                 await asyncio.sleep(3600)
         except Exception as e:
             logger.error(f"[DailySummary] Task error: {e}")
