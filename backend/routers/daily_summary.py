@@ -146,11 +146,24 @@ def _generate_summary_sync() -> Dict[str, Any]:
         temperature=0.4,
     )
 
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=_build_prompt(),
-        config=config,
-    )
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=_build_prompt(),
+            config=config,
+        )
+    except Exception as e:
+        # Translate provider quota errors (429 RESOURCE_EXHAUSTED) into a clean
+        # 503 so the frontend can show a friendlier "intentar más tarde" message.
+        msg = str(e)
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower():
+            logger.warning(f"[daily-summary] Gemini quota exhausted: {msg[:200]}")
+            raise HTTPException(
+                status_code=503,
+                detail="Cuota de Gemini agotada. Vuelve a intentarlo más tarde o renueva el GEMINI_API_KEY.",
+                headers={"Retry-After": "3600"},
+            )
+        raise
 
     text = (getattr(response, "text", None) or "").strip()
     if not text:

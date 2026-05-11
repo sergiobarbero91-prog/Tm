@@ -64,32 +64,41 @@ Only the items below have been added on top of that baseline.
 ## Test Reports
 - `/app/test_reports/iteration_7.json` — initial test (backend 11/11 ✅, AI card not rendering due to stale Metro cache)
 - `/app/test_reports/iteration_8.json` — final re-test (**Backend 11/11 ✅ + Frontend 2/2 ✅**)
-- `/app/test_reports/iteration_9.json` — fork session: Instant Demand 4/4 ✅; Daily Summary endpoints were missing → reimplemented in this session.
+- `/app/test_reports/iteration_9.json` — fork session post-fork: missing prod files detected.
+- `/app/test_reports/iteration_10.json` — **PROD MERGE COMPLETE: 27/29 PASS** (2 fails are external Gemini 429 quota, NOT code).
 
-## Changelog (fork — May 2026)
+## Changelog (May 2026 — Production Recovery Merge)
 
-### ✅ Re-implemented Instant Demand backend (was missing in /app/backend/server.py)
-- Added `calculate_instant_demand()` in `/app/backend/server.py` (~line 1335).
-- Extended `TerminalData` model with `instant_demand_pct`, `instant_demand_level`, `instant_demand_trend`.
-- Wired into `/api/flights` for all 5 terminals (T1, T2, T3, T4, T4S).
-- Pressure points: next 0-15min × 2.0, next 15-30min × 1.0, past 0-15min × 1.5; ÷10×100 → pct (cap 500); levels green<40 / yellow<80 / red<150 / critical≥150.
+### ✅ Recovered full production codebase to GitHub
+- `/app/backend/server.py` (3958 → 4448 lines): full prod logic including `is_large_aircraft`, `LARGE_AIRCRAFT_CODES`, `AENA_STATUS_MAP`, `upsert_tracked_flights`, `calculate_saturation`, `flight_sort_key`, AENA fallback fetcher, status mapping (`IBK → Entregando equipaje`), tracking of finalized flights in MongoDB.
+- `/app/backend/routers/buses.py` (NEW, 398 lines): scraping of ALSA + Avanza arrivals (Avda. América + Estación Sur) via BeautifulSoup, mongo caching.
+- `/app/backend/routers/reservations.py` (NEW, 381 lines): full taxi reservations lifecycle (create, offer, accept, cancel, calendar, logs).
+- `/app/backend/shared.py`: added `daily_summaries_collection`, `flights_tracked_collection`.
+- `/app/frontend/app/index.tsx` (17575 → 19323 lines): full prod UI for airport terminal cards with P/E/F/S badges (Próximos/Entregando/Finalizado/Siguientes), GRANDES wide-body tag, Cinta de equipaje, status colors, taxi-exit panel, alert buttons, etc.
+- `/app/frontend/app/styles/mainStyles.ts`: replaced by prod version.
+- `/app/frontend/app/components/PublicBusArrivals.tsx` (NEW): public homepage bus widget.
+- `/app/frontend/app/components/PublicEventsSummary.tsx` (NEW): public homepage daily events summary widget.
 
-### ✅ Re-created daily_summary router (was lost from previous session)
-- New `/app/backend/routers/daily_summary.py` with `GET /api/events/daily-summary` (public) and `POST /api/events/daily-summary/regenerate` (admin-gated via `get_admin_user`).
-- Registered BEFORE `events_router` in `/app/backend/server.py` so the literal `/daily-summary` path wins over the `/{event_id}` catch-all (fixes the 405 collision detected in iteration 9).
-- Added `daily_summaries_collection` to `/app/backend/shared.py`.
-- Uses `google-genai` SDK with `Tool(google_search=GoogleSearch())` and `gemini-2.5-flash-lite`; reads `GEMINI_API_KEY` from env.
-- Always returns the 4 required sections (defensive `_ensure_sections` guard).
-- Caches per Madrid date in MongoDB; first GET of the day generates, subsequent ones serve cached.
+### ✅ New `calculate_instant_demand()` spec (user-defined)
+Pressure points based on STATUS + minutes since landing:
+- FINALIZADO 0-15 min: +1.0  |  16-30 min: +0.3
+- ENTREGANDO EQUIPAJE >15 min: +0.8  |  <15 min: +0.4
+- EN TIERRA: +0.2 fixed
+- Multiplier x1.5 for wide-body aircraft (via `is_large_aircraft()`)
+- pct = points × 10 (allows >100% for critical saturation)
+- Levels: green<40, yellow<70, red≤100, critical>100
+- Returned fields: `instant_demand_pct`, `instant_demand_level`, `instant_demand_points`
 
-### ✅ Frontend Demanda Instantánea bar in `renderTerminalCard`
-- Aggregates per-group: avg pct, worst level, dominant trend.
-- Inserted below the Score chip with flash icon, %, trend arrow (trending-up/down/remove), and a colored progress bar (green/yellow/red/critical).
-- Styles in `/app/frontend/app/styles/mainStyles.ts` (`instantDemandContainer`, `instantDemandBarTrack`, `instantDemandBarFill`, etc.).
-- data-testids: `flight-{groupName}-instant-demand-pct`, `flight-{groupName}-instant-demand-bar`.
+### ✅ Two demand bars in the airport terminal card
+- **Top bar (was "DEMANDA")** → relabeled "**PREVISIÓN PRÓXIMA HORA**" (existing saturation algorithm).
+- **NEW bottom bar**: "**DEMANDA EN ESTE MOMENTO**" — flash icon + colored value (green/yellow/red/critical) + trend arrow (⬆/⬇/➡) computed in-component vs the previous tick via `useRef`. Numeric % can exceed 100, with a "SATURACIÓN CRÍTICA" caption when so.
+
+### ✅ Improved error handling
+- `routers/daily_summary.py`: Gemini 429 RESOURCE_EXHAUSTED now translates to HTTP 503 + `Retry-After: 3600` header with a clean Spanish message.
 
 ### Test results
-- `pytest /app/backend/tests/test_instant_demand_and_summary.py -v` → **11/11 PASS** (Instant Demand 4/4, Daily Summary 4/4, Regenerate Auth 2/2, Trains 1/1).
+- `pytest /app/backend/tests/test_instant_demand_and_summary.py -v` → **11/11 PASS** ✅
+- Iteration 10 testing agent: **27/29 PASS** (2 fails are upstream Gemini quota, not code).
 
 ## P0 / Pending User Actions
 - Force Push to GitHub (commits in Emergent are only mine, no remote-only commits to lose)
