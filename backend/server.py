@@ -67,6 +67,7 @@ from routers import chat as chat_router
 from routers import alerts as alerts_router
 from routers import admin as admin_router
 from routers import events as events_router
+from routers import daily_summary as daily_summary_router
 from routers import emergency as emergency_router
 from routers import checkin as checkin_router
 from routers import status as status_router
@@ -3445,6 +3446,10 @@ api_router.include_router(auth_router.router)
 api_router.include_router(chat_router.router)
 api_router.include_router(alerts_router.router)
 api_router.include_router(admin_router.router)
+# IMPORTANT: daily_summary uses prefix /events with literal sub-path
+# /daily-summary; it MUST be registered BEFORE events_router because the
+# latter has a `{event_id}` catch-all that would shadow our literal path.
+api_router.include_router(daily_summary_router.router)
 api_router.include_router(events_router.router)
 api_router.include_router(emergency_router.router)
 api_router.include_router(checkin_router.router)

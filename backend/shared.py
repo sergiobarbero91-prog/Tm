@@ -59,6 +59,7 @@ registration_requests_collection = db['registration_requests']  # For pending re
 support_tickets_collection = db['support_tickets']
 support_messages_collection = db['support_messages']
 points_history_collection = db['points_history']  # For tracking point transactions
+daily_summaries_collection = db['daily_summaries']  # AI-generated daily event summaries
 
 # ============== POINTS SYSTEM CONSTANTS ==============
 
