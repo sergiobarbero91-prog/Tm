@@ -100,6 +100,24 @@ Pressure points based on STATUS + minutes since landing:
 - `pytest /app/backend/tests/test_instant_demand_and_summary.py -v` → **11/11 PASS** ✅
 - Iteration 10 testing agent: **27/29 PASS** (2 fails are upstream Gemini quota, not code).
 
+## Session log — Production deploy (13 May 2026)
+
+### ✅ Deployed to production (asdelvolante.es)
+- Server.py merge (3958→4453), routers/buses.py + routers/reservations.py + routers/daily_summary.py created, frontend index.tsx merge (17575→19327), 2 new public components.
+- GEMINI_API_KEY added to /home/TM/backend/.env.
+- Containers rebuilt: taximeter-backend + taximeter-frontend.
+- Endpoint `/api/events/daily-summary-public` created for homepage widget (component PublicEventsSummary expected `success/summary/day_name`).
+- Endpoint `/api/events/daily-summary` GET now returns `success: true` (dashboard frontend checks that flag).
+- Model upgraded `gemini-2.5-flash-lite → gemini-2.5-flash` + exhaustive prompt with 8+ queries/section, forces deeper search before declaring "Sin información".
+- Result on Madrid San Isidro day: 22 sources, 12 distinct queries, 5+ events in [GRANDES EVENTOS], 7 in [TEATROS Y OCIO], all 4 sections populated.
+
+### 🟡 P1 — Open items for next session
+- **Render markdown `**bold**` in dashboard events tab**: currently shows literal asterisks. Need to swap the `<Text>{aiEventsSummary}</Text>` in /app/frontend/app/index.tsx ~line 12477 for a tiny markdown renderer (or strip+style segments).
+- **Improve horarios accuracy**: user reports some times shown by IA are slightly off. Two options:
+   (a) Tighten the prompt to require "if you cannot confirm the exact start time from an official source, write 'horario por confirmar' instead of guessing".
+   (b) Move to gemini-2.5-pro (more careful, lower hallucination rate, much higher cost).
+- **Rotate the GEMINI_API_KEY** — was exposed in chat history. Replace with a fresh key from https://aistudio.google.com/apikey on both /home/TM/backend/.env (prod) and Emergent preview backend/.env.
+
 ## P0 / Pending User Actions
 - Force Push to GitHub (commits in Emergent are only mine, no remote-only commits to lose)
 - On Ubuntu server: `git pull && docker compose build backend && docker compose up -d`
