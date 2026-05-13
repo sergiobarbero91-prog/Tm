@@ -337,7 +337,12 @@ def _bracket_to_markdown_sections(summary_text: str) -> str:
     if tips:
         out.append("### Sugerencia estratégica")
         for i, tip in enumerate(tips, 1):
-            out.append(f"{i}. **{tip}**")
+            # Strip any inner ** so the wrapping ** below doesn't nest.
+            clean_tip = tip.replace("**", "").strip()
+            # Truncate overly long tips (homepage widget is compact)
+            if len(clean_tip) > 160:
+                clean_tip = clean_tip[:157].rstrip() + "..."
+            out.append(f"{i}. **{clean_tip}**")
 
     return "\n\n".join(out)
 
