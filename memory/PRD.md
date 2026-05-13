@@ -116,6 +116,10 @@ Pressure points based on STATUS + minutes since landing:
 - **Improve horarios accuracy**: user reports some times shown by IA are slightly off. Two options:
    (a) Tighten the prompt to require "if you cannot confirm the exact start time from an official source, write 'horario por confirmar' instead of guessing".
    (b) Move to gemini-2.5-pro (more careful, lower hallucination rate, much higher cost).
+- 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
+   - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
+   - Either pass the computed peaks as extra context to Gemini so it includes a 5th `[AEROPUERTO]` section, OR render it as a separate UI block above the AI summary card (cheaper, no token cost).
+   - Check daily Gemini quota headroom before deciding: today we used 12 queries for the city summary. The free tier of gemini-2.5-flash allows ~1500/day, plenty of room.
 - **Rotate the GEMINI_API_KEY** — was exposed in chat history. Replace with a fresh key from https://aistudio.google.com/apikey on both /home/TM/backend/.env (prod) and Emergent preview backend/.env.
 
 ## P0 / Pending User Actions
