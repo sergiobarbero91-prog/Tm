@@ -247,3 +247,96 @@ async def regenerate_daily_summary(_admin=Depends(get_admin_user)):
 
     await _persist(summary)
     return {"success": True, **summary}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public homepage endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+# The public homepage component (PublicEventsSummary.tsx) expects:
+#   { success: bool, summary: str, day_name: str }
+# and parses `### Header` markdown sections plus a "Sugerencia estratégica"
+# section. We adapt our 4-bracket-section summary into that format on the fly.
+
+_SPANISH_DAYS = [
+    "lunes", "martes", "miércoles", "jueves",
+    "viernes", "sábado", "domingo",
+]
+
+
+def _bracket_to_markdown_sections(summary_text: str) -> str:
+    """Convert `[GRANDES EVENTOS]\n- bullet` blocks into `### Grandes Eventos\n- bullet`.
+
+    Also appends a "### Sugerencia estratégica" section with up to 4 numbered
+    tips derived from the body so the homepage strategic-tips block has
+    content to show.
+    """
+    if not summary_text:
+        return ""
+
+    pretty_map = {
+        "GRANDES EVENTOS": "Grandes Eventos",
+        "TEATROS Y OCIO": "Teatros y Ocio",
+        "ALERTAS DE TRÁFICO": "Alertas de Tráfico",
+        "PREVISIÓN MAÑANA": "Previsión Mañana",
+    }
+
+    out: List[str] = []
+    tips: List[str] = []
+    for raw_header, pretty in pretty_map.items():
+        bracket = f"[{raw_header}]"
+        if bracket not in summary_text:
+            continue
+        # Slice from the bracket to the next bracket (or end of text)
+        start = summary_text.index(bracket) + len(bracket)
+        rest = summary_text[start:]
+        end = len(rest)
+        for other in pretty_map:
+            other_bracket = f"[{other}]"
+            if other_bracket in rest:
+                end = min(end, rest.index(other_bracket))
+        body = rest[:end].strip()
+        out.append(f"### {pretty}\n{body}")
+
+        # Use the first 2 bullets of "Grandes Eventos" + "Teatros" as tips
+        if raw_header in ("GRANDES EVENTOS", "TEATROS Y OCIO"):
+            for line in body.splitlines():
+                line = line.strip()
+                if line.startswith("-") and len(tips) < 4:
+                    tips.append(line.lstrip("-").strip())
+
+    if tips:
+        out.append("### Sugerencia estratégica")
+        for i, tip in enumerate(tips, 1):
+            out.append(f"{i}. **{tip}**")
+
+    return "\n\n".join(out)
+
+
+@router.get("/daily-summary-public")
+async def get_daily_summary_public():
+    """Lightweight public endpoint for the unauthenticated homepage widget.
+
+    Returns the summary reformatted with `### Header` markdown sections and
+    a Spanish day_name so PublicEventsSummary.tsx can render it directly.
+    """
+    cached = await _load_cached()
+    if not cached or not cached.get("summary"):
+        # Try generating once; if it fails (quota/key), return a soft failure
+        # so the homepage simply hides the widget.
+        try:
+            cached = await _generate_summary()
+            await _persist(cached)
+        except Exception as e:
+            logger.warning(f"[daily-summary-public] generation skipped: {e}")
+            return {"success": False, "summary": "", "day_name": ""}
+
+    today_idx = datetime.now(MADRID_TZ).weekday()
+    day_name = _SPANISH_DAYS[today_idx]
+
+    md_summary = _bracket_to_markdown_sections(cached.get("summary", ""))
+    return {
+        "success": True,
+        "summary": md_summary,
+        "day_name": day_name,
+        "date": cached.get("date"),
+    }
