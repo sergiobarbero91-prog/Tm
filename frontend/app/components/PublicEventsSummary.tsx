@@ -19,13 +19,14 @@ const parseSummaryToSections = (text: string) => {
     const title = lines[0].replace(/\*\*/g, '').trim();
     const body = lines.slice(1).join('\n').trim();
 
-    // Check if this is the strategic suggestions section
+    // Skip empty sections
+    if (!body) continue;
+
+    // The "Sugerencia estratégica" section is rendered separately at the bottom
     if (/sugerencia|estratég/i.test(title)) {
-      // Extract numbered tips
       const tipMatches = body.match(/\d+\.\s+\*\*[^*]+\*\*[^]*?(?=\n\d+\.|\n\*\*Nota|\n$|$)/g);
       if (tipMatches) {
         for (const tip of tipMatches) {
-          // Clean markdown
           const cleaned = tip
             .replace(/\*\*/g, '')
             .replace(/\*/g, '')
@@ -34,21 +35,36 @@ const parseSummaryToSections = (text: string) => {
           strategicTips.push(cleaned);
         }
       }
-    } else if (/wizink|ifema|estadio|teatro|palacio|gran vía/i.test(title)) {
-      const hasEvent = !/sin eventos? confirmad|no se registr|no hay|ausencia/i.test(body);
-      // Get the key info line
-      let summary = '';
-      const statusMatch = body.match(/\*\*([^*]+)\*\*/);
-      if (statusMatch) {
-        summary = statusMatch[1].trim();
-      }
-      // Get impact line
-      const impactMatch = body.match(/\*\*Impacto[^*]*\*\*:\s*([^\n]+)/);
-      if (impactMatch) {
-        summary += summary ? ' — ' + impactMatch[1].trim() : impactMatch[1].trim();
-      }
-      sections.push({ title, content: summary, hasEvent });
+      continue;
     }
+
+    // For all other sections (Grandes Eventos, Teatros y Ocio, Alertas, Previsión)
+    // we list each bullet as its own row so the user sees a real list, not a
+    // single venue.
+    const bulletRegex = /^\s*[-*•]\s*(.+)$/gm;
+    const bullets: string[] = [];
+    let match;
+    while ((match = bulletRegex.exec(body)) !== null) {
+      const cleaned = match[1].replace(/\*\*/g, '').replace(/\*/g, '').trim();
+      if (cleaned && !/sin información verificada/i.test(cleaned)) {
+        bullets.push(cleaned);
+      }
+    }
+
+    if (bullets.length === 0) {
+      // No real bullets → show "no info" greyed row
+      sections.push({ title, content: 'Sin información verificada para hoy.', hasEvent: false });
+      continue;
+    }
+
+    // One row per bullet (limit to 6 per section to keep widget compact)
+    bullets.slice(0, 6).forEach((b, idx) => {
+      sections.push({
+        title: idx === 0 ? title : '',
+        content: b,
+        hasEvent: true,
+      });
+    });
   }
 
   return { sections, strategicTips };

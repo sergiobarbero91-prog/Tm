@@ -214,13 +214,19 @@ async def _persist(summary: Dict[str, Any]) -> None:
 
 
 @router.get("/daily-summary")
-async def get_daily_summary():
-    """Return today's AI daily summary, generating it on first call of the day."""
-    cached = await _load_cached()
-    if cached and cached.get("summary"):
-        # Strip Mongo-only keys defensively (projection already excludes _id).
-        cached.pop("_id", None)
-        return cached
+async def get_daily_summary(force_refresh: bool = False):
+    """Return today's AI daily summary, generating it on first call of the day.
+
+    Pass ?force_refresh=true to bypass the cache (admin tooling).
+    Always includes `success: true` in the payload so the frontend dashboard
+    (which checks `response.data.success`) renders the summary correctly.
+    """
+    if not force_refresh:
+        cached = await _load_cached()
+        if cached and cached.get("summary"):
+            cached.pop("_id", None)
+            cached["success"] = True
+            return cached
 
     try:
         summary = await _generate_summary()
@@ -231,7 +237,7 @@ async def get_daily_summary():
         raise HTTPException(status_code=502, detail=f"Error generando resumen: {e}")
 
     await _persist(summary)
-    return summary
+    return {"success": True, **summary}
 
 
 @router.post("/daily-summary/regenerate")
