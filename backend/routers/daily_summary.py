@@ -38,6 +38,7 @@ SECTIONS = [
     "[GRANDES EVENTOS]",
     "[TEATROS Y OCIO]",
     "[ALERTAS DE TRÁFICO]",
+    "[AEROPUERTO]",
     "[PREVISIÓN MAÑANA]",
 ]
 
@@ -49,6 +50,174 @@ FALLBACK_QUERIES = [
     "manifestaciones Madrid hoy delegación gobierno",
     "partido fútbol Madrid hoy hora estadio",
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Airport peaks — compute optimal terminal entry times
+# ─────────────────────────────────────────────────────────────────────────────
+# Heuristic: a "good time to enter a terminal" is the moment a wave of
+# landings is touching down, because passengers will exit the terminal
+# 15-35 min after touchdown. We score 30-min windows weighting wide-body
+# aircraft 3x normal flights.
+PEAK_BIN_MINUTES = 30
+DAY_BREAK_HOUR = 5  # 05:00 splits the operational day in Madrid
+EVENING_BREAK_HOUR = 17  # 17:00 splits morning vs evening shift
+LARGE_FLIGHT_WEIGHT = 3.0
+NORMAL_FLIGHT_WEIGHT = 1.0
+MIN_PEAK_SEPARATION_MINUTES = 120  # Force the 2 peaks per shift to be at least 2h apart
+TERMINALS_FOR_PEAKS = ["T1", "T2", "T3", "T4", "T4S"]
+
+
+def _time_str_to_minutes(t: str) -> Optional[int]:
+    """Convert 'HH:MM' to minutes since midnight, or None."""
+    try:
+        h, m = t.split(":")[:2]
+        return int(h) * 60 + int(m)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _bin_label(minutes: int) -> str:
+    """Convert 480 -> '08:00'."""
+    h = (minutes // 60) % 24
+    m = minutes % 60
+    return f"{h:02d}:{m:02d}"
+
+
+async def _compute_airport_peaks() -> Dict[str, List[Dict[str, Any]]]:
+    """Return the 2 best terminal-entry times for each shift.
+
+    Output:
+      {
+        "morning": [ {time, terminal, flights, large, score}, ... ],
+        "evening": [...]
+      }
+
+    Operates on the AENA cached arrivals for *today*. If AENA is unreachable
+    we return empty lists (callers must handle gracefully).
+    """
+    # Lazy import to avoid circular dependency with server.py
+    try:
+        from server import fetch_aena_arrivals
+    except Exception as e:
+        logger.warning(f"[airport-peaks] cannot import fetch_aena_arrivals: {e}")
+        return {"morning": [], "evening": []}
+
+    try:
+        all_arrivals = await fetch_aena_arrivals()
+    except Exception as e:
+        logger.warning(f"[airport-peaks] AENA fetch failed: {e}")
+        return {"morning": [], "evening": []}
+
+    # bucket: (terminal, bin_start_minutes) -> {flights, large, score}
+    buckets: Dict[tuple, Dict[str, Any]] = {}
+    for terminal in TERMINALS_FOR_PEAKS:
+        for arr in all_arrivals.get(terminal, []):
+            mins = _time_str_to_minutes(arr.get("time", ""))
+            if mins is None:
+                continue
+            bin_start = (mins // PEAK_BIN_MINUTES) * PEAK_BIN_MINUTES
+            key = (terminal, bin_start)
+            entry = buckets.setdefault(
+                key, {"flights": 0, "large": 0, "score": 0.0}
+            )
+            entry["flights"] += 1
+            if arr.get("is_large"):
+                entry["large"] += 1
+                entry["score"] += LARGE_FLIGHT_WEIGHT
+            else:
+                entry["score"] += NORMAL_FLIGHT_WEIGHT
+
+    def _shift_filter(bin_minutes: int, shift: str) -> bool:
+        """True if a bin start time belongs to the given shift."""
+        h = (bin_minutes // 60) % 24
+        if shift == "morning":  # 05:00 - 16:59
+            return DAY_BREAK_HOUR <= h < EVENING_BREAK_HOUR
+        # evening: 17:00 - 04:59 next day
+        return h >= EVENING_BREAK_HOUR or h < DAY_BREAK_HOUR
+
+    def _top_2_for_shift(shift: str) -> List[Dict[str, Any]]:
+        candidates = [
+            {
+                "time": _bin_label(bin_start),
+                "minutes": bin_start,
+                "terminal": term,
+                "flights": data["flights"],
+                "large": data["large"],
+                "score": round(data["score"], 1),
+            }
+            for (term, bin_start), data in buckets.items()
+            if _shift_filter(bin_start, shift) and data["score"] > 0
+        ]
+        candidates.sort(key=lambda c: c["score"], reverse=True)
+
+        picked: List[Dict[str, Any]] = []
+        for cand in candidates:
+            if not picked:
+                picked.append(cand)
+                continue
+            # Enforce >=2h separation in time-of-day terms
+            too_close = any(
+                abs(((cand["minutes"] - p["minutes"]) + 1440) % 1440)
+                < MIN_PEAK_SEPARATION_MINUTES
+                or abs(((p["minutes"] - cand["minutes"]) + 1440) % 1440)
+                < MIN_PEAK_SEPARATION_MINUTES
+                for p in picked
+            )
+            if too_close:
+                continue
+            picked.append(cand)
+            if len(picked) == 2:
+                break
+
+        # Sort by time ascending for readable output
+        picked.sort(key=lambda c: c["minutes"])
+        # Drop the helper "minutes" field
+        for p in picked:
+            p.pop("minutes", None)
+        return picked
+
+    return {
+        "morning": _top_2_for_shift("morning"),
+        "evening": _top_2_for_shift("evening"),
+    }
+
+
+def _format_airport_section(peaks: Dict[str, List[Dict[str, Any]]]) -> str:
+    """Build the `[AEROPUERTO]` section text from the precomputed peaks."""
+    morning = peaks.get("morning", [])
+    evening = peaks.get("evening", [])
+    if not morning and not evening:
+        return "[AEROPUERTO]\n- Sin información de llegadas disponible."
+
+    def _line(p: Dict[str, Any]) -> str:
+        # Suggest leaving ~30 min before the peak so the taxi is at the
+        # terminal exit just as the bulk of passengers start coming out.
+        peak_mins = _time_str_to_minutes(p["time"]) or 0
+        leave_mins = (peak_mins - 30 + 1440) % 1440
+        leave = _bin_label(leave_mins)
+        large_tag = f", {p['large']} grandes" if p["large"] else ""
+        return (
+            f"- **{p['terminal']} a las {p['time']}h** "
+            f"({p['flights']} vuelos{large_tag}) — sal hacia el aeropuerto "
+            f"sobre las **{leave}h**."
+        )
+
+    lines: List[str] = ["[AEROPUERTO]"]
+    lines.append("**Turno mañana (05:00-17:00):**")
+    if morning:
+        for p in morning:
+            lines.append(_line(p))
+    else:
+        lines.append("- Sin picos significativos en el turno de mañana.")
+    lines.append("")
+    lines.append("**Turno tarde-noche (17:00-05:00):**")
+    if evening:
+        for p in evening:
+            lines.append(_line(p))
+    else:
+        lines.append("- Sin picos significativos en el turno de tarde.")
+    return "\n".join(lines)
 
 
 def _today_madrid_str() -> str:
@@ -108,6 +277,9 @@ def _build_prompt() -> str:
         "- bullet con **teatro/sala**, **hora función** y obra\n\n"
         "[ALERTAS DE TRÁFICO]\n"
         "- bullet con **calle/zona**, motivo y franja horaria\n\n"
+        "[AEROPUERTO]\n"
+        "- NO RELLENES esta sección. El servidor la reemplazará por datos\n"
+        "  precomputados de AENA. Déjala vacía o con un placeholder corto.\n\n"
         "[PREVISIÓN MAÑANA]\n"
         "- bullet con tiempo, temperatura y eventos relevantes para mañana ("
         f"{_tomorrow_madrid_str()})\n"
@@ -150,6 +322,39 @@ def _ensure_sections(text: str) -> str:
         if header not in fixed:
             fixed += f"\n\n{header}\n- Sin información verificada para hoy."
     return fixed.strip()
+
+
+def _inject_airport_section(text: str, airport_section_text: str) -> str:
+    """Replace or insert the `[AEROPUERTO]` section with deterministic data.
+
+    Gemini does NOT know the real flight schedules, so we overwrite whatever
+    it generated for `[AEROPUERTO]` with our computed peaks. If the section
+    is missing, we insert it right before `[PREVISIÓN MAÑANA]` (or append).
+    """
+    if not airport_section_text:
+        return text
+
+    import re
+
+    # If the model already emitted [AEROPUERTO]..., replace the whole block
+    # up to the next section header or end of text.
+    pattern = re.compile(
+        r"\[AEROPUERTO\][\s\S]*?(?=\n\[[A-ZÁÉÍÓÚÑ ]+\]|\Z)",
+        re.MULTILINE,
+    )
+    if pattern.search(text):
+        return pattern.sub(airport_section_text.strip() + "\n", text, count=1)
+
+    # Otherwise insert before [PREVISIÓN MAÑANA] if it exists
+    if "[PREVISIÓN MAÑANA]" in text:
+        return text.replace(
+            "[PREVISIÓN MAÑANA]",
+            airport_section_text.strip() + "\n\n[PREVISIÓN MAÑANA]",
+            1,
+        )
+
+    # Fallback: append at the end
+    return (text.rstrip() + "\n\n" + airport_section_text.strip()).strip()
 
 
 def _generate_summary_sync() -> Dict[str, Any]:
@@ -218,7 +423,24 @@ def _generate_summary_sync() -> Dict[str, Any]:
 
 
 async def _generate_summary() -> Dict[str, Any]:
-    return await asyncio.to_thread(_generate_summary_sync)
+    """Generate the daily summary text (Gemini) and inject deterministic
+    airport peaks computed locally from AENA cached data."""
+    # Compute airport peaks first (cheap, ~0.5s, also fine if it fails: empty).
+    try:
+        airport_peaks = await _compute_airport_peaks()
+    except Exception as e:
+        logger.warning(f"[daily-summary] airport peaks failed: {e}")
+        airport_peaks = {"morning": [], "evening": []}
+
+    payload = await asyncio.to_thread(_generate_summary_sync)
+
+    # Overwrite whatever Gemini wrote for [AEROPUERTO] with our real data.
+    airport_section_text = _format_airport_section(airport_peaks)
+    payload["summary"] = _inject_airport_section(
+        payload["summary"], airport_section_text
+    )
+    payload["airport_peaks"] = airport_peaks
+    return payload
 
 
 async def _load_cached() -> Optional[Dict[str, Any]]:
@@ -307,6 +529,7 @@ def _bracket_to_markdown_sections(summary_text: str) -> str:
         "GRANDES EVENTOS": "Grandes Eventos",
         "TEATROS Y OCIO": "Teatros y Ocio",
         "ALERTAS DE TRÁFICO": "Alertas de Tráfico",
+        "AEROPUERTO": "Aeropuerto - Mejores Horas",
         "PREVISIÓN MAÑANA": "Previsión Mañana",
     }
 
