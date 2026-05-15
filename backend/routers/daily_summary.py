@@ -36,6 +36,7 @@ MODEL_FALLBACK = "gemini-2.5-flash-lite"  # if primary model is overloaded
 # Cache freshness: a stored summary is considered current if it was generated
 # today (Madrid date). Otherwise we regenerate on the first GET of the day.
 SECTIONS = [
+    "[METEO HOY]",
     "[GRANDES EVENTOS]",
     "[TEATROS Y OCIO]",
     "[ALERTAS DE TRÁFICO]",
@@ -306,6 +307,9 @@ def _build_prompt() -> str:
         "2. Madrid SIEMPRE tiene actividad. Si tu primera búsqueda no encuentra "
         "nada, AMPLÍA la búsqueda con consultas alternativas (mínimo 8 queries "
         "diferentes por sección) antes de rendirte:\n"
+        "   - Para METEO HOY: busca 'AEMET Madrid hoy temperatura mínima máxima', "
+        "'tiempo Madrid próximas horas precipitaciones', 'aviso AEMET Madrid hoy', "
+        "'eltiempo.es Madrid pronóstico horas', 'AEMET avisos viento calima Madrid'.\n"
         "   - Para GRANDES EVENTOS: busca también 'Madrid hoy fiestas patronales', "
         "'San Isidro 2026 programa', 'Las Ventas corrida hoy', 'IFEMA feria mayo', "
         "'Plaza Mayor concierto hoy', 'Pradera San Isidro programación', "
@@ -336,6 +340,18 @@ def _build_prompt() -> str:
         "Pradera San Isidro, Plaza Mayor.\n"
         "8. No repitas el mismo evento en dos secciones distintas.\n\n"
         "FORMATO OBLIGATORIO (respeta los corchetes y orden):\n"
+        "[METEO HOY]\n"
+        "- **Temperatura**: mín XX°C / máx XX°C\n"
+        "- **Precipitaciones**: porcentaje y franja horaria si las hay "
+        "(ej. '40% a las 18:00-21:00'); si no hay riesgo, escribe 'Sin lluvia "
+        "prevista'.\n"
+        "- **Viento/Calima/Alertas**: solo si es relevante para el tráfico "
+        "(rachas >40 km/h, calima, niebla, ola de calor, aviso AEMET amarillo/"
+        "naranja/rojo). Si nada destacable, omite esta línea.\n"
+        "- **Detalle clave para el taxi**: 1-2 frases sobre cómo afecta el "
+        "tiempo al trabajo del taxista hoy (ej. 'Lluvia tarde + salida San "
+        "Isidro = saturación en Pradera 19:00-21:00', 'Calor extremo, más "
+        "demanda aire acondicionado y vuelos largos cansan'). Usa datos de AEMET.\n\n"
         "[GRANDES EVENTOS]\n"
         "- bullet con **lugar**, **hora** y motivo\n\n"
         "[TEATROS Y OCIO]\n"
@@ -614,6 +630,7 @@ def _bracket_to_markdown_sections(summary_text: str) -> str:
         return ""
 
     pretty_map = {
+        "METEO HOY": "El Tiempo Hoy",
         "GRANDES EVENTOS": "Grandes Eventos",
         "TEATROS Y OCIO": "Teatros y Ocio",
         "ALERTAS DE TRÁFICO": "Alertas de Tráfico",
