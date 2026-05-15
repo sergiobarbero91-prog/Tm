@@ -57,15 +57,27 @@ FALLBACK_QUERIES = [
 # ─────────────────────────────────────────────────────────────────────────────
 # Heuristic: a "good time to enter a terminal" is the moment a wave of
 # landings is touching down, because passengers will exit the terminal
-# 15-35 min after touchdown. We score 30-min windows weighting wide-body
-# aircraft 3x normal flights.
-PEAK_BIN_MINUTES = 30
-DAY_BREAK_HOUR = 5  # 05:00 splits the operational day in Madrid
+# 15-35 min after touchdown. We score 60-min SLIDING windows (advancing
+# every 5 min) weighting wide-body aircraft 3x normal flights.
+#
+# Terminals are grouped in "taxi waiting bags" — when a driver waits at one
+# physical taxi rank he services the whole group:
+#   T1            (alone)
+#   T2 + T3       (same rank)
+#   T4 + T4S      (same rank)
+SLIDE_STEP_MIN = 5     # window advances every 5 minutes
+WINDOW_SIZE_MIN = 60   # 1-hour rolling window (matches "próx 60min" of UI)
+SUB_BIN_MIN = 15       # granularity to detect peak instant inside the window
+DAY_BREAK_HOUR = 5     # 05:00 splits the operational day in Madrid
 EVENING_BREAK_HOUR = 17  # 17:00 splits morning vs evening shift
 LARGE_FLIGHT_WEIGHT = 3.0
 NORMAL_FLIGHT_WEIGHT = 1.0
-MIN_PEAK_SEPARATION_MINUTES = 120  # Force the 2 peaks per shift to be at least 2h apart
-TERMINALS_FOR_PEAKS = ["T1", "T2", "T3", "T4", "T4S"]
+SAME_GROUP_MIN_GAP_MIN = 60  # de-dup overlapping windows in same group (= window size)
+TERMINAL_GROUPS: Dict[str, List[str]] = {
+    "T1": ["T1"],
+    "T2-T3": ["T2", "T3"],
+    "T4-T4S": ["T4", "T4S"],
+}
 
 
 def _time_str_to_minutes(t: str) -> Optional[int]:
@@ -84,17 +96,36 @@ def _bin_label(minutes: int) -> str:
     return f"{h:02d}:{m:02d}"
 
 
+def _shift_starts(shift: str) -> List[int]:
+    """Return the list of candidate window-start minutes for a shift.
+
+    Each entry is the *start* of a 60-min sliding window. We move every
+    SLIDE_STEP_MIN. The window can extend past midnight for the evening
+    shift (e.g. window starting at 03:00 covers 03:00-04:00).
+    """
+    if shift == "morning":
+        # 05:00 -> 16:00 (last window 16:00-17:00). Stop before 16:55.
+        return list(range(DAY_BREAK_HOUR * 60, EVENING_BREAK_HOUR * 60, SLIDE_STEP_MIN))
+    # evening: 17:00 -> 04:00 next day (last window 04:00-05:00 next day).
+    starts: List[int] = []
+    for m in range(EVENING_BREAK_HOUR * 60, DAY_BREAK_HOUR * 60 + 24 * 60, SLIDE_STEP_MIN):
+        starts.append(m)
+    return starts
+
+
 async def _compute_airport_peaks() -> Dict[str, List[Dict[str, Any]]]:
-    """Return the 2 best terminal-entry times for each shift.
+    """Return the 2 busiest 60-min windows per shift (morning/evening).
 
-    Output:
+    Output per pick:
       {
-        "morning": [ {time, terminal, flights, large, score}, ... ],
-        "evening": [...]
+        "group": "T4-T4S" | "T2-T3" | "T1",
+        "window": "18:30-19:30",            # the busiest 60-min window
+        "peak_time": "18:45",               # 15-min hot spot inside the window
+        "leave_time": "18:15",              # 30 min before peak_time
+        "flights": int,
+        "large": int,
+        "score": float,
       }
-
-    Operates on the AENA cached arrivals for *today*. If AENA is unreachable
-    we return empty lists (callers must handle gracefully).
     """
     # Lazy import to avoid circular dependency with server.py
     try:
@@ -109,72 +140,110 @@ async def _compute_airport_peaks() -> Dict[str, List[Dict[str, Any]]]:
         logger.warning(f"[airport-peaks] AENA fetch failed: {e}")
         return {"morning": [], "evening": []}
 
-    # bucket: (terminal, bin_start_minutes) -> {flights, large, score}
-    buckets: Dict[tuple, Dict[str, Any]] = {}
-    for terminal in TERMINALS_FOR_PEAKS:
-        for arr in all_arrivals.get(terminal, []):
-            mins = _time_str_to_minutes(arr.get("time", ""))
-            if mins is None:
-                continue
-            bin_start = (mins // PEAK_BIN_MINUTES) * PEAK_BIN_MINUTES
-            key = (terminal, bin_start)
-            entry = buckets.setdefault(
-                key, {"flights": 0, "large": 0, "score": 0.0}
-            )
-            entry["flights"] += 1
-            if arr.get("is_large"):
-                entry["large"] += 1
-                entry["score"] += LARGE_FLIGHT_WEIGHT
-            else:
-                entry["score"] += NORMAL_FLIGHT_WEIGHT
+    def _score(flight: Dict[str, Any]) -> float:
+        return LARGE_FLIGHT_WEIGHT if flight.get("is_large") else NORMAL_FLIGHT_WEIGHT
 
-    def _shift_filter(bin_minutes: int, shift: str) -> bool:
-        """True if a bin start time belongs to the given shift."""
-        h = (bin_minutes // 60) % 24
-        if shift == "morning":  # 05:00 - 16:59
+    def _is_in_shift(minute: int, shift: str) -> bool:
+        h = (minute // 60) % 24
+        if shift == "morning":
             return DAY_BREAK_HOUR <= h < EVENING_BREAK_HOUR
-        # evening: 17:00 - 04:59 next day
         return h >= EVENING_BREAK_HOUR or h < DAY_BREAK_HOUR
 
+    def _peak_time_within(window_start: int, flights: List[Dict[str, Any]], shift: str) -> int:
+        """Inside a 60-min window, find the 15-min sub-bin with most flights
+        (weighted) and return its center minute. Flights whose arrival time
+        falls in the opposite shift (e.g. window crosses 17:00) are ignored
+        so the recommended peak stays within the driver's working shift."""
+        if not flights:
+            return window_start
+        sub_scores: Dict[int, float] = {}
+        for f in flights:
+            m = _time_str_to_minutes(f.get("time", ""))
+            if m is None:
+                continue
+            if not _is_in_shift(m, shift):
+                continue
+            offset = (m - window_start) % 1440
+            sub_idx = offset // SUB_BIN_MIN
+            sub_scores[sub_idx] = sub_scores.get(sub_idx, 0.0) + _score(f)
+        if not sub_scores:
+            # fallback: any flight, even cross-shift
+            for f in flights:
+                m = _time_str_to_minutes(f.get("time", ""))
+                if m is None:
+                    continue
+                offset = (m - window_start) % 1440
+                sub_idx = offset // SUB_BIN_MIN
+                sub_scores[sub_idx] = sub_scores.get(sub_idx, 0.0) + _score(f)
+            if not sub_scores:
+                return window_start
+        best_sub = max(sub_scores, key=sub_scores.get)
+        return (window_start + best_sub * SUB_BIN_MIN + SUB_BIN_MIN // 2) % 1440
+
+    def _flights_in_window(group_terms: List[str], window_start: int) -> List[Dict[str, Any]]:
+        bag: List[Dict[str, Any]] = []
+        for term in group_terms:
+            for arr in all_arrivals.get(term, []):
+                m = _time_str_to_minutes(arr.get("time", ""))
+                if m is None:
+                    continue
+                # offset in [0, 1440) so windows that wrap midnight (evening)
+                # still pick up post-midnight flights correctly.
+                offset = (m - window_start) % 1440
+                if offset < WINDOW_SIZE_MIN:
+                    bag.append(arr)
+        return bag
+
     def _top_2_for_shift(shift: str) -> List[Dict[str, Any]]:
-        candidates = [
-            {
-                "time": _bin_label(bin_start),
-                "minutes": bin_start,
-                "terminal": term,
-                "flights": data["flights"],
-                "large": data["large"],
-                "score": round(data["score"], 1),
-            }
-            for (term, bin_start), data in buckets.items()
-            if _shift_filter(bin_start, shift) and data["score"] > 0
-        ]
+        candidates: List[Dict[str, Any]] = []
+        for start in _shift_starts(shift):
+            for group_name, group_terms in TERMINAL_GROUPS.items():
+                flights = _flights_in_window(group_terms, start)
+                if not flights:
+                    continue
+                total_score = sum(_score(f) for f in flights)
+                if total_score <= 0:
+                    continue
+                peak_min = _peak_time_within(start, flights, shift)
+                leave_min = (peak_min - 30 + 1440) % 1440
+                candidates.append({
+                    "group": group_name,
+                    "window_start_min": start % 1440,
+                    "window_end_min": (start + WINDOW_SIZE_MIN) % 1440,
+                    "window": f"{_bin_label(start)}-{_bin_label(start + WINDOW_SIZE_MIN)}",
+                    "peak_time_min": peak_min,
+                    "peak_time": _bin_label(peak_min),
+                    "leave_time": _bin_label(leave_min),
+                    "flights": len(flights),
+                    "large": sum(1 for f in flights if f.get("is_large")),
+                    "score": round(total_score, 1),
+                })
+
         candidates.sort(key=lambda c: c["score"], reverse=True)
 
         picked: List[Dict[str, Any]] = []
         for cand in candidates:
-            if not picked:
-                picked.append(cand)
-                continue
-            # Enforce >=2h separation in time-of-day terms
-            too_close = any(
-                abs(((cand["minutes"] - p["minutes"]) + 1440) % 1440)
-                < MIN_PEAK_SEPARATION_MINUTES
-                or abs(((p["minutes"] - cand["minutes"]) + 1440) % 1440)
-                < MIN_PEAK_SEPARATION_MINUTES
+            # De-duplication: if a higher-scored window for the SAME group is
+            # already picked within 30 min, skip — it's the same wave shifted.
+            duplicate_of_same_group = any(
+                p["group"] == cand["group"]
+                and abs(((cand["peak_time_min"] - p["peak_time_min"]) + 720) % 1440 - 720)
+                < SAME_GROUP_MIN_GAP_MIN
                 for p in picked
             )
-            if too_close:
+            if duplicate_of_same_group:
                 continue
             picked.append(cand)
             if len(picked) == 2:
                 break
 
-        # Sort by time ascending for readable output
-        picked.sort(key=lambda c: c["minutes"])
-        # Drop the helper "minutes" field
+        # Sort the final 2 by peak_time ascending for stable output
+        picked.sort(key=lambda c: c["peak_time_min"])
+        # Drop internal-only fields
         for p in picked:
-            p.pop("minutes", None)
+            p.pop("window_start_min", None)
+            p.pop("window_end_min", None)
+            p.pop("peak_time_min", None)
         return picked
 
     return {
@@ -191,16 +260,11 @@ def _format_airport_section(peaks: Dict[str, List[Dict[str, Any]]]) -> str:
         return "[AEROPUERTO]\n- Sin información de llegadas disponible."
 
     def _line(p: Dict[str, Any]) -> str:
-        # Suggest leaving ~30 min before the peak so the taxi is at the
-        # terminal exit just as the bulk of passengers start coming out.
-        peak_mins = _time_str_to_minutes(p["time"]) or 0
-        leave_mins = (peak_mins - 30 + 1440) % 1440
-        leave = _bin_label(leave_mins)
-        large_tag = f", {p['large']} grandes" if p["large"] else ""
+        large_tag = f", {p['large']} grandes" if p.get("large") else ""
         return (
-            f"- **{p['terminal']} a las {p['time']}h** "
-            f"({p['flights']} vuelos{large_tag}) — sal hacia el aeropuerto "
-            f"sobre las **{leave}h**."
+            f"- **{p['group']} · {p['window']}** "
+            f"({p['flights']} vuelos{large_tag}) — pico a las **{p['peak_time']}h**, "
+            f"sal hacia el aeropuerto sobre las **{p['leave_time']}h**."
         )
 
     lines: List[str] = ["[AEROPUERTO]"]
