@@ -31,6 +31,7 @@ router = APIRouter(prefix="/events", tags=["Daily Summary"])
 
 MADRID_TZ = pytz.timezone("Europe/Madrid")
 MODEL_NAME = "gemini-2.5-flash"
+MODEL_FALLBACK = "gemini-2.5-flash-lite"  # if primary model is overloaded
 
 # Cache freshness: a stored summary is considered current if it was generated
 # today (Madrid date). Otherwise we regenerate on the first GET of the day.
@@ -446,9 +447,8 @@ def _generate_summary_sync() -> Dict[str, Any]:
             config=config,
         )
     except Exception as e:
-        # Translate provider quota errors (429 RESOURCE_EXHAUSTED) into a clean
-        # 503 so the frontend can show a friendlier "intentar más tarde" message.
         msg = str(e)
+        # Quota exhaustion → translate to 503 with Retry-After
         if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower():
             logger.warning(f"[daily-summary] Gemini quota exhausted: {msg[:200]}")
             raise HTTPException(
@@ -456,7 +456,31 @@ def _generate_summary_sync() -> Dict[str, Any]:
                 detail="Cuota de Gemini agotada. Vuelve a intentarlo más tarde o renueva el GEMINI_API_KEY.",
                 headers={"Retry-After": "3600"},
             )
-        raise
+        # Model overload (503 UNAVAILABLE) → silent fallback to lite model.
+        # Same Grounding capability, just slightly lower reasoning depth, so
+        # the daily briefing never breaks because of Google's load spikes.
+        if "503" in msg or "UNAVAILABLE" in msg or "overloaded" in msg.lower() or "high demand" in msg.lower():
+            logger.warning(
+                f"[daily-summary] {MODEL_NAME} overloaded, falling back to {MODEL_FALLBACK}: {msg[:200]}"
+            )
+            try:
+                response = client.models.generate_content(
+                    model=MODEL_FALLBACK,
+                    contents=_build_prompt(),
+                    config=config,
+                )
+            except Exception as fe:
+                logger.exception("[daily-summary] fallback model also failed")
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Gemini está saturado en este momento. "
+                        "Inténtalo de nuevo en unos minutos."
+                    ),
+                    headers={"Retry-After": "300"},
+                )
+        else:
+            raise
 
     text = (getattr(response, "text", None) or "").strip()
     if not text:
