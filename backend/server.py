@@ -1291,6 +1291,17 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                 if response.status == 200:
                     flights = await response.json()
                     logger.info(f"AENA API returned {len(flights)} flights")
+
+                    # If AENA primary API returns 0 flights, it is almost
+                    # always because our server IP is being rate-limited /
+                    # blocked. Fall back to the scraping source so the user
+                    # never sees an empty board during the day.
+                    if not flights:
+                        logger.warning(
+                            "AENA primary API returned 0 flights (likely IP-blocked). "
+                            "Falling back to aeropuertomadrid-barajas.com scraper."
+                        )
+                        return await fetch_aena_arrivals_fallback()
                     
                     seen_flights = set()
                     
