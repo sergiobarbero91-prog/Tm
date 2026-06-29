@@ -434,6 +434,26 @@ export default function TransportMeter() {
     pagaGasolina: boolean;
   } | null>(null);
 
+  // === Gestion — modo de porcentaje (fijo o variable) ===
+  const [gestionMode, setGestionMode] = useState<'fijo' | 'variable_diario' | 'variable_mensual'>('fijo');
+  const [gestionT1, setGestionT1] = useState('130');    // tramo 1 upper bound
+  const [gestionT2, setGestionT2] = useState('200');    // tramo 2 upper bound
+  const [gestionP1, setGestionP1] = useState('40');     // tramo 1 %
+  const [gestionP2, setGestionP2] = useState('45');     // tramo 2 %
+  const [gestionP3, setGestionP3] = useState('50');     // tramo 3 %
+
+  // === Resumen del periodo ===
+  const _today = () => new Date().toISOString().slice(0, 10);
+  const _monthStart = () => {
+    const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
+  };
+  const [summaryStart, setSummaryStart] = useState<string>(_monthStart());
+  const [summaryEnd, setSummaryEnd] = useState<string>(_today());
+  const [summaryData, setSummaryData] = useState<any | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  // Manual override mode: when true the existing editable inputs replace the read-only summary
+  const [summaryEditable, setSummaryEditable] = useState(false);
+
   // === Gestion OCR — Jornada con foto del taxímetro ===
   const [ocrJournal, setOcrJournal] = useState<any | null>(null);     // active open journal (or full closed if just closed)
   const [ocrHistory, setOcrHistory] = useState<any[]>([]);            // last journals
@@ -511,6 +531,20 @@ export default function TransportMeter() {
       console.error('[ocr] stats error', e);
     }
   };
+
+  const loadSummary = useCallback(async (start: string, end: string) => {
+    try {
+      setSummaryLoading(true);
+      const headers = await ocrAuthHeaders();
+      const r = await axios.get(`${API_BASE}/api/journal/summary?start=${start}&end=${end}`, { headers });
+      setSummaryData(r.data);
+    } catch (e) {
+      console.error('[summary] error', e);
+      setSummaryData(null);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
 
   const ocrStartShift = async () => {
     setOcrError(null);
@@ -6925,6 +6959,7 @@ export default function TransportMeter() {
           ocrLoadActive(),
           ocrLoadHistory(),
           ocrLoadStats(),
+          loadSummary(summaryStart, summaryEnd),
         ]);
     }
     } catch (error) {
@@ -13438,23 +13473,131 @@ export default function TransportMeter() {
                 )}
                 {/* ===== END TENDENCIA ===== */}
                 
-                {/* Porcentaje selector */}
+                {/* Porcentaje selector — Fijo o Variable (diario / mensual) */}
                 <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>Porcentaje a cobrar</Text>
-                  <View style={styles.faresOriginTypeSelector}>
-                    {([40, 45, 50] as const).map(pct => (
+                  <Text style={styles.faresSectionTitle}>Modo de cobro</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                    {([
+                      ['fijo', 'Fijo'],
+                      ['variable_diario', 'Variable diario'],
+                      ['variable_mensual', 'Variable mensual'],
+                    ] as const).map(([m, label]) => (
                       <TouchableOpacity
-                        key={pct}
-                        style={[styles.faresOriginTypeBtn, gestionPercentage === pct && styles.faresOriginTypeBtnActive]}
-                        onPress={() => setGestionPercentage(pct)}
-                        data-testid={`gestion-pct-${pct}`}
+                        key={m}
+                        onPress={() => setGestionMode(m)}
+                        style={{
+                          flex: 1,
+                          minWidth: 100,
+                          paddingVertical: 10,
+                          paddingHorizontal: 8,
+                          borderRadius: 10,
+                          backgroundColor: gestionMode === m ? '#10B981' : 'rgba(15,23,42,0.6)',
+                          borderWidth: 1,
+                          borderColor: gestionMode === m ? '#10B981' : 'rgba(148,163,184,0.25)',
+                          alignItems: 'center',
+                        }}
+                        data-testid={`gestion-mode-${m}`}
                       >
-                        <Text style={[styles.faresOriginTypeBtnText, gestionPercentage === pct && styles.faresOriginTypeBtnTextActive, { fontSize: 18, fontWeight: '800' }]}>
-                          {pct}%
-                        </Text>
+                        <Text style={{ color: gestionMode === m ? '#FFFFFF' : '#CBD5E1', fontSize: 13, fontWeight: '700' }}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
+
+                  {/* MODO FIJO: 40/45/50 selector */}
+                  {gestionMode === 'fijo' && (
+                    <View>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.3 }}>Porcentaje a cobrar</Text>
+                      <View style={styles.faresOriginTypeSelector}>
+                        {([40, 45, 50] as const).map(pct => (
+                          <TouchableOpacity
+                            key={pct}
+                            style={[styles.faresOriginTypeBtn, gestionPercentage === pct && styles.faresOriginTypeBtnActive]}
+                            onPress={() => setGestionPercentage(pct)}
+                            data-testid={`gestion-pct-${pct}`}
+                          >
+                            <Text style={[styles.faresOriginTypeBtnText, gestionPercentage === pct && styles.faresOriginTypeBtnTextActive, { fontSize: 18, fontWeight: '800' }]}>
+                              {pct}%
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* MODO VARIABLE: tramos */}
+                  {gestionMode !== 'fijo' && (
+                    <View>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 }}>
+                        Tramos {gestionMode === 'variable_diario' ? '(se aplica al total de CADA DÍA)' : '(se aplica al total facturado del PERIODO)'}
+                      </Text>
+                      {/* Tramo 1 */}
+                      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, width: 28 }}>0 –</Text>
+                        <TextInput
+                          value={gestionT1}
+                          onChangeText={setGestionT1}
+                          keyboardType="decimal-pad"
+                          placeholder="130"
+                          placeholderTextColor="#475569"
+                          style={{ flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14 }}
+                          data-testid="gestion-bracket-t1"
+                        />
+                        <Text style={{ color: '#94A3B8', fontSize: 12 }}>€ →</Text>
+                        <TextInput
+                          value={gestionP1}
+                          onChangeText={setGestionP1}
+                          keyboardType="decimal-pad"
+                          placeholder="40"
+                          placeholderTextColor="#475569"
+                          style={{ width: 60, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14, textAlign: 'center' }}
+                          data-testid="gestion-bracket-p1"
+                        />
+                        <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '800' }}>%</Text>
+                      </View>
+                      {/* Tramo 2 */}
+                      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, width: 28 }}>{gestionT1 || '130'}–</Text>
+                        <TextInput
+                          value={gestionT2}
+                          onChangeText={setGestionT2}
+                          keyboardType="decimal-pad"
+                          placeholder="200"
+                          placeholderTextColor="#475569"
+                          style={{ flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14 }}
+                          data-testid="gestion-bracket-t2"
+                        />
+                        <Text style={{ color: '#94A3B8', fontSize: 12 }}>€ →</Text>
+                        <TextInput
+                          value={gestionP2}
+                          onChangeText={setGestionP2}
+                          keyboardType="decimal-pad"
+                          placeholder="45"
+                          placeholderTextColor="#475569"
+                          style={{ width: 60, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14, textAlign: 'center' }}
+                          data-testid="gestion-bracket-p2"
+                        />
+                        <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '800' }}>%</Text>
+                      </View>
+                      {/* Tramo 3 */}
+                      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4, alignItems: 'center' }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 12 }}>{`> ${gestionT2 || '200'} €`}  →</Text>
+                        <View style={{ flex: 1 }} />
+                        <TextInput
+                          value={gestionP3}
+                          onChangeText={setGestionP3}
+                          keyboardType="decimal-pad"
+                          placeholder="50"
+                          placeholderTextColor="#475569"
+                          style={{ width: 60, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14, textAlign: 'center' }}
+                          data-testid="gestion-bracket-p3"
+                        />
+                        <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '800' }}>%</Text>
+                      </View>
+                      <Text style={{ color: '#64748B', fontSize: 11, fontStyle: 'italic', marginTop: 4 }}>
+                        El porcentaje se aplica al TOTAL de la facturación del tramo (ej. {gestionT2 || '200'} € → si superas {gestionT2 || '200'} € cobras el {gestionP3 || '50'}% del total).
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 
                 {/* Gasolina toggle */}
@@ -13480,69 +13623,162 @@ export default function TransportMeter() {
                   </View>
                 </View>
                 
-                {/* Inputs */}
+                {/* Resumen del periodo (con datos de las jornadas OCR) */}
                 <View style={styles.faresSection}>
-                  <Text style={styles.faresSectionTitle}>Datos del turno</Text>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Recaudación total (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionRecaudacion}
-                      onChangeText={setGestionRecaudacion}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-recaudacion"
-                    />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <Text style={styles.faresSectionTitle}>Resumen del periodo</Text>
+                    <TouchableOpacity
+                      onPress={() => setSummaryEditable((v) => !v)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: summaryEditable ? 'rgba(245,158,11,0.18)' : 'rgba(99,102,241,0.18)' }}
+                      data-testid="gestion-toggle-manual"
+                    >
+                      <Ionicons name={summaryEditable ? 'lock-open' : 'create'} size={14} color={summaryEditable ? '#F59E0B' : '#A5B4FC'} />
+                      <Text style={{ color: summaryEditable ? '#F59E0B' : '#A5B4FC', fontSize: 11, fontWeight: '700' }}>
+                        {summaryEditable ? 'Datos manuales' : 'Cálculo manual'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Cobrado con tarjeta (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionTarjeta}
-                      onChangeText={setGestionTarjeta}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-tarjeta"
-                    />
+
+                  {/* Date range picker — uses web-native date inputs */}
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }}>Desde</Text>
+                    {Platform.OS === 'web' ? (
+                      // @ts-ignore — native input on web
+                      <input
+                        type="date"
+                        value={summaryStart}
+                        onChange={(e: any) => { setSummaryStart(e.target.value); loadSummary(e.target.value, summaryEnd); }}
+                        data-testid="gestion-summary-start"
+                        style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', background: '#1E293B', color: '#FFFFFF', fontSize: 13 }}
+                      />
+                    ) : (
+                      <TextInput value={summaryStart} onChangeText={setSummaryStart} placeholder="YYYY-MM-DD" placeholderTextColor="#475569" style={{ flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 8, fontSize: 13 }} />
+                    )}
+                    <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }}>hasta</Text>
+                    {Platform.OS === 'web' ? (
+                      // @ts-ignore
+                      <input
+                        type="date"
+                        value={summaryEnd}
+                        onChange={(e: any) => { setSummaryEnd(e.target.value); loadSummary(summaryStart, e.target.value); }}
+                        data-testid="gestion-summary-end"
+                        style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', background: '#1E293B', color: '#FFFFFF', fontSize: 13 }}
+                      />
+                    ) : (
+                      <TextInput value={summaryEnd} onChangeText={setSummaryEnd} placeholder="YYYY-MM-DD" placeholderTextColor="#475569" style={{ flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 8, fontSize: 13 }} />
+                    )}
                   </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Cobrado por aplicación (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionAplicacion}
-                      onChangeText={setGestionAplicacion}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-aplicacion"
-                    />
+
+                  {/* Quick-range presets */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                    {([
+                      ['hoy', 'Hoy', () => { const t = _today(); return [t, t]; }],
+                      ['semana', 'Semana', () => {
+                        const d = new Date(); const day = (d.getDay() + 6) % 7; const s = new Date(d); s.setDate(d.getDate() - day);
+                        return [s.toISOString().slice(0, 10), _today()];
+                      }],
+                      ['mes', 'Este mes', () => [_monthStart(), _today()]],
+                      ['mes_pasado', 'Mes pasado', () => {
+                        const d = new Date(); const s = new Date(d.getFullYear(), d.getMonth() - 1, 1); const e = new Date(d.getFullYear(), d.getMonth(), 0);
+                        return [s.toISOString().slice(0, 10), e.toISOString().slice(0, 10)];
+                      }],
+                    ] as const).map(([id, label, fn]) => (
+                      <TouchableOpacity
+                        key={id}
+                        onPress={() => { const [s, e] = (fn as () => [string, string])(); setSummaryStart(s); setSummaryEnd(e); loadSummary(s, e); }}
+                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: 'rgba(99,102,241,0.18)' }}
+                        data-testid={`gestion-preset-${id}`}
+                      >
+                        <Text style={{ color: '#A5B4FC', fontSize: 11, fontWeight: '700' }}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                  
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>
-                      Gasolina pagada (€)
-                    </Text>
-                    <TextInput
-                      style={styles.faresInput}
-                      value={gestionGasolina}
-                      onChangeText={setGestionGasolina}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#475569"
-                      data-testid="gestion-input-gasolina"
-                    />
-                  </View>
+
+                  {/* --------- READ-ONLY SUMMARY VIEW --------- */}
+                  {!summaryEditable && (
+                    <View data-testid="gestion-summary-view">
+                      {summaryLoading ? (
+                        <View style={{ paddingVertical: 14, alignItems: 'center' }}><ActivityIndicator color="#10B981" /></View>
+                      ) : summaryData && (summaryData.totals?.jornadas ?? 0) > 0 ? (
+                        <View>
+                          {/* Big numbers */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                            {[
+                              ['Facturado', `${(summaryData.totals.ingresos_eur ?? 0).toFixed(2)} €`, '#10B981'],
+                              ['Neto', `${(summaryData.totals.neto_eur ?? 0).toFixed(2)} €`, '#10B981'],
+                              ['Jornadas', String(summaryData.totals.jornadas), '#06B6D4'],
+                              ['Días trabajados', String(summaryData.totals.dias_trabajados ?? 0), '#06B6D4'],
+                              ['Horas trabajadas', `${(summaryData.totals.horas_on ?? 0).toFixed(1)} h`, '#8B5CF6'],
+                              ['€/hora', summaryData.totals.eur_por_hora != null ? `${summaryData.totals.eur_por_hora.toFixed(2)} €/h` : '—', '#F59E0B'],
+                              ['Km totales', `${(summaryData.totals.km_total ?? 0).toFixed(0)} km`, '#EC4899'],
+                              ['€/km', summaryData.totals.eur_por_km != null ? `${summaryData.totals.eur_por_km.toFixed(2)} €/km` : '—', '#F59E0B'],
+                              ['Gasolina', `${(summaryData.totals.gasolina_eur ?? 0).toFixed(2)} €`, '#F59E0B'],
+                              ['Servicios', String(summaryData.totals.servicios ?? 0), '#06B6D4'],
+                            ].map(([k, v, c]) => (
+                              <View key={k as string} style={{ flexGrow: 1, minWidth: 110, backgroundColor: `${c}1A`, borderRadius: 8, padding: 8, borderWidth: 1, borderColor: `${c}33` }}>
+                                <Text style={{ color: '#94A3B8', fontSize: 10, fontWeight: '700', letterSpacing: 0.3 }}>{(k as string).toUpperCase()}</Text>
+                                <Text style={{ color: c as string, fontSize: 14, fontWeight: '900', marginTop: 1 }}>{v as string}</Text>
+                              </View>
+                            ))}
+                          </View>
+                          {/* Detalle distancia + tiempo + cobros */}
+                          <View style={{ backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 10, padding: 10 }}>
+                            {[
+                              ['Carreras (taxímetro)', `${(summaryData.totals.carreras_eur ?? 0).toFixed(2)} €`],
+                              ['Precio cerrado', `${(summaryData.totals.precio_cerrado_eur ?? 0).toFixed(2)} €`],
+                              ['Cobrado tarjeta', `${(summaryData.totals.cobrado_tarjeta_eur ?? 0).toFixed(2)} €`],
+                              ['Cobrado app', `${(summaryData.totals.cobrado_app_eur ?? 0).toFixed(2)} €`],
+                              ['Cobrado efectivo', `${(summaryData.totals.cobrado_efectivo_eur ?? 0).toFixed(2)} €`],
+                              ['Km cargado / libre', `${(summaryData.totals.dist_ocupado_diff_km ?? 0).toFixed(0)} / ${(summaryData.totals.dist_libre_diff_km ?? 0).toFixed(0)} km`],
+                              ['% Tiempo ocupación', summaryData.totals.pct_tiempo_ocupacion != null ? `${summaryData.totals.pct_tiempo_ocupacion} %` : '—'],
+                              ['% Km cargado', summaryData.totals.pct_dist_ocupado != null ? `${summaryData.totals.pct_dist_ocupado} %` : '—'],
+                            ].map(([k, v]) => (
+                              <View key={k as string} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+                                <Text style={{ color: '#CBD5E1', fontSize: 12 }}>{k}</Text>
+                                <Text style={{ color: '#E2E8F0', fontSize: 12, fontWeight: '700' }}>{v}</Text>
+                              </View>
+                            ))}
+                          </View>
+                          <Text style={{ color: '#64748B', fontSize: 11, fontStyle: 'italic', marginTop: 8 }}>
+                            🔒 Datos calculados desde tus jornadas. Pulsa "Cálculo manual" si quieres simular con otros valores sin modificar la contabilidad.
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                          <Text style={{ color: '#94A3B8', fontSize: 13, fontStyle: 'italic', textAlign: 'center' }}>
+                            No hay jornadas cerradas en este rango.{'\n'}Abre una jornada con la cámara o pulsa "Cálculo manual".
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* --------- EDITABLE INPUTS (cálculo fuera de contabilidad) --------- */}
+                  {summaryEditable && (
+                    <View data-testid="gestion-summary-edit">
+                      <View style={{ backgroundColor: 'rgba(245,158,11,0.10)', borderRadius: 8, padding: 8, marginBottom: 10, borderWidth: 1, borderColor: '#F59E0B33' }}>
+                        <Text style={{ color: '#FCD34D', fontSize: 11, fontWeight: '600' }}>
+                          ✏️ Cálculo libre — no afecta a tus jornadas guardadas.
+                        </Text>
+                      </View>
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>Recaudación total (€)</Text>
+                        <TextInput style={styles.faresInput} value={gestionRecaudacion} onChangeText={setGestionRecaudacion} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#475569" data-testid="gestion-input-recaudacion" />
+                      </View>
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>Cobrado con tarjeta (€)</Text>
+                        <TextInput style={styles.faresInput} value={gestionTarjeta} onChangeText={setGestionTarjeta} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#475569" data-testid="gestion-input-tarjeta" />
+                      </View>
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>Cobrado por aplicación (€)</Text>
+                        <TextInput style={styles.faresInput} value={gestionAplicacion} onChangeText={setGestionAplicacion} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#475569" data-testid="gestion-input-aplicacion" />
+                      </View>
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6, fontWeight: '600' }}>Gasolina pagada (€)</Text>
+                        <TextInput style={styles.faresInput} value={gestionGasolina} onChangeText={setGestionGasolina} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#475569" data-testid="gestion-input-gasolina" />
+                      </View>
+                    </View>
+                  )}
                 </View>
                 
                 {/* Calculate button - explicit user action to compute results */}
@@ -13558,11 +13794,53 @@ export default function TransportMeter() {
                     justifyContent: 'center',
                   }}
                   onPress={() => {
-                    const rec = parseFloat(gestionRecaudacion.replace(',', '.')) || 0;
-                    const tar = parseFloat(gestionTarjeta.replace(',', '.')) || 0;
-                    const apl = parseFloat(gestionAplicacion.replace(',', '.')) || 0;
-                    const gas = parseFloat(gestionGasolina.replace(',', '.')) || 0;
-                    const miPct = rec * (gestionPercentage / 100);
+                    // Bracket helper: returns the % that applies to a given facturación.
+                    const t1 = parseFloat((gestionT1 || '0').replace(',', '.')) || 0;
+                    const t2 = parseFloat((gestionT2 || '0').replace(',', '.')) || 0;
+                    const p1 = parseFloat((gestionP1 || '40').replace(',', '.')) || 0;
+                    const p2 = parseFloat((gestionP2 || '45').replace(',', '.')) || 0;
+                    const p3 = parseFloat((gestionP3 || '50').replace(',', '.')) || 0;
+                    const bracketPct = (fact: number): number => {
+                      if (fact <= t1) return p1;
+                      if (fact <= t2) return p2;
+                      return p3;
+                    };
+
+                    // Source of truth: summary view (jornadas OCR) or manual inputs
+                    const useSummary = !summaryEditable && summaryData && (summaryData.totals?.jornadas ?? 0) > 0;
+                    const rec = useSummary
+                      ? (summaryData.totals.ingresos_eur || 0)
+                      : (parseFloat(gestionRecaudacion.replace(',', '.')) || 0);
+                    const tar = useSummary
+                      ? (summaryData.totals.cobrado_tarjeta_eur || 0)
+                      : (parseFloat(gestionTarjeta.replace(',', '.')) || 0);
+                    const apl = useSummary
+                      ? (summaryData.totals.cobrado_app_eur || 0)
+                      : (parseFloat(gestionAplicacion.replace(',', '.')) || 0);
+                    const gas = useSummary
+                      ? (summaryData.totals.gasolina_eur || 0)
+                      : (parseFloat(gestionGasolina.replace(',', '.')) || 0);
+
+                    // Compute miPorcentaje + effectivePct depending on mode
+                    let miPct = 0;
+                    let effectivePct: number = gestionPercentage;
+                    if (gestionMode === 'fijo') {
+                      miPct = rec * (gestionPercentage / 100);
+                      effectivePct = gestionPercentage;
+                    } else if (gestionMode === 'variable_mensual') {
+                      effectivePct = bracketPct(rec);
+                      miPct = rec * (effectivePct / 100);
+                    } else if (gestionMode === 'variable_diario') {
+                      if (useSummary && Array.isArray(summaryData.daily)) {
+                        miPct = summaryData.daily.reduce((acc: number, d: any) => acc + (d.ingresos_eur || 0) * (bracketPct(d.ingresos_eur || 0) / 100), 0);
+                      } else {
+                        // No daily breakdown → fall back to mensual on the whole total
+                        effectivePct = bracketPct(rec);
+                        miPct = rec * (effectivePct / 100);
+                      }
+                      effectivePct = rec > 0 ? (miPct / rec) * 100 : 0;
+                    }
+
                     let parteJ = rec - miPct - tar - apl;
                     if (!gestionPagaGasolina) {
                       parteJ -= gas;
@@ -13578,7 +13856,7 @@ export default function TransportMeter() {
                       resultado: res,
                       aFavorDelConductor: res < 0,
                       cantidadAbs: Math.abs(res),
-                      percentage: gestionPercentage,
+                      percentage: Math.round(effectivePct) as any,
                       pagaGasolina: gestionPagaGasolina,
                     });
                   }}
@@ -13691,9 +13969,38 @@ export default function TransportMeter() {
                       const now = new Date();
                       const dateStr = now.toLocaleDateString('es-ES');
                       const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                      const filename = `cuentas_turno_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      const useSum = !summaryEditable && summaryData && (summaryData.totals?.jornadas ?? 0) > 0;
+                      const rangeStr = useSum
+                        ? `Del ${summaryStart} al ${summaryEnd}`
+                        : `Fecha: ${dateStr} · Hora: ${timeStr}`;
+                      const filename = `cuentas_${summaryStart}_${summaryEnd}`;
                       const resultColor = aFavorDelConductor ? '#10B981' : '#EF4444';
                       const resultText = aFavorDelConductor ? 'A favor del conductor' : 'A favor del dueño';
+                      const modeLabel = gestionMode === 'fijo' ? `Fijo ${calcPercentage}%` : (gestionMode === 'variable_diario' ? 'Variable diario' : 'Variable mensual');
+                      const bracketStr = gestionMode === 'fijo'
+                        ? `${calcPercentage}%`
+                        : `0–${gestionT1}€ → ${gestionP1}% · ${gestionT1}–${gestionT2}€ → ${gestionP2}% · &gt;${gestionT2}€ → ${gestionP3}%`;
+                      const totalsRows = useSum ? `
+                        <tr><td class="label">Periodo</td><td class="value">${summaryStart} → ${summaryEnd}</td></tr>
+                        <tr><td class="label">Jornadas / Días trabajados</td><td class="value">${summaryData.totals.jornadas} / ${summaryData.totals.dias_trabajados ?? '—'}</td></tr>
+                        <tr><td class="label">Carreras (taxímetro)</td><td class="value">${(summaryData.totals.carreras_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Precio cerrado</td><td class="value">${(summaryData.totals.precio_cerrado_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Total facturado</td><td class="value">${(summaryData.totals.ingresos_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Cobrado con tarjeta</td><td class="value">${(summaryData.totals.cobrado_tarjeta_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Cobrado con app</td><td class="value">${(summaryData.totals.cobrado_app_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Cobrado efectivo</td><td class="value">${(summaryData.totals.cobrado_efectivo_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Gasolina</td><td class="value">${(summaryData.totals.gasolina_eur ?? 0).toFixed(2)} €</td></tr>
+                        <tr><td class="label">Servicios</td><td class="value">${summaryData.totals.servicios ?? 0}</td></tr>
+                        <tr><td class="label">Km totales / cargado / libre</td><td class="value">${(summaryData.totals.km_total ?? 0).toFixed(0)} / ${(summaryData.totals.dist_ocupado_diff_km ?? 0).toFixed(0)} / ${(summaryData.totals.dist_libre_diff_km ?? 0).toFixed(0)} km</td></tr>
+                        <tr><td class="label">Horas trabajadas (ON)</td><td class="value">${(summaryData.totals.horas_on ?? 0).toFixed(1)} h</td></tr>
+                        <tr><td class="label">€/hora · €/km</td><td class="value">${summaryData.totals.eur_por_hora != null ? summaryData.totals.eur_por_hora.toFixed(2) : '—'} €/h · ${summaryData.totals.eur_por_km != null ? summaryData.totals.eur_por_km.toFixed(2) : '—'} €/km</td></tr>
+                        <tr><td class="label">% Tiempo ocupación · % Km cargado</td><td class="value">${summaryData.totals.pct_tiempo_ocupacion ?? '—'}% · ${summaryData.totals.pct_dist_ocupado ?? '—'}%</td></tr>
+                      ` : `
+                        <tr><td class="label">Recaudación total</td><td class="value">${recaudacion.toFixed(2)} €</td></tr>
+                        <tr><td class="label">Cobrado con tarjeta</td><td class="value">${tarjeta.toFixed(2)} €</td></tr>
+                        <tr><td class="label">Cobrado por aplicación</td><td class="value">${aplicacion.toFixed(2)} €</td></tr>
+                        <tr><td class="label">Gasolina pagada</td><td class="value">${gasolina.toFixed(2)} €</td></tr>
+                      `;
                       
                       const html = `<!DOCTYPE html>
 <html lang="es">
@@ -13723,19 +14030,17 @@ export default function TransportMeter() {
 </head>
 <body>
   <h1>Cuentas del Turno</h1>
-  <div class="meta">Fecha: ${dateStr} · Hora: ${timeStr}</div>
+  <div class="meta">${rangeStr} · Generado ${dateStr} ${timeStr}</div>
   <hr />
   <h2>Configuración</h2>
   <table>
-    <tr><td class="label">Porcentaje a cobrar</td><td class="value">${calcPercentage}%</td></tr>
+    <tr><td class="label">Modo</td><td class="value">${modeLabel}</td></tr>
+    <tr><td class="label">Tramos</td><td class="value" style="font-size:12px">${bracketStr}</td></tr>
     <tr><td class="label">¿Pagas tú la gasolina?</td><td class="value">${calcPagaGasolina ? 'Sí' : 'No'}</td></tr>
   </table>
-  <h2>Datos del turno</h2>
+  <h2>Datos del ${useSum ? 'periodo' : 'turno'}</h2>
   <table>
-    <tr><td class="label">Recaudación total</td><td class="value">${recaudacion.toFixed(2)} €</td></tr>
-    <tr><td class="label">Cobrado con tarjeta</td><td class="value">${tarjeta.toFixed(2)} €</td></tr>
-    <tr><td class="label">Cobrado por aplicación</td><td class="value">${aplicacion.toFixed(2)} €</td></tr>
-    <tr><td class="label">Gasolina pagada</td><td class="value">${gasolina.toFixed(2)} €</td></tr>
+    ${totalsRows}
   </table>
   <h2>Desglose</h2>
   <table>

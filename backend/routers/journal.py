@@ -653,6 +653,115 @@ async def journal_stats(
     return {"bucket": bucket, "days": days, "series": series, "totals": totals}
 
 
+@router.get("/summary")
+async def journal_summary(
+    start: str,
+    end: str,
+    user=Depends(get_current_user_required),
+):
+    """Return aggregated metrics for closed journals within an inclusive date range.
+
+    `start` and `end` must be YYYY-MM-DD. The end date is inclusive (matches the
+    full day in Madrid local time)."""
+    from datetime import date as _date, timedelta as _td
+    try:
+        start_d = _date.fromisoformat(start)
+        end_d = _date.fromisoformat(end)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Fechas inválidas (YYYY-MM-DD)")
+    if end_d < start_d:
+        raise HTTPException(status_code=400, detail="La fecha final debe ser ≥ inicial.")
+
+    cursor = JOURNAL_COLLECTION.find(
+        {"user_id": user["id"], "status": "closed"},
+        {"_id": 0},
+    ).sort("end_at", 1).limit(1000)
+    all_journals = await cursor.to_list(length=1000)
+
+    # Filter by date
+    def _journal_date(j: Dict[str, Any]) -> Optional[_date]:
+        at = j.get("end_at") or j.get("start_at")
+        if not at:
+            return None
+        try:
+            return datetime.fromisoformat(at).date()
+        except ValueError:
+            return None
+
+    journals = [
+        j for j in all_journals
+        if (d := _journal_date(j)) is not None and start_d <= d <= end_d
+    ]
+
+    # Per-day breakdown (for variable-daily salary mode)
+    daily_map: Dict[str, Dict[str, float]] = {}
+    for j in journals:
+        d = _journal_date(j)
+        if not d:
+            continue
+        key = d.isoformat()
+        t = j.get("totals") or {}
+        row = daily_map.setdefault(key, {
+            "ingresos_eur": 0.0, "gasolina_eur": 0.0, "neto_eur": 0.0,
+            "km_total": 0.0, "horas_on": 0.0, "servicios": 0, "jornadas": 0,
+        })
+        row["ingresos_eur"] += float(t.get("total_ingresos_eur", 0) or 0)
+        row["gasolina_eur"] += float(t.get("gasto_gasolina_eur", 0) or 0)
+        row["neto_eur"] += float(t.get("total_neto_eur", 0) or 0)
+        row["km_total"] += float(t.get("dist_total_diff_km", 0) or 0)
+        row["horas_on"] += float(t.get("tiempo_on_min", 0) or 0) / 60.0
+        row["servicios"] += int(t.get("num_servicios_diff", 0) or 0)
+        row["jornadas"] += 1
+
+    daily = [
+        {"date": k, **{kk: round(vv, 2) for kk, vv in v.items()}}
+        for k, v in sorted(daily_map.items())
+    ]
+
+    # Totals across the whole range
+    totals = {
+        "ingresos_eur": round(sum(d["ingresos_eur"] for d in daily), 2),
+        "gasolina_eur": round(sum(d["gasolina_eur"] for d in daily), 2),
+        "neto_eur": round(sum(d["neto_eur"] for d in daily), 2),
+        "km_total": round(sum(d["km_total"] for d in daily), 1),
+        "horas_on": round(sum(d["horas_on"] for d in daily), 2),
+        "servicios": sum(int(d["servicios"]) for d in daily),
+        "jornadas": sum(int(d["jornadas"]) for d in daily),
+        "dias_trabajados": len(daily),
+    }
+    totals["eur_por_hora"] = round(totals["ingresos_eur"] / totals["horas_on"], 2) if totals["horas_on"] > 0 else None
+    totals["eur_por_km"] = round(totals["ingresos_eur"] / totals["km_total"], 2) if totals["km_total"] > 0 else None
+
+    # Also aggregate detailed time/distance from journals' raw totals (sum)
+    extra = {
+        "carreras_eur": 0.0, "precio_cerrado_eur": 0.0,
+        "cobrado_tarjeta_eur": 0.0, "cobrado_app_eur": 0.0, "cobrado_efectivo_eur": 0.0,
+        "tiempo_jornada_min": 0, "tiempo_on_min": 0, "tiempo_ocupado_min": 0,
+        "dist_total_diff_km": 0.0, "dist_ocupado_diff_km": 0.0, "dist_libre_diff_km": 0.0,
+    }
+    for j in journals:
+        t = j.get("totals") or {}
+        for k in extra:
+            v = t.get(k)
+            if v is not None:
+                extra[k] += float(v)
+    # Round
+    for k in extra:
+        extra[k] = round(extra[k], 2 if "eur" in k else 1)
+    # Percentages
+    pct_tiempo = round(extra["tiempo_ocupado_min"] / extra["tiempo_on_min"] * 100, 1) if extra["tiempo_on_min"] > 0 else None
+    pct_dist = round(extra["dist_ocupado_diff_km"] / extra["dist_total_diff_km"] * 100, 1) if extra["dist_total_diff_km"] > 0 else None
+    extra["pct_tiempo_ocupacion"] = pct_tiempo
+    extra["pct_dist_ocupado"] = pct_dist
+
+    return {
+        "start": start,
+        "end": end,
+        "totals": {**totals, **extra},
+        "daily": daily,
+    }
+
+
 @router.put("/{journal_id}/manual")
 async def manual_override(
     journal_id: str,
