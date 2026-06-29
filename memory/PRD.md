@@ -111,11 +111,32 @@ Pressure points based on STATUS + minutes since landing:
 - Model upgraded `gemini-2.5-flash-lite → gemini-2.5-flash` + exhaustive prompt with 8+ queries/section, forces deeper search before declaring "Sin información".
 - Result on Madrid San Isidro day: 22 sources, 12 distinct queries, 5+ events in [GRANDES EVENTOS], 7 in [TEATROS Y OCIO], all 4 sections populated.
 
+### ✅ Jornada con OCR del taxímetro ("Gestión" — pestaña automatizada) — Feb 2026
+- `/app/backend/routers/journal.py` (470 LOC): nuevo router con
+  - `POST /api/journal/start` (multipart `photo`) → Gemini Vision OCR (gemini-2.5-flash) extrae 9 campos del parcial inicial.
+  - `POST /api/journal/fuel` (form `amount_eur`, `liters?`, `note?`) → añade gasto a la jornada abierta. Rechaza importe ≤ 0.
+  - `POST /api/journal/end` (multipart `photo` + `precio_cerrado`, `cobrado_tarjeta`, `cobrado_app`) → OCR parcial final + computa `totals` con:
+    - facturacion_taximetro_eur = carreras_fin − carreras_inicio
+    - precio_cerrado_eur, total_ingresos_eur, cobrado_tarjeta/app/efectivo, gasto_gasolina_eur, total_neto_eur
+    - dist_*_diff_km, tiempo_*_diff, num_servicios_diff, media_eur_servicio
+  - `GET /api/journal/active` → jornada abierta del usuario actual.
+  - `GET /api/journal/list?limit=30` → historial ordenado por start_at desc.
+  - `PUT /api/journal/{id}/manual` (form `field=start|end`, `payload=JSON`) → corrección manual de lectura OCR (recomputa `totals` si está cerrada).
+  - `DELETE /api/journal/{id}`.
+- Router registrado en `/app/backend/server.py` (línea 78 + 4037).
+- Frontend `/app/frontend/app/index.tsx`:
+  - Estado OCR (líneas ~437–460), helpers (líneas ~462–600).
+  - useEffect: al abrir pestaña `gestion` precarga active + history.
+  - UI (líneas ~13028–13234): sección verde "📷 Jornada con foto del taxímetro" arriba del calculador manual existente. 3 modales (gasolina, cerrar jornada, corregir lectura).
+- Tests pytest `/app/backend/tests/test_journal.py`: 12/12 PASS.
+
+### ✅ AI Daily Summary — Markdown bold ahora se renderiza (Feb 2026)
+- `/app/frontend/app/index.tsx` ~líneas 12660–12698: renderer inline detecta `[SECTION]` (violeta bold uppercase sin corchetes) y `**bold**` (ámbar bold). Sin asteriscos literales.
+
+### ✅ Daily Summary — Regla horaria reforzada (Feb 2026)
+- `/app/backend/routers/daily_summary.py` regla #9: nunca inventar horas; si no hay fuente oficial → "(horario por confirmar)".
+
 ### 🟡 P1 — Open items for next session
-- **Render markdown `**bold**` in dashboard events tab**: currently shows literal asterisks. Need to swap the `<Text>{aiEventsSummary}</Text>` in /app/frontend/app/index.tsx ~line 12477 for a tiny markdown renderer (or strip+style segments).
-- **Improve horarios accuracy**: user reports some times shown by IA are slightly off. Two options:
-   (a) Tighten the prompt to require "if you cannot confirm the exact start time from an official source, write 'horario por confirmar' instead of guessing".
-   (b) Move to gemini-2.5-pro (more careful, lower hallucination rate, much higher cost).
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
    - Either pass the computed peaks as extra context to Gemini so it includes a 5th `[AEROPUERTO]` section, OR render it as a separate UI block above the AI summary card (cheaper, no token cost).
