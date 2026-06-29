@@ -13831,10 +13831,14 @@ export default function TransportMeter() {
                       effectivePct = bracketPct(rec);
                       miPct = rec * (effectivePct / 100);
                     } else if (gestionMode === 'variable_diario') {
-                      if (useSummary && Array.isArray(summaryData.daily)) {
+                      if (useSummary && Array.isArray(summaryData.daily) && summaryData.daily.length > 0) {
                         miPct = summaryData.daily.reduce((acc: number, d: any) => acc + (d.ingresos_eur || 0) * (bracketPct(d.ingresos_eur || 0) / 100), 0);
                       } else {
                         // No daily breakdown → fall back to mensual on the whole total
+                        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                          // Soft notice only, do not block
+                          console.warn('[gestion] variable_diario sin datos diarios → aplicando bracket sobre el total.');
+                        }
                         effectivePct = bracketPct(rec);
                         miPct = rec * (effectivePct / 100);
                       }

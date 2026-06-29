@@ -152,6 +152,30 @@ Pressure points based on STATUS + minutes since landing:
   - Nueva sección **"Tendencia"** con selector día/semana/mes, 6 tarjetas de KPI (Neto, Jornadas, Horas, €/h, Km, €/km) y un gráfico SVG inline de Neto vs Facturado.
 - Tests pytest `/app/backend/tests/test_journal.py`: 20 tests (8 deterministas + 12 dependientes de Gemini que skipean limpiamente cuando hay cuota agotada). Todos los valores numéricos verificados en la primera corrida con cuota fresca.
 
+### ✅ Modo de cobro variable + Resumen por rango + PDF (Feb 2026)
+- **Backend** `/app/backend/routers/journal.py`:
+  - Nuevo endpoint `GET /api/journal/summary?start=YYYY-MM-DD&end=YYYY-MM-DD` que devuelve agregados de las jornadas cerradas en el rango: `totals` (ingresos, neto, gasolina, km, horas_on, jornadas, dias_trabajados, €/hora, €/km, servicios, carreras, precio_cerrado, cobrado_*, dist_*, % ocupación, % km cargado) + `daily` (desglose por día para variable diario).
+  - Validación: 400 si fechas inválidas o `end<start`.
+- **Frontend** `/app/frontend/app/index.tsx`:
+  - **"Modo de cobro"** dropdown con 3 opciones (`gestion-mode-fijo`, `-variable_diario`, `-variable_mensual`).
+    - Fijo → selector 40/45/50 existente.
+    - Variable diario/mensual → editor de 3 tramos: 0–T1€ → P1%, T1–T2€ → P2%, >T2€ → P3% (defaults 130/200/40/45/50). Inputs: `gestion-bracket-t1/t2/p1/p2/p3`.
+  - **"Resumen del periodo"** sustituye al antiguo "Datos del turno":
+    - Date pickers nativos (`<input type="date">` en web) para `start` y `end`.
+    - Presets: Hoy / Semana / Este mes / Mes pasado.
+    - Modo READ-ONLY por defecto: muestra 10 tarjetas KPI + bloque detalle (carreras, cerrado, cobros, km cargado/libre, %).
+    - Botón "Cálculo manual" (`gestion-toggle-manual`) cambia a inputs editables con banner ámbar "✏️ Cálculo libre — no afecta a tus jornadas guardadas".
+  - **Botón CALCULAR** actualizado:
+    - `fijo`: `rec × %` (igual que antes).
+    - `variable_mensual`: aplica `bracketPct(total_facturado) × total_facturado`. Ej: 220€ → tramo >200€ → 50% × 220 = 110€.
+    - `variable_diario`: itera `daily[]` y suma `dia.facturado × bracketPct(dia.facturado)`. Si no hay datos diarios → fallback a mensual + warn en consola.
+  - **PDF (`Descargar PDF`)** incluye:
+    - Rango de fechas seleccionado en cabecera.
+    - Modo (`Fijo X%` / `Variable diario` / `Variable mensual`).
+    - Tramos: `0–130€ → 40% · 130–200€ → 45% · >200€ → 50%`.
+    - Tabla con datos del periodo (15 filas si hay summary) o del turno manual.
+- Tests `/app/backend/tests/test_journal_summary.py`: 10 tests (8 PASS deterministas + 2 skipped por cuota Gemini). Verificado: 401 sin auth, 422 sin params, 400 fechas inválidas o `end<start`, rango vacío devuelve estructura completa con divisiones por cero como `None`, rango de 1 día funciona, /stats sigue funcionando.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
