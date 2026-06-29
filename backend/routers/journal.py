@@ -149,11 +149,11 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     import json as _json
     try:
         parsed = _json.loads(text)
-    except Exception as e:
+    except Exception:
         logger.exception("[journal-ocr] failed to parse JSON, raw text was: %s", text[:500])
         raise HTTPException(
             status_code=502,
-            detail=f"No se pudo interpretar el ticket. Hazlo más nítido y vuelve a intentar.",
+            detail="No se pudo interpretar el ticket. Hazlo más nítido y vuelve a intentar.",
         )
 
     warnings: List[str] = []
@@ -198,8 +198,8 @@ def _strip_id(doc: Dict[str, Any]) -> Dict[str, Any]:
     return doc
 
 
-async def _save_photo(file: UploadFile, journal_id: str, suffix: str) -> str:
-    """Persist the uploaded photo on disk, return the relative URL path."""
+async def _save_photo(file: UploadFile, journal_id: str, suffix: str):
+    """Persist the uploaded photo on disk, return (bytes, filename)."""
     ext = "jpg"
     if file.filename and "." in file.filename:
         ext = file.filename.rsplit(".", 1)[-1].lower()
@@ -265,10 +265,8 @@ def _compute_totals(journal: Dict[str, Any]) -> Dict[str, Any]:
         "tiempo_ocupado_diff": _diff_time("tiempo_ocupado"),
         "tiempo_on_diff": _diff_time("tiempo_on"),
         "media_eur_servicio": round(
-            total_ingresos / start.get("num_servicios", 1) if False else (
-                total_ingresos / (_diff("num_servicios") or 1)
-                if _diff("num_servicios") and _diff("num_servicios") > 0 else 0
-            ),
+            total_ingresos / (_diff("num_servicios") or 1)
+            if _diff("num_servicios") and _diff("num_servicios") > 0 else 0,
             2,
         ),
     }

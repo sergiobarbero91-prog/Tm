@@ -75,6 +75,7 @@ from routers import station_alerts as station_alerts_router
 from routers import buses as buses_router
 from routers import reservations as reservations_router
 from routers import daily_summary as daily_summary_router
+from routers import journal as journal_router
 from routers import radio as radio_router
 from routers import games as games_router
 from routers import analytics as analytics_router
@@ -4033,6 +4034,7 @@ api_router.include_router(analytics_router.router)
 api_router.include_router(station_alerts_router.router)
 api_router.include_router(buses_router.router)
 api_router.include_router(reservations_router.router)
+api_router.include_router(journal_router.router)
 api_router.include_router(radio_router.router)
 api_router.include_router(games_router.router)
 api_router.include_router(support_router.router)

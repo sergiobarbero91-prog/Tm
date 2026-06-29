@@ -433,6 +433,191 @@ export default function TransportMeter() {
     percentage: 40 | 45 | 50;
     pagaGasolina: boolean;
   } | null>(null);
+
+  // === Gestion OCR — Jornada con foto del taxímetro ===
+  const [ocrJournal, setOcrJournal] = useState<any | null>(null);     // active open journal (or full closed if just closed)
+  const [ocrHistory, setOcrHistory] = useState<any[]>([]);            // last journals
+  const [ocrBusy, setOcrBusy] = useState<null | 'start' | 'end' | 'fuel' | 'load' | 'reparse' | 'manual'>(null);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrShowFuelModal, setOcrShowFuelModal] = useState(false);
+  const [ocrFuelAmount, setOcrFuelAmount] = useState('');
+  const [ocrFuelLiters, setOcrFuelLiters] = useState('');
+  const [ocrShowEndModal, setOcrShowEndModal] = useState(false);
+  const [ocrEndPhoto, setOcrEndPhoto] = useState<File | null>(null);
+  const [ocrEndPrecioCerrado, setOcrEndPrecioCerrado] = useState('');
+  const [ocrEndTarjeta, setOcrEndTarjeta] = useState('');
+  const [ocrEndApp, setOcrEndApp] = useState('');
+  const [ocrShowEditModal, setOcrShowEditModal] = useState<null | 'start' | 'end'>(null);
+  const [ocrEditDraft, setOcrEditDraft] = useState<Record<string, string>>({});
+
+  // === OCR Journal — API helpers ===
+  const ocrPickFile = (): Promise<File | null> => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+      setOcrError('La captura por foto solo está disponible desde el navegador.');
+      return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      // capture attr triggers the camera on mobile browsers
+      (input as any).capture = 'environment';
+      input.onchange = () => resolve(input.files?.[0] || null);
+      input.oncancel = () => resolve(null);
+      input.click();
+    });
+  };
+
+  const ocrAuthHeaders = async () => {
+    const token = await AsyncStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const ocrLoadActive = async () => {
+    try {
+      setOcrBusy('load');
+      const headers = await ocrAuthHeaders();
+      const r = await axios.get(`${API_BASE}/api/journal/active`, { headers });
+      setOcrJournal(r.data && r.data.active === false ? null : r.data);
+    } catch (e: any) {
+      console.error('[ocr] active error', e);
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
+  const ocrLoadHistory = async () => {
+    try {
+      const headers = await ocrAuthHeaders();
+      const r = await axios.get(`${API_BASE}/api/journal/list?limit=10`, { headers });
+      setOcrHistory(Array.isArray(r.data) ? r.data : []);
+    } catch (e) {
+      console.error('[ocr] history error', e);
+    }
+  };
+
+  const ocrStartShift = async () => {
+    setOcrError(null);
+    const file = await ocrPickFile();
+    if (!file) return;
+    try {
+      setOcrBusy('start');
+      const headers = await ocrAuthHeaders();
+      const fd = new FormData();
+      fd.append('photo', file);
+      const r = await axios.post(`${API_BASE}/api/journal/start`, fd, {
+        headers: { ...headers },
+        timeout: 60_000,
+      });
+      setOcrJournal(r.data);
+    } catch (e: any) {
+      console.error('[ocr] start error', e);
+      setOcrError(e?.response?.data?.detail || 'No se pudo procesar la foto.');
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
+  const ocrAddFuel = async () => {
+    const amount = parseFloat((ocrFuelAmount || '').replace(',', '.'));
+    if (!amount || amount <= 0) {
+      setOcrError('Importe de gasolina inválido.');
+      return;
+    }
+    try {
+      setOcrBusy('fuel');
+      const headers = await ocrAuthHeaders();
+      const fd = new FormData();
+      fd.append('amount_eur', String(amount));
+      const liters = parseFloat((ocrFuelLiters || '').replace(',', '.'));
+      if (liters && liters > 0) fd.append('liters', String(liters));
+      const r = await axios.post(`${API_BASE}/api/journal/fuel`, fd, { headers });
+      setOcrJournal(r.data);
+      setOcrFuelAmount('');
+      setOcrFuelLiters('');
+      setOcrShowFuelModal(false);
+    } catch (e: any) {
+      console.error('[ocr] fuel error', e);
+      setOcrError(e?.response?.data?.detail || 'No se pudo añadir el gasto.');
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
+  const ocrEndShift = async () => {
+    if (!ocrEndPhoto) {
+      setOcrError('Adjunta la foto del parcial final antes de cerrar.');
+      return;
+    }
+    try {
+      setOcrBusy('end');
+      const headers = await ocrAuthHeaders();
+      const fd = new FormData();
+      fd.append('photo', ocrEndPhoto);
+      fd.append('precio_cerrado', String(parseFloat((ocrEndPrecioCerrado || '0').replace(',', '.')) || 0));
+      fd.append('cobrado_tarjeta', String(parseFloat((ocrEndTarjeta || '0').replace(',', '.')) || 0));
+      fd.append('cobrado_app', String(parseFloat((ocrEndApp || '0').replace(',', '.')) || 0));
+      const r = await axios.post(`${API_BASE}/api/journal/end`, fd, { headers, timeout: 60_000 });
+      setOcrJournal(r.data); // closed journal with totals
+      setOcrEndPhoto(null);
+      setOcrEndPrecioCerrado('');
+      setOcrEndTarjeta('');
+      setOcrEndApp('');
+      setOcrShowEndModal(false);
+      ocrLoadHistory();
+    } catch (e: any) {
+      console.error('[ocr] end error', e);
+      setOcrError(e?.response?.data?.detail || 'No se pudo cerrar la jornada.');
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
+  const ocrSaveManual = async () => {
+    if (!ocrJournal?.id || !ocrShowEditModal) return;
+    try {
+      setOcrBusy('manual');
+      const headers = await ocrAuthHeaders();
+      // Build payload from draft, coercing numeric fields
+      const numericKeys = new Set(['num_servicios', 'carreras_eur', 'dist_total_km', 'dist_ocupado_km', 'dist_libre_km']);
+      const out: Record<string, any> = {};
+      Object.entries(ocrEditDraft).forEach(([k, v]) => {
+        const s = (v ?? '').toString().trim();
+        if (s === '') return;
+        if (numericKeys.has(k)) {
+          const n = parseFloat(s.replace(',', '.'));
+          if (!Number.isNaN(n)) out[k] = k === 'num_servicios' ? Math.round(n) : n;
+        } else {
+          out[k] = s;
+        }
+      });
+      const fd = new FormData();
+      fd.append('field', ocrShowEditModal);
+      fd.append('payload', JSON.stringify(out));
+      const r = await axios.put(`${API_BASE}/api/journal/${ocrJournal.id}/manual`, fd, { headers });
+      setOcrJournal(r.data);
+      setOcrShowEditModal(null);
+      setOcrEditDraft({});
+    } catch (e: any) {
+      console.error('[ocr] manual error', e);
+      setOcrError(e?.response?.data?.detail || 'No se pudo guardar la corrección.');
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
+  const ocrDeleteJournal = async (id: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.confirm('¿Eliminar esta jornada? Esta acción no se puede deshacer.')) return;
+    try {
+      const headers = await ocrAuthHeaders();
+      await axios.delete(`${API_BASE}/api/journal/${id}`, { headers });
+      if (ocrJournal?.id === id) setOcrJournal(null);
+      ocrLoadHistory();
+    } catch (e) {
+      console.error('[ocr] delete error', e);
+    }
+  };
+
   const [acceptedReservations, setAcceptedReservations] = useState<any[]>([]);
   const [reservationLogs, setReservationLogs] = useState<any[]>([]);
   const [reservationView, setReservationView] = useState<'calendar' | 'offered' | 'logs'>('calendar');
@@ -6716,6 +6901,11 @@ export default function TransportMeter() {
           fetchAdminModerationStats(),
           fetchWhatsAppBotStatus()
         ]);
+      } else if (activeTab === 'gestion') {
+        await Promise.all([
+          ocrLoadActive(),
+          ocrLoadHistory(),
+        ]);
     }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -12468,14 +12658,40 @@ export default function TransportMeter() {
                       </Text>
                     </View>
                   ) : aiEventsSummary ? (
-                    <Text style={{ 
-                      color: '#CBD5E1', 
-                      fontSize: 13, 
-                      lineHeight: 20,
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {aiEventsSummary}
-                    </Text>
+                    <View>
+                      {aiEventsSummary.split('\n').map((line, idx) => {
+                        const trimmed = line.trim();
+                        // Empty line → spacer
+                        if (!trimmed) {
+                          return <View key={idx} style={{ height: 8 }} />;
+                        }
+                        // [SECTION] header
+                        const sectionMatch = trimmed.match(/^\[([^\]]+)\]\s*$/);
+                        if (sectionMatch) {
+                          return (
+                            <Text key={idx} style={{ color: '#A78BFA', fontSize: 14, fontWeight: '800', letterSpacing: 0.6, marginTop: 10, marginBottom: 4 }}>
+                              {sectionMatch[1]}
+                            </Text>
+                          );
+                        }
+                        // Body line — split on **bold** segments
+                        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                        return (
+                          <Text key={idx} style={{ color: '#CBD5E1', fontSize: 13, lineHeight: 20 }}>
+                            {parts.map((p, i) => {
+                              if (p.startsWith('**') && p.endsWith('**')) {
+                                return (
+                                  <Text key={i} style={{ color: '#FDE68A', fontWeight: '800' }}>
+                                    {p.slice(2, -2)}
+                                  </Text>
+                                );
+                              }
+                              return p;
+                            })}
+                          </Text>
+                        );
+                      })}
+                    </View>
                   ) : (
                     <Text style={{ color: '#64748B', fontSize: 13, fontStyle: 'italic' }}>
                       El resumen se genera automáticamente a las 5:00 AM
@@ -12817,6 +13033,245 @@ export default function TransportMeter() {
                   <Ionicons name="cash" size={28} color="#10B981" />
                   <Text style={styles.faresTitle}>Gestión / Salario</Text>
                 </View>
+
+                {/* ===== JORNADA CON OCR DEL TAXÍMETRO ===== */}
+                {(() => {
+                  const j = ocrJournal;
+                  const isClosed = j?.status === 'closed';
+                  const isOpen = j?.status === 'open';
+                  const t = j?.totals || {};
+
+                  const renderReading = (r: any, label: string, field: 'start' | 'end') => (
+                    <View style={{
+                      backgroundColor: 'rgba(15,23,42,0.6)',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginTop: 8,
+                      borderWidth: 1,
+                      borderColor: 'rgba(16,185,129,0.25)',
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>{label}</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setOcrEditDraft({
+                              fecha: r?.fecha || '',
+                              hora: r?.hora || '',
+                              num_servicios: r?.num_servicios != null ? String(r.num_servicios) : '',
+                              carreras_eur: r?.carreras_eur != null ? String(r.carreras_eur) : '',
+                              dist_total_km: r?.dist_total_km != null ? String(r.dist_total_km) : '',
+                              dist_ocupado_km: r?.dist_ocupado_km != null ? String(r.dist_ocupado_km) : '',
+                              dist_libre_km: r?.dist_libre_km != null ? String(r.dist_libre_km) : '',
+                              tiempo_ocupado: r?.tiempo_ocupado || '',
+                              tiempo_on: r?.tiempo_on || '',
+                            });
+                            setOcrShowEditModal(field);
+                          }}
+                          data-testid={`ocr-edit-${field}`}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(99,102,241,0.18)' }}
+                        >
+                          <Ionicons name="create-outline" size={14} color="#A5B4FC" />
+                          <Text style={{ color: '#A5B4FC', fontSize: 11, fontWeight: '700' }}>Corregir</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {Array.isArray(r?.ocr_warnings) && r.ocr_warnings.length > 0 && (
+                        <Text style={{ color: '#F59E0B', fontSize: 11, marginBottom: 6 }}>
+                          ⚠ {r.ocr_warnings.join(' · ')}
+                        </Text>
+                      )}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {[
+                          ['Fecha', r?.fecha],
+                          ['Hora', r?.hora],
+                          ['Servicios', r?.num_servicios],
+                          ['Carreras', r?.carreras_eur != null ? `${Number(r.carreras_eur).toFixed(2)} €` : null],
+                          ['Dist. total', r?.dist_total_km != null ? `${Number(r.dist_total_km).toFixed(2)} km` : null],
+                          ['Dist. ocup.', r?.dist_ocupado_km != null ? `${Number(r.dist_ocupado_km).toFixed(2)} km` : null],
+                          ['Dist. libre', r?.dist_libre_km != null ? `${Number(r.dist_libre_km).toFixed(2)} km` : null],
+                          ['T. ocupado', r?.tiempo_ocupado],
+                          ['T. ON', r?.tiempo_on],
+                        ].map(([k, v]) => (
+                          <View key={String(k)} style={{ minWidth: '47%', flexGrow: 1 }}>
+                            <Text style={{ color: '#64748B', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 }}>{String(k).toUpperCase()}</Text>
+                            <Text style={{ color: v == null || v === '' ? '#475569' : '#E2E8F0', fontSize: 14, fontWeight: '700' }}>
+                              {v == null || v === '' ? '—' : String(v)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+
+                  return (
+                    <View style={[styles.faresSection, { backgroundColor: 'rgba(16,185,129,0.06)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(16,185,129,0.25)' }]} data-testid="ocr-journal-section">
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Ionicons name="camera" size={20} color="#10B981" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>Jornada con foto del taxímetro</Text>
+                      </View>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>
+                        Hazle una foto al parcial al empezar y al terminar. La IA lee los totales y calcula la jornada por ti.
+                      </Text>
+
+                      {ocrError && (
+                        <View style={{ backgroundColor: 'rgba(239,68,68,0.12)', borderColor: '#EF4444', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                          <Text style={{ color: '#FCA5A5', fontSize: 13 }} data-testid="ocr-error">{ocrError}</Text>
+                        </View>
+                      )}
+
+                      {ocrBusy === 'start' || ocrBusy === 'end' ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 10 }}>
+                          <ActivityIndicator color="#10B981" />
+                          <Text style={{ color: '#10B981', fontWeight: '700' }}>Leyendo ticket con la IA…</Text>
+                        </View>
+                      ) : null}
+
+                      {/* No journal at all */}
+                      {!j && ocrBusy !== 'start' && (
+                        <TouchableOpacity
+                          onPress={ocrStartShift}
+                          disabled={ocrBusy !== null}
+                          style={{ backgroundColor: '#10B981', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: ocrBusy ? 0.5 : 1 }}
+                          data-testid="ocr-start-button"
+                        >
+                          <Ionicons name="camera" size={22} color="#FFFFFF" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>FOTO INICIO DE JORNADA</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Open journal */}
+                      {isOpen && (
+                        <View>
+                          {renderReading(j.start_reading, '🟢 INICIO DE JORNADA', 'start')}
+
+                          {/* Fuel expenses */}
+                          <View style={{ marginTop: 12, marginBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>GASOLINA DURANTE LA JORNADA</Text>
+                            <TouchableOpacity
+                              onPress={() => { setOcrFuelAmount(''); setOcrFuelLiters(''); setOcrError(null); setOcrShowFuelModal(true); }}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 8 }}
+                              data-testid="ocr-add-fuel"
+                            >
+                              <Ionicons name="add-circle" size={16} color="#F59E0B" />
+                              <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Añadir</Text>
+                            </TouchableOpacity>
+                          </View>
+                          {Array.isArray(j.fuel) && j.fuel.length > 0 ? (
+                            j.fuel.map((f: any, i: number) => (
+                              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13 }}>⛽ {new Date(f.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} {f.liters ? `· ${f.liters} L` : ''}</Text>
+                                <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '700' }}>{Number(f.amount_eur).toFixed(2)} €</Text>
+                              </View>
+                            ))
+                          ) : (
+                            <Text style={{ color: '#475569', fontSize: 12, fontStyle: 'italic', paddingVertical: 4 }}>Sin gasto de gasolina todavía.</Text>
+                          )}
+
+                          {/* Close shift CTA */}
+                          <TouchableOpacity
+                            onPress={() => { setOcrEndPhoto(null); setOcrEndPrecioCerrado(''); setOcrEndTarjeta(''); setOcrEndApp(''); setOcrError(null); setOcrShowEndModal(true); }}
+                            disabled={ocrBusy !== null}
+                            style={{ marginTop: 14, backgroundColor: '#EF4444', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: ocrBusy ? 0.5 : 1 }}
+                            data-testid="ocr-end-button"
+                          >
+                            <Ionicons name="stop-circle" size={22} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 }}>CERRAR JORNADA (foto + datos)</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Closed journal - show totals */}
+                      {isClosed && (
+                        <View>
+                          {renderReading(j.start_reading, '🟢 INICIO', 'start')}
+                          {renderReading(j.end_reading, '🔴 FIN', 'end')}
+
+                          {/* Totals */}
+                          <View style={{ marginTop: 14, backgroundColor: 'rgba(16,185,129,0.10)', borderRadius: 12, padding: 14, borderWidth: 2, borderColor: '#10B981' }} data-testid="ocr-totals">
+                            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800', letterSpacing: 0.6, marginBottom: 8 }}>RESUMEN DE LA JORNADA</Text>
+                            {[
+                              ['Facturación taxímetro', t.facturacion_taximetro_eur, '€'],
+                              ['Precio cerrado', t.precio_cerrado_eur, '€'],
+                              ['Total ingresos', t.total_ingresos_eur, '€', true],
+                              ['Cobrado tarjeta', t.cobrado_tarjeta_eur, '€'],
+                              ['Cobrado app', t.cobrado_app_eur, '€'],
+                              ['Cobrado efectivo', t.cobrado_efectivo_eur, '€'],
+                              ['Gasolina', t.gasto_gasolina_eur, '€'],
+                              ['NETO (ingresos − gasolina)', t.total_neto_eur, '€', true],
+                              ['Nº servicios', t.num_servicios_diff, ''],
+                              ['Dist. total', t.dist_total_diff_km, 'km'],
+                              ['Dist. ocupado', t.dist_ocupado_diff_km, 'km'],
+                              ['Dist. libre', t.dist_libre_diff_km, 'km'],
+                              ['Tiempo ocupado', t.tiempo_ocupado_diff, ''],
+                              ['Tiempo ON', t.tiempo_on_diff, ''],
+                              ['Media €/servicio', t.media_eur_servicio, '€'],
+                            ].map(([label, value, unit, big]: any) => (
+                              <View key={String(label)} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
+                                <Text style={{ color: big ? '#FFFFFF' : '#CBD5E1', fontSize: big ? 14 : 13, fontWeight: big ? '800' : '600' }}>{String(label)}</Text>
+                                <Text style={{ color: big ? '#10B981' : '#E2E8F0', fontSize: big ? 15 : 13, fontWeight: big ? '900' : '700' }}>
+                                  {value == null ? '—' : `${typeof value === 'number' ? value.toFixed(unit === 'km' || unit === '€' ? 2 : 0) : value}${unit ? ' ' + unit : ''}`}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+
+                          {/* Prefill manual calculator + reset */}
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setGestionRecaudacion(((t.total_ingresos_eur ?? 0)).toFixed(2));
+                                setGestionTarjeta(((t.cobrado_tarjeta_eur ?? 0)).toFixed(2));
+                                setGestionAplicacion(((t.cobrado_app_eur ?? 0)).toFixed(2));
+                                setGestionGasolina(((t.gasto_gasolina_eur ?? 0)).toFixed(2));
+                              }}
+                              style={{ flex: 1, backgroundColor: '#3B82F6', borderRadius: 10, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                              data-testid="ocr-prefill"
+                            >
+                              <Ionicons name="arrow-down-circle" size={18} color="#FFFFFF" />
+                              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Cargar en calculadora</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => { setOcrJournal(null); setOcrError(null); }}
+                              style={{ flex: 1, backgroundColor: '#475569', borderRadius: 10, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                              data-testid="ocr-new-shift"
+                            >
+                              <Ionicons name="refresh" size={18} color="#FFFFFF" />
+                              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Nueva jornada</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* History */}
+                      {ocrHistory.length > 0 && (
+                        <View style={{ marginTop: 16 }}>
+                          <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8 }}>HISTORIAL ({ocrHistory.length})</Text>
+                          {ocrHistory.slice(0, 6).map((h: any) => (
+                            <TouchableOpacity
+                              key={h.id}
+                              onPress={() => setOcrJournal(h)}
+                              style={{ backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, padding: 10, marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                              data-testid={`ocr-history-${h.id}`}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13, fontWeight: '700' }}>
+                                  {h.start_reading?.fecha || h.start_at?.slice(0, 10) || '—'} · {h.status === 'open' ? '🟢 Abierta' : '✅ Cerrada'}
+                                </Text>
+                                <Text style={{ color: '#64748B', fontSize: 11 }}>
+                                  Neto: {h.totals?.total_neto_eur != null ? `${h.totals.total_neto_eur.toFixed(2)} €` : '—'}
+                                  {h.totals?.num_servicios_diff != null ? ` · ${h.totals.num_servicios_diff} servicios` : ''}
+                                </Text>
+                              </View>
+                              <TouchableOpacity onPress={() => ocrDeleteJournal(h.id)} style={{ padding: 6 }} data-testid={`ocr-delete-${h.id}`}>
+                                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                              </TouchableOpacity>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
+                {/* ===== END OCR JOURNAL SECTION ===== */}
                 
                 {/* Porcentaje selector */}
                 <View style={styles.faresSection}>
@@ -13191,6 +13646,182 @@ export default function TransportMeter() {
                 </TouchableOpacity>
                 
                 <AdBanner position="inline" />
+
+                {/* === Fuel modal === */}
+                <Modal visible={ocrShowFuelModal} transparent animationType="fade" onRequestClose={() => setOcrShowFuelModal(false)}>
+                  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 }}>
+                    <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#F59E0B' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                        <Ionicons name="flash" size={24} color="#F59E0B" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Añadir gasto de gasolina</Text>
+                      </View>
+                      <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>Importe (€) *</Text>
+                      <TextInput
+                        value={ocrFuelAmount}
+                        onChangeText={setOcrFuelAmount}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor="#475569"
+                        style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 12 }}
+                        data-testid="ocr-fuel-amount"
+                      />
+                      <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>Litros (opcional)</Text>
+                      <TextInput
+                        value={ocrFuelLiters}
+                        onChangeText={setOcrFuelLiters}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor="#475569"
+                        style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 16 }}
+                        data-testid="ocr-fuel-liters"
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => setOcrShowFuelModal(false)}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#475569', alignItems: 'center' }}
+                        >
+                          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={ocrAddFuel}
+                          disabled={ocrBusy === 'fuel'}
+                          style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#F59E0B', alignItems: 'center', opacity: ocrBusy === 'fuel' ? 0.5 : 1 }}
+                          data-testid="ocr-fuel-save"
+                        >
+                          <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{ocrBusy === 'fuel' ? 'Guardando…' : 'Guardar'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
+
+                {/* === End shift modal === */}
+                <Modal visible={ocrShowEndModal} transparent animationType="slide" onRequestClose={() => setOcrShowEndModal(false)}>
+                  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+                    <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+                      <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#EF4444' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                          <Ionicons name="stop-circle" size={24} color="#EF4444" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Cerrar jornada</Text>
+                        </View>
+
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>1. Foto del parcial al final *</Text>
+                        <TouchableOpacity
+                          onPress={async () => { const f = await ocrPickFile(); if (f) setOcrEndPhoto(f); }}
+                          style={{ backgroundColor: ocrEndPhoto ? '#10B981' : '#1E293B', borderWidth: 1, borderColor: ocrEndPhoto ? '#10B981' : '#475569', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 14, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                          data-testid="ocr-end-photo-button"
+                        >
+                          <Ionicons name={ocrEndPhoto ? 'checkmark-circle' : 'camera'} size={20} color="#FFFFFF" />
+                          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{ocrEndPhoto ? `Foto seleccionada (${(ocrEndPhoto.size / 1024).toFixed(0)} KB)` : 'Hacer foto / Subir imagen'}</Text>
+                        </TouchableOpacity>
+
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>2. Precio cerrado (€) — carreras a precio fijo</Text>
+                        <TextInput
+                          value={ocrEndPrecioCerrado}
+                          onChangeText={setOcrEndPrecioCerrado}
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          placeholderTextColor="#475569"
+                          style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 10 }}
+                          data-testid="ocr-end-precio-cerrado"
+                        />
+
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>3. Cobrado con tarjeta (€)</Text>
+                        <TextInput
+                          value={ocrEndTarjeta}
+                          onChangeText={setOcrEndTarjeta}
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          placeholderTextColor="#475569"
+                          style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 10 }}
+                          data-testid="ocr-end-tarjeta"
+                        />
+
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>4. Cobrado con app (€)</Text>
+                        <TextInput
+                          value={ocrEndApp}
+                          onChangeText={setOcrEndApp}
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          placeholderTextColor="#475569"
+                          style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 15, marginBottom: 16 }}
+                          data-testid="ocr-end-app"
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => setOcrShowEndModal(false)}
+                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#475569', alignItems: 'center' }}
+                          >
+                            <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={ocrEndShift}
+                            disabled={ocrBusy === 'end' || !ocrEndPhoto}
+                            style={{ flex: 1.5, paddingVertical: 12, borderRadius: 10, backgroundColor: '#EF4444', alignItems: 'center', opacity: (ocrBusy === 'end' || !ocrEndPhoto) ? 0.5 : 1 }}
+                            data-testid="ocr-end-confirm"
+                          >
+                            <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{ocrBusy === 'end' ? 'Leyendo ticket…' : 'CERRAR JORNADA'}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </ScrollView>
+                  </View>
+                </Modal>
+
+                {/* === Manual correction modal === */}
+                <Modal visible={ocrShowEditModal !== null} transparent animationType="fade" onRequestClose={() => setOcrShowEditModal(null)}>
+                  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+                    <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+                      <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#6366F1' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                          <Ionicons name="create" size={24} color="#A5B4FC" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Corregir lectura ({ocrShowEditModal === 'start' ? 'inicio' : 'fin'})</Text>
+                        </View>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>Edita los valores que la IA no leyó bien. Deja en blanco para no cambiar.</Text>
+                        {[
+                          ['fecha', 'Fecha (YYYY-MM-DD)'],
+                          ['hora', 'Hora (HH:MM)'],
+                          ['num_servicios', 'Nº servicios'],
+                          ['carreras_eur', 'Carreras / Facturación (€)'],
+                          ['dist_total_km', 'Dist. total (km)'],
+                          ['dist_ocupado_km', 'Dist. ocupado (km)'],
+                          ['dist_libre_km', 'Dist. libre (km)'],
+                          ['tiempo_ocupado', 'Tiempo ocupado (HH:MM)'],
+                          ['tiempo_on', 'Tiempo ON (HH:MM)'],
+                        ].map(([k, label]) => (
+                          <View key={k} style={{ marginBottom: 10 }}>
+                            <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
+                            <TextInput
+                              value={ocrEditDraft[k] || ''}
+                              onChangeText={(v) => setOcrEditDraft((d) => ({ ...d, [k]: v }))}
+                              placeholder="—"
+                              placeholderTextColor="#475569"
+                              style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14 }}
+                              data-testid={`ocr-edit-input-${k}`}
+                            />
+                          </View>
+                        ))}
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => { setOcrShowEditModal(null); setOcrEditDraft({}); }}
+                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#475569', alignItems: 'center' }}
+                          >
+                            <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={ocrSaveManual}
+                            disabled={ocrBusy === 'manual'}
+                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#6366F1', alignItems: 'center', opacity: ocrBusy === 'manual' ? 0.5 : 1 }}
+                            data-testid="ocr-edit-save"
+                          >
+                            <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{ocrBusy === 'manual' ? 'Guardando…' : 'Guardar'}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </ScrollView>
+                  </View>
+                </Modal>
               </View>
             );
           })()
