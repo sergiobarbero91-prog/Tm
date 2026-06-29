@@ -65,6 +65,7 @@ class FuelExpense(BaseModel):
     liters: Optional[float] = None
     note: Optional[str] = None
     at: str  # ISO timestamp
+    km_total_at_refuel: Optional[float] = None  # taximeter dist_total (km) when the refuel happened
 
 
 class JournalEnd(BaseModel):
@@ -218,10 +219,12 @@ async def _save_photo(file: UploadFile, journal_id: str, suffix: str):
 
 
 def _compute_totals(journal: Dict[str, Any]) -> Dict[str, Any]:
-    """Compute the diff between end and start parciales + revenue summary."""
+    """Compute the diff between end and start parciales + revenue summary
+    + extended productivity metrics."""
     start = journal.get("start_reading") or {}
     end = journal.get("end_reading") or {}
     end_payload = journal.get("end_payload") or {}
+    fuel_entries = journal.get("fuel", []) or []
 
     def _diff(key: str) -> Optional[float]:
         a = start.get(key)
@@ -233,43 +236,215 @@ def _compute_totals(journal: Dict[str, Any]) -> Dict[str, Any]:
         except (ValueError, TypeError):
             return None
 
-    def _diff_time(key: str) -> Optional[str]:
+    def _diff_minutes(key: str) -> Optional[int]:
+        """Return the difference of HH:MM fields in *minutes* (positive)."""
         a = _hhmm_to_minutes(start.get(key))
         b = _hhmm_to_minutes(end.get(key))
         if a is None or b is None:
             return None
-        delta = (b - a + 24 * 60) % (24 * 60)
-        return f"{delta // 60:02d}:{delta % 60:02d}"
+        return (b - a + 24 * 60) % (24 * 60)
 
+    def _fmt_hhmm(minutes: Optional[int]) -> Optional[str]:
+        if minutes is None:
+            return None
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+    def _safe_div(num: Optional[float], den: Optional[float]) -> Optional[float]:
+        if num is None or den is None:
+            return None
+        try:
+            if float(den) <= 0:
+                return None
+            return num / float(den)
+        except (ValueError, TypeError):
+            return None
+
+    # ── Money ──
     carreras = _diff("carreras_eur") or 0.0
-    fuel = sum(float(f.get("amount_eur", 0) or 0) for f in journal.get("fuel", []))
+    fuel_total = sum(float(f.get("amount_eur", 0) or 0) for f in fuel_entries)
     precio_cerrado = float(end_payload.get("precio_cerrado", 0) or 0)
     tarjeta = float(end_payload.get("cobrado_tarjeta", 0) or 0)
     app_eur = float(end_payload.get("cobrado_app", 0) or 0)
-    total_ingresos = round(carreras + precio_cerrado, 2)
-    total_neto = round(total_ingresos - fuel, 2)
+    total_ingresos = round(carreras + precio_cerrado, 2)            # facturación
+    total_neto = round(total_ingresos - fuel_total, 2)
+    efectivo = round(total_ingresos - tarjeta - app_eur, 2)
+
+    # ── Distance ──
+    km_total = _diff("dist_total_km")
+    km_ocupado = _diff("dist_ocupado_km")
+    km_libre = _diff("dist_libre_km")
+    pct_dist_ocupado = None
+    if km_total and km_total > 0 and km_ocupado is not None:
+        pct_dist_ocupado = round((km_ocupado / km_total) * 100, 1)
+
+    # ── Time ──
+    min_on = _diff_minutes("tiempo_on")           # work-effective minutes
+    min_ocupado = _diff_minutes("tiempo_ocupado") # loaded minutes
+    pct_tiempo_ocupacion = None
+    if min_on and min_on > 0 and min_ocupado is not None:
+        pct_tiempo_ocupacion = round((min_ocupado / min_on) * 100, 1)
+    # Clock time (start_reading.hora → end_reading.hora)
+    start_hhmm = _hhmm_to_minutes(start.get("hora"))
+    end_hhmm = _hhmm_to_minutes(end.get("hora"))
+    min_jornada = None
+    if start_hhmm is not None and end_hhmm is not None:
+        # Wrap past midnight
+        min_jornada = (end_hhmm - start_hhmm + 24 * 60) % (24 * 60) or (24 * 60)
+
+    # ── Rates ──
+    eur_por_hora = None
+    if min_jornada and min_jornada > 0:
+        eur_por_hora = round(total_ingresos / (min_jornada / 60), 2)
+    eur_por_km = _safe_div(total_ingresos, km_total)
+    if eur_por_km is not None:
+        eur_por_km = round(eur_por_km, 2)
+
+    # ── Fuel cost per km (since last refuel, or whole shift) ──
+    # Strategy: sum all refuels and divide by km between earliest refuel km and
+    # end-of-shift km (best estimate). If km_total_at_refuel is missing, use
+    # proportional approximation based on number of refuels.
+    gasto_gasolina_por_km = None
+    rendimiento_por_km = None
+    rendimiento_por_eur_gasolina = None
+    refuel_warning = None
+
+    if fuel_total > 0:
+        # km traveled since first refuel that has km_total_at_refuel recorded
+        refuels_with_km = [f for f in fuel_entries if f.get("km_total_at_refuel") is not None]
+        end_km_total = end.get("dist_total_km")
+        if refuels_with_km and end_km_total is not None:
+            try:
+                first_refuel_km = float(min(f["km_total_at_refuel"] for f in refuels_with_km))
+                km_since_first_refuel = float(end_km_total) - first_refuel_km
+                # Only count refuels at or after the first valid one
+                fuel_since_first = sum(
+                    float(f.get("amount_eur", 0) or 0)
+                    for f in fuel_entries
+                    if f.get("km_total_at_refuel") is None
+                    or float(f["km_total_at_refuel"]) >= first_refuel_km
+                )
+                if km_since_first_refuel > 0:
+                    gasto_gasolina_por_km = round(fuel_since_first / km_since_first_refuel, 3)
+                    # Facturación atribuida al mismo tramo (proporcional al km)
+                    if km_total and km_total > 0:
+                        facturacion_tramo = (km_since_first_refuel / km_total) * total_ingresos
+                        rendimiento_por_eur_gasolina = round(facturacion_tramo / fuel_since_first, 2)
+            except (ValueError, TypeError, KeyError):
+                pass
+        else:
+            # Fallback: use the whole shift km
+            if km_total and km_total > 0:
+                gasto_gasolina_por_km = round(fuel_total / km_total, 3)
+                rendimiento_por_eur_gasolina = round(total_ingresos / fuel_total, 2)
+            refuel_warning = (
+                "Para un cálculo más preciso del coste por km, repón gasolina justo "
+                "antes de cerrar la jornada y anota los km del taxímetro al repostar."
+            )
+
+        # Rendimiento por km = €/km facturado − €/km gasolina
+        if eur_por_km is not None and gasto_gasolina_por_km is not None:
+            rendimiento_por_km = round(eur_por_km - gasto_gasolina_por_km, 2)
+
+    media_eur_servicio = None
+    ns_diff = _diff("num_servicios")
+    if ns_diff and ns_diff > 0:
+        media_eur_servicio = round(total_ingresos / ns_diff, 2)
 
     return {
-        "facturacion_taximetro_eur": carreras,           # from the ticket
-        "precio_cerrado_eur": precio_cerrado,            # manual entry
-        "total_ingresos_eur": total_ingresos,            # taximetro + cerrado
-        "cobrado_tarjeta_eur": tarjeta,                  # informational
-        "cobrado_app_eur": app_eur,                      # informational
-        "cobrado_efectivo_eur": round(total_ingresos - tarjeta - app_eur, 2),
-        "gasto_gasolina_eur": round(fuel, 2),
-        "total_neto_eur": total_neto,                    # ingresos − gasolina
-        "num_servicios_diff": _diff("num_servicios"),
-        "dist_total_diff_km": _diff("dist_total_km"),
-        "dist_ocupado_diff_km": _diff("dist_ocupado_km"),
-        "dist_libre_diff_km": _diff("dist_libre_km"),
-        "tiempo_ocupado_diff": _diff_time("tiempo_ocupado"),
-        "tiempo_on_diff": _diff_time("tiempo_on"),
-        "media_eur_servicio": round(
-            total_ingresos / (_diff("num_servicios") or 1)
-            if _diff("num_servicios") and _diff("num_servicios") > 0 else 0,
-            2,
-        ),
+        # Money
+        "facturacion_taximetro_eur": round(carreras, 2),
+        "precio_cerrado_eur": round(precio_cerrado, 2),
+        "total_ingresos_eur": total_ingresos,                # facturación total (carreras + cerrado)
+        "cobrado_tarjeta_eur": round(tarjeta, 2),
+        "cobrado_app_eur": round(app_eur, 2),
+        "cobrado_efectivo_eur": efectivo,
+        "gasto_gasolina_eur": round(fuel_total, 2),
+        "total_neto_eur": total_neto,
+        # Counts / averages
+        "num_servicios_diff": ns_diff,
+        "media_eur_servicio": media_eur_servicio,
+        # Time
+        "tiempo_jornada_min": min_jornada,                   # horas trabajadas (reloj)
+        "tiempo_jornada_str": _fmt_hhmm(min_jornada),
+        "tiempo_on_min": min_on,                             # horas de trabajo efectivo
+        "tiempo_on_diff": _fmt_hhmm(min_on),
+        "tiempo_ocupado_min": min_ocupado,                   # horas cargado
+        "tiempo_ocupado_diff": _fmt_hhmm(min_ocupado),
+        "pct_tiempo_ocupacion": pct_tiempo_ocupacion,        # ocupado / on × 100
+        # Distance
+        "dist_total_diff_km": km_total,
+        "dist_ocupado_diff_km": km_ocupado,
+        "dist_libre_diff_km": km_libre,
+        "pct_dist_ocupado": pct_dist_ocupado,                # km ocupado / km total × 100
+        # Productivity
+        "eur_por_hora": eur_por_hora,                        # facturación / horas trabajadas
+        "eur_por_km": eur_por_km,                            # facturación / km totales
+        "gasto_gasolina_por_km": gasto_gasolina_por_km,      # €/km de gasolina
+        "rendimiento_por_km": rendimiento_por_km,            # €/km facturado − €/km gasolina
+        "rendimiento_por_eur_gasolina": rendimiento_por_eur_gasolina,  # €facturados / €gasolina
+        "refuel_warning": refuel_warning,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stats aggregation (last N days / weeks / months)
+# ─────────────────────────────────────────────────────────────────────────────
+def _aggregate_period(journals: List[Dict[str, Any]], bucket: str) -> List[Dict[str, Any]]:
+    """Group closed journals into day/week/month buckets and compute totals."""
+    from collections import defaultdict
+    buckets: Dict[str, Dict[str, float]] = defaultdict(lambda: {
+        "neto_eur": 0.0, "ingresos_eur": 0.0, "gasolina_eur": 0.0,
+        "km_total": 0.0, "km_ocupado": 0.0, "min_on": 0.0,
+        "servicios": 0, "jornadas": 0,
+    })
+    for j in journals:
+        if j.get("status") != "closed":
+            continue
+        end_at = j.get("end_at") or j.get("start_at")
+        if not end_at:
+            continue
+        try:
+            dt = datetime.fromisoformat(end_at)
+        except ValueError:
+            continue
+        # Determine bucket key
+        if bucket == "day":
+            key = dt.strftime("%Y-%m-%d")
+        elif bucket == "week":
+            iso = dt.isocalendar()
+            key = f"{iso.year}-W{iso.week:02d}"
+        else:  # month
+            key = dt.strftime("%Y-%m")
+        t = j.get("totals") or {}
+        b = buckets[key]
+        b["neto_eur"] += float(t.get("total_neto_eur", 0) or 0)
+        b["ingresos_eur"] += float(t.get("total_ingresos_eur", 0) or 0)
+        b["gasolina_eur"] += float(t.get("gasto_gasolina_eur", 0) or 0)
+        b["km_total"] += float(t.get("dist_total_diff_km", 0) or 0)
+        b["km_ocupado"] += float(t.get("dist_ocupado_diff_km", 0) or 0)
+        b["min_on"] += float(t.get("tiempo_on_min", 0) or 0)
+        b["servicios"] += int(t.get("num_servicios_diff", 0) or 0)
+        b["jornadas"] += 1
+    # Sort chronologically
+    out = []
+    for k in sorted(buckets.keys()):
+        d = buckets[k]
+        eur_h = round(d["ingresos_eur"] / (d["min_on"] / 60), 2) if d["min_on"] > 0 else None
+        eur_km = round(d["ingresos_eur"] / d["km_total"], 2) if d["km_total"] > 0 else None
+        out.append({
+            "bucket": k,
+            "neto_eur": round(d["neto_eur"], 2),
+            "ingresos_eur": round(d["ingresos_eur"], 2),
+            "gasolina_eur": round(d["gasolina_eur"], 2),
+            "km_total": round(d["km_total"], 1),
+            "km_ocupado": round(d["km_ocupado"], 1),
+            "horas_on": round(d["min_on"] / 60, 2),
+            "servicios": d["servicios"],
+            "jornadas": d["jornadas"],
+            "eur_por_hora": eur_h,
+            "eur_por_km": eur_km,
+        })
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -320,6 +495,7 @@ async def add_fuel(
     amount_eur: float = Form(...),
     liters: Optional[float] = Form(None),
     note: Optional[str] = Form(None),
+    km_total_at_refuel: Optional[float] = Form(None),
     user=Depends(get_current_user_required),
 ):
     """Add a fuel expense to the currently-open journal."""
@@ -336,6 +512,7 @@ async def add_fuel(
         liters=liters,
         note=(note or "").strip() or None,
         at=_now_iso(),
+        km_total_at_refuel=round(km_total_at_refuel, 2) if km_total_at_refuel else None,
     ).model_dump()
     await JOURNAL_COLLECTION.update_one(
         {"id": journal["id"]},
@@ -416,6 +593,45 @@ async def list_journals(
         {"_id": 0},
     ).sort("start_at", -1).limit(limit)
     return await cursor.to_list(length=limit)
+
+
+@router.get("/stats")
+async def journal_stats(
+    bucket: str = "day",   # day | week | month
+    days: int = 90,        # window
+    user=Depends(get_current_user_required),
+):
+    """Aggregated stats for charts: neto, ingresos, gasolina, km, €/h, €/km
+    grouped by day/week/month over the last `days` days."""
+    if bucket not in ("day", "week", "month"):
+        raise HTTPException(status_code=400, detail="bucket debe ser day|week|month")
+    days = max(7, min(days, 365))
+    # Get all closed journals within window
+    cursor = JOURNAL_COLLECTION.find(
+        {"user_id": user["id"], "status": "closed"},
+        {"_id": 0},
+    ).sort("end_at", -1).limit(500)
+    journals = await cursor.to_list(length=500)
+    series = _aggregate_period(journals, bucket)
+    # Filter to the last `days`
+    cutoff = datetime.now(MADRID_TZ).date()
+    if series and bucket == "day":
+        from datetime import timedelta as _td
+        min_date = (cutoff - _td(days=days)).isoformat()
+        series = [s for s in series if s["bucket"] >= min_date]
+    # Overall summary across the filtered series
+    totals = {
+        "neto_eur": round(sum(s["neto_eur"] for s in series), 2),
+        "ingresos_eur": round(sum(s["ingresos_eur"] for s in series), 2),
+        "gasolina_eur": round(sum(s["gasolina_eur"] for s in series), 2),
+        "km_total": round(sum(s["km_total"] for s in series), 1),
+        "horas_on": round(sum(s["horas_on"] for s in series), 2),
+        "jornadas": sum(s["jornadas"] for s in series),
+        "servicios": sum(s["servicios"] for s in series),
+    }
+    totals["eur_por_hora"] = round(totals["ingresos_eur"] / totals["horas_on"], 2) if totals["horas_on"] > 0 else None
+    totals["eur_por_km"] = round(totals["ingresos_eur"] / totals["km_total"], 2) if totals["km_total"] > 0 else None
+    return {"bucket": bucket, "days": days, "series": series, "totals": totals}
 
 
 @router.put("/{journal_id}/manual")

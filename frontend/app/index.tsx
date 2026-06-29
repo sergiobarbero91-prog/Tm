@@ -442,6 +442,7 @@ export default function TransportMeter() {
   const [ocrShowFuelModal, setOcrShowFuelModal] = useState(false);
   const [ocrFuelAmount, setOcrFuelAmount] = useState('');
   const [ocrFuelLiters, setOcrFuelLiters] = useState('');
+  const [ocrFuelKmTotal, setOcrFuelKmTotal] = useState('');
   const [ocrShowEndModal, setOcrShowEndModal] = useState(false);
   const [ocrEndPhoto, setOcrEndPhoto] = useState<File | null>(null);
   const [ocrEndPrecioCerrado, setOcrEndPrecioCerrado] = useState('');
@@ -449,6 +450,10 @@ export default function TransportMeter() {
   const [ocrEndApp, setOcrEndApp] = useState('');
   const [ocrShowEditModal, setOcrShowEditModal] = useState<null | 'start' | 'end'>(null);
   const [ocrEditDraft, setOcrEditDraft] = useState<Record<string, string>>({});
+
+  // Stats / trends
+  const [ocrStats, setOcrStats] = useState<any | null>(null);
+  const [ocrStatsBucket, setOcrStatsBucket] = useState<'day' | 'week' | 'month'>('week');
 
   // === OCR Journal — API helpers ===
   const ocrPickFile = (): Promise<File | null> => {
@@ -496,6 +501,17 @@ export default function TransportMeter() {
     }
   };
 
+  const ocrLoadStats = async (bucket: 'day' | 'week' | 'month' = ocrStatsBucket) => {
+    try {
+      const headers = await ocrAuthHeaders();
+      const days = bucket === 'day' ? 30 : bucket === 'week' ? 90 : 365;
+      const r = await axios.get(`${API_BASE}/api/journal/stats?bucket=${bucket}&days=${days}`, { headers });
+      setOcrStats(r.data);
+    } catch (e) {
+      console.error('[ocr] stats error', e);
+    }
+  };
+
   const ocrStartShift = async () => {
     setOcrError(null);
     const file = await ocrPickFile();
@@ -531,10 +547,13 @@ export default function TransportMeter() {
       fd.append('amount_eur', String(amount));
       const liters = parseFloat((ocrFuelLiters || '').replace(',', '.'));
       if (liters && liters > 0) fd.append('liters', String(liters));
+      const km = parseFloat((ocrFuelKmTotal || '').replace(',', '.'));
+      if (km && km > 0) fd.append('km_total_at_refuel', String(km));
       const r = await axios.post(`${API_BASE}/api/journal/fuel`, fd, { headers });
       setOcrJournal(r.data);
       setOcrFuelAmount('');
       setOcrFuelLiters('');
+      setOcrFuelKmTotal('');
       setOcrShowFuelModal(false);
     } catch (e: any) {
       console.error('[ocr] fuel error', e);
@@ -6905,6 +6924,7 @@ export default function TransportMeter() {
         await Promise.all([
           ocrLoadActive(),
           ocrLoadHistory(),
+          ocrLoadStats(),
         ]);
     }
     } catch (error) {
@@ -13147,7 +13167,7 @@ export default function TransportMeter() {
                           <View style={{ marginTop: 12, marginBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>GASOLINA DURANTE LA JORNADA</Text>
                             <TouchableOpacity
-                              onPress={() => { setOcrFuelAmount(''); setOcrFuelLiters(''); setOcrError(null); setOcrShowFuelModal(true); }}
+                              onPress={() => { setOcrFuelAmount(''); setOcrFuelLiters(''); setOcrFuelKmTotal(''); setOcrError(null); setOcrShowFuelModal(true); }}
                               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 8 }}
                               data-testid="ocr-add-fuel"
                             >
@@ -13185,33 +13205,89 @@ export default function TransportMeter() {
                           {renderReading(j.start_reading, '🟢 INICIO', 'start')}
                           {renderReading(j.end_reading, '🔴 FIN', 'end')}
 
-                          {/* Totals */}
-                          <View style={{ marginTop: 14, backgroundColor: 'rgba(16,185,129,0.10)', borderRadius: 12, padding: 14, borderWidth: 2, borderColor: '#10B981' }} data-testid="ocr-totals">
-                            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800', letterSpacing: 0.6, marginBottom: 8 }}>RESUMEN DE LA JORNADA</Text>
-                            {[
-                              ['Facturación taxímetro', t.facturacion_taximetro_eur, '€'],
-                              ['Precio cerrado', t.precio_cerrado_eur, '€'],
-                              ['Total ingresos', t.total_ingresos_eur, '€', true],
-                              ['Cobrado tarjeta', t.cobrado_tarjeta_eur, '€'],
-                              ['Cobrado app', t.cobrado_app_eur, '€'],
-                              ['Cobrado efectivo', t.cobrado_efectivo_eur, '€'],
-                              ['Gasolina', t.gasto_gasolina_eur, '€'],
-                              ['NETO (ingresos − gasolina)', t.total_neto_eur, '€', true],
-                              ['Nº servicios', t.num_servicios_diff, ''],
-                              ['Dist. total', t.dist_total_diff_km, 'km'],
-                              ['Dist. ocupado', t.dist_ocupado_diff_km, 'km'],
-                              ['Dist. libre', t.dist_libre_diff_km, 'km'],
-                              ['Tiempo ocupado', t.tiempo_ocupado_diff, ''],
-                              ['Tiempo ON', t.tiempo_on_diff, ''],
-                              ['Media €/servicio', t.media_eur_servicio, '€'],
-                            ].map(([label, value, unit, big]: any) => (
-                              <View key={String(label)} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                                <Text style={{ color: big ? '#FFFFFF' : '#CBD5E1', fontSize: big ? 14 : 13, fontWeight: big ? '800' : '600' }}>{String(label)}</Text>
-                                <Text style={{ color: big ? '#10B981' : '#E2E8F0', fontSize: big ? 15 : 13, fontWeight: big ? '900' : '700' }}>
-                                  {value == null ? '—' : `${typeof value === 'number' ? value.toFixed(unit === 'km' || unit === '€' ? 2 : 0) : value}${unit ? ' ' + unit : ''}`}
-                                </Text>
-                              </View>
-                            ))}
+                          {/* Totals — grouped in 4 blocks */}
+                          <View style={{ marginTop: 14 }} data-testid="ocr-totals">
+                            {(() => {
+                              const fmt = (v: any, unit = '', decimals = 2) => {
+                                if (v == null || v === '') return '—';
+                                if (typeof v === 'number') {
+                                  return `${v.toFixed(decimals)}${unit ? ' ' + unit : ''}`;
+                                }
+                                return `${v}${unit ? ' ' + unit : ''}`;
+                              };
+                              const Row = ({ label, value, big = false, accent = '#10B981' }: any) => (
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: big ? 5 : 3 }}>
+                                  <Text style={{ color: big ? '#FFFFFF' : '#CBD5E1', fontSize: big ? 14 : 13, fontWeight: big ? '800' : '600' }}>{label}</Text>
+                                  <Text style={{ color: big ? accent : '#E2E8F0', fontSize: big ? 16 : 13, fontWeight: big ? '900' : '700' }}>{value}</Text>
+                                </View>
+                              );
+                              const Block = ({ title, icon, color, children }: any) => (
+                                <View style={{ backgroundColor: `${color}1A`, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: `${color}55`, marginBottom: 10 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                    <Ionicons name={icon} size={16} color={color} />
+                                    <Text style={{ color, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>{title}</Text>
+                                  </View>
+                                  {children}
+                                </View>
+                              );
+                              return (
+                                <>
+                                  {/* 1) TIEMPO */}
+                                  <Block title="TIEMPO" icon="time" color="#06B6D4">
+                                    <Row label="Horas trabajadas (reloj)" value={t.tiempo_jornada_str || '—'} big accent="#06B6D4" />
+                                    <Row label="Trabajo efectivo (ON)" value={t.tiempo_on_diff || '—'} />
+                                    <Row label="Tiempo cargado" value={t.tiempo_ocupado_diff || '—'} />
+                                    <Row label="% Ocupación (ocupado/ON)" value={t.pct_tiempo_ocupacion != null ? `${t.pct_tiempo_ocupacion} %` : '—'} />
+                                  </Block>
+
+                                  {/* 2) FACTURACIÓN */}
+                                  <Block title="FACTURACIÓN" icon="cash" color="#10B981">
+                                    <Row label="Carreras (taxímetro)" value={fmt(t.facturacion_taximetro_eur, '€')} />
+                                    <Row label="Precio cerrado" value={fmt(t.precio_cerrado_eur, '€')} />
+                                    <Row label="Total facturado" value={fmt(t.total_ingresos_eur, '€')} big accent="#10B981" />
+                                    <Row label="Cobrado con tarjeta" value={fmt(t.cobrado_tarjeta_eur, '€')} />
+                                    <Row label="Cobrado con app" value={fmt(t.cobrado_app_eur, '€')} />
+                                    <Row label="Cobrado en efectivo" value={fmt(t.cobrado_efectivo_eur, '€')} />
+                                    <Row label="Nº servicios" value={t.num_servicios_diff != null ? String(t.num_servicios_diff) : '—'} />
+                                    <Row label="Media €/servicio" value={fmt(t.media_eur_servicio, '€')} />
+                                    <Row label="€/hora facturado" value={fmt(t.eur_por_hora, '€/h')} big accent="#10B981" />
+                                    <Row label="€/km facturado" value={fmt(t.eur_por_km, '€/km')} />
+                                  </Block>
+
+                                  {/* 3) DISTANCIA */}
+                                  <Block title="DISTANCIA" icon="navigate" color="#8B5CF6">
+                                    <Row label="Km totales" value={fmt(t.dist_total_diff_km, 'km', 1)} big accent="#8B5CF6" />
+                                    <Row label="Km cargado" value={fmt(t.dist_ocupado_diff_km, 'km', 1)} />
+                                    <Row label="Km libre" value={fmt(t.dist_libre_diff_km, 'km', 1)} />
+                                    <Row label="% Cargado (cargado/total)" value={t.pct_dist_ocupado != null ? `${t.pct_dist_ocupado} %` : '—'} />
+                                  </Block>
+
+                                  {/* 4) COMBUSTIBLE Y RENDIMIENTO */}
+                                  <Block title="COMBUSTIBLE Y RENDIMIENTO" icon="flash" color="#F59E0B">
+                                    <Row label="Gasto en gasolina" value={fmt(t.gasto_gasolina_eur, '€')} />
+                                    <Row label="Coste gasolina por km" value={t.gasto_gasolina_por_km != null ? `${t.gasto_gasolina_por_km.toFixed(3)} €/km` : '—'} />
+                                    <Row label="Rendimiento por km" value={t.rendimiento_por_km != null ? `${t.rendimiento_por_km.toFixed(2)} €/km` : '—'} big accent={(t.rendimiento_por_km ?? 0) >= 0 ? '#10B981' : '#EF4444'} />
+                                    <Row label="Rendimiento por € de gasolina" value={t.rendimiento_por_eur_gasolina != null ? `${t.rendimiento_por_eur_gasolina.toFixed(2)} €/€` : '—'} />
+                                    {t.refuel_warning && (
+                                      <Text style={{ color: '#FCD34D', fontSize: 11, fontStyle: 'italic', marginTop: 6 }}>
+                                        💡 {t.refuel_warning}
+                                      </Text>
+                                    )}
+                                  </Block>
+
+                                  {/* NETO destacado */}
+                                  <View style={{ backgroundColor: 'rgba(16,185,129,0.20)', borderRadius: 12, padding: 14, borderWidth: 2, borderColor: '#10B981' }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 }}>NETO DE LA JORNADA</Text>
+                                      <Text style={{ color: '#10B981', fontSize: 22, fontWeight: '900' }}>{fmt(t.total_neto_eur, '€')}</Text>
+                                    </View>
+                                    <Text style={{ color: '#94A3B8', fontSize: 11, fontStyle: 'italic', marginTop: 2 }}>
+                                      Total facturado − gasolina
+                                    </Text>
+                                  </View>
+                                </>
+                              );
+                            })()}
                           </View>
 
                           {/* Prefill manual calculator + reset */}
@@ -13272,6 +13348,95 @@ export default function TransportMeter() {
                   );
                 })()}
                 {/* ===== END OCR JOURNAL SECTION ===== */}
+
+                {/* ===== TENDENCIA / STATS ===== */}
+                {ocrStats && Array.isArray(ocrStats.series) && ocrStats.series.length > 0 && (
+                  <View style={[styles.faresSection, { backgroundColor: 'rgba(139,92,246,0.06)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(139,92,246,0.25)' }]} data-testid="ocr-stats-section">
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="trending-up" size={20} color="#A78BFA" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>Tendencia</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 4, backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, padding: 3 }}>
+                        {(['day', 'week', 'month'] as const).map((b) => (
+                          <TouchableOpacity
+                            key={b}
+                            onPress={() => { setOcrStatsBucket(b); ocrLoadStats(b); }}
+                            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: ocrStatsBucket === b ? '#8B5CF6' : 'transparent' }}
+                            data-testid={`ocr-stats-bucket-${b}`}
+                          >
+                            <Text style={{ color: ocrStatsBucket === b ? '#FFFFFF' : '#94A3B8', fontSize: 11, fontWeight: '700' }}>{b === 'day' ? 'Día' : b === 'week' ? 'Semana' : 'Mes'}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Aggregate summary cards */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                      {[
+                        ['Neto total', ocrStats.totals?.neto_eur != null ? `${ocrStats.totals.neto_eur.toFixed(2)} €` : '—', '#10B981'],
+                        ['Jornadas', String(ocrStats.totals?.jornadas ?? 0), '#06B6D4'],
+                        ['Horas trabajadas', ocrStats.totals?.horas_on != null ? `${ocrStats.totals.horas_on.toFixed(1)} h` : '—', '#8B5CF6'],
+                        ['€/hora medio', ocrStats.totals?.eur_por_hora != null ? `${ocrStats.totals.eur_por_hora.toFixed(2)} €/h` : '—', '#F59E0B'],
+                        ['Km totales', ocrStats.totals?.km_total != null ? `${ocrStats.totals.km_total.toFixed(0)} km` : '—', '#EC4899'],
+                        ['€/km medio', ocrStats.totals?.eur_por_km != null ? `${ocrStats.totals.eur_por_km.toFixed(2)} €/km` : '—', '#F59E0B'],
+                      ].map(([label, val, c]) => (
+                        <View key={label as string} style={{ flexGrow: 1, minWidth: 130, backgroundColor: `${c}1A`, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: `${c}44` }}>
+                          <Text style={{ color: '#94A3B8', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>{String(label).toUpperCase()}</Text>
+                          <Text style={{ color: c as string, fontSize: 16, fontWeight: '900', marginTop: 2 }}>{val}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* SVG line chart of "neto" per bucket */}
+                    {(() => {
+                      const series = ocrStats.series as Array<{ bucket: string; neto_eur: number; ingresos_eur: number; gasolina_eur: number }>;
+                      const W = 320, H = 140, PAD = 28;
+                      const maxV = Math.max(1, ...series.map(s => Math.max(s.ingresos_eur || 0, s.neto_eur || 0)));
+                      const x = (i: number) => series.length === 1 ? PAD + (W - 2*PAD) / 2 : PAD + (i * (W - 2*PAD)) / (series.length - 1);
+                      const y = (v: number) => H - PAD - ((v / maxV) * (H - 2*PAD));
+                      const pathFor = (key: 'neto_eur' | 'ingresos_eur') => series.map((s, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(s[key] || 0).toFixed(1)}`).join(' ');
+                      const ticks = [0, 0.5, 1].map(t => maxV * t);
+                      // Render as inline SVG via View+View (works in Expo Web). Easier: html string via raw <svg>.
+                      // react-native-svg may not be installed; render with View bars as fallback.
+                      return (
+                        <View style={{ marginTop: 4 }}>
+                          <View style={{ width: '100%', minHeight: H }} {...(Platform.OS === 'web' ? { dangerouslySetInnerHTML: { __html: `
+                            <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:200px;">
+                              <defs>
+                                <linearGradient id="netoG" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stop-color="#10B981" stop-opacity="0.5"/>
+                                  <stop offset="100%" stop-color="#10B981" stop-opacity="0"/>
+                                </linearGradient>
+                              </defs>
+                              ${ticks.map(t => `<line x1="${PAD}" y1="${y(t)}" x2="${W - PAD}" y2="${y(t)}" stroke="#1E293B" stroke-width="1"/><text x="2" y="${y(t)+3}" fill="#64748B" font-size="9">${Math.round(t)}€</text>`).join('')}
+                              <path d="${pathFor('ingresos_eur')} L ${x(series.length-1).toFixed(1)} ${y(0).toFixed(1)} L ${x(0).toFixed(1)} ${y(0).toFixed(1)} Z" fill="url(#netoG)" opacity="0.4"/>
+                              <path d="${pathFor('ingresos_eur')}" stroke="#A78BFA" stroke-width="2" fill="none"/>
+                              <path d="${pathFor('neto_eur')}" stroke="#10B981" stroke-width="2.5" fill="none"/>
+                              ${series.map((s, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(s.neto_eur || 0).toFixed(1)}" r="3" fill="#10B981"/>`).join('')}
+                              ${series.map((s, i) => i % Math.max(1, Math.ceil(series.length / 6)) === 0 ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" fill="#64748B" font-size="9" text-anchor="middle">${s.bucket.slice(-5)}</text>` : '').join('')}
+                            </svg>
+                          ` } } : {})}>
+                            {Platform.OS !== 'web' && (
+                              <Text style={{ color: '#64748B', textAlign: 'center', paddingVertical: 20 }}>(Gráfica disponible en navegador)</Text>
+                            )}
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 6 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <View style={{ width: 10, height: 3, backgroundColor: '#10B981', borderRadius: 2 }} />
+                              <Text style={{ color: '#94A3B8', fontSize: 11 }}>Neto</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <View style={{ width: 10, height: 3, backgroundColor: '#A78BFA', borderRadius: 2 }} />
+                              <Text style={{ color: '#94A3B8', fontSize: 11 }}>Facturado</Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })()}
+                  </View>
+                )}
+                {/* ===== END TENDENCIA ===== */}
                 
                 {/* Porcentaje selector */}
                 <View style={styles.faresSection}>
@@ -13672,9 +13837,22 @@ export default function TransportMeter() {
                         keyboardType="decimal-pad"
                         placeholder="0.00"
                         placeholderTextColor="#475569"
-                        style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 16 }}
+                        style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 12 }}
                         data-testid="ocr-fuel-liters"
                       />
+                      <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>Km del taxímetro al repostar (recomendado)</Text>
+                      <TextInput
+                        value={ocrFuelKmTotal}
+                        onChangeText={setOcrFuelKmTotal}
+                        keyboardType="decimal-pad"
+                        placeholder="dist. total"
+                        placeholderTextColor="#475569"
+                        style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 6 }}
+                        data-testid="ocr-fuel-km"
+                      />
+                      <Text style={{ color: '#64748B', fontSize: 11, marginBottom: 16, fontStyle: 'italic' }}>
+                        💡 Anota los km totales del taxímetro al repostar — así el sistema calcula con precisión el coste de gasolina por km y el rendimiento real.
+                      </Text>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
                           onPress={() => setOcrShowFuelModal(false)}
@@ -13703,6 +13881,14 @@ export default function TransportMeter() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                           <Ionicons name="stop-circle" size={24} color="#EF4444" />
                           <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Cerrar jornada</Text>
+                        </View>
+
+                        {/* Refuel reminder */}
+                        <View style={{ backgroundColor: 'rgba(245,158,11,0.12)', borderColor: '#F59E0B', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 14 }}>
+                          <Text style={{ color: '#FCD34D', fontSize: 12, fontWeight: '700', marginBottom: 2 }}>💡 Antes de cerrar el turno</Text>
+                          <Text style={{ color: '#FCD34D', fontSize: 11, lineHeight: 16 }}>
+                            Reposta gasolina ahora y registra el gasto con los km del taxímetro — así obtendrás el coste por km y rendimiento reales del turno.
+                          </Text>
                         </View>
 
                         <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>1. Foto del parcial al final *</Text>
