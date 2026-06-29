@@ -136,6 +136,22 @@ Pressure points based on STATUS + minutes since landing:
 ### ✅ Daily Summary — Regla horaria reforzada (Feb 2026)
 - `/app/backend/routers/daily_summary.py` regla #9: nunca inventar horas; si no hay fuente oficial → "(horario por confirmar)".
 
+### ✅ Métricas avanzadas + Gráficas de Tendencia (Feb 2026)
+- `_compute_totals` ampliado con **14 nuevas métricas**:
+  - **Tiempo**: `tiempo_jornada_min/str` (reloj inicio→fin), `tiempo_on_min` (trabajo efectivo), `tiempo_ocupado_min` (cargado), `pct_tiempo_ocupacion` (ocupado/on × 100).
+  - **Facturación**: `total_ingresos_eur` (carreras+cerrado), `eur_por_hora`, `eur_por_km`, `media_eur_servicio`.
+  - **Distancia**: `dist_total/ocupado/libre_diff_km`, `pct_dist_ocupado`.
+  - **Combustible**: `gasto_gasolina_por_km` (€/km desde último repostaje con km_total_at_refuel; fallback a fuel/km_totales), `rendimiento_por_km` (€/km facturado − €/km gasolina), `rendimiento_por_eur_gasolina` (facturado / gasto), `refuel_warning` (mensaje cuando no se anotaron km al repostar).
+- POST `/api/journal/fuel` acepta nuevo campo opcional `km_total_at_refuel` (km del taxímetro al repostar).
+- Nuevo endpoint **GET `/api/journal/stats?bucket=day|week|month&days=N`** → series agregadas (`neto_eur`, `ingresos_eur`, `gasolina_eur`, `km_total`, `horas_on`, `servicios`, `jornadas`, `eur_por_hora`, `eur_por_km`) + totales del período. Para gráficas.
+- Gemini 429 ahora se mapea a HTTP 503 con header `Retry-After: 60` en `_ocr_parcial_sync` (antes filtraba como 500 genérico).
+- Frontend:
+  - Tarjeta de resultados reagrupada en **4 bloques** (Tiempo, Facturación, Distancia, Combustible+Rendimiento) cada uno con su color y un destacado grande del valor clave. Bloque final dedicado al NETO en grande.
+  - Modal "Añadir gasolina" ahora pide opcionalmente "Km del taxímetro al repostar" con explicación.
+  - Modal "Cerrar jornada" muestra un banner ámbar: "💡 Antes de cerrar el turno: reposta y registra el gasto con los km del taxímetro".
+  - Nueva sección **"Tendencia"** con selector día/semana/mes, 6 tarjetas de KPI (Neto, Jornadas, Horas, €/h, Km, €/km) y un gráfico SVG inline de Neto vs Facturado.
+- Tests pytest `/app/backend/tests/test_journal.py`: 20 tests (8 deterministas + 12 dependientes de Gemini que skipean limpiamente cuando hay cuota agotada). Todos los valores numéricos verificados en la primera corrida con cuota fresca.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).

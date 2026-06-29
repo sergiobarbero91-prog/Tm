@@ -135,9 +135,28 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         response = _call(OCR_MODEL)
     except Exception as e:
         msg = str(e)
+        # Quota exhausted → return a clean 503 with Retry-After so the frontend
+        # can show a friendly retry message.
+        if any(k in msg for k in ("429", "RESOURCE_EXHAUSTED", "quota")):
+            logger.warning(f"[journal-ocr] Gemini quota exhausted: {msg[:200]}")
+            raise HTTPException(
+                status_code=503,
+                detail="El servicio de IA está temporalmente saturado. Espera unos segundos e inténtalo de nuevo.",
+                headers={"Retry-After": "60"},
+            )
         if any(k in msg for k in ("503", "UNAVAILABLE", "overloaded", "high demand")):
             logger.warning(f"[journal-ocr] {OCR_MODEL} overloaded, using fallback")
-            response = _call(OCR_MODEL_FALLBACK)
+            try:
+                response = _call(OCR_MODEL_FALLBACK)
+            except Exception as e2:
+                msg2 = str(e2)
+                if any(k in msg2 for k in ("429", "RESOURCE_EXHAUSTED", "quota")):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="El servicio de IA está temporalmente saturado. Espera unos segundos e inténtalo de nuevo.",
+                        headers={"Retry-After": "60"},
+                    )
+                raise
         else:
             raise
 
@@ -512,7 +531,7 @@ async def add_fuel(
         liters=liters,
         note=(note or "").strip() or None,
         at=_now_iso(),
-        km_total_at_refuel=round(km_total_at_refuel, 2) if km_total_at_refuel else None,
+        km_total_at_refuel=round(km_total_at_refuel, 2) if km_total_at_refuel is not None else None,
     ).model_dump()
     await JOURNAL_COLLECTION.update_one(
         {"id": journal["id"]},
