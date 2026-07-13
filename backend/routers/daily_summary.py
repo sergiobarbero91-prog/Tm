@@ -311,71 +311,110 @@ def _tomorrow_madrid_str() -> str:
 def _build_prompt() -> str:
     today = _today_madrid_str()
     now_hhmm = _now_madrid_hhmm()
+    now = datetime.now(MADRID_TZ)
+    weekday_es = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][now.weekday()]
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    tomorrow = _tomorrow_madrid_str()
     return (
         "Eres un asistente para TAXISTAS de Madrid con conocimiento profundo del "
         f"calendario de eventos y vida cultural de la ciudad. Genera un briefing "
         f"TELEGRAM con la información REAL del día {today} (zona horaria "
-        f"Europe/Madrid). **Hora actual en Madrid: {now_hhmm}**.\n\n"
-        "REGLA DE VIGENCIA (LA MÁS IMPORTANTE):\n"
-        f"- HORA DE REFERENCIA: {now_hhmm} del {today}. Cualquier evento cuya hora "
-        f"de FINALIZACIÓN sea anterior a {now_hhmm} de HOY está PROHIBIDO. NO lo "
-        "incluyas bajo NINGUNA circunstancia.\n"
-        "- Si un evento comenzó pero AÚN NO HA TERMINADO (concierto de 20:00 a "
-        "23:30 y son las 21:00), SÍ inclúyelo pero marca '(en curso)'.\n"
-        "- Si NO puedes verificar la hora de finalización pero el evento empezó "
-        "hace más de 4 horas, ASUME que ha terminado y NO lo incluyas.\n"
-        "- Los eventos de AYER, ANTEAYER o cualquier otra fecha distinta a "
-        f"{today} están TOTALMENTE PROHIBIDOS aunque Google los devuelva.\n"
-        f"- Verifica siempre la FECHA de cada evento antes de incluirlo — debe "
-        f"ser exactamente {today}.\n\n"
-        "REGLAS DE BÚSQUEDA (CRÍTICO):\n"
-        "1. Usa Google Search EXHAUSTIVAMENTE para verificar TODO. NO inventes nada.\n"
-        "2. Madrid SIEMPRE tiene actividad. Si tu primera búsqueda no encuentra "
-        "nada, AMPLÍA la búsqueda con consultas alternativas (mínimo 8 queries "
-        "diferentes por sección) antes de rendirte:\n"
-        "   - Para METEO HOY: busca 'AEMET Madrid hoy temperatura mínima máxima', "
-        "'tiempo Madrid próximas horas precipitaciones', 'aviso AEMET Madrid hoy', "
-        "'eltiempo.es Madrid pronóstico horas', 'AEMET avisos viento calima Madrid'.\n"
-        "   - Para GRANDES EVENTOS: busca también 'Madrid hoy fiestas patronales', "
-        "'San Isidro 2026 programa', 'Las Ventas corrida hoy', 'IFEMA feria mayo', "
-        "'Plaza Mayor concierto hoy', 'Pradera San Isidro programación', "
-        "'Veranos Villa Madrid', 'eventos al aire libre Madrid hoy', y "
-        "calendarios oficiales del Ayuntamiento de Madrid.\n"
-        "   - Para TEATROS Y OCIO: busca cartelera teatros centro, Cines Verdi, "
+        f"Europe/Madrid).\n\n"
+        f"══════════════════════════════════════════════════════\n"
+        f"  HOY = {today} ({weekday_es})\n"
+        f"  AYER = {yesterday}   MAÑANA = {tomorrow}\n"
+        f"  HORA ACTUAL EN MADRID = {now_hhmm}\n"
+        f"══════════════════════════════════════════════════════\n\n"
+        "🚨 REGLA #0 — VERIFICACIÓN DE FECHA (LA MÁS IMPORTANTE, ABSOLUTA):\n"
+        "\n"
+        f"Antes de incluir CUALQUIER evento debes verificar su FECHA en Google "
+        f"Search y comprobar si HOY ({today}) está dentro de las fechas del "
+        "evento. Si el evento YA ACABÓ (aunque haya sido ayer o hace días o el "
+        "fin de semana pasado), está TERMINANTEMENTE PROHIBIDO.\n"
+        "\n"
+        "Procedimiento OBLIGATORIO para cada evento antes de escribirlo:\n"
+        "  Paso 1: Busca '<nombre evento> fechas 2026 Madrid' o "
+        "'<nombre evento> cuándo es'.\n"
+        "  Paso 2: Identifica FECHA INICIO y FECHA FIN del evento.\n"
+        f"  Paso 3: Comprueba: ¿{today} está entre esas fechas (inclusive)? "
+        f"Si NO → DESCARTA. Si SÍ → puedes incluirlo.\n"
+        "  Paso 4: En el bullet, escribe la fecha o rango entre paréntesis "
+        f"para justificar (ej. 'Concierto de Rosalía en WiZink (**hoy {today}**, "
+        "20:30)').\n"
+        "\n"
+        "EJEMPLOS DE ERRORES QUE NO DEBES COMETER (aprende de estos):\n"
+        f"  ❌ Mad Cool Festival 2026 se celebró del 10 al 12 de julio. "
+        f"Si HOY es {today} y es posterior al 12/07/2026, Mad Cool NO existe "
+        "hoy — NO lo incluyas.\n"
+        f"  ❌ Auditorio Miguel Ríos de Rivas típicamente tiene programación "
+        f"de fin de semana (viernes-domingo). Si HOY es lunes, martes, "
+        "miércoles o jueves, sus eventos del fin de semana pasado YA "
+        "TERMINARON — NO los incluyas.\n"
+        f"  ❌ Cualquier festival, corrida, feria o partido cuya fecha ya haya "
+        f"pasado, aunque Google lo devuelva como 'destacado' de {today[:7]}, "
+        "está PROHIBIDO.\n"
+        "\n"
+        "🕐 REGLA #1 — VERIFICACIÓN DE HORA (segunda en importancia):\n"
+        "\n"
+        f"Si el evento ES de hoy ({today}) pero su hora de FINALIZACIÓN ya "
+        f"pasó (ej. concierto 18:00–21:00 y ahora son las {now_hhmm} tras las "
+        "21:00), TAMPOCO lo incluyas.\n"
+        "Si empezó pero no ha terminado, márcalo '(en curso)'.\n"
+        "Si NO puedes verificar la hora fin y empezó hace más de 4 horas, "
+        "descártalo por precaución.\n"
+        "\n"
+        "🔎 REGLA #2 — BÚSQUEDA EXHAUSTIVA:\n"
+        "Usa Google Search de forma masiva. Madrid SIEMPRE tiene actividad. "
+        "Si tu primera búsqueda vuelve vacía, prueba mínimo 8 queries "
+        "distintas por sección:\n"
+        "   - METEO HOY: 'AEMET Madrid hoy temperatura mínima máxima', "
+        "'tiempo Madrid próximas horas precipitaciones', 'aviso AEMET Madrid "
+        "hoy', 'eltiempo.es Madrid pronóstico horas'.\n"
+        f"   - GRANDES EVENTOS: 'Madrid eventos {today}', 'Madrid conciertos "
+        f"{today}', 'Real Madrid partido {today}', 'Atlético partido {today}', "
+        f"'Las Ventas corrida {today}', 'IFEMA feria hoy', 'Plaza Mayor "
+        f"actividad {today}', calendarios oficiales del Ayuntamiento y "
+        "esmadrid.es.\n"
+        "   - TEATROS Y OCIO: cartelera teatros centro (Compac, Reina "
+        "Victoria, Bellas Artes, Príncipe Gran Vía, La Latina), Cines Verdi, "
         "Cineteca, exposiciones Reina Sofía/Prado/Thyssen abiertas hoy.\n"
-        "   - Para ALERTAS DE TRÁFICO: busca DGT Madrid hoy, manifestaciones, "
-        "obras M-30/M-40, cortes esmadrid.es.\n"
-        "3. SOLO escribe 'Sin información verificada para hoy.' si después de "
-        "TRES rondas de búsqueda con distintas palabras clave SIGUES sin "
-        "encontrar absolutamente nada. Es muy raro en Madrid.\n"
-        "4. Considera GRANDES EVENTOS (no solo deportivos):\n"
-        "   - Partidos Real Madrid / Atlético / Rayo (Bernabéu, Metropolitano, Vallecas)\n"
-        "   - Conciertos grandes (WiZink, Palacio de Vistalegre, Movistar Arena)\n"
-        "   - Fiestas patronales y festejos del Ayuntamiento (San Isidro, "
-        "Dos de Mayo, Veranos de la Villa, Navidad, Carnaval)\n"
-        "   - Conciertos al aire libre (Plaza Mayor, Pradera de San Isidro, "
-        "Madrid Río, Templo de Debod)\n"
-        "   - Festejos taurinos en Las Ventas\n"
-        "   - Ferias activas en IFEMA / Casa de Campo\n"
-        "   - Eventos cívicos masivos (Día del Orgullo, San Silvestre, etc.)\n"
-        "5. Usa **negrita** (estilo Telegram, con dobles asteriscos) para lugares "
-        "clave, horas y nombres propios.\n"
-        "6. Sé conciso: 4-7 bullets por sección, frases cortas.\n"
-        "7. Prioriza puntos calientes para taxis: estadios, grandes teatros del "
-        "centro, Atocha/Chamartín, T1/T2/T3/T4/T4S de Barajas, IFEMA, "
-        "Pradera San Isidro, Plaza Mayor.\n"
-        "8. No repitas el mismo evento en dos secciones distintas.\n"
-        "9. PRECISIÓN HORARIA (regla dura): NUNCA inventes horas. SOLO escribe una "
-        "hora si la has visto literalmente confirmada en una fuente oficial "
-        "(Ayuntamiento de Madrid, esmadrid.es, ifema.es, web del teatro/estadio/"
-        "promotora, AEMET, DGT). Si tienes el evento pero NO la hora exacta, "
-        "escribe '(horario por confirmar)' en lugar de adivinarla. Para partidos, "
-        "horarios sólo si los confirma LaLiga/UEFA/club oficial — nunca por "
-        "Twitter ni blogs.\n"
-        "10. Cada bullet de [GRANDES EVENTOS], [TEATROS Y OCIO] y [ALERTAS DE "
-        "TRÁFICO] DEBE contener una hora (o rango horario). Si no puedes "
-        "verificarla, escribe '(horario por confirmar)'. Un evento sin hora "
-        "puede haber terminado ya — mejor descartarlo.\n\n"
+        "   - ALERTAS DE TRÁFICO: DGT Madrid hoy, manifestaciones, obras "
+        "M-30/M-40, cortes esmadrid.es.\n"
+        "Solo escribe 'Sin información verificada para hoy.' si tras TRES "
+        "rondas de queries no encuentras nada.\n"
+        "\n"
+        "📋 REGLA #3 — QUÉ CONSIDERAR EN 'GRANDES EVENTOS' (no solo deportivos):\n"
+        "   • Partidos Real Madrid / Atlético / Rayo (Bernabéu, Metropolitano, "
+        "Vallecas) — SÓLO si LaLiga/UEFA lo confirma para hoy.\n"
+        "   • Conciertos grandes (WiZink Center, Palacio Vistalegre, Movistar "
+        "Arena, Riviera).\n"
+        "   • Fiestas patronales activas HOY (San Isidro, Dos de Mayo, "
+        "Veranos de la Villa, Navidad, Carnaval).\n"
+        "   • Conciertos al aire libre (Plaza Mayor, Pradera San Isidro, "
+        "Madrid Río, Templo de Debod).\n"
+        "   • Festejos taurinos en Las Ventas (solo si hay corrida programada "
+        "para hoy).\n"
+        "   • Ferias ACTIVAS en IFEMA / Casa de Campo (verifica fecha inicio/"
+        "fin).\n"
+        "   • Eventos cívicos masivos (Orgullo, San Silvestre, cabalgatas) — "
+        "sólo si son HOY.\n"
+        "\n"
+        "✍️ FORMATO Y ESTILO:\n"
+        "1. Usa **negrita** (doble asterisco) para lugares, horas y nombres.\n"
+        "2. Sé conciso: 4-7 bullets por sección, frases cortas.\n"
+        "3. Prioriza puntos calientes para taxis: estadios, teatros centro, "
+        "Atocha/Chamartín, T1/T2/T3/T4/T4S Barajas, IFEMA, Pradera, Plaza "
+        "Mayor.\n"
+        "4. No repitas el mismo evento en dos secciones distintas.\n"
+        "5. PRECISIÓN HORARIA: NUNCA inventes horas. Si tienes el evento pero "
+        "no la hora exacta confirmada por fuente oficial (esmadrid, ifema, "
+        "web teatro/estadio, AEMET, DGT), escribe '(horario por confirmar)'.\n"
+        "6. Cada bullet de GRANDES EVENTOS / TEATROS Y OCIO / ALERTAS DE "
+        "TRÁFICO DEBE contener (a) una hora o rango y (b) opcional pero "
+        "recomendado: la fecha o rango de fechas entre paréntesis para "
+        "justificar que sigue vigente. Un bullet sin hora ni fecha es "
+        "sospechoso — mejor descartar.\n"
+        "\n"
         "FORMATO OBLIGATORIO (respeta los corchetes y orden):\n"
         "[METEO HOY]\n"
         "- **Temperatura**: mín XX°C / máx XX°C\n"
@@ -383,24 +422,21 @@ def _build_prompt() -> str:
         "(ej. '40% a las 18:00-21:00'); si no hay riesgo, escribe 'Sin lluvia "
         "prevista'.\n"
         "- **Viento/Calima/Alertas**: solo si es relevante para el tráfico "
-        "(rachas >40 km/h, calima, niebla, ola de calor, aviso AEMET amarillo/"
-        "naranja/rojo). Si nada destacable, omite esta línea.\n"
+        "(rachas >40 km/h, calima, niebla, ola de calor, aviso AEMET "
+        "amarillo/naranja/rojo). Si nada destacable, omite esta línea.\n"
         "- **Detalle clave para el taxi**: 1-2 frases sobre cómo afecta el "
-        "tiempo al trabajo del taxista hoy (ej. 'Lluvia tarde + salida San "
-        "Isidro = saturación en Pradera 19:00-21:00', 'Calor extremo, más "
-        "demanda aire acondicionado y vuelos largos cansan'). Usa datos de AEMET.\n\n"
+        "tiempo al trabajo del taxista hoy. Usa datos de AEMET.\n\n"
         "[GRANDES EVENTOS]\n"
-        "- bullet con **lugar**, **hora** y motivo\n\n"
+        "- bullet con **lugar**, **hora** y motivo (fecha entre paréntesis)\n\n"
         "[TEATROS Y OCIO]\n"
         "- bullet con **teatro/sala**, **hora función** y obra\n\n"
         "[ALERTAS DE TRÁFICO]\n"
         "- bullet con **calle/zona**, motivo y franja horaria\n\n"
         "[AEROPUERTO]\n"
-        "- NO RELLENES esta sección. El servidor la reemplazará por datos\n"
+        "- NO RELLENES esta sección. El servidor la reemplazará con datos\n"
         "  precomputados de AENA. Déjala vacía o con un placeholder corto.\n\n"
         "[PREVISIÓN MAÑANA]\n"
-        "- bullet con tiempo, temperatura y eventos relevantes para mañana ("
-        f"{_tomorrow_madrid_str()})\n"
+        f"- bullet con tiempo, temperatura y eventos relevantes para mañana ({tomorrow})\n"
     )
 
 
@@ -490,7 +526,7 @@ def _generate_summary_sync() -> Dict[str, Any]:
     client = genai.Client(api_key=api_key)
     config = gtypes.GenerateContentConfig(
         tools=[gtypes.Tool(google_search=gtypes.GoogleSearch())],
-        temperature=0.4,
+        temperature=0.2,  # low → strict factual, less hallucination on dates
     )
 
     try:
@@ -564,6 +600,72 @@ def _generate_summary_sync() -> Dict[str, Any]:
     }
 
 
+def _verify_events_sync(summary_text: str) -> str:
+    """Second Gemini pass that re-verifies each event bullet against today's
+    date via Google Search. Returns the cleaned summary text. If the pass
+    fails for any reason we return the original text unchanged (never break
+    the primary flow)."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return summary_text
+    from google import genai
+    from google.genai import types as gtypes
+
+    today = _today_madrid_str()
+    now = datetime.now(MADRID_TZ)
+    weekday_es = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][now.weekday()]
+
+    verify_prompt = (
+        f"Eres un revisor estricto de fechas. HOY es {today} ({weekday_es}).\n\n"
+        "A continuación tienes un resumen de eventos de Madrid. Para CADA "
+        "bullet dentro de las secciones [GRANDES EVENTOS] y [TEATROS Y OCIO], "
+        "haz lo siguiente:\n"
+        "  1. Extrae el nombre del evento.\n"
+        f"  2. Verifica con Google Search si el evento se celebra HOY ({today}) "
+        "en Madrid. Comprueba fecha de inicio y fecha de fin.\n"
+        f"  3. Si el evento NO se celebra hoy (terminó antes o empieza después), "
+        "ELIMINA ese bullet por completo.\n"
+        f"  4. Si el evento SÍ se celebra hoy pero la hora fin ya pasó (son las "
+        f"{now.strftime('%H:%M')}), ELIMINA ese bullet.\n"
+        "  5. NO añadas eventos nuevos. NO modifiques las secciones [METEO HOY], "
+        "[AEROPUERTO], [PREVISIÓN MAÑANA] ni [ALERTAS DE TRÁFICO] — déjalas "
+        "exactamente igual.\n"
+        "  6. Mantén el formato original con corchetes [SECCIÓN] y guiones -.\n"
+        "  7. Si tras la limpieza una sección queda vacía, escribe una única "
+        "línea: '- Sin eventos verificados para hoy.'\n\n"
+        "Devuelve el resumen COMPLETO ya limpiado (todas las secciones, con "
+        "los eventos revisados). NO añadas explicaciones ni comentarios "
+        "adicionales, sólo el resumen.\n\n"
+        "----- RESUMEN A REVISAR -----\n"
+        f"{summary_text}\n"
+        "----- FIN DEL RESUMEN -----"
+    )
+
+    client = genai.Client(api_key=api_key)
+    config = gtypes.GenerateContentConfig(
+        tools=[gtypes.Tool(google_search=gtypes.GoogleSearch())],
+        temperature=0.1,
+    )
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME, contents=verify_prompt, config=config,
+        )
+    except Exception as e:
+        logger.warning(f"[daily-summary] verify pass failed, keeping original: {e}")
+        return summary_text
+
+    cleaned = (getattr(response, "text", None) or "").strip()
+    if not cleaned or "[GRANDES EVENTOS]" not in cleaned:
+        return summary_text
+    # Extra safety: ensure all mandatory sections still present.
+    for section in ("[METEO HOY]", "[GRANDES EVENTOS]", "[TEATROS Y OCIO]",
+                    "[ALERTAS DE TRÁFICO]", "[AEROPUERTO]", "[PREVISIÓN MAÑANA]"):
+        if section not in cleaned:
+            logger.warning(f"[daily-summary] verify pass dropped section {section}, keeping original")
+            return summary_text
+    return cleaned
+
+
 async def _generate_summary() -> Dict[str, Any]:
     """Generate the daily summary text (Gemini) and inject deterministic
     airport peaks computed locally from AENA cached data."""
@@ -575,6 +677,13 @@ async def _generate_summary() -> Dict[str, Any]:
         airport_peaks = {"morning": [], "evening": []}
 
     payload = await asyncio.to_thread(_generate_summary_sync)
+
+    # Second pass: re-verify each event bullet against today's date.
+    try:
+        verified_text = await asyncio.to_thread(_verify_events_sync, payload["summary"])
+        payload["summary"] = verified_text
+    except Exception as e:
+        logger.warning(f"[daily-summary] verify pass raised, keeping original: {e}")
 
     # Overwrite whatever Gemini wrote for [AEROPUERTO] with our real data.
     airport_section_text = _format_airport_section(airport_peaks)
