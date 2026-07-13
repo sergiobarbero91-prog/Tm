@@ -176,6 +176,23 @@ Pressure points based on STATUS + minutes since landing:
     - Tabla con datos del periodo (15 filas si hay summary) o del turno manual.
 - Tests `/app/backend/tests/test_journal_summary.py`: 10 tests (8 PASS deterministas + 2 skipped por cuota Gemini). Verificado: 401 sin auth, 422 sin params, 400 fechas inválidas o `end<start`, rango vacío devuelve estructura completa con divisiones por cero como `None`, rango de 1 día funciona, /stats sigue funcionando.
 
+### 🐛 Bug fix — Eventos IA reportando eventos ya terminados (Feb 2026)
+- **Síntoma reportado**: el resumen mostraba partidos ya jugados, teatros de mañana a las 22h, etc.
+- **RCA (2 causas)**:
+  1. El prompt sólo indicaba la FECHA pero no la HORA ACTUAL → el modelo no tenía referencia para excluir eventos terminados.
+  2. La caché usaba `{date: today}` → una vez generado a las 07:00 se servía el mismo texto todo el día.
+- **Fix** (`/app/backend/routers/daily_summary.py`):
+  - Nuevas helpers `_now_madrid_hhmm()` y `_cache_slot_madrid()` (slot cada 4h: 00/04/08/12/16/20).
+  - Prompt reforzado con bloque "REGLA DE VIGENCIA" (la más importante):
+    - Incluye la hora actual explícitamente (dos veces).
+    - "Eventos con FINALIZACIÓN anterior a HH:MM: PROHIBIDOS".
+    - "Eventos en curso: marcar (en curso)".
+    - "Eventos de AYER, ANTEAYER u otra fecha: TOTALMENTE PROHIBIDOS aunque Google los devuelva".
+    - Regla #10: cada bullet DEBE contener una hora; sin hora, mejor descartar.
+  - Caché cambiada a `{cache_slot: 'YYYY-MM-DDTHH'}` → refresco automático cada 4h. Docs antiguos sin `cache_slot` se ignoran → primera petición del día fuerza regeneración.
+  - Public endpoint hereda el mismo comportamiento (usa el mismo `_load_cached`).
+- **Tests**: `/app/backend/tests/test_daily_summary_freshness.py` (20/20 PASS): prompt keywords, cache slot format, round-trip DB por `cache_slot`, stale-slot ignorado, cache hit devuelve mismo `generated_at`, `force_refresh` regenera, endpoint público comparte doc.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
