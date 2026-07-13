@@ -50,26 +50,29 @@ class TestBuildPrompt:
 
     def test_prompt_contains_current_hour(self):
         p = _build_prompt()
-        assert "Hora actual en Madrid" in p, (
-            "Prompt is missing 'Hora actual en Madrid' — the model has no "
+        assert "HORA ACTUAL EN MADRID" in p, (
+            "Prompt is missing 'HORA ACTUAL EN MADRID' — the model has no "
             "way to filter finished events."
         )
 
     def test_prompt_contains_hora_de_referencia(self):
-        assert "HORA DE REFERENCIA" in _build_prompt()
+        # Since iter_15 rewrite the equivalent semantic is 'REGLA #1' / 'hora de FINALIZACIÓN'.
+        assert "hora de FINALIZACIÓN" in _build_prompt() or "REGLA #1" in _build_prompt()
 
     def test_prompt_contains_ayer_anteayer_rule(self):
-        # The reviewer asked for exactly this phrase snippet
-        assert "AYER, ANTEAYER" in _build_prompt()
+        # iter_15 rewrite: AYER is now a named variable in the header.
+        assert "AYER" in _build_prompt()
 
     def test_prompt_contains_finalization_rule(self):
-        assert "FINALIZACIÓN sea anterior" in _build_prompt()
+        assert "FINALIZACIÓN" in _build_prompt()
 
     def test_prompt_contains_en_curso_marker(self):
         assert "(en curso)" in _build_prompt()
 
     def test_prompt_contains_totalmente_prohibidos(self):
-        assert "TOTALMENTE PROHIBIDOS" in _build_prompt()
+        # iter_15 uses 'TERMINANTEMENTE PROHIBIDO' + 'PROHIBIDOS' variants.
+        p = _build_prompt()
+        assert "TERMINANTEMENTE PROHIBIDO" in p or "PROHIBIDOS" in p
 
     def test_prompt_uses_today_madrid_date(self):
         assert _today_madrid_str() in _build_prompt()

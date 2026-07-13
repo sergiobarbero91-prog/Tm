@@ -193,6 +193,19 @@ Pressure points based on STATUS + minutes since landing:
   - Public endpoint hereda el mismo comportamiento (usa el mismo `_load_cached`).
 - **Tests**: `/app/backend/tests/test_daily_summary_freshness.py` (20/20 PASS): prompt keywords, cache slot format, round-trip DB por `cache_slot`, stale-slot ignorado, cache hit devuelve mismo `generated_at`, `force_refresh` regenera, endpoint público comparte doc.
 
+### 🐛 Bug fix #2 — Eventos IA con festivales multi-día ya terminados (Feb 2026)
+- **Síntoma reportado**: Mad Cool 2026 (que terminó el 12-jul) y Auditorio Miguel Ríos de Rivas (programación del fin de semana pasado) seguían apareciendo en el resumen aunque HOY fuera posterior.
+- **RCA**: el fix anterior (iter_14) validaba HORA pero no FECHA de finalización de eventos multi-día. Google Search Grounding devuelve "Mad Cool 2026" como destacado durante semanas y el modelo confundía "existe en 2026" con "está ocurriendo hoy".
+- **Fix aplicado (3 capas)** en `/app/backend/routers/daily_summary.py`:
+  1. **Prompt REGLA #0**: bloque nuevo con encabezado que muestra HOY, AYER, MAÑANA en formato ISO. Checklist obligatorio de 4 pasos por evento (buscar fechas → identificar inicio y fin → verificar HOY ∈ rango → escribir bullet con fecha entre paréntesis). Anti-ejemplos explícitos "Mad Cool ended 10-12 julio" y "Auditorio Rivas fin de semana".
+  2. **`_verify_events_sync`** (nueva función): segunda llamada a Gemini con Google Search grounding que revisa cada bullet de GRANDES EVENTOS y TEATROS Y OCIO, elimina los que no cubran HOY. Temperature=0.1. Safe-fallback al texto original si la pasada falla.
+  3. **Temperature bajado 0.4 → 0.2** en la generación principal para menos "creatividad" con fechas.
+- **Validación en vivo** (testing_agent iter_15, 12/12 PASS, cuota Gemini fresca):
+  - Force-refresh en 2026-07-13 12:18 Madrid → resumen SIN Mad Cool, SIN Auditorio Rivas, SIN referencias a fin de semana pasado. Cada bullet lleva su fecha/rango entre paréntesis: "Veranos de la Villa 2026 (7-jul → 29-ago)", "Fescinal (hoy 2026-07-13)", "Chulíssima (hoy 2026-07-13)", etc.
+  - Mock-flow: `_generate_summary` llama a `_generate_summary_sync` una vez y luego a `_verify_events_sync` una vez con el texto inicial, y devuelve el texto verificado.
+- **Coste**: doble llamada a Gemini por regeneración (+15-25s). Con caché de 4h = 6 dobles-llamadas por día como mucho.
+- **Regression suite**: `/app/backend/tests/test_daily_summary_date_verification.py` (12 tests) + `test_daily_summary_freshness.py` (actualizado, 8 tests PASS).
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
