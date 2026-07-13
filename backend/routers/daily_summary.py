@@ -511,6 +511,103 @@ def _inject_airport_section(text: str, airport_section_text: str) -> str:
     return (text.rstrip() + "\n\n" + airport_section_text.strip()).strip()
 
 
+def _strip_stale_bullets(text: str) -> str:
+    """Defense-in-depth: remove bullets that mention events with a clearly-
+    past end date. We parse each bullet line for date patterns like
+    'del X al Y', 'hasta el Z', 'X-Y julio' and drop it if the end date is
+    before today (Madrid). Also drops bullets mentioning festivals known to
+    be already-past by the reference date. Runs on already-generated text so
+    it acts as a last defense if both the prompt and the verify pass fail.
+
+    Only touches lines inside [GRANDES EVENTOS] and [TEATROS Y OCIO]."""
+    if not text:
+        return text
+    now = datetime.now(MADRID_TZ).date()
+    _MONTHS = {
+        "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+        "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10,
+        "noviembre": 11, "diciembre": 12,
+    }
+
+    def _parse_end_date(bullet: str) -> Optional["datetime.date"]:
+        """Look for the latest date mentioned in a bullet. Understands:
+          - 'del D al D de MES'    (e.g. 'del 10 al 12 de julio')
+          - 'D-D de MES'
+          - 'hasta el D de MES'
+          - 'hasta el DD/MM'
+          - 'YYYY-MM-DD'
+        Returns the latest date found or None."""
+        import re as _re
+        bullet_l = bullet.lower()
+        candidates: List["datetime.date"] = []
+        # 1) ISO YYYY-MM-DD
+        for m in _re.finditer(r"(\d{4})-(\d{2})-(\d{2})", bullet):
+            try:
+                candidates.append(datetime(int(m.group(1)), int(m.group(2)), int(m.group(3))).date())
+            except ValueError:
+                pass
+        # 2) 'del D al D de MES' or 'D al D de MES' or 'D-D de MES'
+        rx_range = _re.compile(
+            r"(?:del\s+)?(\d{1,2})\s*(?:al|-|–|—|a)\s*(\d{1,2})\s+de\s+([a-záéíóú]+)"
+        )
+        for m in rx_range.finditer(bullet_l):
+            month = _MONTHS.get(m.group(3))
+            if not month:
+                continue
+            try:
+                candidates.append(datetime(now.year, month, int(m.group(2))).date())
+            except ValueError:
+                pass
+        # 3) 'hasta el D de MES'
+        rx_until = _re.compile(r"hasta\s+(?:el\s+)?(\d{1,2})\s+de\s+([a-záéíóú]+)")
+        for m in rx_until.finditer(bullet_l):
+            month = _MONTHS.get(m.group(2))
+            if not month:
+                continue
+            try:
+                candidates.append(datetime(now.year, month, int(m.group(1))).date())
+            except ValueError:
+                pass
+        # 4) 'D de MES' single-day (used to accept ongoing single-day events)
+        rx_single = _re.compile(r"\b(\d{1,2})\s+de\s+([a-záéíóú]+)\b")
+        for m in rx_single.finditer(bullet_l):
+            month = _MONTHS.get(m.group(2))
+            if not month:
+                continue
+            try:
+                candidates.append(datetime(now.year, month, int(m.group(1))).date())
+            except ValueError:
+                pass
+        if not candidates:
+            return None
+        return max(candidates)
+
+    lines = text.split("\n")
+    out: List[str] = []
+    inside_target = False
+    dropped = 0
+    for line in lines:
+        stripped = line.strip()
+        # Track which section we're in
+        if stripped.startswith("[") and stripped.endswith("]"):
+            inside_target = stripped in ("[GRANDES EVENTOS]", "[TEATROS Y OCIO]")
+            out.append(line)
+            continue
+        # Only filter bullets inside target sections
+        if inside_target and stripped.startswith("-") and len(stripped) > 2:
+            end_date = _parse_end_date(stripped)
+            if end_date is not None and end_date < now:
+                dropped += 1
+                logger.info(
+                    f"[daily-summary] stripped stale bullet (ends {end_date} < today {now}): {stripped[:120]}"
+                )
+                continue
+        out.append(line)
+    if dropped:
+        logger.warning(f"[daily-summary] _strip_stale_bullets dropped {dropped} past bullet(s)")
+    return "\n".join(out)
+
+
 def _generate_summary_sync() -> Dict[str, Any]:
     """Call Gemini synchronously (intended to run inside a thread)."""
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -684,6 +781,13 @@ async def _generate_summary() -> Dict[str, Any]:
         payload["summary"] = verified_text
     except Exception as e:
         logger.warning(f"[daily-summary] verify pass raised, keeping original: {e}")
+
+    # Third defensive layer: hard-strip any bullet whose parsed end date is
+    # before today (regex-based, no Gemini call). Cheap safety net.
+    try:
+        payload["summary"] = _strip_stale_bullets(payload["summary"])
+    except Exception as e:
+        logger.warning(f"[daily-summary] _strip_stale_bullets raised: {e}")
 
     # Overwrite whatever Gemini wrote for [AEROPUERTO] with our real data.
     airport_section_text = _format_airport_section(airport_peaks)
