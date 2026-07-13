@@ -290,6 +290,18 @@ def _today_madrid_str() -> str:
     return datetime.now(MADRID_TZ).strftime("%Y-%m-%d")
 
 
+def _now_madrid_hhmm() -> str:
+    return datetime.now(MADRID_TZ).strftime("%H:%M")
+
+
+def _cache_slot_madrid() -> str:
+    """Cache slot key: refreshes every 4 hours so the summary stays fresh
+    throughout the day (00, 04, 08, 12, 16, 20). Combines with today's date."""
+    now = datetime.now(MADRID_TZ)
+    slot = (now.hour // 4) * 4
+    return f"{now.strftime('%Y-%m-%d')}T{slot:02d}"
+
+
 def _tomorrow_madrid_str() -> str:
     now = datetime.now(MADRID_TZ)
     return (now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -298,10 +310,24 @@ def _tomorrow_madrid_str() -> str:
 
 def _build_prompt() -> str:
     today = _today_madrid_str()
+    now_hhmm = _now_madrid_hhmm()
     return (
         "Eres un asistente para TAXISTAS de Madrid con conocimiento profundo del "
         f"calendario de eventos y vida cultural de la ciudad. Genera un briefing "
-        f"TELEGRAM con la información REAL del día {today} (zona horaria Europe/Madrid).\n\n"
+        f"TELEGRAM con la información REAL del día {today} (zona horaria "
+        f"Europe/Madrid). **Hora actual en Madrid: {now_hhmm}**.\n\n"
+        "REGLA DE VIGENCIA (LA MÁS IMPORTANTE):\n"
+        f"- HORA DE REFERENCIA: {now_hhmm} del {today}. Cualquier evento cuya hora "
+        f"de FINALIZACIÓN sea anterior a {now_hhmm} de HOY está PROHIBIDO. NO lo "
+        "incluyas bajo NINGUNA circunstancia.\n"
+        "- Si un evento comenzó pero AÚN NO HA TERMINADO (concierto de 20:00 a "
+        "23:30 y son las 21:00), SÍ inclúyelo pero marca '(en curso)'.\n"
+        "- Si NO puedes verificar la hora de finalización pero el evento empezó "
+        "hace más de 4 horas, ASUME que ha terminado y NO lo incluyas.\n"
+        "- Los eventos de AYER, ANTEAYER o cualquier otra fecha distinta a "
+        f"{today} están TOTALMENTE PROHIBIDOS aunque Google los devuelva.\n"
+        f"- Verifica siempre la FECHA de cada evento antes de incluirlo — debe "
+        f"ser exactamente {today}.\n\n"
         "REGLAS DE BÚSQUEDA (CRÍTICO):\n"
         "1. Usa Google Search EXHAUSTIVAMENTE para verificar TODO. NO inventes nada.\n"
         "2. Madrid SIEMPRE tiene actividad. Si tu primera búsqueda no encuentra "
@@ -345,7 +371,11 @@ def _build_prompt() -> str:
         "promotora, AEMET, DGT). Si tienes el evento pero NO la hora exacta, "
         "escribe '(horario por confirmar)' en lugar de adivinarla. Para partidos, "
         "horarios sólo si los confirma LaLiga/UEFA/club oficial — nunca por "
-        "Twitter ni blogs.\n\n"
+        "Twitter ni blogs.\n"
+        "10. Cada bullet de [GRANDES EVENTOS], [TEATROS Y OCIO] y [ALERTAS DE "
+        "TRÁFICO] DEBE contener una hora (o rango horario). Si no puedes "
+        "verificarla, escribe '(horario por confirmar)'. Un evento sin hora "
+        "puede haber terminado ya — mejor descartarlo.\n\n"
         "FORMATO OBLIGATORIO (respeta los corchetes y orden):\n"
         "[METEO HOY]\n"
         "- **Temperatura**: mín XX°C / máx XX°C\n"
@@ -529,6 +559,7 @@ def _generate_summary_sync() -> Dict[str, Any]:
         "sources": sources,
         "search_queries": queries,
         "date": _today_madrid_str(),
+        "cache_slot": _cache_slot_madrid(),
         "generated_at": now.isoformat(),
     }
 
@@ -555,17 +586,20 @@ async def _generate_summary() -> Dict[str, Any]:
 
 
 async def _load_cached() -> Optional[Dict[str, Any]]:
-    today = _today_madrid_str()
+    """Load the summary generated in the CURRENT 4-hour slot (so it self-
+    refreshes at 00, 04, 08, 12, 16 and 20 h Madrid time)."""
+    slot = _cache_slot_madrid()
     doc = await daily_summaries_collection.find_one(
-        {"date": today}, {"_id": 0}
+        {"cache_slot": slot}, {"_id": 0}
     )
     return doc
 
 
 async def _persist(summary: Dict[str, Any]) -> None:
+    slot = summary.get("cache_slot") or _cache_slot_madrid()
     await daily_summaries_collection.update_one(
-        {"date": summary["date"]},
-        {"$set": summary},
+        {"cache_slot": slot},
+        {"$set": {**summary, "cache_slot": slot}},
         upsert=True,
     )
 

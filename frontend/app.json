@@ -18,7 +18,8 @@
         ],
         "NSLocationWhenInUseUsageDescription": "Para mostrarte las estaciones y terminales más cercanas",
         "NSMicrophoneUsageDescription": "Para usar la radio PTT con otros taxistas"
-      }
+      },
+      "bundleIdentifier": "com.emergent.tarifftool.h8fena"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +31,8 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.emergent.tarifftool.h8fena"
     },
     "web": {
       "bundler": "metro",
@@ -44,7 +46,9 @@
       "backgroundColor": "#111827",
       "build": {
         "babel": {
-          "include": ["@expo/html-elements"]
+          "include": [
+            "@expo/html-elements"
+          ]
         }
       }
     },
