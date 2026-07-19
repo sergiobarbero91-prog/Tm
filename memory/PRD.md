@@ -225,6 +225,24 @@ Pressure points based on STATUS + minutes since landing:
 - **Test suite**: `/app/backend/tests/test_daily_summary_soften_widen.py` (42 tests, 5 unit classes + 2 integration + 1 live).
 - **Nota code-review**: el fichero `daily_summary.py` supera los 1180 líneas — pendiente refactor a subpaquete `daily_summary/{prompt,filters,gemini,airport}.py`.
 
+### 🐛 Bug fix #4 — Subida de fotos del taxímetro fallaba en producción (Feb 2026)
+- **Síntoma reportado**: "no e sido capaz de subir una fotografia para probarlo en produccion" en la pantalla Gestión → Salario → 'FOTO INICIO DE JORNADA'.
+- **RCA**: (a) cámaras móviles generan JPEG de 3-10 MB, nginx en prod suele estar en `client_max_body_size 1M` → 413 silencioso; (b) `oncancel` en `<input type=file>` oculto no es fiable → promesa colgada → botón bloqueado; (c) sin compresión cliente, foto de 8 MB sube íntegra; (d) sin progreso ni mensajes de error → el usuario se rendía.
+- **Fix aplicado (7 mejoras)** en `/app/frontend/app/index.tsx` y `/app/backend/routers/journal.py`:
+  1. **`_compressImage()`** — compresión JPEG en el navegador antes de subir: canvas 2D, max side 1600 px, quality 0.85, background blanco (evita artefactos negros en HEIC/PNG con alpha). Short-circuit para archivos <900 KB. Fotos reales quedan en ~200-800 KB.
+  2. **`ocrPickFile()` reescrita** — attach del `<input>` a `document.body` antes de `.click()` (fix Safari mobile) + resolución garantizada vía `window.focus` fallback (sustituye al `oncancel` no fiable) + limpieza del DOM en finish.
+  3. **Axios con `timeout: 90_000`, `maxContentLength: 25MB`, `onUploadProgress`** → barra de progreso verde con % en vivo.
+  4. **`_friendlyUploadError()`** — mensajes en español por código (413 → "La imagen es demasiado grande…"; 401 → "Sesión caducada"; 503 → mensaje del servidor; ECONNABORTED → "La subida ha tardado demasiado"; sin response → "Revisa tu conexión").
+  5. **Fallback `<input type=file>` visible** debajo del botón principal para escritorio o cuando la cámara falla. `data-testid="ocr-start-file-fallback"` + `"ocr-end-file-fallback"` (RN Web SÍ preserva data-* en inputs nativos).
+  6. **Backend `_save_photo`** — cap 12 → **20 MB** con HTTP **413** (no 400) y mensaje "La imagen ocupa X.X MB y el máximo son 20 MB". Extensiones ampliadas: JPG/PNG/WEBP/**HEIC/HEIF** (iPhone).
+  7. **Ambas rutas (`ocrStartShift` + `ocrEndShift`) idempotentes**: cada `finally` resetea `ocrBusy` y `ocrUploadProgress` → nunca deja el UI colgado.
+- **Validado en vivo** por testing_agent (iter_18, 14/14 PASS + 4 skipped por 503 Gemini): fallback input sube una foto real → backend responde → banner de error amigable "El servicio de IA está temporalmente saturado" cuando toca. Backend rechaza 22 MB con 413 y acepta 15 MB con 200.
+- **Nota para producción**: si tu nginx sigue en 1 MB, la compresión cliente ya baja fotos reales a <1 MB así que probablemente ni necesitas tocarlo. Pero para máxima robustez añade en tu nginx.conf:
+  ```
+  client_max_body_size 25M;
+  ```
+- **Testabilidad**: TouchableOpacity de RN Web no propaga `data-testid` al DOM (esto es un cabo suelto para tests futuros — pendiente cambiar a `dataSet={{ testid: '…' }}` o migrar a Pressable).
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
