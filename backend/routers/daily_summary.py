@@ -380,10 +380,24 @@ def _build_prompt() -> str:
         "Cineteca, exposiciones Reina Sofía/Prado/Thyssen abiertas hoy.\n"
         "   - ALERTAS DE TRÁFICO: DGT Madrid hoy, manifestaciones, obras "
         "M-30/M-40, cortes esmadrid.es.\n"
-        "Solo escribe 'Sin información verificada para hoy.' si tras TRES "
-        "rondas de queries no encuentras nada.\n"
-        "\n"
-        "📋 REGLA #3 — QUÉ CONSIDERAR EN 'GRANDES EVENTOS' (no solo deportivos):\n"
+        "3. SOLO como ÚLTIMO recurso escribe 'Sin información verificada para "
+        "hoy.' si tras DOS rondas de búsqueda con distintas palabras clave "
+        "SIGUES sin encontrar nada. Es MUY raro en Madrid. Antes de rendirte, "
+        "incluye SIEMPRE al menos 2-3 eventos plausibles con '(horario por "
+        "confirmar)' si no puedes verificar la hora exacta. Un resumen con "
+        "eventos parciales es MUY superior a uno vacío.\n"
+        "4. ACONTECIMIENTOS NACIONALES / CIUDADANOS: si HOY hay un evento de "
+        "gran magnitud nacional o ciudadano (celebración de victoria del "
+        "Mundial de fútbol, final de Champions/Eurocopa, San Silvestre, "
+        "cabalgatas Reyes, manifestaciones grandes convocadas, Nochevieja "
+        "Puerta del Sol, Orgullo, San Isidro, procesiones Semana Santa), "
+        "MENCIÓNALO SIEMPRE en GRANDES EVENTOS con los puntos de encuentro "
+        "habituales para taxistas (Cibeles/Neptuno tras victorias del Real "
+        "Madrid o España, Plaza Colón, Puerta del Sol, Puerta de Alcalá) y "
+        "las zonas típicas de saturación (Autocine Madrid RACE, Madrid Río, "
+        "estadios). Si no tienes hora exacta pon '(horario por confirmar)' "
+        "pero NUNCA lo omitas.\n"
+        "5. Considera GRANDES EVENTOS (no solo deportivos):\n"
         "   • Partidos Real Madrid / Atlético / Rayo (Bernabéu, Metropolitano, "
         "Vallecas) — SÓLO si LaLiga/UEFA lo confirma para hoy.\n"
         "   • Conciertos grandes (WiZink Center, Palacio Vistalegre, Movistar "
@@ -410,10 +424,10 @@ def _build_prompt() -> str:
         "no la hora exacta confirmada por fuente oficial (esmadrid, ifema, "
         "web teatro/estadio, AEMET, DGT), escribe '(horario por confirmar)'.\n"
         "6. Cada bullet de GRANDES EVENTOS / TEATROS Y OCIO / ALERTAS DE "
-        "TRÁFICO DEBE contener (a) una hora o rango y (b) opcional pero "
-        "recomendado: la fecha o rango de fechas entre paréntesis para "
-        "justificar que sigue vigente. Un bullet sin hora ni fecha es "
-        "sospechoso — mejor descartar.\n"
+        "TRÁFICO DEBERÍA contener (a) una hora o rango horario y (b) la fecha "
+        "o rango de fechas entre paréntesis. Si NO tienes la hora exacta, "
+        "usa '(horario por confirmar)' pero INCLUYE el bullet — no lo "
+        "descartes por eso. Sólo descarta si el evento ya terminó (regla #0).\n"
         "\n"
         "FORMATO OBLIGATORIO (respeta los corchetes y orden):\n"
         "[METEO HOY]\n"
@@ -586,30 +600,126 @@ def _strip_stale_bullets(text: str) -> str:
     out: List[str] = []
     inside_target = False
     dropped = 0
+
+    # First pass: collect per-section (bullets, dropped-count, kept-count)
+    # so we can revert if a whole section would go empty.
+    sections: List[Dict[str, Any]] = []
+    current: Optional[Dict[str, Any]] = None
     for line in lines:
         stripped = line.strip()
-        # Track which section we're in
         if stripped.startswith("[") and stripped.endswith("]"):
-            inside_target = stripped in ("[GRANDES EVENTOS]", "[TEATROS Y OCIO]")
+            current = {
+                "header_line": line,
+                "target": stripped in ("[GRANDES EVENTOS]", "[TEATROS Y OCIO]"),
+                "body_lines": [],   # every non-header line in this section
+                "kept_bullets": 0,  # bullets that survive
+                "dropped_bullets": [],  # (line, end_date) tuples
+                "total_bullets": 0,
+            }
+            sections.append(current)
+            continue
+        if current is None:
+            # Preamble text before any section
             out.append(line)
             continue
-        # Only filter bullets inside target sections
-        if inside_target and stripped.startswith("-") and len(stripped) > 2:
+        current["body_lines"].append(line)
+        if current["target"] and stripped.startswith("-") and len(stripped) > 2:
+            current["total_bullets"] += 1
             end_date = _parse_end_date(stripped)
             if end_date is not None and end_date < now:
-                dropped += 1
-                logger.info(
-                    f"[daily-summary] stripped stale bullet (ends {end_date} < today {now}): {stripped[:120]}"
-                )
-                continue
-        out.append(line)
+                current["dropped_bullets"].append((line, end_date))
+            else:
+                current["kept_bullets"] += 1
+
+    # Second pass: assemble the final text.
+    for sec in sections:
+        out.append(sec["header_line"])
+        do_strip = True
+        # Fail-open rule: if the strip would empty a section that originally
+        # had bullets, DO NOT strip. Better to keep some possibly-stale content
+        # than to leave the user with no info at all — the operator can
+        # regenerate manually.
+        if (sec["target"]
+                and sec["total_bullets"] > 0
+                and sec["kept_bullets"] == 0):
+            do_strip = False
+            logger.warning(
+                f"[daily-summary] _strip_stale_bullets would empty section "
+                f"'{sec['header_line'].strip()}' ({sec['total_bullets']} "
+                f"bullets); reverting to keep original content."
+            )
+        for line in sec["body_lines"]:
+            stripped = line.strip()
+            if (do_strip and sec["target"]
+                    and stripped.startswith("-") and len(stripped) > 2):
+                end_date = _parse_end_date(stripped)
+                if end_date is not None and end_date < now:
+                    dropped += 1
+                    logger.info(
+                        f"[daily-summary] stripped stale bullet "
+                        f"(ends {end_date} < today {now}): {stripped[:120]}"
+                    )
+                    continue
+            out.append(line)
+
     if dropped:
         logger.warning(f"[daily-summary] _strip_stale_bullets dropped {dropped} past bullet(s)")
     return "\n".join(out)
 
 
-def _generate_summary_sync() -> Dict[str, Any]:
-    """Call Gemini synchronously (intended to run inside a thread)."""
+# ─────────────────────────────────────────────────────────────────────────────
+# Hallucinated-instruction filter
+# ─────────────────────────────────────────────────────────────────────────────
+_HALLUCINATED_MARKERS = (
+    "NO RELLENES",
+    "El servidor la reemplazará",
+    "El servidor la rellenará",
+    "datos precomputados",
+    "placeholder corto",
+    "Déjala vacía",
+    "no hay ninguna instrucción especial",
+)
+
+
+def _strip_hallucinated_instructions(text: str) -> str:
+    """Remove any bullet that contains internal prompt directives (e.g. the
+    'NO RELLENES esta sección' text meant only for [AEROPUERTO]).
+
+    Only applied outside [AEROPUERTO] — inside [AEROPUERTO] the section is
+    fully overwritten by _inject_airport_section anyway."""
+    if not text:
+        return text
+    lines = text.split("\n")
+    out: List[str] = []
+    inside_aeropuerto = False
+    dropped = 0
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            inside_aeropuerto = stripped == "[AEROPUERTO]"
+            out.append(line)
+            continue
+        if (not inside_aeropuerto
+                and stripped.startswith("-")
+                and any(m.lower() in stripped.lower() for m in _HALLUCINATED_MARKERS)):
+            dropped += 1
+            logger.info(
+                f"[daily-summary] stripped hallucinated instruction bullet: {stripped[:120]}"
+            )
+            continue
+        out.append(line)
+    if dropped:
+        logger.warning(f"[daily-summary] _strip_hallucinated_instructions dropped {dropped} bullet(s)")
+    return "\n".join(out)
+
+
+def _generate_summary_sync(extra_prompt: Optional[str] = None) -> Dict[str, Any]:
+    """Call Gemini synchronously (intended to run inside a thread).
+
+    `extra_prompt`: optional additional instructions appended AFTER the main
+    prompt (used by the retry-with-softer-prompt path when the first pass
+    left too many event sections empty).
+    """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
@@ -623,13 +733,16 @@ def _generate_summary_sync() -> Dict[str, Any]:
     client = genai.Client(api_key=api_key)
     config = gtypes.GenerateContentConfig(
         tools=[gtypes.Tool(google_search=gtypes.GoogleSearch())],
-        temperature=0.2,  # low → strict factual, less hallucination on dates
+        temperature=0.3 if extra_prompt else 0.2,
     )
+
+    base_prompt = _build_prompt()
+    full_prompt = f"{base_prompt}\n\n{extra_prompt}" if extra_prompt else base_prompt
 
     try:
         response = client.models.generate_content(
             model=MODEL_NAME,
-            contents=_build_prompt(),
+            contents=full_prompt,
             config=config,
         )
     except Exception as e:
@@ -652,7 +765,7 @@ def _generate_summary_sync() -> Dict[str, Any]:
             try:
                 response = client.models.generate_content(
                     model=MODEL_FALLBACK,
-                    contents=_build_prompt(),
+                    contents=full_prompt,
                     config=config,
                 )
             except Exception as fe:
@@ -760,7 +873,88 @@ def _verify_events_sync(summary_text: str) -> str:
         if section not in cleaned:
             logger.warning(f"[daily-summary] verify pass dropped section {section}, keeping original")
             return summary_text
+
+    # Fail-open guard: if the verify pass removed >70% of bullets in
+    # GRANDES EVENTOS or TEATROS Y OCIO, it was probably too aggressive.
+    def _count_bullets(text: str, section: str) -> int:
+        try:
+            start = text.index(section) + len(section)
+            rest = text[start:]
+            # Find next section header
+            import re as _re
+            m = _re.search(r"\n\[[A-ZÁÉÍÓÚÑ ]+\]", rest)
+            body = rest[:m.start()] if m else rest
+            return sum(1 for l in body.split("\n") if l.strip().startswith("-") and len(l.strip()) > 2)
+        except ValueError:
+            return 0
+
+    for section in ("[GRANDES EVENTOS]", "[TEATROS Y OCIO]"):
+        before = _count_bullets(summary_text, section)
+        after = _count_bullets(cleaned, section)
+        if before >= 3 and after / before < 0.30:
+            logger.warning(
+                f"[daily-summary] verify pass shrank {section} from {before} "
+                f"to {after} bullets (>70% removed) — probable over-pruning, "
+                "keeping original."
+            )
+            return summary_text
     return cleaned
+
+
+def _has_empty_event_sections(text: str) -> int:
+    """Return the number of event sections that have NO real bullets (only
+    'Sin información verificada'). Used to trigger a soft retry."""
+    if not text:
+        return 3
+    empty = 0
+    for section in ("[GRANDES EVENTOS]", "[TEATROS Y OCIO]", "[ALERTAS DE TRÁFICO]"):
+        if section not in text:
+            empty += 1
+            continue
+        try:
+            start = text.index(section) + len(section)
+            rest = text[start:]
+            import re as _re
+            m = _re.search(r"\n\[[A-ZÁÉÍÓÚÑ ]+\]", rest)
+            body = rest[:m.start()] if m else rest
+            real_bullets = [
+                l for l in body.split("\n")
+                if l.strip().startswith("-")
+                and "sin información verificada" not in l.lower()
+                and "sin eventos verificados" not in l.lower()
+                and len(l.strip()) > 2
+            ]
+            if not real_bullets:
+                empty += 1
+        except ValueError:
+            empty += 1
+    return empty
+
+
+def _retry_prompt_softer(today: str) -> str:
+    """Prompt for the fallback retry when the first pass came out mostly
+    empty. Explicitly tells the model to be less strict and include at
+    least 2-3 bullets per section even with '(horario por confirmar)'."""
+    now = datetime.now(MADRID_TZ)
+    return (
+        f"REINTENTO — Eres un asistente para taxistas de Madrid. HOY es "
+        f"{today} ({now.strftime('%A')}). Tu respuesta anterior dejó "
+        "secciones vacías con 'Sin información verificada' y eso NO es "
+        "aceptable en Madrid.\n\n"
+        "REQUISITOS RELAJADOS:\n"
+        "- Incluye AL MENOS 2-3 bullets REALES por sección [GRANDES EVENTOS], "
+        "[TEATROS Y OCIO] y [ALERTAS DE TRÁFICO].\n"
+        "- Puedes usar '(horario por confirmar)' cuando no tengas hora "
+        "exacta — mejor eso que dejar la sección vacía.\n"
+        "- Si HOY hay un acontecimiento nacional (victoria selección, "
+        "Mundial, San Silvestre, etc.), MENCIÓNALO con los puntos de "
+        "encuentro clásicos (Cibeles, Neptuno, Plaza Colón, Puerta del "
+        "Sol, Autocine Madrid, Madrid Río).\n"
+        "- Sigue prohibido incluir eventos ya terminados.\n"
+        "- Formato: mismos corchetes [SECCIÓN] y estilo del prompt original.\n\n"
+        "Devuelve el resumen COMPLETO con las 6 secciones. NO añadas "
+        "explicaciones ni disculpas, sólo el resumen limpio."
+    )
 
 
 async def _generate_summary() -> Dict[str, Any]:
@@ -775,6 +969,29 @@ async def _generate_summary() -> Dict[str, Any]:
 
     payload = await asyncio.to_thread(_generate_summary_sync)
 
+    # Retry-with-softer-prompt: if the first pass left 2+ event sections empty,
+    # ask Gemini to try again with relaxed constraints.
+    empty_count = _has_empty_event_sections(payload.get("summary", ""))
+    if empty_count >= 2:
+        logger.warning(
+            f"[daily-summary] first pass left {empty_count}/3 event sections "
+            "empty; running softer retry."
+        )
+        try:
+            retry_payload = await asyncio.to_thread(
+                _generate_summary_sync,
+                extra_prompt=_retry_prompt_softer(_today_madrid_str()),
+            )
+            # Only accept the retry if it actually filled sections better.
+            retry_empty = _has_empty_event_sections(retry_payload.get("summary", ""))
+            if retry_empty < empty_count:
+                payload = retry_payload
+                logger.info(f"[daily-summary] retry improved: {empty_count}→{retry_empty} empty sections")
+            else:
+                logger.info(f"[daily-summary] retry no improvement ({empty_count}→{retry_empty}), keeping original")
+        except Exception as e:
+            logger.warning(f"[daily-summary] softer retry failed: {e}")
+
     # Second pass: re-verify each event bullet against today's date.
     try:
         verified_text = await asyncio.to_thread(_verify_events_sync, payload["summary"])
@@ -788,6 +1005,14 @@ async def _generate_summary() -> Dict[str, Any]:
         payload["summary"] = _strip_stale_bullets(payload["summary"])
     except Exception as e:
         logger.warning(f"[daily-summary] _strip_stale_bullets raised: {e}")
+
+    # Fourth defensive layer: remove any hallucinated "NO RELLENES" instruction
+    # that the model copied from the AEROPUERTO section. It only belongs
+    # there, but Gemini sometimes replicates it into other sections.
+    try:
+        payload["summary"] = _strip_hallucinated_instructions(payload["summary"])
+    except Exception as e:
+        logger.warning(f"[daily-summary] _strip_hallucinated_instructions raised: {e}")
 
     # Overwrite whatever Gemini wrote for [AEROPUERTO] with our real data.
     airport_section_text = _format_airport_section(airport_peaks)
