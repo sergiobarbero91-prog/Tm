@@ -206,6 +206,25 @@ Pressure points based on STATUS + minutes since landing:
 - **Coste**: doble llamada a Gemini por regeneración (+15-25s). Con caché de 4h = 6 dobles-llamadas por día como mucho.
 - **Regression suite**: `/app/backend/tests/test_daily_summary_date_verification.py` (12 tests) + `test_daily_summary_freshness.py` (actualizado, 8 tests PASS).
 
+### 🐛 Bug fix #3 — Eventos IA quedando VACÍOS por sobre-conservadurismo (Feb 2026)
+- **Síntoma reportado**: tras los fixes de fechas (iter_15+16), el modelo se volvió tan cauto que devolvía "Sin información verificada para hoy." en GRANDES EVENTOS, TEATROS Y OCIO y ALERTAS DE TRÁFICO — el usuario reportó que hoy había celebración del Mundial en Cibeles/Colón/Autocine y no aparecía.
+- **RCA**: reglas del prompt demasiado estrictas (obligar hora + fecha exactas) + `_strip_stale_bullets` sin fail-open + verify pass agresivo → sección se quedaba vacía.
+- **Fix aplicado (6 capas de seguridad)** en `/app/backend/routers/daily_summary.py`:
+  1. **Prompt REGLA #3 suavizada**: "SOLO como ÚLTIMO recurso" escribe "Sin información verificada". Antes de rendirse, incluye 2-3 bullets con "(horario por confirmar)".
+  2. **Prompt REGLA #4 nueva "ACONTECIMIENTOS NACIONALES"**: si HOY hay Mundial/Champions/San Silvestre/cabalgata/Orgullo/procesión, MENCIÓNALO SIEMPRE con puntos de encuentro (Cibeles/Neptuno tras victorias, Puerta del Sol, Colón, Autocine Madrid RACE, Madrid Río).
+  3. **Regla #6 suavizada**: "DEBERÍA" (antes "DEBE") con "INCLUYE el bullet — no lo descartes por falta de hora".
+  4. **`_generate_summary_sync(extra_prompt=None)`**: acepta prompt adicional; temperature 0.2 → 0.3 en el reintento.
+  5. **Retry-with-softer-prompt**: si tras la primera generación 2+ secciones de eventos están vacías, se hace un segundo Gemini call con `_retry_prompt_softer(today)` que exige mínimo 2-3 bullets con "(horario por confirmar)" permitido.
+  6. **Fail-open en `_strip_stale_bullets`**: si borrar bullets pasados dejaría una sección vacía, se conservan los originales (mejor "algo posiblemente stale" que "vacío") + log warning.
+  7. **`_verify_events_sync` fail-open**: si el verify pass elimina >70% de bullets, se revierte al texto original (probable over-pruning).
+  8. **Nueva `_strip_hallucinated_instructions`**: elimina bullets con markers como "NO RELLENES esta sección" que el modelo copia por error de [AEROPUERTO] a otras secciones.
+- **Validado en vivo** (testing_agent iter_17, 42/42 PASS, ~55s):
+  - Force-refresh generó 3 bullets GRANDES EVENTOS + 6 TEATROS Y OCIO + 4 ALERTAS DE TRÁFICO + AEROPUERTO con datos AENA.
+  - Cero contaminación de "NO RELLENES" fuera de [AEROPUERTO].
+  - Cada bullet incluye fecha/rango entre paréntesis (justifica vigencia).
+- **Test suite**: `/app/backend/tests/test_daily_summary_soften_widen.py` (42 tests, 5 unit classes + 2 integration + 1 live).
+- **Nota code-review**: el fichero `daily_summary.py` supera los 1180 líneas — pendiente refactor a subpaquete `daily_summary/{prompt,filters,gemini,airport}.py`.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
