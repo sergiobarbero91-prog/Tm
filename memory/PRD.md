@@ -243,6 +243,18 @@ Pressure points based on STATUS + minutes since landing:
   ```
 - **Testabilidad**: TouchableOpacity de RN Web no propaga `data-testid` al DOM (esto es un cabo suelto para tests futuros — pendiente cambiar a `dataSet={{ testid: '…' }}` o migrar a Pressable).
 
+### 🐛 Bug fix #5 — Subida de fotos fallaba con "No se pudo conectar al servidor" (Feb 2026)
+- **Síntoma reportado**: tras el fix de compresión (iter_18) el usuario seguía viendo "No se pudo conectar al servidor" al subir foto en producción.
+- **RCA**: la config CORS del backend combinaba `allow_credentials=True` + `allow_origins=['*']`. Combinación **prohibida por la spec CORS**: los navegadores la rechazan silenciosamente → preflight XHR completa a nivel red pero el navegador NO expone la respuesta a axios → `e.response === undefined` → `_friendlyUploadError` cae en la rama `!e.response` con el genérico "No se pudo conectar".
+- **Fix aplicado (5 mejoras)**:
+  1. **`server.py` CORS spec-compliant**: si `ALLOWED_ORIGINS` está sin definir o es `'*'`, se fuerza `allow_credentials=False` (spec-compliant). Cuando se ponen orígenes específicos (ej. `https://asdelvolante.es`), se activan credentials.
+  2. **Warning de arranque**: si se está en modo wildcard, el backend loguea `[cors] ALLOWED_ORIGINS is wildcard ('*')... Set ALLOWED_ORIGINS='https://your-domain.com' en backend/.env`.
+  3. **`expose_headers=['Content-Type', 'Retry-After']`** → el frontend puede leer el `Retry-After` de las respuestas 503.
+  4. **`_friendlyUploadError` diagnóstico**: el mensaje ahora incluye la URL exacta que se intentó (`e?.config?.url`) y el código axios (`ERR_NETWORK`, `ECONNABORTED`, etc.). Ejemplo: `"No se pudo conectar con el servidor (posible bloqueo CORS o backend caído). Detalles técnicos: ERR_NETWORK [https://asdelvolante.es/api/journal/start]"`.
+  5. **Botón "🔧 Probar conexión con el servidor"**: bajo el botón principal de foto, hace GET a `/api/journal/active` con 15s timeout y muestra `"✅ Conexión OK — backend responde en XX ms"` o el mismo error verboso si falla. Auto-diagnóstico para usuarios finales sin conocimientos técnicos.
+- **Validado en vivo** (testing_agent iter_19, 9/9 backend + Playwright smoke happy+error): wildcard mode no emite credentials, specific mode las emite correctamente, botón diagnóstico devuelve `✅ Conexión OK 46ms` en happy path y `🔴 ERR_NETWORK [url]` en error path.
+- **Handoff producción**: en `asdelvolante.es`/`backend/.env` añadir `ALLOWED_ORIGINS=https://asdelvolante.es,https://www.asdelvolante.es` y reiniciar backend. Con eso las cookies y auth headers cross-origin funcionan correctamente.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
