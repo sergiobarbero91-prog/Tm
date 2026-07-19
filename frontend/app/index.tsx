@@ -641,15 +641,23 @@ export default function TransportMeter() {
   const [ocrUploadProgress, setOcrUploadProgress] = useState<number>(0);
 
   const _friendlyUploadError = (e: any): string => {
+    const url = e?.config?.url ? ` [${e.config.url}]` : '';
     // Network layer error (no response)
-    if (e?.code === 'ECONNABORTED') return 'La subida ha tardado demasiado. La cobertura móvil puede estar lenta — inténtalo de nuevo.';
-    if (!e?.response) return 'No se pudo conectar con el servidor. Revisa tu conexión.';
+    if (e?.code === 'ECONNABORTED') return `La subida ha tardado demasiado (>90 s). Revisa tu cobertura móvil e inténtalo de nuevo.${url}`;
+    if (!e?.response) {
+      const code = e?.code || e?.message || 'sin código';
+      // Common diagnostic hints for the "no response" case
+      const hint = code.toString().toLowerCase().includes('network')
+        ? ' (posible bloqueo CORS o backend caído)'
+        : '';
+      return `No se pudo conectar con el servidor${hint}. Detalles técnicos: ${code}${url}. Comprueba tu conexión, o si estás en producción avisa al admin.`;
+    }
     const status = e.response?.status;
     const detail = e.response?.data?.detail;
     if (status === 413) return 'La imagen es demasiado grande para el servidor (ajusta el límite de nginx a 20 MB o usa una foto de menos calidad).';
     if (status === 401) return 'Sesión caducada. Cierra sesión y vuelve a entrar.';
     if (status === 503) return detail || 'El servicio de IA está saturado. Espera 30 segundos e inténtalo de nuevo.';
-    if (status === 502 || status === 504) return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';
+    if (status === 502 || status === 504) return `El servidor tardó demasiado en responder (${status}). Revisa que backend + nginx estén activos.`;
     if (detail) return String(detail);
     return `Error ${status || ''}: no se pudo procesar la foto.`.trim();
   };
@@ -13330,6 +13338,25 @@ export default function TransportMeter() {
                           >
                             <Ionicons name="camera" size={22} color="#FFFFFF" />
                             <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>FOTO INICIO DE JORNADA</Text>
+                          </TouchableOpacity>
+                          {/* Diagnostic button — pings /api/journal/active without uploading anything */}
+                          <TouchableOpacity
+                            onPress={async () => {
+                              setOcrError(null);
+                              try {
+                                const headers = await ocrAuthHeaders();
+                                const t0 = Date.now();
+                                const r = await axios.get(`${API_BASE}/api/journal/active`, { headers, timeout: 15_000 });
+                                const dt = Date.now() - t0;
+                                setOcrError(`✅ Conexión OK — backend responde en ${dt} ms (URL usada: ${API_BASE || '(mismo origen)'}${'/api/journal/active'}, status ${r.status})`);
+                              } catch (e: any) {
+                                setOcrError(`🔴 Diagnóstico: ${_friendlyUploadError(e)}`);
+                              }
+                            }}
+                            style={{ marginTop: 6, paddingVertical: 8, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)' }}
+                            data-testid="ocr-test-connection"
+                          >
+                            <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600' }}>🔧 Probar conexión con el servidor</Text>
                           </TouchableOpacity>
                           {/* Fallback: plain file input (bypasses `capture=environment` — useful on desktop or if camera fails) */}
                           {Platform.OS === 'web' && (

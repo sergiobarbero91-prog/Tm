@@ -4055,14 +4055,27 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 from starlette.middleware.gzip import GZipMiddleware
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
 
-# CORS configuration - use environment variable for production domains
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# CORS configuration - use environment variable for production domains.
+# NOTE: the wildcard origin ("*") + allow_credentials=True combination is
+# REJECTED by all modern browsers (see CORS spec). When we detect a wildcard
+# we automatically disable credentials — otherwise every authenticated
+# request from the frontend would fail with a silent "no response" error.
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+_cors_wildcard = ALLOWED_ORIGINS == ["*"] or not ALLOWED_ORIGINS
+if _cors_wildcard:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "[cors] ALLOWED_ORIGINS is wildcard ('*'). Setting allow_credentials=False "
+        "to comply with the CORS spec. Set ALLOWED_ORIGINS='https://your-domain.com' "
+        "in backend/.env for authenticated cross-origin requests to work."
+    )
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS != ["*"] else ["*"],
+    allow_credentials=False if _cors_wildcard else True,
+    allow_origins=["*"] if _cors_wildcard else ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Retry-After"],
 )
 
 # ============== HOTTEST STREET CACHE FUNCTIONS ==============
