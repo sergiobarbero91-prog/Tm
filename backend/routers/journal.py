@@ -223,15 +223,23 @@ async def _save_photo(file: UploadFile, journal_id: str, suffix: str):
     ext = "jpg"
     if file.filename and "." in file.filename:
         ext = file.filename.rsplit(".", 1)[-1].lower()
-        if ext not in ("jpg", "jpeg", "png", "webp"):
+        if ext not in ("jpg", "jpeg", "png", "webp", "heic", "heif"):
             ext = "jpg"
     fname = f"{journal_id}_{suffix}.{ext}"
     fpath = os.path.join(PARCIAL_PHOTOS_DIR, fname)
     body = await file.read()
     if not body:
-        raise HTTPException(status_code=400, detail="Imagen vacía.")
-    if len(body) > 12 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Imagen demasiado grande (>12MB).")
+        raise HTTPException(status_code=400, detail="Imagen vacía. Vuelve a hacer la foto e inténtalo de nuevo.")
+    size_mb = len(body) / (1024 * 1024)
+    if size_mb > 20:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"La imagen ocupa {size_mb:.1f} MB y el máximo son 20 MB. "
+                "Reduce la resolución antes de subirla."
+            ),
+        )
+    logger.info(f"[journal] saving photo {fname} ({size_mb:.2f} MB, ext={ext})")
     with open(fpath, "wb") as f:
         f.write(body)
     return body, fname

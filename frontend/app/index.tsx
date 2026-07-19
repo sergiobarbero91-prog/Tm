@@ -476,6 +476,68 @@ export default function TransportMeter() {
   const [ocrStatsBucket, setOcrStatsBucket] = useState<'day' | 'week' | 'month'>('week');
 
   // === OCR Journal — API helpers ===
+  // === OCR — File picker with in-DOM attach + client-side compression ===
+  //
+  // Reasons this pipeline exists (and is not a simple <input type="file">):
+  //   1. Modern smartphones take 3-10 MB photos; many production reverse
+  //      proxies (nginx, caddy, cloudflare tunnel) cap multipart bodies at
+  //      1 MB by default → the upload fails silently with 413 / 502.
+  //   2. Gemini Vision OCR does not need 10 MP resolution — 1600 px on the
+  //      long side is plenty to read a taximeter ticket.
+  //   3. Some mobile browsers ignore .click() on a detached <input>, so we
+  //      attach it to the DOM briefly.
+  //   4. `oncancel` is not reliable — we add a visibility fallback so the
+  //      promise always resolves.
+  const _compressImage = (file: File, maxSide = 1600, quality = 0.85): Promise<File> => {
+    return new Promise((resolve) => {
+      if (Platform.OS !== 'web' || typeof document === 'undefined') {
+        resolve(file);
+        return;
+      }
+      // If already small, skip compression.
+      if (file.size < 900 * 1024) {
+        console.log(`[ocr] skip compression, file already ${(file.size/1024).toFixed(0)} KB`);
+        resolve(file);
+        return;
+      }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          const w0 = img.naturalWidth || img.width;
+          const h0 = img.naturalHeight || img.height;
+          const scale = Math.min(1, maxSide / Math.max(w0, h0));
+          const w = Math.round(w0 * scale);
+          const h = Math.round(h0 * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(file); return; }
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) { resolve(file); return; }
+            const compressed = new File([blob], file.name.replace(/\.\w+$/i, '.jpg'), { type: 'image/jpeg' });
+            console.log(`[ocr] compressed ${(file.size/1024).toFixed(0)} KB → ${(compressed.size/1024).toFixed(0)} KB (${w}×${h})`);
+            resolve(compressed);
+          }, 'image/jpeg', quality);
+        } catch (e) {
+          console.warn('[ocr] compression failed, using original', e);
+          URL.revokeObjectURL(url);
+          resolve(file);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        console.warn('[ocr] image load failed, using original');
+        resolve(file);
+      };
+      img.src = url;
+    });
+  };
+
   const ocrPickFile = (): Promise<File | null> => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') {
       setOcrError('La captura por foto solo está disponible desde el navegador.');
@@ -485,10 +547,39 @@ export default function TransportMeter() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      // capture attr triggers the camera on mobile browsers
+      // `capture=environment` triggers the rear camera on mobile browsers.
+      // Some desktop browsers ignore this attribute (good — they open the
+      // regular file picker instead).
       (input as any).capture = 'environment';
-      input.onchange = () => resolve(input.files?.[0] || null);
-      input.oncancel = () => resolve(null);
+      input.style.position = 'fixed';
+      input.style.top = '-1000px';
+      let resolved = false;
+      const finish = async (f: File | null) => {
+        if (resolved) return;
+        resolved = true;
+        window.removeEventListener('focus', focusFallback);
+        try { document.body.removeChild(input); } catch { /* already removed */ }
+        if (!f) { resolve(null); return; }
+        // Compress before returning.
+        try {
+          const compressed = await _compressImage(f);
+          resolve(compressed);
+        } catch (e) {
+          console.warn('[ocr] compression pipeline error', e);
+          resolve(f);
+        }
+      };
+      const focusFallback = () => {
+        // If the user closes the picker without selecting, `change` never
+        // fires but `focus` does when the browser returns to our page.
+        // Give it 400ms to catch a delayed `change` event, then resolve null.
+        setTimeout(() => {
+          if (!resolved) finish(null);
+        }, 400);
+      };
+      input.onchange = () => finish(input.files?.[0] || null);
+      window.addEventListener('focus', focusFallback, { once: true });
+      document.body.appendChild(input);
       input.click();
     });
   };
@@ -546,8 +637,26 @@ export default function TransportMeter() {
     }
   }, []);
 
+  // Progress helper: exposed via ocrBusy but we also surface bytes uploaded.
+  const [ocrUploadProgress, setOcrUploadProgress] = useState<number>(0);
+
+  const _friendlyUploadError = (e: any): string => {
+    // Network layer error (no response)
+    if (e?.code === 'ECONNABORTED') return 'La subida ha tardado demasiado. La cobertura móvil puede estar lenta — inténtalo de nuevo.';
+    if (!e?.response) return 'No se pudo conectar con el servidor. Revisa tu conexión.';
+    const status = e.response?.status;
+    const detail = e.response?.data?.detail;
+    if (status === 413) return 'La imagen es demasiado grande para el servidor (ajusta el límite de nginx a 20 MB o usa una foto de menos calidad).';
+    if (status === 401) return 'Sesión caducada. Cierra sesión y vuelve a entrar.';
+    if (status === 503) return detail || 'El servicio de IA está saturado. Espera 30 segundos e inténtalo de nuevo.';
+    if (status === 502 || status === 504) return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';
+    if (detail) return String(detail);
+    return `Error ${status || ''}: no se pudo procesar la foto.`.trim();
+  };
+
   const ocrStartShift = async () => {
     setOcrError(null);
+    setOcrUploadProgress(0);
     const file = await ocrPickFile();
     if (!file) return;
     try {
@@ -557,14 +666,21 @@ export default function TransportMeter() {
       fd.append('photo', file);
       const r = await axios.post(`${API_BASE}/api/journal/start`, fd, {
         headers: { ...headers },
-        timeout: 60_000,
+        timeout: 90_000,
+        maxContentLength: 25 * 1024 * 1024,
+        maxBodyLength: 25 * 1024 * 1024,
+        onUploadProgress: (evt) => {
+          const pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+          setOcrUploadProgress(pct);
+        },
       });
       setOcrJournal(r.data);
     } catch (e: any) {
       console.error('[ocr] start error', e);
-      setOcrError(e?.response?.data?.detail || 'No se pudo procesar la foto.');
+      setOcrError(_friendlyUploadError(e));
     } finally {
       setOcrBusy(null);
+      setOcrUploadProgress(0);
     }
   };
 
@@ -602,6 +718,8 @@ export default function TransportMeter() {
       setOcrError('Adjunta la foto del parcial final antes de cerrar.');
       return;
     }
+    setOcrError(null);
+    setOcrUploadProgress(0);
     try {
       setOcrBusy('end');
       const headers = await ocrAuthHeaders();
@@ -610,7 +728,16 @@ export default function TransportMeter() {
       fd.append('precio_cerrado', String(parseFloat((ocrEndPrecioCerrado || '0').replace(',', '.')) || 0));
       fd.append('cobrado_tarjeta', String(parseFloat((ocrEndTarjeta || '0').replace(',', '.')) || 0));
       fd.append('cobrado_app', String(parseFloat((ocrEndApp || '0').replace(',', '.')) || 0));
-      const r = await axios.post(`${API_BASE}/api/journal/end`, fd, { headers, timeout: 60_000 });
+      const r = await axios.post(`${API_BASE}/api/journal/end`, fd, {
+        headers,
+        timeout: 90_000,
+        maxContentLength: 25 * 1024 * 1024,
+        maxBodyLength: 25 * 1024 * 1024,
+        onUploadProgress: (evt) => {
+          const pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+          setOcrUploadProgress(pct);
+        },
+      });
       setOcrJournal(r.data); // closed journal with totals
       setOcrEndPhoto(null);
       setOcrEndPrecioCerrado('');
@@ -620,9 +747,10 @@ export default function TransportMeter() {
       ocrLoadHistory();
     } catch (e: any) {
       console.error('[ocr] end error', e);
-      setOcrError(e?.response?.data?.detail || 'No se pudo cerrar la jornada.');
+      setOcrError(_friendlyUploadError(e));
     } finally {
       setOcrBusy(null);
+      setOcrUploadProgress(0);
     }
   };
 
@@ -13174,23 +13302,80 @@ export default function TransportMeter() {
                       )}
 
                       {ocrBusy === 'start' || ocrBusy === 'end' ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 10 }}>
-                          <ActivityIndicator color="#10B981" />
-                          <Text style={{ color: '#10B981', fontWeight: '700' }}>Leyendo ticket con la IA…</Text>
+                        <View style={{ paddingVertical: 14, gap: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                            <ActivityIndicator color="#10B981" />
+                            <Text style={{ color: '#10B981', fontWeight: '700' }}>
+                              {ocrUploadProgress > 0 && ocrUploadProgress < 100
+                                ? `Subiendo foto… ${ocrUploadProgress}%`
+                                : 'Leyendo ticket con la IA (10-30 s)…'}
+                            </Text>
+                          </View>
+                          {ocrUploadProgress > 0 && ocrUploadProgress < 100 && (
+                            <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(15,23,42,0.6)', overflow: 'hidden' }}>
+                              <View style={{ height: 6, width: `${ocrUploadProgress}%`, backgroundColor: '#10B981' }} />
+                            </View>
+                          )}
                         </View>
                       ) : null}
 
                       {/* No journal at all */}
                       {!j && ocrBusy !== 'start' && (
-                        <TouchableOpacity
-                          onPress={ocrStartShift}
-                          disabled={ocrBusy !== null}
-                          style={{ backgroundColor: '#10B981', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: ocrBusy ? 0.5 : 1 }}
-                          data-testid="ocr-start-button"
-                        >
-                          <Ionicons name="camera" size={22} color="#FFFFFF" />
-                          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>FOTO INICIO DE JORNADA</Text>
-                        </TouchableOpacity>
+                        <View>
+                          <TouchableOpacity
+                            onPress={ocrStartShift}
+                            disabled={ocrBusy !== null}
+                            style={{ backgroundColor: '#10B981', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: ocrBusy ? 0.5 : 1 }}
+                            data-testid="ocr-start-button"
+                          >
+                            <Ionicons name="camera" size={22} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }}>FOTO INICIO DE JORNADA</Text>
+                          </TouchableOpacity>
+                          {/* Fallback: plain file input (bypasses `capture=environment` — useful on desktop or if camera fails) */}
+                          {Platform.OS === 'web' && (
+                            <View style={{ marginTop: 8, alignItems: 'center' }}>
+                              <Text style={{ color: '#94A3B8', fontSize: 11, marginBottom: 4, textAlign: 'center' }}>
+                                ¿Problemas con la cámara? Sube una foto guardada:
+                              </Text>
+                              {/* @ts-ignore — native HTML file input on web */}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                data-testid="ocr-start-file-fallback"
+                                onChange={async (e: any) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  try {
+                                    setOcrError(null); setOcrBusy('start'); setOcrUploadProgress(0);
+                                    const compressed = await _compressImage(f);
+                                    const headers = await ocrAuthHeaders();
+                                    const fd = new FormData();
+                                    fd.append('photo', compressed);
+                                    const r = await axios.post(`${API_BASE}/api/journal/start`, fd, {
+                                      headers,
+                                      timeout: 90_000,
+                                      maxContentLength: 25 * 1024 * 1024,
+                                      maxBodyLength: 25 * 1024 * 1024,
+                                      onUploadProgress: (evt) => {
+                                        const pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+                                        setOcrUploadProgress(pct);
+                                      },
+                                    });
+                                    setOcrJournal(r.data);
+                                  } catch (err: any) {
+                                    console.error('[ocr] fallback start error', err);
+                                    setOcrError(_friendlyUploadError(err));
+                                  } finally {
+                                    setOcrBusy(null);
+                                    setOcrUploadProgress(0);
+                                    e.target.value = ''; // reset so same file can be re-picked
+                                  }
+                                }}
+                                style={{ color: '#94A3B8', fontSize: 12 }}
+                              />
+                            </View>
+                          )}
+                        </View>
                       )}
 
                       {/* Open journal */}
@@ -14203,12 +14388,34 @@ export default function TransportMeter() {
                         <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>1. Foto del parcial al final *</Text>
                         <TouchableOpacity
                           onPress={async () => { const f = await ocrPickFile(); if (f) setOcrEndPhoto(f); }}
-                          style={{ backgroundColor: ocrEndPhoto ? '#10B981' : '#1E293B', borderWidth: 1, borderColor: ocrEndPhoto ? '#10B981' : '#475569', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 14, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                          style={{ backgroundColor: ocrEndPhoto ? '#10B981' : '#1E293B', borderWidth: 1, borderColor: ocrEndPhoto ? '#10B981' : '#475569', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 6, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
                           data-testid="ocr-end-photo-button"
                         >
                           <Ionicons name={ocrEndPhoto ? 'checkmark-circle' : 'camera'} size={20} color="#FFFFFF" />
                           <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{ocrEndPhoto ? `Foto seleccionada (${(ocrEndPhoto.size / 1024).toFixed(0)} KB)` : 'Hacer foto / Subir imagen'}</Text>
                         </TouchableOpacity>
+                        {/* Fallback: plain file input for the end-shift photo */}
+                        {Platform.OS === 'web' && !ocrEndPhoto && (
+                          <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                            <Text style={{ color: '#64748B', fontSize: 10, marginBottom: 2 }}>o sube una foto guardada:</Text>
+                            {/* @ts-ignore native file input on web */}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              data-testid="ocr-end-file-fallback"
+                              onChange={async (e: any) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                try {
+                                  const compressed = await _compressImage(f);
+                                  setOcrEndPhoto(compressed);
+                                } catch { setOcrEndPhoto(f); }
+                                e.target.value = '';
+                              }}
+                              style={{ color: '#94A3B8', fontSize: 11 }}
+                            />
+                          </View>
+                        )}
 
                         <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>2. Precio cerrado (€) — carreras a precio fijo</Text>
                         <TextInput
