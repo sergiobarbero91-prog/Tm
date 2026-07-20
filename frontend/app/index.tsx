@@ -921,6 +921,15 @@ export default function TransportMeter() {
       // ── Abrir automáticamente el modal de revisión con los valores extraídos ──
       // Así el usuario SIEMPRE confirma antes de que la jornada quede registrada.
       const sr = r.data?.start_reading || {};
+      // Convertir minutos a HH:MM para los campos tiempo_*.
+      const _minToHHMM = (m: any): string => {
+        if (m == null || m === '') return '';
+        const num = Number(m);
+        if (!Number.isFinite(num) || num < 0) return String(m);
+        const h = Math.floor(num / 60);
+        const mm = Math.round(num % 60);
+        return `${h}:${mm.toString().padStart(2, '0')}`;
+      };
       setOcrEditDraft({
         fecha: sr.fecha || '',
         hora: sr.hora || '',
@@ -929,8 +938,8 @@ export default function TransportMeter() {
         dist_total_km: sr.dist_total_km != null ? String(sr.dist_total_km) : '',
         dist_ocupado_km: sr.dist_ocupado_km != null ? String(sr.dist_ocupado_km) : '',
         dist_libre_km: sr.dist_libre_km != null ? String(sr.dist_libre_km) : '',
-        tiempo_ocupado: sr.tiempo_ocupado != null ? String(sr.tiempo_ocupado) : '',
-        tiempo_on: sr.tiempo_on != null ? String(sr.tiempo_on) : '',
+        tiempo_ocupado: _minToHHMM(sr.tiempo_ocupado),
+        tiempo_on: _minToHHMM(sr.tiempo_on),
       });
       setOcrShowEditModal('start');
     } catch (e: any) {
@@ -1020,6 +1029,14 @@ export default function TransportMeter() {
       // buena la jornada. Aquí ya está cerrada, pero puede corregir los
       // valores si el OCR se equivocó.
       const er = r.data?.end_reading || {};
+      const _minToHHMM = (m: any): string => {
+        if (m == null || m === '') return '';
+        const num = Number(m);
+        if (!Number.isFinite(num) || num < 0) return String(m);
+        const h = Math.floor(num / 60);
+        const mm = Math.round(num % 60);
+        return `${h}:${mm.toString().padStart(2, '0')}`;
+      };
       setOcrEditDraft({
         fecha: er.fecha || '',
         hora: er.hora || '',
@@ -1028,8 +1045,8 @@ export default function TransportMeter() {
         dist_total_km: er.dist_total_km != null ? String(er.dist_total_km) : '',
         dist_ocupado_km: er.dist_ocupado_km != null ? String(er.dist_ocupado_km) : '',
         dist_libre_km: er.dist_libre_km != null ? String(er.dist_libre_km) : '',
-        tiempo_ocupado: er.tiempo_ocupado != null ? String(er.tiempo_ocupado) : '',
-        tiempo_on: er.tiempo_on != null ? String(er.tiempo_on) : '',
+        tiempo_ocupado: _minToHHMM(er.tiempo_ocupado),
+        tiempo_on: _minToHHMM(er.tiempo_on),
       });
       setOcrShowEditModal('end');
     } catch (e: any) {
@@ -1048,13 +1065,29 @@ export default function TransportMeter() {
       const headers = await ocrAuthHeaders();
       // Build payload from draft, coercing numeric fields
       const numericKeys = new Set(['num_servicios', 'carreras_eur',
-        'dist_total_km', 'dist_ocupado_km', 'dist_libre_km',
-        'tiempo_ocupado', 'tiempo_on']);
+        'dist_total_km', 'dist_ocupado_km', 'dist_libre_km']);
+      const tiempoKeys = new Set(['tiempo_ocupado', 'tiempo_on']);
+      // Convierte "H:MM" o "HH:MM" (o "N" en minutos) → minutos.
+      const _hhmmToMin = (s: string): number | null => {
+        const trimmed = s.trim();
+        if (trimmed === '') return null;
+        if (trimmed.includes(':')) {
+          const [hStr, mStr] = trimmed.split(':');
+          const h = parseInt(hStr, 10);
+          const m = parseInt(mStr, 10);
+          if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+        }
+        const n = parseFloat(trimmed.replace(',', '.'));
+        return Number.isFinite(n) ? Math.round(n) : null;
+      };
       const out: Record<string, any> = {};
       Object.entries(ocrEditDraft).forEach(([k, v]) => {
         const s = (v ?? '').toString().trim();
         if (s === '') return;
-        if (numericKeys.has(k)) {
+        if (tiempoKeys.has(k)) {
+          const mins = _hhmmToMin(s);
+          if (mins != null) out[k] = mins;
+        } else if (numericKeys.has(k)) {
           const n = parseFloat(s.replace(',', '.'));
           if (!Number.isNaN(n)) out[k] = k === 'num_servicios' ? Math.round(n) : n;
         } else {
@@ -13596,8 +13629,8 @@ export default function TransportMeter() {
                           ['Dist. total', r?.dist_total_km != null ? `${Number(r.dist_total_km).toFixed(2)} km` : null, 'dist_total_km'],
                           ['Dist. ocup.', r?.dist_ocupado_km != null ? `${Number(r.dist_ocupado_km).toFixed(2)} km` : null, 'dist_ocupado_km'],
                           ['Dist. libre', r?.dist_libre_km != null ? `${Number(r.dist_libre_km).toFixed(2)} km` : null, 'dist_libre_km'],
-                          ['T. ocupado', r?.tiempo_ocupado, 'tiempo_ocupado'],
-                          ['T. ON', r?.tiempo_on, 'tiempo_on'],
+                          ['T. ocupado', r?.tiempo_ocupado != null ? (() => { const n = Number(r.tiempo_ocupado); if (!Number.isFinite(n)) return String(r.tiempo_ocupado); return `${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,'0')}`; })() : null, 'tiempo_ocupado'],
+                          ['T. ON', r?.tiempo_on != null ? (() => { const n = Number(r.tiempo_on); if (!Number.isFinite(n)) return String(r.tiempo_on); return `${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,'0')}`; })() : null, 'tiempo_on'],
                         ] as [string, any, string][]).map(([k, v, key]) => {
                           const bad = isImpossible(key, r?.[key]);
                           const valueColor = v == null || v === ''
@@ -15016,8 +15049,8 @@ export default function TransportMeter() {
                           ['dist_total_km', 'Dist. total (km)'],
                           ['dist_ocupado_km', 'Dist. ocupado (km)'],
                           ['dist_libre_km', 'Dist. libre (km)'],
-                          ['tiempo_ocupado', 'Tiempo ocupado (raw)'],
-                          ['tiempo_on', 'Tiempo ON (raw)'],
+                          ['tiempo_ocupado', 'Tiempo ocupado (HH:MM)'],
+                          ['tiempo_on', 'Tiempo ON (HH:MM)'],
                         ].map(([k, label]) => (
                           <View key={k} style={{ marginBottom: 10 }}>
                             <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{label}</Text>

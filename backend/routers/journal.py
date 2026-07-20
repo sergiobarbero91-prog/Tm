@@ -811,36 +811,11 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     # Score log (ya lo tenías arriba)
     logger.info(f"[journal-ocr] scores → psm4={score_4}, psm6={score_6}")
 
-    # Consistency check: en el bloque acumulado del taxímetro debe cumplirse
-    #     dist_total ≈ dist_ocupado + dist_libre  (+ dist_off, si existe)
-    # Si el total detectado se desvía >20 % de esa suma, es MUY probable que
-    # el OCR lo haya leído mal (números pegados de la línea anterior). En
-    # ese caso lo recalculamos y avisamos.
-    consistency_fixed: List[str] = []
-    def _num(v):
-        try:
-            return float(v) if v is not None else None
-        except (TypeError, ValueError):
-            return None
-
-    total = _num(parsed.get("dist_total_km"))
-    ocup = _num(parsed.get("dist_ocupado_km"))
-    libre = _num(parsed.get("dist_libre_km"))
-    off = _num((parsed.get("totales_taximetro") or {}).get("dist_off_km"))
-
-    if ocup is not None and libre is not None:
-        computed = ocup + libre + (off or 0)
-        if total is None or (computed > 0 and abs(total - computed) / computed > 0.20):
-            parsed["dist_total_km"] = round(computed, 2)
-            if "totales_taximetro" in parsed:
-                parsed["totales_taximetro"]["dist_total_km"] = round(computed, 2)
-            consistency_fixed.append(
-                f"dist_total_km recalculado como ocupado+libre+off = {computed:.2f} km"
-            )
-
     parsed["raw_ocr_text"] = raw_text.strip()
 
     # Warnings — campos que no se detectaron.
+    # NOTA: NO se recalcula dist_total_km desde ocupado+libre+off. El ticket
+    # se lee tal cual — si falla, el usuario corrige en el modal.
     warnings: List[str] = []
     for key in ("carreras_eur", "dist_total_km", "dist_ocupado_km", "dist_libre_km"):
         v = parsed.get(key)
@@ -856,7 +831,6 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         if parsed["carreras_eur"] < 0 or parsed["carreras_eur"] > 10_000_000:
             warnings.append("carreras_eur fuera de rango — revisa manualmente")
 
-    warnings.extend(consistency_fixed)
     parsed["ocr_warnings"] = warnings
     return parsed
 
@@ -988,19 +962,16 @@ def _compute_totals(journal: Dict[str, Any]) -> Dict[str, Any]:
         pct_dist_ocupado = round((km_ocupado / km_total) * 100, 1)
 
     # ── Time ──
-    # NOTA: los campos tiempo_* del ticket son ACUMULADOS numéricos del
-    # taxímetro (probablemente segundos totales — un taxímetro con 557761
-    # de tiempo_ocupado = 154 h). La diferencia end - start da el tiempo
-    # del turno en las mismas unidades. Asumimos segundos → dividimos entre
-    # 60 para obtener minutos.
-    def _diff_seconds_to_minutes(key: str) -> Optional[int]:
+    # NOTA: los campos tiempo_* del ticket son ACUMULADOS del taxímetro EN
+    # MINUTOS. La diferencia end - start da los minutos del turno.
+    def _diff_min(key: str) -> Optional[int]:
         v = _diff(key)
         if v is None or v < 0:
             return None
-        return int(round(v / 60))
+        return int(round(v))
 
-    min_on = _diff_seconds_to_minutes("tiempo_on")
-    min_ocupado = _diff_seconds_to_minutes("tiempo_ocupado")
+    min_on = _diff_min("tiempo_on")
+    min_ocupado = _diff_min("tiempo_ocupado")
     pct_tiempo_ocupacion = None
     if min_on and min_on > 0 and min_ocupado is not None:
         pct_tiempo_ocupacion = round((min_ocupado / min_on) * 100, 1)
