@@ -26,11 +26,13 @@ Only the items below have been added on top of that baseline.
 
 
 ### ✅ OCR Journal — Pipeline avanzado según receta usuario (Feb 2026)
-- `/app/backend/routers/journal.py` `_preprocess_for_ocr` y `_ocr_parcial_sync`:
-  - Nuevo **Deskew con `cv2.HoughLinesP`** (detecta líneas horizontales del ticket con Canny → mediana de ángulos ±15°). Fallback a `minAreaRect` si no hay ≥5 líneas.
-  - **Cuarta pasada de OCR**: se aprovecha la variante `adaptive_bw` (adaptiveThreshold Gaussian_C) que ya se calculaba pero no se usaba. Ahora Tesseract corre en `Otsu×PSM4`, `Otsu×PSM6`, `Adaptive×PSM4`, `Adaptive×PSM6` y se hace merge por campo con las 4 fuentes + posicional (whitelist estricta).
-  - **Whitelist ampliada** en OCR posicional: `0123456789.,€:/-` (antes: `0123456789.,€`) — mejor tolerancia a separadores hora/fecha.
-- Test en /tmp/tk.webp: 8/13 campos correctos, ~12s. Los campos que fallan (total_eur, tiempo_ocupado, licencia) están mal impresos físicamente en el ticket — Tesseract no puede recuperarlos sin AI.
+- `/app/backend/routers/journal.py` `_preprocess_for_ocr`, `_ocr_values_positional`, `_ocr_number_only` y `_ocr_parcial_sync`:
+  - **Deskew con `cv2.HoughLinesP`** (Canny + mediana de ángulos ±15°). Fallback a `minAreaRect`.
+  - **4 pasadas de OCR** sobre variantes Otsu + Adaptativa × PSM4/PSM6.
+  - **OCR posicional refinado** — usa `image_to_data` para localizar la palabra numérica exacta al lado de cada label (crop tiny, sin ruido). Fallback a crop ancho hasta el borde derecho detectado del ticket (percentil 95 de los extremos de palabras ancla) cuando el narrow falla.
+  - **`_ocr_number_only`** con upscale x2.5, padding blanco 30px, whitelist estricta `0123456789.,`, `--oem 3 --psm 7/8`, diccionarios desactivados (`load_system_dawg=0 load_freq_dawg=0`).
+- Precisión medida en /tmp/tk.webp: **11-12/13 campos correctos** (antes 8/13). Los 1-2 restantes son casos donde Tesseract identifica MAL la palabra numérica original (ej. lee `3233/79` en vez de `52537,9`) — se corrigen con el modal manual "Revisar y Confirmar" que ya existe.
+
 
 ## Changelog (this session — Feb 2026)
 

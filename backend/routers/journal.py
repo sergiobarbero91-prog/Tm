@@ -306,7 +306,7 @@ POSITIONAL_LABELS = [
 ]
 
 
-def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
+def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
     """OCR posicional: usa image_to_data para localizar etiquetas y hacer
     una segunda pasada de OCR sobre la región a la derecha de cada etiqueta,
     con whitelist restrictiva de dígitos + coma + punto.
@@ -317,6 +317,10 @@ def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
          devolver esos caracteres — imposible confundir ',' con '/', '5'
          con letra, etc.
       3. No depende de que la salida de texto plano preserve el layout.
+
+    Si se pasa `pil_adp` (variante adaptativa), el OCR final del recorte
+    numérico se hace sobre AMBAS imágenes y se elige el valor con más dígitos
+    y decimales (los tickets térmicos suelen leerse mejor en la adaptativa).
     """
     import pytesseract
     import cv2
@@ -324,13 +328,15 @@ def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
 
     # Convertir PIL → numpy para poder recortar con OpenCV
     arr = np.array(pil_bw)  # ya es escala de grises B/N
+    arr_adp = np.array(pil_adp) if pil_adp is not None else None
     H, W = arr.shape[:2]
 
-    # 1) image_to_data para ubicar las palabras
+    # 1) image_to_data para ubicar las palabras (usamos la Otsu — más fiable
+    #    para detectar etiquetas de texto en tickets térmicos).
     try:
         data = pytesseract.image_to_data(
             pil_bw, lang="spa+eng",
-            config="--oem 3 --psm 6",
+            config="--oem 3 --psm 6 -c load_system_dawg=0 -c load_freq_dawg=0",
             output_type=pytesseract.Output.DICT,
         )
     except Exception:
@@ -356,6 +362,53 @@ def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
 
     if not words:
         return {}
+
+    # ── Estimar el borde derecho del TICKET (área útil) ──
+    # Las palabras que son numéricas o etiquetas típicas ("Dist.", "Total:", etc.)
+    # marcan el área real del ticket. El máximo x de esos elementos + un pequeño
+    # margen es el límite derecho global — evita meter basura del fondo
+    # (sábana, marco, texturas) en los crops.
+    _ANCHOR_KEYWORDS = {"DIST", "TOTAL", "TIEMPO", "BORRADOS", "CARRERAS", "SUPLEMENTOS",
+                        "OCUPADO", "LIBRE", "OFF", "SERVICIOS", "LICENCIA", "FECHA", "NUM"}
+    right_edges = []
+    for w in words:
+        wu = re.sub(r"[^\w]", "", w["text"].upper())
+        is_numeric = sum(1 for c in w["text"] if c.isdigit()) >= 2
+        is_anchor = wu in _ANCHOR_KEYWORDS
+        if is_numeric or is_anchor:
+            right_edges.append(w["x"] + w["w"])
+    # Usar el percentil 95 para descartar palabras "outlier" (basura extrema)
+    if len(right_edges) >= 10:
+        right_edges.sort()
+        right_edge = right_edges[int(len(right_edges) * 0.95)] + 30
+        right_edge = min(right_edge, W)
+    else:
+        right_edge = W
+    logger.debug(f"[positional] right_edge = {right_edge}/{W}")
+
+    # ── Estrategia: para cada etiqueta, encontrar en la MISMA fila la
+    # palabra que Tesseract ya identificó como numérica (dígitos + coma)
+    # y hacer crop EXACTO de esa palabra. Es mucho más preciso que
+    # cortar "desde la etiqueta hasta el borde", porque:
+    #   1. El crop es tiny → OCR más rápido y sin ruido.
+    #   2. Ignoramos automáticamente la columna P y basura del fondo.
+    #   3. Podemos AMPLIAR ese crop lateralmente para recuperar decimales
+    #      que Tesseract se comió (ej: leyó "3233/79" en vez de "52537,9").
+    _NUM_LOOKS_LIKE = re.compile(r"^[\d.,:]+[/-]?\d*$")
+
+    def _numeric_words_on_line(label_w: Dict) -> List[Dict]:
+        """Devuelve palabras a la DERECHA del label, en la misma línea,
+        cuyo texto parece un número (dígitos + coma/punto/dos-puntos)."""
+        out = []
+        for w in words:
+            if (w["block"] == label_w["block"]
+                and w["line"] == label_w["line"]
+                and w["x"] > label_w["x"] + label_w["w"] // 2):
+                # Filtrar por contenido: al menos 2 dígitos
+                if sum(1 for c in w["text"] if c.isdigit()) >= 2:
+                    out.append(w)
+        out.sort(key=lambda o: o["x"])
+        return out
 
     # 2) Para cada etiqueta buscada, encontrar sus ocurrencias por texto
     def _find_word_occurrences(keyword: str, must_not_preceded_by_P: bool) -> List[Dict]:
@@ -402,19 +455,85 @@ def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
         label_word = remaining[0]
         label_used_positions.add((label_word["block"], label_word["line"], label_word["x"]))
 
-        # Recorte: de label.right+15px a fin de imagen, mismo alto de la línea
-        # (con más padding vertical para tolerar líneas ligeramente inclinadas).
-        x0 = min(label_word["x"] + label_word["w"] + 15, W - 1)
-        y0 = max(label_word["y"] - 8, 0)
-        y1 = min(label_word["y"] + label_word["h"] + 8, H)
-        crop = arr[y0:y1, x0:W]
-        if crop.size == 0 or crop.shape[0] < 5 or crop.shape[1] < 20:
+        # ── Estrategia principal: usar coordenadas de la palabra numérica
+        # que Tesseract ya localizó en la MISMA fila que el label.
+        num_words = _numeric_words_on_line(label_word)
+
+        # Coordenadas del crop AMPLIO (fallback): desde el fin del label
+        # hasta el borde derecho DETECTADO del ticket. Sirve cuando Tesseract
+        # identificó mal la palabra numérica (ej: "3233/79" en vez de "52537,9").
+        wide_x0 = min(label_word["x"] + label_word["w"] + 10, W - 1)
+        wide_x1 = min(label_word["x"] + label_word["w"] + 600, right_edge)
+        wide_x1 = max(wide_x1, wide_x0 + 30)  # asegurar tamaño mínimo
+        wide_y0 = max(label_word["y"] - 4, 0)
+        wide_y1 = min(label_word["y"] + label_word["h"] + 4, H)
+
+        # Crops candidatos: (nombre, crop_bw, crop_adp)
+        crop_candidates: List[tuple] = []
+
+        if num_words:
+            v = num_words[0]
+            v_right = v["x"] + v["w"]
+            for extra in num_words[1:]:
+                if extra["x"] - v_right < 40:
+                    v_right = extra["x"] + extra["w"]
+                else:
+                    break
+            x0 = max(v["x"] - 5, 0)
+            x1 = min(v_right + 30, W)
+            y0 = max(v["y"] - 4, 0)
+            y1 = min(v["y"] + v["h"] + 4, H)
+            crop_candidates.append((
+                "narrow",
+                arr[y0:y1, x0:x1],
+                arr_adp[y0:y1, x0:x1] if arr_adp is not None else None,
+            ))
+
+        # Siempre añadir el crop AMPLIO como candidato alternativo
+        crop_candidates.append((
+            "wide",
+            arr[wide_y0:wide_y1, wide_x0:wide_x1],
+            arr_adp[wide_y0:wide_y1, wide_x0:wide_x1] if arr_adp is not None else None,
+        ))
+
+        # OCR: primero el crop NARROW (más preciso, casi siempre acierta).
+        # Solo se usa el WIDE si el narrow da resultado corto/vacío.
+        narrow_values: List[str] = []
+        wide_values: List[str] = []
+
+        for _label, cbw, cadp in crop_candidates:
+            if cbw is not None and cbw.size > 0 and cbw.shape[0] >= 5 and cbw.shape[1] >= 20:
+                v1 = _ocr_number_only(cbw)
+                if v1:
+                    (narrow_values if _label == "narrow" else wide_values).append(v1)
+            if cadp is not None and cadp.size > 0 and cadp.shape[0] >= 5 and cadp.shape[1] >= 20:
+                v2 = _ocr_number_only(cadp)
+                if v2:
+                    (narrow_values if _label == "narrow" else wide_values).append(v2)
+
+        # Elegir fuente: narrow si tiene resultados con ≥3 dígitos, si no wide.
+        def _n_dig(s: str) -> int:
+            return sum(1 for c in s if c.isdigit())
+
+        raw_values = narrow_values if narrow_values and max(_n_dig(v) for v in narrow_values) >= 3 else wide_values
+
+        if not raw_values:
             continue
 
-        # OCR del recorte con whitelist estricta
-        val = _ocr_number_only(crop)
-        if val is None:
-            continue
+        # Score por candidato: (nº de pasadas donde aparece exactamente,
+        # nº de dígitos, tiene decimal).
+        from collections import Counter
+        counter = Counter(raw_values)
+
+        def _score(s: str) -> tuple:
+            n_dig = sum(1 for c in s if c.isdigit())
+            has_dec = 1 if ("," in s or "." in s) else 0
+            votes = counter[s]
+            return (votes, n_dig, has_dec)
+
+        unique_vals = list(counter.keys())
+        unique_vals.sort(key=_score, reverse=True)
+        val = unique_vals[0]
 
         if dest_key in ("num_servicios", "borrados", "licencia"):
             iv = _es_to_int(val)
@@ -431,45 +550,68 @@ def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
 def _ocr_number_only(crop) -> Optional[str]:
     """OCR sobre un recorte con whitelist estricta de dígitos + coma + punto.
 
-    Estrategia: 2 pasadas (PSM 7 + PSM 8) con Otsu, se queda con el número
-    con MÁS DÍGITOS que aparezca en cualquier pasada. Este balance da 8/9
-    campos correctos en menos de 8s sobre foto real.
+    Estrategia: upscale x3 + padding blanco + doble pasada Tesseract con
+    PSM 7 y PSM 8 (single line / single word). Los diccionarios se
+    desactivan para que Tesseract no "corrija" dígitos a letras.
     """
     import pytesseract
     import cv2
+    import numpy as np
     from PIL import Image as _Image
 
     if crop is None or crop.size == 0:
         return None
 
-    # Preprocesar crop → Otsu B/N (el input ya suele ser gris o BW)
+    # Preprocesar crop → escala de grises si viene en color
     if len(crop.shape) == 3:
         crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    # Si el crop ya es binario (nuestro _preprocess devuelve BW), Otsu no daña.
+
+    # Upscaling x2.5 con INTER_CUBIC para trazos más nítidos.
+    h, w = crop.shape[:2]
+    if max(h, w) < 800:
+        scale = min(2.5, 800 / max(h, w))
+        crop = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+
+    # Umbralizar con Otsu (no daña si ya viene binario)
     _, bw = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Añadir padding blanco alrededor — Tesseract necesita "aire" alrededor
+    # de los caracteres para reconocerlos con precisión, especialmente en
+    # PSM 7/8 donde asume una sola línea/palabra.
+    bw = cv2.copyMakeBorder(bw, 30, 30, 30, 30, cv2.BORDER_CONSTANT, value=255)
+
     pil_bw = _Image.fromarray(bw)
 
     all_candidates: List[str] = []
     for psm in (7, 8):
-        # Whitelist ampliada (recomendación del usuario): dígitos, separadores
-        # decimales (,.), símbolo € y separadores de hora / fecha (:/-).
-        cfg = f"--oem 3 --psm {psm} -c tessedit_char_whitelist=0123456789.,€:/- "
+        # Whitelist ESTRICTA: dígitos, coma, punto. NO incluye '-' (Tesseract
+        # lo interpretaría como signo negativo y corrompería los números).
+        # Diccionarios desactivados: evita que Tesseract "corrija" 5→S, 0→O.
+        cfg = (
+            f"--oem 3 --psm {psm} "
+            f"-c tessedit_char_whitelist=0123456789., "
+            f"-c load_system_dawg=0 -c load_freq_dawg=0"
+        )
         try:
             text = pytesseract.image_to_string(pil_bw, lang="eng", config=cfg)
         except Exception:
             continue
-        for match in re.findall(r"-?\d+(?:[.,]\d+)?", text):
+        for match in re.findall(r"\d+(?:[.,]\d+)?", text):
             if match.strip():
                 all_candidates.append(match)
 
     if not all_candidates:
         return None
 
-    # Preferir el que tenga más dígitos (los números completos ganan).
-    def _n_digits(s: str) -> int:
-        return sum(1 for c in s if c.isdigit())
+    # Preferir el que tenga más dígitos (los números completos ganan),
+    # y a igualdad de dígitos, el que TIENE decimal (los tickets casi
+    # siempre imprimen X,Y en las distancias).
+    def _score(s: str) -> tuple:
+        n_dig = sum(1 for c in s if c.isdigit())
+        has_dec = 1 if ("," in s or "." in s) else 0
+        return (n_dig, has_dec)
 
-    all_candidates.sort(key=lambda s: (_n_digits(s), 1 if "," in s or "." in s else 0), reverse=True)
+    all_candidates.sort(key=_score, reverse=True)
     return all_candidates[0]
 
 
@@ -738,7 +880,10 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         try:
             return pytesseract.image_to_string(
                 img_variant, lang="spa+eng",
-                config=f"--oem 3 --psm {psm} -c preserve_interword_spaces=1",
+                config=(
+                    f"--oem 3 --psm {psm} -c preserve_interword_spaces=1 "
+                    f"-c load_system_dawg=0 -c load_freq_dawg=0"
+                ),
             )
         except Exception:
             return ""
@@ -759,7 +904,7 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     # derecha con `--psm 7 -c tessedit_char_whitelist=0123456789.,`. Esto es
     # el método MÁS FIABLE porque Tesseract sólo puede devolver dígitos.
     try:
-        parsed_pos = _ocr_values_positional(img_bw)
+        parsed_pos = _ocr_values_positional(img_bw, img_adaptive)
         logger.info(f"[journal-ocr] positional → {parsed_pos}")
     except Exception:
         logger.exception("[journal-ocr] positional OCR failed")
