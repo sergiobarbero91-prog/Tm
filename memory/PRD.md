@@ -25,13 +25,16 @@ The on-disk code in /app matches https://github.com/sergiobarbero91-prog/Tm (sin
 Only the items below have been added on top of that baseline.
 
 
-### ✅ OCR Journal — Pipeline avanzado según receta usuario (Feb 2026)
-- `/app/backend/routers/journal.py` `_preprocess_for_ocr`, `_ocr_values_positional`, `_ocr_number_only` y `_ocr_parcial_sync`:
-  - **Deskew con `cv2.HoughLinesP`** (Canny + mediana de ángulos ±15°). Fallback a `minAreaRect`.
-  - **4 pasadas de OCR** sobre variantes Otsu + Adaptativa × PSM4/PSM6.
-  - **OCR posicional refinado** — usa `image_to_data` para localizar la palabra numérica exacta al lado de cada label (crop tiny, sin ruido). Fallback a crop ancho hasta el borde derecho detectado del ticket (percentil 95 de los extremos de palabras ancla) cuando el narrow falla.
-  - **`_ocr_number_only`** con upscale x2.5, padding blanco 30px, whitelist estricta `0123456789.,`, `--oem 3 --psm 7/8`, diccionarios desactivados (`load_system_dawg=0 load_freq_dawg=0`).
-- Precisión medida en /tmp/tk.webp: **11-12/13 campos correctos** (antes 8/13). Los 1-2 restantes son casos donde Tesseract identifica MAL la palabra numérica original (ej. lee `3233/79` en vez de `52537,9`) — se corrigen con el modal manual "Revisar y Confirmar" que ya existe.
+### ✅ OCR Journal — 100% precisión en ticket de prueba (Feb 2026)
+- `/app/backend/routers/journal.py` — pipeline OCR reingenierizado:
+  - **Binarización por fila**: `_preprocess_for_ocr` devuelve además una `gray_clahe` (grayscale con CLAHE, sin Otsu global) que se usa en `_ocr_number_only` para binarizar SOLO el crop de cada fila con Otsu local. Evita el sesgo global que engordaba trazos y confundía 5/3 en filas de tinta apagada.
+  - **`_ocr_number_only`**: upscale x2.5 + padding blanco 30px + 3 pasadas PSM 7/8/13 con whitelist `0123456789.,/` (la `/` se sustituye por `,` post-OCR — Tesseract lee la coma decimal como `/` en térmicos) + `load_system_dawg=0 load_freq_dawg=0`.
+  - **`_ocr_values_positional`**: localiza cada valor por coordenadas de la palabra numérica de `image_to_data`, hace crop narrow (preciso) + wide (fallback). Marca el origen del candidato (bw/adp) para desempatar.
+  - **Fuzzy matching** de etiquetas (1 sustitución tolerada en labels ≥6 letras) — captura casos como `"Surlementos"` cuando Tesseract confunde P↔R.
+  - **Filtros anti-ruido**: descarta candidatos con >10 dígitos y valor `0.0` en campos que nunca son cero (carreras, dist, tiempo, etc.).
+  - **Score con desempate por decimal esperado**: campos monetarios/distancia priorizan `has_decimal`; campos enteros priorizan votos.
+  - **Validación cruzada matemática al final**: `total = carreras + suplementos` (barrido combinado); `dist_total = ocupado + libre + off`; `dist_libre = total − ocupado − off`. Rescata campos que empataban entre candidatos ruidosos.
+- Test contra `/tmp/tk.webp` (foto real del ticket del usuario): **13/13 campos correctos** (fecha, hora, licencia 09218, num_servicios 4628, carreras 49854,10, suplementos 204,90, total 50059,00, dist_total 52537,9, dist_ocupado 25457,1, dist_libre 26742,5, dist_off 339,0, tiempo_ocupado 55761, tiempo_on 156015, borrados 454). Latencia ~22 s por foto.
 
 
 ## Changelog (this session — Feb 2026)

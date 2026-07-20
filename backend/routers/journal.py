@@ -150,8 +150,10 @@ def _preprocess_for_ocr(image_bytes: bytes):
         img_pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    # 1. Reescalar. 2400px produce el mejor equilibrio calidad/velocidad
-    #    (probado con fotos móviles 12+ Mpx de tickets térmicos españoles).
+    # 1. Reescalar. 2400 px produce el mejor equilibrio calidad/velocidad
+    #    en tickets térmicos: dígitos ~35 px de alto — suficiente para
+    #    distinguir 5/3, 8/6. Combinado con binarización POR FILA (abajo)
+    #    en el OCR posicional, evita el sesgo Otsu global.
     h, w = img.shape[:2]
     if max(h, w) > 2400:
         scale = 2400 / max(h, w)
@@ -282,7 +284,15 @@ def _preprocess_for_ocr(image_bytes: bytes):
     #    elegirá la que produzca más números decimales bien formados.
     adaptive_bw = _prep_bw(img, adaptive=True)
 
-    return Image.fromarray(best_bw), Image.fromarray(adaptive_bw)
+    # Grayscale con CLAHE aplicada — para binarización POR FILA en el
+    # OCR posicional. Cada crop de fila se binariza con Otsu local, lo
+    # que evita que un umbral global engorde los trazos en filas de
+    # tinta térmica más apagada (típico de dígitos 5/3, 8/6 mal leídos).
+    gray_clahe = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    gray_clahe = _clahe.apply(gray_clahe)
+
+    return Image.fromarray(best_bw), Image.fromarray(adaptive_bw), Image.fromarray(gray_clahe)
 
 
 # Palabras que identifican cada campo en la sección de acumulados.
@@ -306,7 +316,7 @@ POSITIONAL_LABELS = [
 ]
 
 
-def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
+def _ocr_values_positional(pil_bw, pil_adp=None, pil_gray=None) -> Dict[str, Any]:
     """OCR posicional: usa image_to_data para localizar etiquetas y hacer
     una segunda pasada de OCR sobre la región a la derecha de cada etiqueta,
     con whitelist restrictiva de dígitos + coma + punto.
@@ -320,7 +330,9 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
 
     Si se pasa `pil_adp` (variante adaptativa), el OCR final del recorte
     numérico se hace sobre AMBAS imágenes y se elige el valor con más dígitos
-    y decimales (los tickets térmicos suelen leerse mejor en la adaptativa).
+    y decimales. Si se pasa `pil_gray` (grayscale con CLAHE), se hace
+    binarización LOCAL POR FILA (evita el sesgo Otsu global que engorda
+    trazos en filas de tinta apagada).
     """
     import pytesseract
     import cv2
@@ -329,6 +341,7 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
     # Convertir PIL → numpy para poder recortar con OpenCV
     arr = np.array(pil_bw)  # ya es escala de grises B/N
     arr_adp = np.array(pil_adp) if pil_adp is not None else None
+    arr_gray = np.array(pil_gray) if pil_gray is not None else None
     H, W = arr.shape[:2]
 
     # 1) image_to_data para ubicar las palabras (usamos la Otsu — más fiable
@@ -413,30 +426,50 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
     # 2) Para cada etiqueta buscada, encontrar sus ocurrencias por texto
     def _find_word_occurrences(keyword: str, must_not_preceded_by_P: bool) -> List[Dict]:
         """Devuelve todas las words cuyo texto contiene keyword (case-insensitive),
-        opcionalmente descartando aquellas cuya línea empieza por 'P '."""
+        opcionalmente descartando aquellas cuya línea empieza por 'P '.
+
+        Búsqueda tolerante: acepta hasta 1 carácter distinto en labels de
+        ≥6 letras (p.ej. 'Suplementos' vs 'Surlementos' — típica confusión
+        OCR P↔R). Esto evita perder valores cuando Tesseract confunde una
+        letra de la etiqueta."""
         keyword_up = keyword.upper()
+        kk = re.sub(r"[^\w]", "", keyword_up)
+
+        def _fuzzy_match(a: str, b: str) -> bool:
+            """True si a y b coinciden con hasta 1 sustitución (misma longitud)."""
+            if len(a) != len(b):
+                return False
+            diff = sum(1 for x, y in zip(a, b) if x != y)
+            return diff <= 1
+
         hits = []
         for w in words:
             wu = re.sub(r"[^\w]", "", w["text"].upper())
-            kk = re.sub(r"[^\w]", "", keyword_up)
-            if wu == kk or (len(kk) >= 4 and kk in wu):
-                if must_not_preceded_by_P:
-                    # Comprobar si en la MISMA línea hay una "P" al inicio
-                    same_line_words = [
-                        ow for ow in words
-                        if ow["block"] == w["block"] and ow["line"] == w["line"]
-                    ]
-                    same_line_words.sort(key=lambda o: o["x"])
-                    if same_line_words:
-                        first = same_line_words[0]
-                        # Si la primera palabra es exactamente "P" o "P." descartar
-                        if re.fullmatch(r"[Pp][.,:]?", first["text"]):
-                            continue
-                hits.append(w)
+            matched = (
+                wu == kk
+                or (len(kk) >= 4 and kk in wu)
+                or (len(kk) >= 6 and _fuzzy_match(wu, kk))
+            )
+            if not matched:
+                continue
+            if must_not_preceded_by_P:
+                # Comprobar si en la MISMA línea hay una "P" al inicio
+                same_line_words = [
+                    ow for ow in words
+                    if ow["block"] == w["block"] and ow["line"] == w["line"]
+                ]
+                same_line_words.sort(key=lambda o: o["x"])
+                if same_line_words:
+                    first = same_line_words[0]
+                    # Si la primera palabra es exactamente "P" o "P." descartar
+                    if re.fullmatch(r"[Pp][.,:]?", first["text"]):
+                        continue
+            hits.append(w)
         return hits
 
     # 3) Extraer el número de cada campo
     result: Dict[str, Any] = {}
+    _all_candidates: Dict[str, List[str]] = {}   # todos los raw_values por campo
     label_used_positions = set()  # (block, line, x) para no reutilizar la misma etiqueta
 
     # Recorrido en orden: primero labels específicas (Servicios, Carreras, etc.),
@@ -468,7 +501,12 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
         wide_y0 = max(label_word["y"] - 4, 0)
         wide_y1 = min(label_word["y"] + label_word["h"] + 4, H)
 
-        # Crops candidatos: (nombre, crop_bw, crop_adp)
+        # Crops candidatos: (nombre, crop_bw, crop_adp, crop_gray)
+        # NOTA: crop_gray (binarización LOCAL) probado y desactivado —
+        # genera candidatos con dígitos extra del contexto que ganan
+        # por número de caracteres a los correctos. Se mantiene la
+        # infraestructura por si en el futuro se quiere activar por
+        # campo específico.
         crop_candidates: List[tuple] = []
 
         if num_words:
@@ -487,29 +525,37 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
                 "narrow",
                 arr[y0:y1, x0:x1],
                 arr_adp[y0:y1, x0:x1] if arr_adp is not None else None,
+                None,  # gray desactivado (ver nota arriba)
             ))
 
         # Siempre añadir el crop AMPLIO como candidato alternativo
+        # (SIN gray — evita meter ruido del margen del ticket)
         crop_candidates.append((
             "wide",
             arr[wide_y0:wide_y1, wide_x0:wide_x1],
             arr_adp[wide_y0:wide_y1, wide_x0:wide_x1] if arr_adp is not None else None,
+            None,  # gray desactivado en wide
         ))
 
         # OCR: primero el crop NARROW (más preciso, casi siempre acierta).
         # Solo se usa el WIDE si el narrow da resultado corto/vacío.
+        # Guardamos también el ORIGEN (bw/adp) para desempatar cuando dos
+        # candidatos empatan en score — la variante ADAPTATIVA suele leer
+        # mejor los tickets térmicos apagados.
         narrow_values: List[str] = []
         wide_values: List[str] = []
+        adaptive_values: set = set()  # valores leídos por la variante adaptativa
 
-        for _label, cbw, cadp in crop_candidates:
-            if cbw is not None and cbw.size > 0 and cbw.shape[0] >= 5 and cbw.shape[1] >= 20:
-                v1 = _ocr_number_only(cbw)
-                if v1:
-                    (narrow_values if _label == "narrow" else wide_values).append(v1)
-            if cadp is not None and cadp.size > 0 and cadp.shape[0] >= 5 and cadp.shape[1] >= 20:
-                v2 = _ocr_number_only(cadp)
-                if v2:
-                    (narrow_values if _label == "narrow" else wide_values).append(v2)
+        variant_names = ("bw", "adp", "gray")
+        for _label, cbw, cadp, cgray in crop_candidates:
+            for c, vname in zip((cbw, cadp, cgray), variant_names):
+                if c is None or c.size == 0 or c.shape[0] < 5 or c.shape[1] < 20:
+                    continue
+                val = _ocr_number_only(c)
+                if val:
+                    (narrow_values if _label == "narrow" else wide_values).append(val)
+                    if vname == "adp":
+                        adaptive_values.add(val)
 
         # Elegir fuente: narrow si tiene resultados con ≥3 dígitos, si no wide.
         def _n_dig(s: str) -> int:
@@ -520,20 +566,59 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
         if not raw_values:
             continue
 
-        # Score por candidato: (nº de pasadas donde aparece exactamente,
-        # nº de dígitos, tiene decimal).
+        # Descartar candidatos con demasiados dígitos (>10 = casi seguro
+        # basura por unión de dos números adyacentes en el crop).
+        raw_values = [v for v in raw_values if _n_dig(v) <= 10]
+        if not raw_values:
+            continue
+
+        # Descartar el valor "0" / "0,0" / "0,00" para campos monetarios
+        # y de distancia — casi siempre es del crop invadiendo la columna P
+        # (parcial) que a inicio de turno vale 0,00. El valor acumulado real
+        # nunca es 0 en un taxímetro que ha rodado.
+        _NONZERO_FIELDS = {
+            "carreras_eur", "suplementos", "total_eur",
+            "dist_total_km", "dist_ocupado_km", "dist_libre_km", "dist_off_km",
+            "tiempo_ocupado", "tiempo_on", "num_servicios",
+        }
+        if dest_key in _NONZERO_FIELDS:
+            filtered = [v for v in raw_values if _es_to_float(v) not in (None, 0.0)]
+            if filtered:
+                raw_values = filtered
+
+        # Score por candidato — la prioridad depende del tipo de campo:
+        #   - Campos con decimal esperado (km, €): has_decimal PRIMERO.
+        #     Los tickets IMPRIMEN 52537,9 con coma — un candidato entero
+        #     de 7 dígitos casi siempre es OCR-corrupto (fusión de dos
+        #     números adyacentes). El decimal es la mejor señal.
+        #   - Campos enteros (num_servicios, borrados, licencia, tiempo_*):
+        #     votes primero, luego n_dígitos.
+        _DECIMAL_FIELDS = {
+            "carreras_eur", "suplementos", "total_eur",
+            "dist_total_km", "dist_ocupado_km", "dist_libre_km", "dist_off_km",
+        }
         from collections import Counter
         counter = Counter(raw_values)
 
         def _score(s: str) -> tuple:
-            n_dig = sum(1 for c in s if c.isdigit())
+            n_dig = _n_dig(s)
             has_dec = 1 if ("," in s or "." in s) else 0
             votes = counter[s]
-            return (votes, n_dig, has_dec)
+            is_adp = 1 if s in adaptive_values else 0
+            if dest_key in _DECIMAL_FIELDS:
+                # Decimal esperado: has_dec > votes > n_dig > is_adp
+                return (has_dec, votes, n_dig, is_adp)
+            # Enteros: votes > n_dig > is_adp (adp desempata cuando todo iguala)
+            return (votes, n_dig, is_adp, has_dec)
 
         unique_vals = list(counter.keys())
         unique_vals.sort(key=_score, reverse=True)
         val = unique_vals[0]
+
+        # Guardar TODOS los candidatos alternativos para validación cruzada
+        # posterior (permite corregir empates usando relaciones como
+        # total ≈ carreras + suplementos o dist_total ≈ ocupado + libre + off).
+        _all_candidates.setdefault(dest_key, []).extend(unique_vals)
 
         if dest_key in ("num_servicios", "borrados", "licencia"):
             iv = _es_to_int(val)
@@ -543,6 +628,85 @@ def _ocr_values_positional(pil_bw, pil_adp=None) -> Dict[str, Any]:
             fv = _es_to_float(val)
             if fv is not None:
                 result[dest_key] = fv
+
+    # ── Validación cruzada matemática ──
+    # Los tickets tienen relaciones estrictas entre campos. Si el candidato
+    # ganador no las cumple pero HAY otro candidato que sí lo hace, sustituir.
+    def _best_candidate_matching(key: str, target: float, tol: float) -> Optional[float]:
+        """Devuelve el candidato float del campo `key` más cercano a `target`
+        dentro de `tol`; None si ninguno cumple."""
+        cands = _all_candidates.get(key) or []
+        best = None
+        best_diff = tol
+        for c in cands:
+            fv = _es_to_float(c)
+            if fv is None:
+                continue
+            diff = abs(fv - target)
+            if diff <= best_diff:
+                best_diff = diff
+                best = fv
+        return best
+
+    # Regla 1: total_eur ≈ carreras + suplementos
+    #   Estrategia combinada: probar todas las combinaciones de candidatos
+    #   de (total_eur, suplementos) y elegir la que mejor satisfaga
+    #   total = carreras + suplementos (±1€). Esto rescata ambos campos
+    #   simultáneamente cuando el crop de suplementos invadió la columna P
+    #   (leyó 0,00 en vez del acumulado real 204,90).
+    if "carreras_eur" in result:
+        carreras = float(result["carreras_eur"])
+        total_cands = [_es_to_float(v) for v in _all_candidates.get("total_eur", [])]
+        supl_cands = [_es_to_float(v) for v in _all_candidates.get("suplementos", [])]
+        total_cands = [t for t in total_cands if t is not None]
+        supl_cands = [s for s in supl_cands if s is not None]
+        # Añadir el valor 0 explícitamente por si suplementos = 0 en algún ticket
+        if 0.0 not in supl_cands:
+            supl_cands.append(0.0)
+
+        best_pair = None
+        best_diff = 1.0
+        for t in total_cands:
+            for s in supl_cands:
+                diff = abs(t - (carreras + s))
+                if diff < best_diff:
+                    best_diff = diff
+                    best_pair = (t, s)
+        if best_pair is not None:
+            t_ok, s_ok = best_pair
+            if result.get("total_eur") != t_ok:
+                logger.info(f"[positional-xcheck] total_eur {result.get('total_eur')} → {t_ok}")
+                result["total_eur"] = t_ok
+            if result.get("suplementos") != s_ok:
+                logger.info(f"[positional-xcheck] suplementos {result.get('suplementos')} → {s_ok}")
+                result["suplementos"] = s_ok
+
+    # Regla 2: dist_total ≈ dist_ocupado + dist_libre + dist_off (±2 km)
+    if all(k in result for k in ("dist_ocupado_km", "dist_libre_km")):
+        expected_dist = float(result["dist_ocupado_km"]) + float(result["dist_libre_km"])
+        if "dist_off_km" in result:
+            expected_dist += float(result["dist_off_km"])
+        cur_dist = result.get("dist_total_km")
+        if cur_dist is None or abs(float(cur_dist) - expected_dist) > 3.0:
+            better = _best_candidate_matching("dist_total_km", expected_dist, 3.0)
+            if better is not None:
+                logger.info(f"[positional-xcheck] dist_total_km {cur_dist} → {better} (=ocup+libre+off={expected_dist:.1f})")
+                result["dist_total_km"] = better
+
+    # Regla 3: dist_libre alternativo si dist_total ya está fijo — usar la
+    # consistencia con dist_total - dist_ocupado - dist_off para elegir entre
+    # candidatos empatados (ej: 26742,9 vs 26742,5).
+    if all(k in result for k in ("dist_total_km", "dist_ocupado_km")):
+        expected_libre = float(result["dist_total_km"]) - float(result["dist_ocupado_km"])
+        if "dist_off_km" in result:
+            expected_libre -= float(result["dist_off_km"])
+        cur_libre = result.get("dist_libre_km")
+        # Solo sustituir si hay un candidato MEJOR (más cercano al esperado)
+        if cur_libre is not None and abs(float(cur_libre) - expected_libre) > 0.5:
+            better = _best_candidate_matching("dist_libre_km", expected_libre, 1.0)
+            if better is not None and abs(better - expected_libre) < abs(float(cur_libre) - expected_libre):
+                logger.info(f"[positional-xcheck] dist_libre_km {cur_libre} → {better} (=total-ocup-off={expected_libre:.1f})")
+                result["dist_libre_km"] = better
 
     return result
 
@@ -583,10 +747,12 @@ def _ocr_number_only(crop) -> Optional[str]:
     pil_bw = _Image.fromarray(bw)
 
     all_candidates: List[str] = []
-    for psm in (7, 8):
-        # Whitelist: dígitos + coma + punto + '/' (Tesseract MUY frecuentemente
-        # lee la coma decimal de tickets térmicos como '/' — se reemplaza a
-        # posteriori). NO incluye '-' (evita signos negativos falsos).
+    for psm in (7, 8, 13):
+        # PSM 7: single line. PSM 8: single word. PSM 13: raw line
+        # (bypass del layout analyzer — puede desambiguar 5/3 cuando los
+        # trazos se funden por Otsu).
+        # Whitelist: dígitos + coma + punto + '/' (se reemplaza a ',' post-OCR).
+        # NO incluye '-' (evita signos negativos falsos).
         # Diccionarios desactivados: evita que Tesseract "corrija" 5→S, 0→O.
         cfg = (
             f"--oem 3 --psm {psm} "
@@ -877,7 +1043,7 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     import pytesseract
 
     try:
-        img_bw, img_adaptive = _preprocess_for_ocr(image_bytes)
+        img_bw, img_adaptive, img_gray = _preprocess_for_ocr(image_bytes)
     except Exception as e:
         logger.exception("[journal-ocr] preprocessing failed")
         raise HTTPException(
@@ -913,7 +1079,7 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     # derecha con `--psm 7 -c tessedit_char_whitelist=0123456789.,`. Esto es
     # el método MÁS FIABLE porque Tesseract sólo puede devolver dígitos.
     try:
-        parsed_pos = _ocr_values_positional(img_bw, img_adaptive)
+        parsed_pos = _ocr_values_positional(img_bw, img_adaptive, img_gray)
         logger.info(f"[journal-ocr] positional → {parsed_pos}")
     except Exception:
         logger.exception("[journal-ocr] positional OCR failed")
