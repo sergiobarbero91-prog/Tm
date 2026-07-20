@@ -586,6 +586,63 @@ def _ocr_values_positional(pil_bw, pil_adp=None, pil_gray=None) -> Dict[str, Any
             if filtered:
                 raw_values = filtered
 
+        # Rangos PLAUSIBLES por campo: descarta candidatos con orden de
+        # magnitud imposible (típicamente por 1 dígito extra al inicio/final
+        # capturado del borde del ticket o de la fila adyacente).
+        # Ejemplo real: "1560155" cuando el valor real es "156015" — el 7º
+        # dígito es basura que viene del inicio de la fila siguiente.
+        _RANGE_BY_FIELD = {
+            "num_servicios":    (1, 999_999),
+            "borrados":         (0, 999_999),
+            "licencia":         (1, 9_999_999),
+            "carreras_eur":     (0.01, 9_999_999),
+            "suplementos":      (0.0, 999_999),
+            "total_eur":        (0.01, 9_999_999),
+            "dist_total_km":    (0.1, 999_999),
+            "dist_ocupado_km":  (0.0, 999_999),
+            "dist_libre_km":    (0.0, 999_999),
+            "dist_off_km":      (0.0, 99_999),
+            "tiempo_ocupado":   (10, 9_999_999),
+            "tiempo_on":        (10, 9_999_999),
+        }
+        rmin, rmax = _RANGE_BY_FIELD.get(dest_key, (None, None))
+        if rmin is not None:
+            filtered = []
+            for v in raw_values:
+                fv = _es_to_float(v)
+                if fv is None:
+                    continue
+                if rmin <= fv <= rmax:
+                    filtered.append(v)
+            if filtered:
+                raw_values = filtered
+
+        # Filtro por cantidad de decimales ESPERADOS por campo. En el ticket:
+        #   - dist_*_km imprimen 1 decimal (52537,9 · 25457,1 · 26742,5 · 339,0)
+        #   - carreras / suplementos / total: 2 decimales (49854,10)
+        #   - num_servicios, tiempo_*, borrados, licencia: sin decimales
+        # Un candidato con MÁS decimales del esperado ("25457,00" cuando el
+        # ticket dice "25457,1") es OCR-corrupto — el "00" viene del bg.
+        _EXPECTED_DECIMALS = {
+            "dist_total_km": 1, "dist_ocupado_km": 1, "dist_libre_km": 1, "dist_off_km": 1,
+            "carreras_eur": 2, "suplementos": 2, "total_eur": 2,
+            "num_servicios": 0, "borrados": 0, "licencia": 0,
+            "tiempo_ocupado": 0, "tiempo_on": 0,
+        }
+        exp_dec = _EXPECTED_DECIMALS.get(dest_key)
+        if exp_dec is not None:
+            def _dec_count(s: str) -> int:
+                # Cuenta los dígitos después de la última coma/punto (si hay).
+                m = re.search(r"[.,](\d+)$", s)
+                return len(m.group(1)) if m else 0
+
+            with_expected = [v for v in raw_values if _dec_count(v) == exp_dec]
+            if with_expected:
+                # Si hay candidatos con la cantidad correcta de decimales,
+                # usar SOLO esos. Si no hay ninguno (todo mal-decimalizado),
+                # dejamos raw_values como está para no perder valor alguno.
+                raw_values = with_expected
+
         # Score por candidato — la prioridad depende del tipo de campo:
         #   - Campos con decimal esperado (km, €): has_decimal PRIMERO.
         #     Los tickets IMPRIMEN 52537,9 con coma — un candidato entero
@@ -746,6 +803,21 @@ def _ocr_values_positional(pil_bw, pil_adp=None, pil_gray=None) -> Dict[str, Any
                 if cur is None or abs(float(cur) - new_val) > 0.05:
                     logger.info(f"[positional-xcheck-combined] {field} {cur} → {new_val}")
                     result[field] = new_val
+
+    # Regla 3: tiempo_on debe estar en orden de magnitud similar a tiempo_ocupado
+    # (típicamente tiempo_on entre 1x y 20x el tiempo_ocupado). Si el ganador
+    # queda muy lejos, buscar un candidato mejor.
+    if all(k in result for k in ("tiempo_ocupado", "tiempo_on")):
+        tocp = float(result["tiempo_ocupado"])
+        ton = float(result["tiempo_on"])
+        if tocp > 0 and (ton < tocp * 0.5 or ton > tocp * 30):
+            cands = [_es_to_float(v) for v in _all_candidates.get("tiempo_on", [])]
+            plausible = [c for c in cands if c is not None and tocp * 0.5 <= c <= tocp * 30]
+            if plausible:
+                # Elegir el más cercano a la mediana del rango razonable
+                best = min(plausible, key=lambda c: abs(c - tocp * 3))
+                logger.info(f"[positional-xcheck] tiempo_on {ton} → {best} (tocp={tocp})")
+                result["tiempo_on"] = best
 
     return result
 
@@ -1145,25 +1217,34 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         except (TypeError, ValueError):
             return True
         if key.startswith("dist_") and key.endswith("_km"):
-            if f < 0 or f > 1_000_000:
+            # Un taxi difícilmente supera 999_999 km acumulados.
+            if f < 0 or f > 999_999:
                 return True
             # Distancias en el taxímetro SIEMPRE tienen decimales.
             # Un entero grande sin coma sugiere OCR se comió el ',' → sospechoso.
             if f > 10_000 and f == int(f):
                 return True
-        if key == "carreras_eur":
-            if f < 0 or f > 10_000_000:
+        if key in ("carreras_eur", "total_eur", "suplementos"):
+            if f < 0 or f > 9_999_999:
                 return True
-            # Facturación €: también con decimales en cents.
+            # €: también con decimales en cents.
             if f > 100_000 and f == int(f):
                 return True
         if key == "num_servicios":
+            # Un taxi difícilmente hace >999_999 servicios acumulados.
             if f < 0 or f > 999_999:
+                return True
+        if key == "borrados":
+            if f < 0 or f > 999_999:
+                return True
+        if key == "licencia":
+            if f < 0 or f > 9_999_999:
                 return True
         if key.startswith("tiempo_"):
             # Tiempos son enteros acumulados (segundos o cs desde encendido).
-            # Rango típico: 1000-9999999. Un valor < 100 con OCR es sospechoso.
-            if f < 100 or f > 100_000_000:
+            # Rango razonable: 10 a 9_999_999. Un valor >10M es 1 dígito
+            # extra pegado del contexto.
+            if f < 10 or f > 9_999_999:
                 return True
         return False
 
