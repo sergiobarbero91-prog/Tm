@@ -50,13 +50,16 @@ class ParcialReading(BaseModel):
     fecha: Optional[str] = None              # YYYY-MM-DD
     hora: Optional[str] = None               # HH:MM
     num_servicios: Optional[int] = None
-    carreras_eur: Optional[float] = None     # facturación (€)
+    carreras_eur: Optional[float] = None     # facturación (€) del turno (sección P)
     dist_total_km: Optional[float] = None
     dist_ocupado_km: Optional[float] = None
     dist_libre_km: Optional[float] = None
-    tiempo_ocupado: Optional[str] = None     # HH:MM
-    tiempo_on: Optional[str] = None          # HH:MM
-    raw_ocr_text: Optional[str] = None       # for debugging
+    tiempo_ocupado: Optional[float] = None   # unidades tal cual las imprime el taxímetro
+    tiempo_on: Optional[float] = None        # unidades tal cual las imprime el taxímetro
+    # Bloques originales conservados para auditoría / edición manual
+    totales_taximetro: Optional[Dict[str, Any]] = None   # sección superior (acumulado histórico)
+    parcial_turno: Optional[Dict[str, Any]] = None       # sección "P " completa
+    raw_ocr_text: Optional[str] = None       # for debugging & manual correction
     ocr_warnings: List[str] = Field(default_factory=list)
 
 
@@ -126,9 +129,15 @@ def _hhmm_to_str(s: str) -> Optional[str]:
 
 
 def _preprocess_for_ocr(image_bytes: bytes):
-    """Devuelve una imagen PIL lista para pasar a Tesseract."""
+    """Devuelve una imagen PIL lista para pasar a Tesseract.
+
+    Aplica auto-rotación probando las 4 orientaciones y quedándose con la que
+    contiene más palabras-clave del ticket (más fiable que Tesseract OSD sobre
+    fotos hechas encima de una sábana / mesa con textura).
+    """
     import cv2
     import numpy as np
+    import pytesseract
     from PIL import Image
     import io
 
@@ -136,143 +145,308 @@ def _preprocess_for_ocr(image_bytes: bytes):
     arr = np.frombuffer(image_bytes, dtype=np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
-        # Puede ser HEIC u otro; intentar vía PIL
+        # Puede ser HEIC / WEBP; intentar vía PIL
         img_pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    # 1. Reescalar si es pequeña (Tesseract prefiere ~300 DPI)
+    # 1. Reescalar (Tesseract prefiere ~300 DPI; fotos móviles son 12+ Mpx)
     h, w = img.shape[:2]
-    if max(h, w) < 1200:
+    if max(h, w) > 2400:
+        scale = 2400 / max(h, w)
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    elif max(h, w) < 1200:
         scale = 1200 / max(h, w)
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
 
-    # 2. Escala de grises
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    def _prep_bw(mat):
+        gray = cv2.cvtColor(mat, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+        gray = clahe.apply(gray)
+        gray = cv2.medianBlur(gray, 3)
+        _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return bw
 
-    # 3. CLAHE — mejora contraste local (útil en tickets con impresión térmica clara)
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
+    # 2. Detectar rotación sobre MINIATURA para acelerar (~800ms vs 6s).
+    KEYWORDS = ("FECHA", "LICENCIA", "CARRERAS", "SERVICIOS", "DIST", "TIEMPO",
+                "TOTAL", "OCUPADO", "LIBRE", "PARCIAL", "SUPLEM", "BORRADOS")
+    hh, ww = img.shape[:2]
+    thumb_scale = 800 / max(hh, ww)
+    thumb = cv2.resize(img, None, fx=thumb_scale, fy=thumb_scale, interpolation=cv2.INTER_AREA)
 
-    # 4. Blur leve para eliminar ruido térmico
-    gray = cv2.medianBlur(gray, 3)
+    best_score = -1
+    best_angle = 0
+    for angle, rot in [(0, None), (90, cv2.ROTATE_90_CLOCKWISE),
+                       (180, cv2.ROTATE_180), (270, cv2.ROTATE_90_COUNTERCLOCKWISE)]:
+        cand = thumb if rot is None else cv2.rotate(thumb, rot)
+        try:
+            sample = pytesseract.image_to_string(
+                Image.fromarray(_prep_bw(cand)),
+                lang="spa+eng",
+                config="--oem 3 --psm 6",
+            )
+        except Exception:
+            continue
+        up = sample.upper()
+        score = sum(1 for k in KEYWORDS if k in up)
+        if score > best_score:
+            best_score = score
+            best_angle = angle
 
-    # 5. Threshold Otsu
-    _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Aplicar rotación ganadora a la imagen grande y preprocesar UNA vez.
+    if best_angle == 90:
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    elif best_angle == 180:
+        img = cv2.rotate(img, cv2.ROTATE_180)
+    elif best_angle == 270:
+        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-    # 6. Deskew — corrige inclinación
-    coords = np.column_stack(np.where(bw < 128))
+    best_bw = _prep_bw(img)
+
+    # 3. Deskew fino sobre la mejor rotación (corrige inclinaciones <15°)
+    coords = np.column_stack(np.where(best_bw < 128))
     if len(coords) > 500:
         angle = cv2.minAreaRect(coords)[-1]
         if angle < -45:
             angle = -(90 + angle)
         else:
             angle = -angle
-        if abs(angle) > 0.5 and abs(angle) < 15:
-            (h2, w2) = bw.shape
+        if 0.5 < abs(angle) < 15:
+            (h2, w2) = best_bw.shape
             M = cv2.getRotationMatrix2D((w2 // 2, h2 // 2), angle, 1.0)
-            bw = cv2.warpAffine(
-                bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
+            best_bw = cv2.warpAffine(
+                best_bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
                 borderMode=cv2.BORDER_REPLICATE
             )
 
-    return Image.fromarray(bw)
+    return Image.fromarray(best_bw)
 
 
-# ─── Regex patterns para campos ────────────────────────────────────────────
-# Etiquetas comunes en tickets parciales (case-insensitive). El OCR de
-# Tesseract a veces devuelve 'Km' como 'Kn' o 'lm' — toleramos variaciones.
+# ─── Regex patterns adaptados al formato REAL del taxímetro del usuario ────
+#
+# Un ticket parcial tiene DOS secciones:
+#
+#   Sección 1 — TOTALES ACUMULADOS del taxímetro (parte superior):
+#     FECHA:           18/07/26 15:06
+#     Nº LICENCIA:     09218
+#     Num. Servicios:  4628
+#     Carreras:        49854,10       ← acumulado histórico
+#     Suplementos:     204,90
+#     Total:           50059,00
+#     Dist. Total:     52537,9
+#     Dist. Ocupado:   25457,1
+#     Dist. Libre:     26742,5
+#     Dist. OFF:       339,0
+#     Tiempo Ocupado:  557761
+#     Tiempo On:       156015
+#     Borrados:        454
+#
+#   Sección 2 — PARCIALES del turno actual (líneas con prefijo "P "):
+#     P Nº de servs:      X
+#     P Carreras:         X,XX        ← facturación del turno
+#     P Suplementos:      X,XX
+#     P Total:            X,XX
+#     P Dist. Total:      X,X         ← km del turno
+#     P Dist. Ocupado:    X,X
+#     P Dist. Libre:      X,X
+#     P Dist. OFF:        X,X
+#     P Tiempo Ocupado:   X,X
+#     P Tiempo On:        X
+#
+# Los campos principales que la app usa (num_servicios, carreras_eur, dist_*,
+# tiempo_*) reflejan LA SECCIÓN P (parcial de la jornada). Los TOTALES
+# acumulados se guardan aparte en `totales_taximetro` para auditoría.
 
-_LABEL_CARRERAS = r"(?:CARRERAS?|IMPORTE|TOTAL(?:\s+FACT)?|FACTURA(?:CI[OÓ]N)?|RECAUDA(?:CI[OÓ]N)?|COBRAD[OA]|EUR(?:OS)?)"
-_LABEL_KM_TOTAL = r"(?:K[MN]\s*T(?:OTAL(?:ES)?)?|DIST[.\s]*TOTAL|TOTAL\s*K[MN])"
-_LABEL_KM_OCUP = r"(?:K[MN]\s*OCUP(?:AD[OA]S?)?|DIST[.\s]*OCUP|OCUP\.?\s*K[MN])"
-_LABEL_KM_LIBRE = r"(?:K[MN]\s*LIBRES?|DIST[.\s]*LIBRE|LIBRE\.?\s*K[MN]|K[MN]\s*VAC[IÍ]O)"
-_LABEL_NUM_SERV = r"(?:N[UÚ]M(?:ERO)?\.?\s*(?:DE\s*)?SERV(?:ICIOS?)?|SERV(?:ICIOS?)?|CARR(?:ERAS?)?|VIAJES?)"
-_LABEL_T_OCUP = r"(?:T(?:IEMPO)?\.?\s*OCUP(?:AD[OA]S?)?|H(?:ORA)?S?\s*OCUP)"
-_LABEL_T_ON = r"(?:T(?:IEMPO)?\.?\s*(?:ON|ENCENDIDO|TOTAL|SERV)|H(?:ORA)?S?\s*ON)"
+# Número en formato español. IMPORTANTE: el orden de las alternativas importa
+# (Python regex es first-match, no longest-match). Ponemos primero las
+# variantes con decimal para que "49854,10" no se trunque a "498".
+_NUM_ES = r"(-?\d+[.,]\d+|-?\d{1,3}(?:[.\s]\d{3})+|-?\d+)"
 
 
-def _find_after_label(text: str, label_pattern: str, value_pattern: str) -> Optional[str]:
-    """Busca 'LABEL ... VALUE' en la misma línea o la siguiente."""
-    # 1) Misma línea (permitiendo dos-puntos, espacios, tabuladores)
-    m = re.search(
-        rf"{label_pattern}[^\n0-9]{{0,20}}{value_pattern}",
-        text, re.IGNORECASE
+def _es_to_float(s: Optional[str]) -> Optional[float]:
+    if not s:
+        return None
+    s = s.strip().replace(" ", "")
+    if "," in s and "." in s:
+        # p.ej. "1.234,56" (español) o "1,234.56" (inglés) — asumimos español
+        # cuando la última coma es el separador decimal.
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _es_to_int(s: Optional[str]) -> Optional[int]:
+    if not s:
+        return None
+    m = re.search(r"-?\d+", s.replace(".", "").replace(" ", ""))
+    return int(m.group(0)) if m else None
+
+
+def _fix_ocr_digits(s: str) -> str:
+    """Corrige confusiones comunes de OCR en números: O→0, o→0, l/I→1, S→5, B→8."""
+    if not s:
+        return s
+    return (
+        s.replace("O", "0").replace("o", "0")
+         .replace("l", "1").replace("I", "1").replace("|", "1")
     )
-    if m:
-        return m.group(1)
-    # 2) Línea siguiente
-    m = re.search(
-        rf"{label_pattern}[^\n]*\n[^0-9]{{0,10}}{value_pattern}",
-        text, re.IGNORECASE
-    )
-    if m:
-        return m.group(1)
+
+
+def _label_to_regex(lab: str) -> str:
+    """Convierte una etiqueta legible en un patrón regex tolerante.
+
+    Regla:
+      - Cada espacio → `\\s+` (uno o más espacios/tabs)
+      - Cada punto → `[.,]?` (punto opcional; a veces el OCR se lo come)
+      - El resto de caracteres se escapan literalmente.
+    """
+    out: List[str] = []
+    for ch in lab:
+        if ch == " ":
+            out.append(r"\s+")
+        elif ch == ".":
+            out.append(r"[.,]?")
+        elif ch.isalnum():
+            out.append(ch)
+        else:
+            out.append(re.escape(ch))
+    return "".join(out)
+
+
+def _find_value(text: str, label_variants: List[str], value_re: str) -> Optional[str]:
+    """Busca cualquier variante de etiqueta seguida del valor en la misma línea."""
+    for lab in label_variants:
+        lab_re = _label_to_regex(lab)
+        pat = rf"{lab_re}\s*[:!\-–—]?\s*{value_re}"
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            return m.group(1)
     return None
 
 
+# Etiquetas exactas del ticket del usuario. Cada entrada es una lista con
+# variantes (por si el OCR se traga acentos, espacios, etc.).
+LABELS_ACUM = {
+    "num_servicios":  ["Num Servicios", "N Servicios", "Numero Servicios"],
+    "carreras_eur":   ["Carreras"],
+    "suplementos":    ["Suplementos", "Surlementos"],  # (Tesseract a veces lee 'Surlementos')
+    "total_eur":      ["Total"],
+    "dist_total_km":  ["Dist Total", "Dist. Total"],
+    "dist_ocupado_km":["Dist Ocupado", "Dist. Ocupado"],
+    "dist_libre_km":  ["Dist Libre", "Dist. Libre"],
+    "dist_off_km":    ["Dist OFF", "Dist. OFF", "Dist Off"],
+    "tiempo_ocupado": ["Tiempo Ocupado"],
+    "tiempo_on":      ["Tiempo On", "Tiempo ON"],
+    "borrados":       ["Borrados"],
+    "licencia":       ["N LICENCIA", "Nº LICENCIA", "N9 LICENCIA", "LICENCIA"],
+}
+
+LABELS_PARCIAL = {
+    "num_servicios":  ["P N de servs", "P Nº de servs", "P N9 de servs",
+                        "P Num servicios", "P Num. Servicios", "P Servicios"],
+    "carreras_eur":   ["P Carreras"],
+    "suplementos":    ["P Suplementos", "P Surlementos"],
+    "total_eur":      ["P Total"],
+    "dist_total_km":  ["P Dist Total", "P Dist. Total", "P.Dist. Total", "P.Dist Total"],
+    "dist_ocupado_km":["P Dist Ocupado", "P Dist. Ocupado", "P.Dist. Ocupado", "P.Dist Ocupado"],
+    "dist_libre_km":  ["P Dist Libre", "P Dist. Libre", "P.Dist. Libre"],
+    "dist_off_km":    ["P Dist OFF", "P Dist. OFF", "P.Dist. OFF"],
+    "tiempo_ocupado": ["P Tiempo Ocupado"],
+    "tiempo_on":      ["P Tiempo On", "P Tiempo ON"],
+}
+
+
+def _parse_section(text: str, labels_map: Dict[str, List[str]]) -> Dict[str, Any]:
+    """Parsea un bloque de texto contra un diccionario de etiquetas."""
+    out: Dict[str, Any] = {}
+    for key, variants in labels_map.items():
+        raw = _find_value(text, variants, _NUM_ES)
+        if raw is None:
+            continue
+        if key in ("num_servicios", "borrados", "licencia"):
+            out[key] = _es_to_int(raw)
+        else:
+            out[key] = _es_to_float(_fix_ocr_digits(raw))
+    return out
+
+
+# Patrón que identifica una línea como PARCIAL: la palabra "P" (aislada por
+# espacios o puntos) seguida en el mismo tramo por una etiqueta conocida
+# (Carreras, Dist, Tiempo, Total, N, Suplementos, etc.).
+_PARCIAL_LINE_RE = re.compile(
+    r"\bP[\s.]+(?:N[°º9]?|Nº|Num|N |Carreras|Dist|Tiempo|Total|Suplem)",
+    re.IGNORECASE,
+)
+
+
 def _parse_ticket_text(raw: str) -> Dict[str, Any]:
-    """Extrae los campos del texto plano OCR con regex tolerantes."""
+    """Extrae los campos del texto plano OCR con regex tolerantes.
+
+    Devuelve un dict con:
+      - campos principales (de la sección P — parcial de jornada):
+        fecha, hora, num_servicios, carreras_eur, dist_*_km, tiempo_*
+      - `totales_taximetro`: sección superior (acumulados del taxímetro)
+      - `raw_ocr_text`: texto crudo (se añade fuera)
+    """
     text = raw
-    # Uniformizar espacios / OCR artifacts frecuentes
-    text_norm = re.sub(r"[|]", "1", text)  # OCR a veces confunde 1 con |
     out: Dict[str, Any] = {}
 
-    # Fecha DD/MM/YYYY o DD-MM-YY(YY)
-    m = re.search(r"(\d{2})[/\-.](\d{2})[/\-.](\d{2,4})", text)
+    # ── Fecha y hora (línea única "FECHA: DD/MM/YY HH:MM")
+    m = re.search(
+        r"FECHA[:!\s]*(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})(?:\s+(\d{1,2})[:.](\d{2}))?",
+        text, re.IGNORECASE
+    )
     if m:
         d, mth, y = m.group(1), m.group(2), m.group(3)
         if len(y) == 2:
             y = "20" + y
-        out["fecha"] = f"{y}-{mth}-{d}"
+        out["fecha"] = f"{y}-{int(mth):02d}-{int(d):02d}"
+        if m.group(4):
+            out["hora"] = f"{int(m.group(4)):02d}:{m.group(5)}"
 
-    # Hora HH:MM
-    m = re.search(r"\b(\d{1,2}):(\d{2})(?::\d{2})?\b", text)
-    if m:
-        out["hora"] = f"{int(m.group(1)):02d}:{m.group(2)}"
+    # ── Separar el texto en dos secciones por LÍNEA.
+    #    Una línea es de la sección P si contiene "P <etiqueta_conocida>"
+    #    en cualquier parte (más tolerante a ruido de OCR al principio de
+    #    la línea, ej. "ile P Carreras: 0,00").
+    acum_lines: List[str] = []
+    parcial_lines: List[str] = []
+    for line in text.splitlines():
+        if _PARCIAL_LINE_RE.search(line):
+            parcial_lines.append(line)
+        else:
+            acum_lines.append(line)
 
-    # Número de servicios (entero)
-    ns = _find_after_label(text_norm, _LABEL_NUM_SERV, r"(\d{1,4})")
-    if ns:
-        try:
-            out["num_servicios"] = int(ns)
-        except ValueError:
-            pass
+    acumulados = _parse_section("\n".join(acum_lines), LABELS_ACUM)
+    parciales = _parse_section("\n".join(parcial_lines), LABELS_PARCIAL)
 
-    # Importe (€ facturación)
-    carr = _find_after_label(text_norm, _LABEL_CARRERAS, _NUM_ES)
-    # A veces la etiqueta es solo "€" al final del número
-    if not carr:
-        m = re.search(rf"{_NUM_ES}\s*€", text_norm)
-        if m:
-            carr = m.group(1)
-    if carr:
-        out["carreras_eur"] = _es_to_float(carr)
+    # ── Los CAMPOS PRINCIPALES reflejan la sección P (parcial del turno).
+    #    Si la sección P no está (p.ej. ticket antiguo o solo con totales),
+    #    usamos los acumulados como fallback.
+    src = parciales if parciales else acumulados
+    for key in ("num_servicios", "carreras_eur", "dist_total_km",
+                "dist_ocupado_km", "dist_libre_km", "tiempo_ocupado", "tiempo_on"):
+        if key in src:
+            out[key] = src[key]
 
-    # Km totales / ocupados / libres
-    for key, pat in (
-        ("dist_total_km", _LABEL_KM_TOTAL),
-        ("dist_ocupado_km", _LABEL_KM_OCUP),
-        ("dist_libre_km", _LABEL_KM_LIBRE),
-    ):
-        v = _find_after_label(text_norm, pat, _NUM_ES)
-        if v:
-            fv = _es_to_float(v)
-            if fv is not None:
-                out[key] = fv
-
-    # Si tenemos total y ocupado pero no libre, lo derivamos
-    if out.get("dist_total_km") and out.get("dist_ocupado_km") and not out.get("dist_libre_km"):
+    # ── Fallback dist_libre si tenemos total y ocupado pero no libre
+    if out.get("dist_total_km") and out.get("dist_ocupado_km") and out.get("dist_libre_km") is None:
         libre = out["dist_total_km"] - out["dist_ocupado_km"]
         if libre >= 0:
             out["dist_libre_km"] = round(libre, 2)
 
-    # Tiempos (HH:MM o Xh Y)
-    to = _find_after_label(text_norm, _LABEL_T_OCUP, _TIME_HHMM)
-    if to:
-        out["tiempo_ocupado"] = _hhmm_to_str(to)
-    ton = _find_after_label(text_norm, _LABEL_T_ON, _TIME_HHMM)
-    if ton:
-        out["tiempo_on"] = _hhmm_to_str(ton)
+    # ── Guardar bloque de acumulados para auditoría / validación
+    if acumulados:
+        out["totales_taximetro"] = acumulados
+
+    # ── Guardar bloque parcial completo (por si algún día lo mostramos aparte)
+    if parciales:
+        out["parcial_turno"] = parciales
 
     return out
 

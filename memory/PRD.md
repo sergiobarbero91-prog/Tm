@@ -295,7 +295,38 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🔄 Migración OCR: de Gemini Vision a Tesseract local (Feb 2026)
+### 🎯 OCR ajustado a formato REAL del ticket (Feb 2026, iteración 2)
+- **Contexto**: El usuario compartió una foto real de su parcial. El ticket tiene
+  DOS secciones:
+    - **Sección superior — TOTALES ACUMULADOS** (histórico del taxímetro):
+      FECHA, Nº LICENCIA, Num. Servicios, Carreras, Suplementos, Total,
+      Dist. Total/Ocupado/Libre/OFF, Tiempo Ocupado, Tiempo On, Borrados
+    - **Sección inferior — PARCIALES DEL TURNO** (líneas con prefijo "P "):
+      P Nº de servs, P Carreras, P Suplementos, P Total, P Dist. *, P Tiempo *
+  Además la foto llega **rotada 90°** desde el móvil.
+- **Solución**:
+  - `_preprocess_for_ocr`: auto-rotación probando las 4 orientaciones sobre
+    una MINIATURA 800px (fast path 800ms en vez de 6s) contando keywords
+    del ticket. Luego OCR final sobre imagen 2400px + deskew fino.
+  - `_label_to_regex`: convierte etiquetas legibles ("Dist. Total") en
+    patrones tolerantes (espacio → `\s+`, punto → `[.,]?`) sin las
+    complicaciones de `re.escape`.
+  - `_parse_ticket_text`: separa líneas por presencia de `\bP\s+(N|Carreras
+    |Dist|Tiempo|Total|Suplem)` (más robusto que "línea empieza con P").
+    Los CAMPOS PRINCIPALES reflejan la **sección P** (parcial del turno);
+    los TOTALES ACUMULADOS se guardan en `totales_taximetro` para
+    auditoría.
+  - Añadidos `totales_taximetro` y `parcial_turno` al modelo `ParcialReading`.
+  - `tiempo_ocupado`/`tiempo_on` cambiados de `Optional[str]` a
+    `Optional[float]` (el ticket los imprime como enteros, no como HH:MM).
+- **Resultado sobre foto real**:
+  - Fecha ✅ `2026-07-18`, Hora ✅ `15:06`
+  - `totales_taximetro`: **11/11 campos detectados** (Carreras 49854.10 €,
+    Total 50059.00 €, Dist. Total/Ocup/Libre/OFF, Tiempo Ocup/On, Borrados,
+    Licencia)
+  - `parcial_turno`: Todos a 0 (correcto — foto es de INICIO de jornada)
+  - Latencia end-to-end vía API: **4.3s** (Tesseract sobre 2400px)
+
 - **Motivación**: Usuarios recibían `503 IA saturada` cuando la cuota Gemini se
   agotaba o el modelo se sobrecargaba. Además, cada foto costaba dinero.
 - **Solución**: OCR 100 % local con **Tesseract 5.3** (paquete `tesseract-ocr`
