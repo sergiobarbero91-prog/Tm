@@ -471,6 +471,15 @@ export default function TransportMeter() {
   const [ocrShowEditModal, setOcrShowEditModal] = useState<null | 'start' | 'end'>(null);
   const [ocrEditDraft, setOcrEditDraft] = useState<Record<string, string>>({});
 
+  // Camera capture modal with visual guide frame ("encaja el ticket en el recuadro")
+  const [ocrCameraModal, setOcrCameraModal] = useState<null | {
+    resolver: (f: File | null) => void;
+  }>(null);
+  const ocrVideoRef = useRef<HTMLVideoElement | null>(null);
+  const ocrStreamRef = useRef<MediaStream | null>(null);
+  const [ocrCameraReady, setOcrCameraReady] = useState(false);
+  const [ocrCameraError, setOcrCameraError] = useState<string | null>(null);
+
   // Stats / trends
   const [ocrStats, setOcrStats] = useState<any | null>(null);
   const [ocrStatsBucket, setOcrStatsBucket] = useState<'day' | 'week' | 'month'>('week');
@@ -562,6 +571,128 @@ export default function TransportMeter() {
       };
       img.src = url;
     });
+  };
+
+  // ── Camera capture with visual guide ──────────────────────────────────
+  // Opens a modal with a live camera preview + a dashed orange rectangle
+  // overlay that shows where the taximeter ticket should be. Falls back to
+  // the native file picker if getUserMedia is not available (older browsers,
+  // permission denied, etc.).
+  const ocrCaptureWithGuide = (): Promise<File | null> => {
+    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      return ocrPickFile();  // Fallback: system file picker
+    }
+    return new Promise((resolve) => {
+      setOcrCameraReady(false);
+      setOcrCameraError(null);
+      setOcrCameraModal({ resolver: resolve });
+    });
+  };
+
+  // Start the video stream once the modal is mounted
+  useEffect(() => {
+    if (!ocrCameraModal) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        ocrStreamRef.current = stream;
+        if (ocrVideoRef.current) {
+          ocrVideoRef.current.srcObject = stream;
+          await ocrVideoRef.current.play().catch(() => {});
+        }
+        setOcrCameraReady(true);
+      } catch (e: any) {
+        console.warn('[ocr-camera] getUserMedia failed', e);
+        setOcrCameraError(
+          e?.name === 'NotAllowedError'
+            ? 'Permiso de cámara denegado. Usa el botón "Elegir archivo" o autoriza la cámara en los ajustes del navegador.'
+            : 'No se pudo abrir la cámara. Prueba con "Elegir archivo".'
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (ocrStreamRef.current) {
+        ocrStreamRef.current.getTracks().forEach((t) => t.stop());
+        ocrStreamRef.current = null;
+      }
+    };
+  }, [ocrCameraModal]);
+
+  const ocrCameraCapture = async () => {
+    if (!ocrVideoRef.current || !ocrStreamRef.current) return;
+    const video = ocrVideoRef.current;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+    if (!blob) return;
+    const file = new File([blob], `parcial-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    try {
+      const compressed = await _compressImage(file);
+      ocrCameraModal?.resolver(compressed);
+    } catch {
+      ocrCameraModal?.resolver(file);
+    }
+    setOcrCameraModal(null);
+  };
+
+  const ocrCameraCancel = () => {
+    ocrCameraModal?.resolver(null);
+    setOcrCameraModal(null);
+  };
+
+  const ocrCameraFallback = async () => {
+    // User opted for the system file picker instead of live capture.
+    // Close the camera modal FIRST, then open the native picker and resolve
+    // with whatever the user chose.
+    const resolver = ocrCameraModal?.resolver;
+    setOcrCameraModal(null);
+    // Small delay so the modal cleanup finishes before opening file input
+    setTimeout(async () => {
+      // Reuse the plain file input helper (no camera, no guide)
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      (input as any).capture = 'environment';
+      input.style.position = 'fixed';
+      input.style.top = '-1000px';
+      let done = false;
+      const finish = async (f: File | null) => {
+        if (done) return;
+        done = true;
+        try { document.body.removeChild(input); } catch {}
+        if (!f) { resolver?.(null); return; }
+        try {
+          const compressed = await _compressImage(f);
+          resolver?.(compressed);
+        } catch {
+          resolver?.(f);
+        }
+      };
+      input.onchange = () => finish(input.files?.[0] || null);
+      window.addEventListener('focus', () => setTimeout(() => finish(null), 500), { once: true });
+      document.body.appendChild(input);
+      input.click();
+    }, 120);
   };
 
   const ocrPickFile = (): Promise<File | null> => {
@@ -691,7 +822,7 @@ export default function TransportMeter() {
   const ocrStartShift = async () => {
     setOcrError(null);
     setOcrUploadProgress(0);
-    const file = await ocrPickFile();
+    const file = await ocrCaptureWithGuide();
     if (!file) return;
     try {
       setOcrBusy('start');
@@ -14384,6 +14515,118 @@ export default function TransportMeter() {
                 
                 <AdBanner position="inline" />
 
+                {/* === Camera capture modal with visual guide === */}
+                <Modal visible={ocrCameraModal !== null} transparent animationType="fade" onRequestClose={ocrCameraCancel}>
+                  <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
+                    {/* Header instruction */}
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: 16, backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 10 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>
+                        Encaja el ticket dentro del recuadro
+                      </Text>
+                      <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 4 }}>
+                        Buena luz · Sin sombras · Enfoca los totales
+                      </Text>
+                    </View>
+
+                    {/* Video preview (only rendered on web) */}
+                    {Platform.OS === 'web' && (
+                      // @ts-ignore — native <video> element inside React Native Web
+                      <video
+                        ref={ocrVideoRef as any}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' as any, backgroundColor: '#000' }}
+                        data-testid="ocr-camera-video"
+                      />
+                    )}
+
+                    {/* Overlay: dashed orange rectangle centered (aspect 3:5 portrait) */}
+                    {ocrCameraReady && !ocrCameraError && (
+                      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                        <View style={{
+                          width: '75%',
+                          aspectRatio: 3 / 5,
+                          borderWidth: 3,
+                          borderColor: '#F59E0B',
+                          borderStyle: 'dashed',
+                          borderRadius: 8,
+                          backgroundColor: 'rgba(245,158,11,0.05)',
+                        }}>
+                          {/* Corner tick marks */}
+                          {['tl', 'tr', 'bl', 'br'].map((corner) => (
+                            <View
+                              key={corner}
+                              style={{
+                                position: 'absolute',
+                                width: 24,
+                                height: 24,
+                                borderColor: '#F59E0B',
+                                borderTopWidth: corner.includes('t') ? 4 : 0,
+                                borderBottomWidth: corner.includes('b') ? 4 : 0,
+                                borderLeftWidth: corner.includes('l') ? 4 : 0,
+                                borderRightWidth: corner.includes('r') ? 4 : 0,
+                                top: corner.includes('t') ? -3 : undefined,
+                                bottom: corner.includes('b') ? -3 : undefined,
+                                left: corner.includes('l') ? -3 : undefined,
+                                right: corner.includes('r') ? -3 : undefined,
+                              }}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Loading / error state */}
+                    {!ocrCameraReady && !ocrCameraError && (
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.9)' }}>
+                        <ActivityIndicator size="large" color="#F59E0B" />
+                        <Text style={{ color: '#FFFFFF', marginTop: 12 }}>Abriendo cámara…</Text>
+                      </View>
+                    )}
+                    {ocrCameraError && (
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+                        <Ionicons name="warning" size={44} color="#EF4444" />
+                        <Text style={{ color: '#FCA5A5', textAlign: 'center', marginTop: 12, fontSize: 14 }}>{ocrCameraError}</Text>
+                      </View>
+                    )}
+
+                    {/* Bottom actions */}
+                    <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: 'rgba(0,0,0,0.75)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={ocrCameraCancel}
+                        style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: '#334155' }}
+                        data-testid="ocr-camera-cancel"
+                      >
+                        <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={ocrCameraCapture}
+                        disabled={!ocrCameraReady || !!ocrCameraError}
+                        style={{
+                          width: 74, height: 74, borderRadius: 37,
+                          borderWidth: 4, borderColor: '#FFFFFF',
+                          backgroundColor: (!ocrCameraReady || !!ocrCameraError) ? '#475569' : '#F59E0B',
+                          alignItems: 'center', justifyContent: 'center',
+                          opacity: (!ocrCameraReady || !!ocrCameraError) ? 0.4 : 1,
+                        }}
+                        data-testid="ocr-camera-capture"
+                      >
+                        <Ionicons name="camera" size={32} color="#FFFFFF" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={ocrCameraFallback}
+                        style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#475569' }}
+                        data-testid="ocr-camera-fallback"
+                      >
+                        <Text style={{ color: '#94A3B8', fontWeight: '700', fontSize: 13 }}>Elegir{"\n"}archivo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
+
                 {/* === Fuel modal === */}
                 <Modal visible={ocrShowFuelModal} transparent animationType="fade" onRequestClose={() => setOcrShowFuelModal(false)}>
                   <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 }}>
@@ -14465,7 +14708,7 @@ export default function TransportMeter() {
 
                         <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6, fontWeight: '600' }}>1. Foto del parcial al final *</Text>
                         <TouchableOpacity
-                          onPress={async () => { const f = await ocrPickFile(); if (f) setOcrEndPhoto(f); }}
+                          onPress={async () => { const f = await ocrCaptureWithGuide(); if (f) setOcrEndPhoto(f); }}
                           style={{ backgroundColor: ocrEndPhoto ? '#10B981' : '#1E293B', borderWidth: 1, borderColor: ocrEndPhoto ? '#10B981' : '#475569', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 6, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
                           data-testid="ocr-end-photo-button"
                         >

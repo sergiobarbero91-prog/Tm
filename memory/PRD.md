@@ -295,6 +295,37 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
+### 🔄 Migración OCR: de Gemini Vision a Tesseract local (Feb 2026)
+- **Motivación**: Usuarios recibían `503 IA saturada` cuando la cuota Gemini se
+  agotaba o el modelo se sobrecargaba. Además, cada foto costaba dinero.
+- **Solución**: OCR 100 % local con **Tesseract 5.3** (paquete `tesseract-ocr`
+  + `tesseract-ocr-spa` en el Dockerfile del backend). Sin API externa, sin
+  cuota, sin latencia de red, gratis y funciona sin conexión al modelo LLM.
+- **Preprocesado** (`_preprocess_for_ocr` en `journal.py`): OpenCV escala
+  grises → CLAHE contraste local → median blur → Otsu threshold → deskew
+  automático si la foto está torcida <15°.
+- **Parseo regex tolerante** (`_parse_ticket_text`): etiquetas alternativas
+  para Digitax D5/D8, Semel Turmix, Taxitronic TM7, Ikon TX-80. Formato
+  español 1.234,56 correctamente convertido a float.
+- **Warnings** para campos no detectados → el frontend muestra "⚠ campo X
+  no detectado" y el botón "Corregir" abre el modal de edición manual.
+- **Guía de cámara**: modal nuevo con vista previa en vivo (`getUserMedia`
+  + recuadro naranja punteado 3:5) para que el conductor encaje el ticket
+  antes de disparar. Fallback al file picker nativo si no hay permiso
+  de cámara.
+- **Tests**: `_ocr_parcial_sync` sobre ticket sintético →
+  9/9 campos detectados en 0.4 s. `POST /api/journal/start` end-to-end →
+  200 OK con `start_reading` completo, 0.4 s.
+- **Ficheros tocados**:
+  - `backend/routers/journal.py` — reemplazado el bloque Gemini Vision
+    por Tesseract + regex. Eliminada dependencia de `google.genai` para OCR.
+  - `backend/Dockerfile` — añadidos paquetes apt `tesseract-ocr`,
+    `tesseract-ocr-spa`, `libgl1`, `libglib2.0-0`.
+  - `backend/requirements.txt` — añadidos `pytesseract==0.3.13`,
+    `opencv-python-headless==5.0.0.93`, `pillow==12.1.1`.
+  - `frontend/app/index.tsx` — nuevo modal cámara con guía visual y
+    captura vía `getUserMedia` + fallback file picker.
+
 ## Critical Business Logic (don't break)
 - Fare Calculator T1/T2/T3/T4/T7/Nochebuena tariffs are exact official Madrid values.
 - Grouped airport terminals on login page: T1, T2-T3, T4-T4S.

@@ -75,133 +75,257 @@ class JournalEnd(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gemini Vision OCR
+# Local OCR via Tesseract (no external AI, no rate limits, no quota)
 # ─────────────────────────────────────────────────────────────────────────────
-OCR_MODEL = "gemini-2.5-flash"
-OCR_MODEL_FALLBACK = "gemini-2.5-flash-lite"
+#
+# Estrategia:
+#   1. Cargar bytes → PIL Image → np.ndarray (OpenCV BGR).
+#   2. Preprocesado: escala de grises → resize x2 si es pequeño → CLAHE →
+#      threshold adaptativo (Otsu) → deskew opcional.
+#   3. Tesseract con lang=spa+eng, PSM 6 (bloque uniforme de texto).
+#   4. Parsear el texto con regex tolerantes a variaciones de etiquetas
+#      típicas de taxímetros españoles (Digitax, Semel, Taxitronic, etc.).
+#   5. Devolver un dict con los mismos campos que antes + raw_ocr_text para
+#      auditar y editar manualmente si algo sale mal.
 
-OCR_PROMPT = """Eres un sistema OCR experto en tickets impresos de taxímetros españoles
-(parciales). Lee la imagen y devuelve EXCLUSIVAMENTE un JSON válido (sin markdown,
-sin texto antes ni después) con estos campos. Si un campo no se ve, ponlo a null.
+# Etiquetas alternativas encontradas en tickets parciales de taxímetros ES
+# (Digitax D5/D8, Semel Turmix, Taxitronic TM7, Ikon TX-80, etc.)
+# Se compilan patrones flexibles: espacios variables, mayúsculas/minúsculas,
+# acentos opcionales, y valores en formato español (1.234,56 o 1234,56).
 
-{
-  "fecha": "YYYY-MM-DD",
-  "hora": "HH:MM",
-  "num_servicios": entero,
-  "carreras_eur": decimal (la facturación total en €, valor numérico),
-  "dist_total_km": decimal,
-  "dist_ocupado_km": decimal,
-  "dist_libre_km": decimal,
-  "tiempo_ocupado": "HH:MM",
-  "tiempo_on": "HH:MM",
-  "raw_ocr_text": "todo el texto que ves en la imagen, tal cual"
-}
-
-Notas críticas:
-- Lee SOLO la sección de TOTALES (cabecera arriba), NO los desgloses por servicio.
-- Si ves un punto y una coma juntos (ej "1.234,56") es formato español: el punto
-  es separador de miles y la coma es decimal. Conviértelo a 1234.56.
-- Si solo ves coma (ej "23,45") la coma es el decimal → 23.45.
-- "carreras_eur" es el importe total facturado en euros, lo que coloquialmente se
-  llama "facturación" o "recaudación".
-- Si la fecha viene en formato DD/MM/YYYY, conviértela a YYYY-MM-DD.
-- Si algún campo no aparece o está ilegible, pon null. No inventes valores.
-"""
+_NUM_ES = r"(\d{1,3}(?:[.\s]\d{3})*(?:,\d+)?|\d+[.,]\d+|\d+)"
+_TIME_HHMM = r"(\d{1,3}[:h]\d{2}(?:[:.]\d{2})?)"
 
 
-def _build_genai_client():
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="GEMINI_API_KEY no configurada.")
-    from google import genai
-    return genai.Client(api_key=api_key)
+def _es_to_float(s: str) -> Optional[float]:
+    """Convierte '1.234,56' o '23,45' o '150.75' a float."""
+    if not s:
+        return None
+    s = s.strip().replace(" ", "")
+    # Formato español: coma decimal
+    if "," in s and "." in s:
+        # p.ej. "1.234,56" → "1234.56"
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _hhmm_to_str(s: str) -> Optional[str]:
+    """Normaliza '2h35', '2:35:04', '02:35' → 'HH:MM'."""
+    if not s:
+        return None
+    m = re.search(r"(\d{1,3})[:h.](\d{2})", s)
+    if not m:
+        return None
+    h, mm = int(m.group(1)), int(m.group(2))
+    return f"{h:02d}:{mm:02d}"
+
+
+def _preprocess_for_ocr(image_bytes: bytes):
+    """Devuelve una imagen PIL lista para pasar a Tesseract."""
+    import cv2
+    import numpy as np
+    from PIL import Image
+    import io
+
+    # Bytes → OpenCV
+    arr = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        # Puede ser HEIC u otro; intentar vía PIL
+        img_pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+
+    # 1. Reescalar si es pequeña (Tesseract prefiere ~300 DPI)
+    h, w = img.shape[:2]
+    if max(h, w) < 1200:
+        scale = 1200 / max(h, w)
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+
+    # 2. Escala de grises
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # 3. CLAHE — mejora contraste local (útil en tickets con impresión térmica clara)
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
+
+    # 4. Blur leve para eliminar ruido térmico
+    gray = cv2.medianBlur(gray, 3)
+
+    # 5. Threshold Otsu
+    _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # 6. Deskew — corrige inclinación
+    coords = np.column_stack(np.where(bw < 128))
+    if len(coords) > 500:
+        angle = cv2.minAreaRect(coords)[-1]
+        if angle < -45:
+            angle = -(90 + angle)
+        else:
+            angle = -angle
+        if abs(angle) > 0.5 and abs(angle) < 15:
+            (h2, w2) = bw.shape
+            M = cv2.getRotationMatrix2D((w2 // 2, h2 // 2), angle, 1.0)
+            bw = cv2.warpAffine(
+                bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
+                borderMode=cv2.BORDER_REPLICATE
+            )
+
+    return Image.fromarray(bw)
+
+
+# ─── Regex patterns para campos ────────────────────────────────────────────
+# Etiquetas comunes en tickets parciales (case-insensitive). El OCR de
+# Tesseract a veces devuelve 'Km' como 'Kn' o 'lm' — toleramos variaciones.
+
+_LABEL_CARRERAS = r"(?:CARRERAS?|IMPORTE|TOTAL(?:\s+FACT)?|FACTURA(?:CI[OÓ]N)?|RECAUDA(?:CI[OÓ]N)?|COBRAD[OA]|EUR(?:OS)?)"
+_LABEL_KM_TOTAL = r"(?:K[MN]\s*T(?:OTAL(?:ES)?)?|DIST[.\s]*TOTAL|TOTAL\s*K[MN])"
+_LABEL_KM_OCUP = r"(?:K[MN]\s*OCUP(?:AD[OA]S?)?|DIST[.\s]*OCUP|OCUP\.?\s*K[MN])"
+_LABEL_KM_LIBRE = r"(?:K[MN]\s*LIBRES?|DIST[.\s]*LIBRE|LIBRE\.?\s*K[MN]|K[MN]\s*VAC[IÍ]O)"
+_LABEL_NUM_SERV = r"(?:N[UÚ]M(?:ERO)?\.?\s*(?:DE\s*)?SERV(?:ICIOS?)?|SERV(?:ICIOS?)?|CARR(?:ERAS?)?|VIAJES?)"
+_LABEL_T_OCUP = r"(?:T(?:IEMPO)?\.?\s*OCUP(?:AD[OA]S?)?|H(?:ORA)?S?\s*OCUP)"
+_LABEL_T_ON = r"(?:T(?:IEMPO)?\.?\s*(?:ON|ENCENDIDO|TOTAL|SERV)|H(?:ORA)?S?\s*ON)"
+
+
+def _find_after_label(text: str, label_pattern: str, value_pattern: str) -> Optional[str]:
+    """Busca 'LABEL ... VALUE' en la misma línea o la siguiente."""
+    # 1) Misma línea (permitiendo dos-puntos, espacios, tabuladores)
+    m = re.search(
+        rf"{label_pattern}[^\n0-9]{{0,20}}{value_pattern}",
+        text, re.IGNORECASE
+    )
+    if m:
+        return m.group(1)
+    # 2) Línea siguiente
+    m = re.search(
+        rf"{label_pattern}[^\n]*\n[^0-9]{{0,10}}{value_pattern}",
+        text, re.IGNORECASE
+    )
+    if m:
+        return m.group(1)
+    return None
+
+
+def _parse_ticket_text(raw: str) -> Dict[str, Any]:
+    """Extrae los campos del texto plano OCR con regex tolerantes."""
+    text = raw
+    # Uniformizar espacios / OCR artifacts frecuentes
+    text_norm = re.sub(r"[|]", "1", text)  # OCR a veces confunde 1 con |
+    out: Dict[str, Any] = {}
+
+    # Fecha DD/MM/YYYY o DD-MM-YY(YY)
+    m = re.search(r"(\d{2})[/\-.](\d{2})[/\-.](\d{2,4})", text)
+    if m:
+        d, mth, y = m.group(1), m.group(2), m.group(3)
+        if len(y) == 2:
+            y = "20" + y
+        out["fecha"] = f"{y}-{mth}-{d}"
+
+    # Hora HH:MM
+    m = re.search(r"\b(\d{1,2}):(\d{2})(?::\d{2})?\b", text)
+    if m:
+        out["hora"] = f"{int(m.group(1)):02d}:{m.group(2)}"
+
+    # Número de servicios (entero)
+    ns = _find_after_label(text_norm, _LABEL_NUM_SERV, r"(\d{1,4})")
+    if ns:
+        try:
+            out["num_servicios"] = int(ns)
+        except ValueError:
+            pass
+
+    # Importe (€ facturación)
+    carr = _find_after_label(text_norm, _LABEL_CARRERAS, _NUM_ES)
+    # A veces la etiqueta es solo "€" al final del número
+    if not carr:
+        m = re.search(rf"{_NUM_ES}\s*€", text_norm)
+        if m:
+            carr = m.group(1)
+    if carr:
+        out["carreras_eur"] = _es_to_float(carr)
+
+    # Km totales / ocupados / libres
+    for key, pat in (
+        ("dist_total_km", _LABEL_KM_TOTAL),
+        ("dist_ocupado_km", _LABEL_KM_OCUP),
+        ("dist_libre_km", _LABEL_KM_LIBRE),
+    ):
+        v = _find_after_label(text_norm, pat, _NUM_ES)
+        if v:
+            fv = _es_to_float(v)
+            if fv is not None:
+                out[key] = fv
+
+    # Si tenemos total y ocupado pero no libre, lo derivamos
+    if out.get("dist_total_km") and out.get("dist_ocupado_km") and not out.get("dist_libre_km"):
+        libre = out["dist_total_km"] - out["dist_ocupado_km"]
+        if libre >= 0:
+            out["dist_libre_km"] = round(libre, 2)
+
+    # Tiempos (HH:MM o Xh Y)
+    to = _find_after_label(text_norm, _LABEL_T_OCUP, _TIME_HHMM)
+    if to:
+        out["tiempo_ocupado"] = _hhmm_to_str(to)
+    ton = _find_after_label(text_norm, _LABEL_T_ON, _TIME_HHMM)
+    if ton:
+        out["tiempo_on"] = _hhmm_to_str(ton)
+
+    return out
 
 
 def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
-    """Run OCR on a parciales photo via Gemini Vision. Returns parsed dict.
+    """OCR local con Tesseract. NO usa Gemini ni ninguna API externa.
 
-    Estrategia anti-saturación:
-      1. Intenta modelo principal (gemini-2.5-flash) con hasta 3 reintentos
-         y backoff exponencial (2s, 4s, 8s) ante 429/503/overloaded.
-      2. Si sigue fallando, cambia al modelo fallback (flash-lite) con
-         los mismos 3 reintentos.
-      3. Solo si ambos agotan sus reintentos → HTTP 503 al cliente.
+    Devuelve el mismo shape de dict que la versión anterior + raw_ocr_text
+    para que el frontend pueda mostrar el texto crudo y permitir edición
+    manual de cualquier campo mal leído.
     """
-    import time
-    from google.genai import types as gtypes
-
-    client = _build_genai_client()
-    image_part = gtypes.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-
-    def _call(model_name: str):
-        return client.models.generate_content(
-            model=model_name,
-            contents=[OCR_PROMPT, image_part],
-            config=gtypes.GenerateContentConfig(temperature=0.0),
-        )
-
-    TRANSIENT_KEYS = ("429", "RESOURCE_EXHAUSTED", "quota", "503",
-                      "UNAVAILABLE", "overloaded", "high demand", "deadline")
-
-    def _try_with_retries(model_name: str, attempts: int = 3):
-        last_exc = None
-        for i in range(attempts):
-            try:
-                return _call(model_name)
-            except Exception as e:
-                msg = str(e)
-                last_exc = e
-                if not any(k in msg for k in TRANSIENT_KEYS):
-                    # Error no transitorio → no sirve reintentar
-                    raise
-                wait = 2 ** (i + 1)  # 2s, 4s, 8s
-                logger.warning(
-                    f"[journal-ocr] {model_name} transient error "
-                    f"(intento {i+1}/{attempts}, reintentando en {wait}s): {msg[:180]}"
-                )
-                time.sleep(wait)
-        # Agotados los reintentos
-        raise last_exc  # type: ignore[misc]
+    import pytesseract
 
     try:
-        response = _try_with_retries(OCR_MODEL, attempts=3)
+        img = _preprocess_for_ocr(image_bytes)
     except Exception as e:
-        msg = str(e)
-        if any(k in msg for k in TRANSIENT_KEYS):
-            logger.warning(f"[journal-ocr] {OCR_MODEL} agotado, saltando a fallback {OCR_MODEL_FALLBACK}")
-            try:
-                response = _try_with_retries(OCR_MODEL_FALLBACK, attempts=3)
-            except Exception as e2:
-                logger.error(f"[journal-ocr] fallback también saturado: {str(e2)[:200]}")
-                raise HTTPException(
-                    status_code=503,
-                    detail="El servicio de IA está temporalmente saturado. Espera un minuto y vuelve a intentarlo.",
-                    headers={"Retry-After": "60"},
-                )
-        else:
-            raise
-
-    text = (getattr(response, "text", None) or "").strip()
-    # Strip code fences if Gemini added them despite the instruction
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
-        text = re.sub(r"\n?```\s*$", "", text)
-
-    import json as _json
-    try:
-        parsed = _json.loads(text)
-    except Exception:
-        logger.exception("[journal-ocr] failed to parse JSON, raw text was: %s", text[:500])
+        logger.exception("[journal-ocr] preprocessing failed")
         raise HTTPException(
-            status_code=502,
-            detail="No se pudo interpretar el ticket. Hazlo más nítido y vuelve a intentar.",
+            status_code=400,
+            detail=f"No se pudo abrir la imagen: {e}",
         )
 
+    # PSM 6 = single uniform block of text; funciona bien en tickets
+    config = "--oem 3 --psm 6 -c preserve_interword_spaces=1"
+    try:
+        raw_text = pytesseract.image_to_string(img, lang="spa+eng", config=config)
+    except Exception as e:
+        logger.exception("[journal-ocr] tesseract failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR local falló: {e}",
+        )
+
+    logger.info(f"[journal-ocr] raw text ({len(raw_text)} chars):\n{raw_text[:500]}")
+
+    parsed = _parse_ticket_text(raw_text)
+    parsed["raw_ocr_text"] = raw_text.strip()
+
+    # Warnings — campos que no se detectaron. El frontend los muestra para que
+    # el conductor los rellene a mano antes de guardar la jornada.
     warnings: List[str] = []
     for key in ("carreras_eur", "dist_total_km", "dist_ocupado_km", "dist_libre_km"):
         v = parsed.get(key)
         if v is None:
-            warnings.append(f"campo {key} no detectado")
+            warnings.append(f"campo {key} no detectado — revisa el ticket manualmente")
+
+    # Sanity checks — si el OCR devolvió cosas absurdas, mejor pedir revisión
+    if parsed.get("dist_total_km") is not None:
+        if parsed["dist_total_km"] < 0 or parsed["dist_total_km"] > 100000:
+            warnings.append("dist_total_km fuera de rango — revisa manualmente")
+    if parsed.get("carreras_eur") is not None:
+        if parsed["carreras_eur"] < 0 or parsed["carreras_eur"] > 10000:
+            warnings.append("carreras_eur fuera de rango — revisa manualmente")
 
     parsed["ocr_warnings"] = warnings
     return parsed
