@@ -502,7 +502,10 @@ export default function TransportMeter() {
         resolve(file);
         return;
       }
-      const img = new Image();
+      // Use the DOM Image constructor explicitly — the `Image` symbol at the
+      // top of this file is imported from 'react-native' and would shadow the
+      // web global otherwise.
+      const img = new window.Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
         try {
