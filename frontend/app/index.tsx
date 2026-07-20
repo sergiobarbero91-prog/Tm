@@ -488,14 +488,16 @@ export default function TransportMeter() {
   //      attach it to the DOM briefly.
   //   4. `oncancel` is not reliable — we add a visibility fallback so the
   //      promise always resolves.
-  const _compressImage = (file: File, maxSide = 1600, quality = 0.85): Promise<File> => {
+  const _compressImage = (file: File, maxSide = 1400, quality = 0.75): Promise<File> => {
     return new Promise((resolve) => {
       if (Platform.OS !== 'web' || typeof document === 'undefined') {
         resolve(file);
         return;
       }
-      // If already small, skip compression.
-      if (file.size < 900 * 1024) {
+      // Only skip compression for very small files (<300 KB).
+      // Previously threshold was 900 KB but that let some ~1 MB photos through
+      // and nginx defaults still reject them.
+      if (file.size < 300 * 1024) {
         console.log(`[ocr] skip compression, file already ${(file.size/1024).toFixed(0)} KB`);
         resolve(file);
         return;
@@ -519,8 +521,29 @@ export default function TransportMeter() {
           canvas.toBlob((blob) => {
             URL.revokeObjectURL(url);
             if (!blob) { resolve(file); return; }
-            const compressed = new File([blob], file.name.replace(/\.\w+$/i, '.jpg'), { type: 'image/jpeg' });
+            let compressed = new File([blob], file.name.replace(/\.\w+$/i, '.jpg'), { type: 'image/jpeg' });
             console.log(`[ocr] compressed ${(file.size/1024).toFixed(0)} KB → ${(compressed.size/1024).toFixed(0)} KB (${w}×${h})`);
+            // If still too big for a strict nginx (1 MB default), pass #2 with lower quality.
+            if (compressed.size > 800 * 1024) {
+              const canvas2 = document.createElement('canvas');
+              const w2 = Math.round(w * 0.75);
+              const h2 = Math.round(h * 0.75);
+              canvas2.width = w2; canvas2.height = h2;
+              const ctx2 = canvas2.getContext('2d');
+              if (ctx2) {
+                ctx2.fillStyle = '#FFFFFF';
+                ctx2.fillRect(0, 0, w2, h2);
+                ctx2.drawImage(img, 0, 0, w2, h2);
+                canvas2.toBlob((blob2) => {
+                  if (blob2 && blob2.size < compressed.size) {
+                    compressed = new File([blob2], file.name.replace(/\.\w+$/i, '.jpg'), { type: 'image/jpeg' });
+                    console.log(`[ocr] pass#2 ${(compressed.size/1024).toFixed(0)} KB (${w2}×${h2})`);
+                  }
+                  resolve(compressed);
+                }, 'image/jpeg', 0.65);
+                return;
+              }
+            }
             resolve(compressed);
           }, 'image/jpeg', quality);
         } catch (e) {
@@ -654,7 +677,7 @@ export default function TransportMeter() {
     }
     const status = e.response?.status;
     const detail = e.response?.data?.detail;
-    if (status === 413) return 'La imagen es demasiado grande para el servidor (ajusta el límite de nginx a 20 MB o usa una foto de menos calidad).';
+    if (status === 413) return 'La imagen es demasiado grande para el servidor. Sube el límite de nginx (client_max_body_size 25M;) y reinicia el contenedor nginx. Si eres el usuario, avisa al admin.';
     if (status === 401) return 'Sesión caducada. Cierra sesión y vuelve a entrar.';
     if (status === 503) return detail || 'El servicio de IA está saturado. Espera 30 segundos e inténtalo de nuevo.';
     if (status === 502 || status === 504) return `El servidor tardó demasiado en responder (${status}). Revisa que backend + nginx estén activos.`;
