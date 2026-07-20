@@ -672,7 +672,15 @@ def _now_iso() -> str:
     return datetime.now(MADRID_TZ).isoformat()
 
 
-def _hhmm_to_minutes(t: Optional[str]) -> Optional[int]:
+def _hhmm_to_minutes(t: Any) -> Optional[int]:
+    """Convierte HH:MM (str) → minutos totales. Devuelve None si no aplica.
+
+    Es tolerante a floats/ints (los nuevos campos tiempo_* del taxímetro son
+    numéricos, no HH:MM) — en ese caso devuelve None y `_diff_minutes`
+    fallará silenciosamente, se calcula por _diff numérico en otro sitio.
+    """
+    if not isinstance(t, str):
+        return None
     if not t or ":" not in t:
         return None
     try:
@@ -778,8 +786,19 @@ def _compute_totals(journal: Dict[str, Any]) -> Dict[str, Any]:
         pct_dist_ocupado = round((km_ocupado / km_total) * 100, 1)
 
     # ── Time ──
-    min_on = _diff_minutes("tiempo_on")           # work-effective minutes
-    min_ocupado = _diff_minutes("tiempo_ocupado") # loaded minutes
+    # NOTA: los campos tiempo_* del ticket son ACUMULADOS numéricos del
+    # taxímetro (probablemente segundos totales — un taxímetro con 557761
+    # de tiempo_ocupado = 154 h). La diferencia end - start da el tiempo
+    # del turno en las mismas unidades. Asumimos segundos → dividimos entre
+    # 60 para obtener minutos.
+    def _diff_seconds_to_minutes(key: str) -> Optional[int]:
+        v = _diff(key)
+        if v is None or v < 0:
+            return None
+        return int(round(v / 60))
+
+    min_on = _diff_seconds_to_minutes("tiempo_on")
+    min_ocupado = _diff_seconds_to_minutes("tiempo_ocupado")
     pct_tiempo_ocupacion = None
     if min_on and min_on > 0 and min_ocupado is not None:
         pct_tiempo_ocupacion = round((min_ocupado / min_on) * 100, 1)

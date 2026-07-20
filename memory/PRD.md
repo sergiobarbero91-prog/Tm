@@ -295,7 +295,34 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🎯 OCR mejorado + política "usar TOTALES ACUMULADOS" (Feb 2026, iter 3)
+### 🛡️ Modo "Revisar y confirmar" + fix 500 en /end (Feb 2026)
+- **Bug fix**: el endpoint `POST /api/journal/end` devolvía 500 al procesar
+  las lecturas OCR con los nuevos tiempos numéricos (`tiempo_ocupado`/
+  `tiempo_on` cambiaron de `Optional[str]` a `Optional[float]` — pero
+  `_hhmm_to_minutes` seguía haciendo `":" in t` sobre un float,
+  provocando TypeError). Solución: `_hhmm_to_minutes` ahora chequea
+  `isinstance(t, str)` primero. Además `_compute_totals` calcula
+  `min_on` y `min_ocupado` directamente del diff numérico (segundos → min).
+- **Flujo "Revisar y confirmar"**: tras subir la foto (INICIO o FIN) se
+  abre automáticamente el modal editable con TODOS los valores extraídos:
+    - Título: **"Revisar y confirmar (inicio/fin)"** con check-mark verde
+    - 9 campos editables (fecha, hora, servicios, carreras €, dists km,
+      tiempos), placeholder "—" para los no detectados
+    - Botón principal grande: **"Confirmar y guardar"** (verde) 2×
+      ancho del botón "Cancelar" (gris)
+    - `ocrSaveManual` incluye ahora los tiempos como numéricos en el
+      payload PUT `/api/journal/{id}/manual`
+  Así el usuario SIEMPRE valida antes de que la jornada se registre
+  definitivamente — cualquier fallo del OCR es corregible al vuelo.
+- **Ficheros tocados**:
+  - `backend/routers/journal.py` — `_hhmm_to_minutes` tipo-safe,
+    `_compute_totals` con `_diff_seconds_to_minutes` para tiempo_*.
+  - `frontend/app/index.tsx` — `ocrStartShift` y `ocrEndShift` abren
+    automáticamente `setOcrShowEditModal('start'|'end')` tras el upload
+    exitoso, poblando `ocrEditDraft` con la reading extraída.
+- **Test end-to-end vía API**: `POST /start` → 200, `POST /end` → 200,
+  totals correctamente computados.
+
 - **Política de dominio (usuario)**: la sección "P …" del ticket se IGNORA
   para los cálculos. Los campos principales SIEMPRE reflejan la sección
   superior de TOTALES ACUMULADOS del taxímetro. La jornada se computa

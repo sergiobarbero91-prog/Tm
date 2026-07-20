@@ -918,6 +918,21 @@ export default function TransportMeter() {
         }
       }
       setOcrJournal(r.data);
+      // ── Abrir automáticamente el modal de revisión con los valores extraídos ──
+      // Así el usuario SIEMPRE confirma antes de que la jornada quede registrada.
+      const sr = r.data?.start_reading || {};
+      setOcrEditDraft({
+        fecha: sr.fecha || '',
+        hora: sr.hora || '',
+        num_servicios: sr.num_servicios != null ? String(sr.num_servicios) : '',
+        carreras_eur: sr.carreras_eur != null ? String(sr.carreras_eur) : '',
+        dist_total_km: sr.dist_total_km != null ? String(sr.dist_total_km) : '',
+        dist_ocupado_km: sr.dist_ocupado_km != null ? String(sr.dist_ocupado_km) : '',
+        dist_libre_km: sr.dist_libre_km != null ? String(sr.dist_libre_km) : '',
+        tiempo_ocupado: sr.tiempo_ocupado != null ? String(sr.tiempo_ocupado) : '',
+        tiempo_on: sr.tiempo_on != null ? String(sr.tiempo_on) : '',
+      });
+      setOcrShowEditModal('start');
     } catch (e: any) {
       console.error('[ocr] start error', e);
       setOcrError(_friendlyUploadError(e));
@@ -1000,6 +1015,23 @@ export default function TransportMeter() {
       setOcrEndApp('');
       setOcrShowEndModal(false);
       ocrLoadHistory();
+      // ── Abrir modal de revisión de la lectura FIN ──
+      // Igual que en start: el usuario siempre confirma antes de dar por
+      // buena la jornada. Aquí ya está cerrada, pero puede corregir los
+      // valores si el OCR se equivocó.
+      const er = r.data?.end_reading || {};
+      setOcrEditDraft({
+        fecha: er.fecha || '',
+        hora: er.hora || '',
+        num_servicios: er.num_servicios != null ? String(er.num_servicios) : '',
+        carreras_eur: er.carreras_eur != null ? String(er.carreras_eur) : '',
+        dist_total_km: er.dist_total_km != null ? String(er.dist_total_km) : '',
+        dist_ocupado_km: er.dist_ocupado_km != null ? String(er.dist_ocupado_km) : '',
+        dist_libre_km: er.dist_libre_km != null ? String(er.dist_libre_km) : '',
+        tiempo_ocupado: er.tiempo_ocupado != null ? String(er.tiempo_ocupado) : '',
+        tiempo_on: er.tiempo_on != null ? String(er.tiempo_on) : '',
+      });
+      setOcrShowEditModal('end');
     } catch (e: any) {
       console.error('[ocr] end error', e);
       setOcrError(_friendlyUploadError(e));
@@ -1015,7 +1047,9 @@ export default function TransportMeter() {
       setOcrBusy('manual');
       const headers = await ocrAuthHeaders();
       // Build payload from draft, coercing numeric fields
-      const numericKeys = new Set(['num_servicios', 'carreras_eur', 'dist_total_km', 'dist_ocupado_km', 'dist_libre_km']);
+      const numericKeys = new Set(['num_servicios', 'carreras_eur',
+        'dist_total_km', 'dist_ocupado_km', 'dist_libre_km',
+        'tiempo_ocupado', 'tiempo_on']);
       const out: Record<string, any> = {};
       Object.entries(ocrEditDraft).forEach(([k, v]) => {
         const s = (v ?? '').toString().trim();
@@ -14968,10 +15002,12 @@ export default function TransportMeter() {
                     <ScrollView style={{ maxHeight: '90%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
                       <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#6366F1' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                          <Ionicons name="create" size={24} color="#A5B4FC" />
-                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Corregir lectura ({ocrShowEditModal === 'start' ? 'inicio' : 'fin'})</Text>
+                          <Ionicons name="checkmark-done-circle" size={26} color="#10B981" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Revisar y confirmar ({ocrShowEditModal === 'start' ? 'inicio' : 'fin'})</Text>
                         </View>
-                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>Edita los valores que la IA no leyó bien. Deja en blanco para no cambiar.</Text>
+                        <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>
+                          Revisa los valores extraídos de la foto. Corrige lo que la IA no leyó bien y pulsa <Text style={{ color: '#10B981', fontWeight: '700' }}>Confirmar</Text> para guardar. Los campos vacíos se guardarán como no detectados.
+                        </Text>
                         {[
                           ['fecha', 'Fecha (YYYY-MM-DD)'],
                           ['hora', 'Hora (HH:MM)'],
@@ -14980,8 +15016,8 @@ export default function TransportMeter() {
                           ['dist_total_km', 'Dist. total (km)'],
                           ['dist_ocupado_km', 'Dist. ocupado (km)'],
                           ['dist_libre_km', 'Dist. libre (km)'],
-                          ['tiempo_ocupado', 'Tiempo ocupado (HH:MM)'],
-                          ['tiempo_on', 'Tiempo ON (HH:MM)'],
+                          ['tiempo_ocupado', 'Tiempo ocupado (raw)'],
+                          ['tiempo_on', 'Tiempo ON (raw)'],
                         ].map(([k, label]) => (
                           <View key={k} style={{ marginBottom: 10 }}>
                             <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
@@ -14999,16 +15035,18 @@ export default function TransportMeter() {
                           <TouchableOpacity
                             onPress={() => { setOcrShowEditModal(null); setOcrEditDraft({}); }}
                             style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#475569', alignItems: 'center' }}
+                            data-testid="ocr-edit-cancel"
                           >
                             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={ocrSaveManual}
                             disabled={ocrBusy === 'manual'}
-                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#6366F1', alignItems: 'center', opacity: ocrBusy === 'manual' ? 0.5 : 1 }}
+                            style={{ flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: '#10B981', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, opacity: ocrBusy === 'manual' ? 0.5 : 1 }}
                             data-testid="ocr-edit-save"
                           >
-                            <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{ocrBusy === 'manual' ? 'Guardando…' : 'Guardar'}</Text>
+                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{ocrBusy === 'manual' ? 'Guardando…' : 'Confirmar y guardar'}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
