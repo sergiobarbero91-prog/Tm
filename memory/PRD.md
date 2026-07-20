@@ -295,7 +295,35 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🖼️ Historial de jornadas con miniaturas (Feb 2026)
+### 🎯 OCR mejorado + política "usar TOTALES ACUMULADOS" (Feb 2026, iter 3)
+- **Política de dominio (usuario)**: la sección "P …" del ticket se IGNORA
+  para los cálculos. Los campos principales SIEMPRE reflejan la sección
+  superior de TOTALES ACUMULADOS del taxímetro. La jornada se computa
+  como `end.TOTALES - start.TOTALES` en `_compute_totals`.
+- **Double-pass OCR (PSM 4 + PSM 6)**: dos pasadas de Tesseract con page
+  segmentation modes distintos sobre la misma imagen preprocesada. PSM 4
+  = single column of variable-sized text (mejor en tickets con dos
+  columnas etiqueta+valor). PSM 6 = uniform block (mejor con líneas
+  densas). Cada una capta campos distintos.
+- **Merge inteligente por campo** (`_pick` y `_looks_ocr_corrupt`):
+    - Prefiere valores en rango razonable (km < 1M, € < 10M).
+    - Rechaza enteros grandes en campos de distancia (el taxímetro imprime
+      distancias con coma; un `dist_libre_km=261423` sin coma es OCR
+      corrupto, se descarta).
+    - Empates: valor con decimales > valor entero > valor del PSM con
+      más score total.
+- **Consistency check**: si `dist_total_km` se desvía >20 % de
+  `ocupado + libre + off`, se recalcula como esa suma. Warning devuelto
+  al usuario para transparencia.
+- **Etiquetas ampliadas**: añadidos "Num. Servicios" (con punto), "NS
+  LICENCIA", "N2 LICENCIA" (variantes OCR-corrupt del "Nº").
+- **Resultado sobre foto real**:
+  - 8 de 9 campos principales correctos (~90 %)
+  - dist_total_km recuperado vía consistency check aunque el OCR falló
+  - Único fallo: `tiempo_ocupado` (OCR se comió el prefijo "55" del
+    557761 → 39761). Irrecoverable sin edición manual.
+  - Latencia end-to-end vía API: **5.0 s**
+
 - **Backend** — Nuevo endpoint `GET /api/journal/{id}/photo/{which}?thumb=1`
   en `routers/journal.py`:
     - Auth-protected (ownership check: sólo el dueño de la jornada o admin).

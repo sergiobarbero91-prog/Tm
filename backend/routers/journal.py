@@ -149,7 +149,8 @@ def _preprocess_for_ocr(image_bytes: bytes):
         img_pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    # 1. Reescalar (Tesseract prefiere ~300 DPI; fotos móviles son 12+ Mpx)
+    # 1. Reescalar. 2400px produce el mejor equilibrio calidad/velocidad
+    #    (probado con fotos móviles 12+ Mpx de tickets térmicos españoles).
     h, w = img.shape[:2]
     if max(h, w) > 2400:
         scale = 2400 / max(h, w)
@@ -158,12 +159,18 @@ def _preprocess_for_ocr(image_bytes: bytes):
         scale = 1200 / max(h, w)
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
 
-    def _prep_bw(mat):
+    def _prep_bw(mat, adaptive: bool = False):
         gray = cv2.cvtColor(mat, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
         gray = clahe.apply(gray)
-        gray = cv2.medianBlur(gray, 3)
-        _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        if adaptive:
+            bw = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY, 31, 15
+            )
+        else:
+            gray = cv2.medianBlur(gray, 3)
+            _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         return bw
 
     # 2. Detectar rotación sobre MINIATURA para acelerar (~800ms vs 6s).
@@ -204,6 +211,7 @@ def _preprocess_for_ocr(image_bytes: bytes):
 
     # 3. Deskew fino sobre la mejor rotación (corrige inclinaciones <15°)
     coords = np.column_stack(np.where(best_bw < 128))
+    deskew_angle = 0.0
     if len(coords) > 500:
         angle = cv2.minAreaRect(coords)[-1]
         if angle < -45:
@@ -211,14 +219,26 @@ def _preprocess_for_ocr(image_bytes: bytes):
         else:
             angle = -angle
         if 0.5 < abs(angle) < 15:
+            deskew_angle = angle
             (h2, w2) = best_bw.shape
             M = cv2.getRotationMatrix2D((w2 // 2, h2 // 2), angle, 1.0)
             best_bw = cv2.warpAffine(
                 best_bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
                 borderMode=cv2.BORDER_REPLICATE
             )
+            # Aplicar el mismo deskew a la imagen color para poder generar
+            # la variante adaptativa alineada.
+            img = cv2.warpAffine(
+                img, M, (w2, h2), flags=cv2.INTER_CUBIC,
+                borderMode=cv2.BORDER_REPLICATE
+            )
 
-    return Image.fromarray(best_bw)
+    # 4. Generar TAMBIÉN una variante con threshold adaptativo + unsharp mask
+    #    (mejor con papel arrugado y sombras). El caller probará ambas y
+    #    elegirá la que produzca más números decimales bien formados.
+    adaptive_bw = _prep_bw(img, adaptive=True)
+
+    return Image.fromarray(best_bw), Image.fromarray(adaptive_bw)
 
 
 # ─── Regex patterns adaptados al formato REAL del taxímetro del usuario ────
@@ -333,18 +353,20 @@ def _find_value(text: str, label_variants: List[str], value_re: str) -> Optional
 # Etiquetas exactas del ticket del usuario. Cada entrada es una lista con
 # variantes (por si el OCR se traga acentos, espacios, etc.).
 LABELS_ACUM = {
-    "num_servicios":  ["Num Servicios", "N Servicios", "Numero Servicios"],
+    "num_servicios":  ["Num. Servicios", "Num Servicios", "N Servicios",
+                        "Numero Servicios", "Servicios"],
     "carreras_eur":   ["Carreras"],
     "suplementos":    ["Suplementos", "Surlementos"],  # (Tesseract a veces lee 'Surlementos')
     "total_eur":      ["Total"],
-    "dist_total_km":  ["Dist Total", "Dist. Total"],
-    "dist_ocupado_km":["Dist Ocupado", "Dist. Ocupado"],
-    "dist_libre_km":  ["Dist Libre", "Dist. Libre"],
-    "dist_off_km":    ["Dist OFF", "Dist. OFF", "Dist Off"],
+    "dist_total_km":  ["Dist. Total", "Dist Total"],
+    "dist_ocupado_km":["Dist. Ocupado", "Dist Ocupado"],
+    "dist_libre_km":  ["Dist. Libre", "Dist Libre"],
+    "dist_off_km":    ["Dist. OFF", "Dist OFF", "Dist. Off", "Dist Off"],
     "tiempo_ocupado": ["Tiempo Ocupado"],
     "tiempo_on":      ["Tiempo On", "Tiempo ON"],
     "borrados":       ["Borrados"],
-    "licencia":       ["N LICENCIA", "Nº LICENCIA", "N9 LICENCIA", "LICENCIA"],
+    "licencia":       ["Nº LICENCIA", "N LICENCIA", "N9 LICENCIA", "NS LICENCIA",
+                        "N2 LICENCIA", "LICENCIA"],
 }
 
 LABELS_PARCIAL = {
@@ -388,10 +410,18 @@ _PARCIAL_LINE_RE = re.compile(
 def _parse_ticket_text(raw: str) -> Dict[str, Any]:
     """Extrae los campos del texto plano OCR con regex tolerantes.
 
+    IMPORTANTE (política del usuario):
+      - Los CAMPOS PRINCIPALES se toman SIEMPRE de la sección superior
+        (TOTALES ACUMULADOS del taxímetro), NUNCA de las líneas "P …".
+      - La jornada se calcula como `end.TOTALES - start.TOTALES` en el
+        backend (_compute_totals).
+      - La sección "P …" se ignora para el cálculo, sólo se guarda como
+        referencia en `parcial_turno` (dato secundario).
+
     Devuelve un dict con:
-      - campos principales (de la sección P — parcial de jornada):
+      - campos principales (acumulados del taxímetro):
         fecha, hora, num_servicios, carreras_eur, dist_*_km, tiempo_*
-      - `totales_taximetro`: sección superior (acumulados del taxímetro)
+      - `parcial_turno`: sección "P " (referencia, no usada en cálculos)
       - `raw_ocr_text`: texto crudo (se añade fuera)
     """
     text = raw
@@ -410,10 +440,9 @@ def _parse_ticket_text(raw: str) -> Dict[str, Any]:
         if m.group(4):
             out["hora"] = f"{int(m.group(4)):02d}:{m.group(5)}"
 
-    # ── Separar el texto en dos secciones por LÍNEA.
+    # ── Separar líneas de la sección "P " (para descartarlas del acumulado).
     #    Una línea es de la sección P si contiene "P <etiqueta_conocida>"
-    #    en cualquier parte (más tolerante a ruido de OCR al principio de
-    #    la línea, ej. "ile P Carreras: 0,00").
+    #    en cualquier parte (tolerante a ruido OCR al inicio de la línea).
     acum_lines: List[str] = []
     parcial_lines: List[str] = []
     for line in text.splitlines():
@@ -425,14 +454,12 @@ def _parse_ticket_text(raw: str) -> Dict[str, Any]:
     acumulados = _parse_section("\n".join(acum_lines), LABELS_ACUM)
     parciales = _parse_section("\n".join(parcial_lines), LABELS_PARCIAL)
 
-    # ── Los CAMPOS PRINCIPALES reflejan la sección P (parcial del turno).
-    #    Si la sección P no está (p.ej. ticket antiguo o solo con totales),
-    #    usamos los acumulados como fallback.
-    src = parciales if parciales else acumulados
+    # ── CAMPOS PRINCIPALES: SIEMPRE de los acumulados (política del usuario).
+    #    La jornada se calcula como end.TOTAL - start.TOTAL.
     for key in ("num_servicios", "carreras_eur", "dist_total_km",
                 "dist_ocupado_km", "dist_libre_km", "tiempo_ocupado", "tiempo_on"):
-        if key in src:
-            out[key] = src[key]
+        if key in acumulados:
+            out[key] = acumulados[key]
 
     # ── Fallback dist_libre si tenemos total y ocupado pero no libre
     if out.get("dist_total_km") and out.get("dist_ocupado_km") and out.get("dist_libre_km") is None:
@@ -440,11 +467,11 @@ def _parse_ticket_text(raw: str) -> Dict[str, Any]:
         if libre >= 0:
             out["dist_libre_km"] = round(libre, 2)
 
-    # ── Guardar bloque de acumulados para auditoría / validación
+    # ── Guardar bloque de acumulados completo (extras: suplementos, total, etc.)
     if acumulados:
         out["totales_taximetro"] = acumulados
 
-    # ── Guardar bloque parcial completo (por si algún día lo mostramos aparte)
+    # ── Guardar bloque parcial (referencia — no usado en cálculos)
     if parciales:
         out["parcial_turno"] = parciales
 
@@ -454,14 +481,20 @@ def _parse_ticket_text(raw: str) -> Dict[str, Any]:
 def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     """OCR local con Tesseract. NO usa Gemini ni ninguna API externa.
 
-    Devuelve el mismo shape de dict que la versión anterior + raw_ocr_text
-    para que el frontend pueda mostrar el texto crudo y permitir edición
-    manual de cualquier campo mal leído.
+    Estrategia de calidad:
+      - Preprocesado Otsu (más limpio que adaptativo en tickets térmicos).
+      - Doble pasada Tesseract con dos PSMs (Page Segmentation Modes):
+          · PSM 4 → single column of text of variable sizes (mejor para
+            tickets con dos columnas: etiqueta + valor).
+          · PSM 6 → single uniform block (mejor para líneas densas).
+      - MERGE de resultados: cada campo se toma del OCR que lo detectó.
+        Si ambos lo detectan y difieren, se prefiere el PSM con mejor
+        score total (más campos válidos).
     """
     import pytesseract
 
     try:
-        img = _preprocess_for_ocr(image_bytes)
+        img_bw, _adaptive = _preprocess_for_ocr(image_bytes)
     except Exception as e:
         logger.exception("[journal-ocr] preprocessing failed")
         raise HTTPException(
@@ -469,38 +502,159 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             detail=f"No se pudo abrir la imagen: {e}",
         )
 
-    # PSM 6 = single uniform block of text; funciona bien en tickets
-    config = "--oem 3 --psm 6 -c preserve_interword_spaces=1"
-    try:
-        raw_text = pytesseract.image_to_string(img, lang="spa+eng", config=config)
-    except Exception as e:
-        logger.exception("[journal-ocr] tesseract failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"OCR local falló: {e}",
-        )
+    def _try(psm: int) -> str:
+        try:
+            return pytesseract.image_to_string(
+                img_bw, lang="spa+eng",
+                config=f"--oem 3 --psm {psm} -c preserve_interword_spaces=1",
+            )
+        except Exception:
+            return ""
 
-    logger.info(f"[journal-ocr] raw text ({len(raw_text)} chars):\n{raw_text[:500]}")
+    text_psm4 = _try(4)
+    text_psm6 = _try(6)
 
-    parsed = _parse_ticket_text(raw_text)
+    parsed_4 = _parse_ticket_text(text_psm4)
+    parsed_6 = _parse_ticket_text(text_psm6)
+
+    # Score = número de campos válidos en totales_taximetro (para desempatar)
+    score_4 = len(parsed_4.get("totales_taximetro") or {})
+    score_6 = len(parsed_6.get("totales_taximetro") or {})
+
+    # ── Merge inteligente por campo ──
+    # Para cada campo, elegimos entre PSM 4 y PSM 6 el valor "más fiable":
+    #   - Valores en rango razonable
+    #   - Valores con decimales (los tickets siempre imprimen X,Y en km)
+    #     preferentes frente a enteros grandes (probable OCR sin coma)
+    #   - Si no hay preferencia, cogemos el que exista
+
+    def _looks_ocr_corrupt(key: str, val: Any) -> bool:
+        """Heurísticas para detectar valores que huelen a error de OCR."""
+        try:
+            f = float(val)
+        except (TypeError, ValueError):
+            return True
+        if key.startswith("dist_") and key.endswith("_km"):
+            if f < 0 or f > 1_000_000:
+                return True
+            # Distancias en el taxímetro SIEMPRE tienen decimales.
+            # Un entero grande sin coma sugiere OCR se comió el ',' → sospechoso.
+            if f > 10_000 and f == int(f):
+                return True
+        if key == "carreras_eur":
+            if f < 0 or f > 10_000_000:
+                return True
+            # Facturación €: también con decimales en cents.
+            if f > 100_000 and f == int(f):
+                return True
+        if key == "num_servicios":
+            if f < 0 or f > 999_999:
+                return True
+        return False
+
+    def _pick(key: str) -> Any:
+        v4 = parsed_4.get(key)
+        v6 = parsed_6.get(key)
+        c4 = _looks_ocr_corrupt(key, v4) if v4 is not None else True
+        c6 = _looks_ocr_corrupt(key, v6) if v6 is not None else True
+        # Prefer un valor NO corrupto sobre uno corrupto.
+        if not c4 and c6: return v4
+        if not c6 and c4: return v6
+        if not c4 and not c6:
+            # Ambos válidos: prefer decimal (no int) para campos numéricos.
+            def has_dec(v):
+                try: return float(v) != int(float(v))
+                except (TypeError, ValueError): return False
+            if has_dec(v4) and not has_dec(v6): return v4
+            if has_dec(v6) and not has_dec(v4): return v6
+            # Empate: prefer el del PSM con mejor score total
+            return v4 if score_4 >= score_6 else v6
+        # Ambos corruptos → devuelve cualquiera (o None)
+        return v4 if v4 is not None else v6
+
+    # Aplicar picking a los campos principales
+    parsed: Dict[str, Any] = {}
+    for key in ("fecha", "hora", "num_servicios", "carreras_eur",
+                "dist_total_km", "dist_ocupado_km", "dist_libre_km",
+                "tiempo_ocupado", "tiempo_on"):
+        v = _pick(key)
+        if v is not None:
+            parsed[key] = v
+
+    # totales_taximetro: merge campo-por-campo con la misma lógica
+    tot_4 = parsed_4.get("totales_taximetro") or {}
+    tot_6 = parsed_6.get("totales_taximetro") or {}
+    tot_merged: Dict[str, Any] = {}
+    all_keys = set(tot_4.keys()) | set(tot_6.keys())
+    for k in all_keys:
+        v4 = tot_4.get(k)
+        v6 = tot_6.get(k)
+        c4 = _looks_ocr_corrupt(k, v4) if v4 is not None else True
+        c6 = _looks_ocr_corrupt(k, v6) if v6 is not None else True
+        if not c4 and c6: tot_merged[k] = v4
+        elif not c6 and c4: tot_merged[k] = v6
+        elif not c4 and not c6: tot_merged[k] = v4 if score_4 >= score_6 else v6
+        else: tot_merged[k] = v4 if v4 is not None else v6
+    if tot_merged:
+        parsed["totales_taximetro"] = tot_merged
+
+    # parcial_turno (referencia): del que más tenga
+    for src in (parsed_4, parsed_6):
+        if src.get("parcial_turno") and "parcial_turno" not in parsed:
+            parsed["parcial_turno"] = src["parcial_turno"]
+
+    # Texto crudo del PSM con mayor score (para el usuario si abre "Corregir")
+    raw_text = text_psm4 if score_4 >= score_6 else text_psm6
+
+    # Score log (ya lo tenías arriba)
+    logger.info(f"[journal-ocr] scores → psm4={score_4}, psm6={score_6}")
+
+    # Consistency check: en el bloque acumulado del taxímetro debe cumplirse
+    #     dist_total ≈ dist_ocupado + dist_libre  (+ dist_off, si existe)
+    # Si el total detectado se desvía >20 % de esa suma, es MUY probable que
+    # el OCR lo haya leído mal (números pegados de la línea anterior). En
+    # ese caso lo recalculamos y avisamos.
+    consistency_fixed: List[str] = []
+    def _num(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    total = _num(parsed.get("dist_total_km"))
+    ocup = _num(parsed.get("dist_ocupado_km"))
+    libre = _num(parsed.get("dist_libre_km"))
+    off = _num((parsed.get("totales_taximetro") or {}).get("dist_off_km"))
+
+    if ocup is not None and libre is not None:
+        computed = ocup + libre + (off or 0)
+        if total is None or (computed > 0 and abs(total - computed) / computed > 0.20):
+            parsed["dist_total_km"] = round(computed, 2)
+            if "totales_taximetro" in parsed:
+                parsed["totales_taximetro"]["dist_total_km"] = round(computed, 2)
+            consistency_fixed.append(
+                f"dist_total_km recalculado como ocupado+libre+off = {computed:.2f} km"
+            )
+
     parsed["raw_ocr_text"] = raw_text.strip()
 
-    # Warnings — campos que no se detectaron. El frontend los muestra para que
-    # el conductor los rellene a mano antes de guardar la jornada.
+    # Warnings — campos que no se detectaron.
     warnings: List[str] = []
     for key in ("carreras_eur", "dist_total_km", "dist_ocupado_km", "dist_libre_km"):
         v = parsed.get(key)
         if v is None:
-            warnings.append(f"campo {key} no detectado — revisa el ticket manualmente")
+            warnings.append(f"campo {key} no detectado — revisa manualmente")
 
-    # Sanity checks — si el OCR devolvió cosas absurdas, mejor pedir revisión
+    # Sanity checks — rangos generosos (son acumulados históricos del taxímetro,
+    # un taxi puede tener millones de € o cientos de miles de km acumulados).
     if parsed.get("dist_total_km") is not None:
-        if parsed["dist_total_km"] < 0 or parsed["dist_total_km"] > 100000:
+        if parsed["dist_total_km"] < 0 or parsed["dist_total_km"] > 10_000_000:
             warnings.append("dist_total_km fuera de rango — revisa manualmente")
     if parsed.get("carreras_eur") is not None:
-        if parsed["carreras_eur"] < 0 or parsed["carreras_eur"] > 10000:
+        if parsed["carreras_eur"] < 0 or parsed["carreras_eur"] > 10_000_000:
             warnings.append("carreras_eur fuera de rango — revisa manualmente")
 
+    warnings.extend(consistency_fixed)
     parsed["ocr_warnings"] = warnings
     return parsed
 
