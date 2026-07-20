@@ -15117,15 +15117,6 @@ export default function TransportMeter() {
                             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={ocrReparseWithAI}
-                            disabled={ocrBusy === 'reparse'}
-                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#6366F1', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4, opacity: ocrBusy === 'reparse' ? 0.5 : 1 }}
-                            data-testid="ocr-reparse-ai"
-                          >
-                            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{ocrBusy === 'reparse' ? 'Escaneando…' : 'Re-escanear con IA'}</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
                             onPress={ocrSaveManual}
                             disabled={ocrBusy === 'manual'}
                             style={{ flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: '#10B981', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, opacity: ocrBusy === 'manual' ? 0.5 : 1 }}

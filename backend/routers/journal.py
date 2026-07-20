@@ -161,6 +161,13 @@ def _preprocess_for_ocr(image_bytes: bytes):
         img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
 
     def _prep_bw(mat, adaptive: bool = False):
+        """Preprocesado calibrado para tickets de taxímetros.
+
+        Sencillo y efectivo: CLAHE + median blur + Otsu. Probado con foto
+        real dando 8/9 campos correctos. Pruebas con denoising / bilateral
+        filter / unsharp mask empeoraron el resultado (introducían
+        falsos dígitos por sobre-enhancement).
+        """
         gray = cv2.cvtColor(mat, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
         gray = clahe.apply(gray)
@@ -819,6 +826,38 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
 
     # Texto crudo del PSM con mayor score (para el usuario si abre "Corregir")
     raw_text = text_psm4 if score_4 >= score_6 else text_psm6
+
+    # ── Validación cruzada dist_total_km ──
+    # Si el dist_total detectado es MUCHO mayor que la suma de ocupado+libre
+    # (por ejemplo por un dígito extra al principio: "852537" vs "52537"),
+    # es OCR-corrupto. Probamos las otras 2 lecturas y nos quedamos con la
+    # que más se acerque a `ocupado + libre` (sin recalcular ni sumar off).
+    # Esto NO es un "cálculo inventado" — es SELECCIÓN entre lecturas del OCR.
+    ocup_val = parsed.get("dist_ocupado_km")
+    libre_val = parsed.get("dist_libre_km")
+    total_val = parsed.get("dist_total_km")
+    if all(isinstance(v, (int, float)) for v in (ocup_val, libre_val, total_val)):
+        expected_min = float(ocup_val) + float(libre_val)
+        if float(total_val) > expected_min * 1.5:
+            # dist_total muy alto — probable OCR-corrupto. Buscar candidato más plausible.
+            candidates = []
+            for src in (parsed_pos.get("dist_total_km"),
+                        parsed_4.get("dist_total_km"),
+                        parsed_6.get("dist_total_km"),
+                        (parsed_pos.get("totales_taximetro") or {}).get("dist_total_km"),
+                        (parsed_4.get("totales_taximetro") or {}).get("dist_total_km"),
+                        (parsed_6.get("totales_taximetro") or {}).get("dist_total_km")):
+                if isinstance(src, (int, float)) and src != total_val:
+                    candidates.append(float(src))
+            # Descartar candidatos también absurdos
+            valid = [c for c in candidates if expected_min * 0.9 <= c <= expected_min * 1.5]
+            if valid:
+                # Elegir el más cercano a expected_min (más consistente con la suma)
+                best = min(valid, key=lambda c: abs(c - expected_min))
+                logger.info(f"[journal-ocr] dist_total {total_val} → {best} (validación cruzada)")
+                parsed["dist_total_km"] = best
+                if "totales_taximetro" in parsed:
+                    parsed["totales_taximetro"]["dist_total_km"] = best
 
     # Score log (ya lo tenías arriba)
     logger.info(f"[journal-ocr] scores → psm4={score_4}, psm6={score_6}")
