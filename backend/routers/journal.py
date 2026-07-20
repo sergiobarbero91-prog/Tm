@@ -584,18 +584,23 @@ def _ocr_number_only(crop) -> Optional[str]:
 
     all_candidates: List[str] = []
     for psm in (7, 8):
-        # Whitelist ESTRICTA: dígitos, coma, punto. NO incluye '-' (Tesseract
-        # lo interpretaría como signo negativo y corrompería los números).
+        # Whitelist: dígitos + coma + punto + '/' (Tesseract MUY frecuentemente
+        # lee la coma decimal de tickets térmicos como '/' — se reemplaza a
+        # posteriori). NO incluye '-' (evita signos negativos falsos).
         # Diccionarios desactivados: evita que Tesseract "corrija" 5→S, 0→O.
         cfg = (
             f"--oem 3 --psm {psm} "
-            f"-c tessedit_char_whitelist=0123456789., "
+            f"-c tessedit_char_whitelist=0123456789.,/ "
             f"-c load_system_dawg=0 -c load_freq_dawg=0"
         )
         try:
             text = pytesseract.image_to_string(pil_bw, lang="eng", config=cfg)
         except Exception:
             continue
+        # Reemplazar '/' por ',' — casi siempre es un decimal mal leído
+        # ("3233/79" → "3233,79"). Nunca aparece '/' en un valor numérico
+        # de ticket parcial (las fechas se leen en otra sección).
+        text = text.replace("/", ",")
         for match in re.findall(r"\d+(?:[.,]\d+)?", text):
             if match.strip():
                 all_candidates.append(match)
@@ -653,13 +658,17 @@ def _ocr_number_only(crop) -> Optional[str]:
 # Número en formato español. IMPORTANTE: el orden de las alternativas importa
 # (Python regex es first-match, no longest-match). Ponemos primero las
 # variantes con decimal para que "49854,10" no se trunque a "498".
-_NUM_ES = r"(-?\d+[.,]\d+|-?\d{1,3}(?:[.\s]\d{3})+|-?\d+)"
+# Incluimos '/' como posible separador decimal — Tesseract muy frecuentemente
+# lee la coma como '/' en tickets térmicos ("3233/79" en vez de "3233,79").
+_NUM_ES = r"(-?\d+[.,/]\d+|-?\d{1,3}(?:[.\s]\d{3})+|-?\d+)"
 
 
 def _es_to_float(s: Optional[str]) -> Optional[float]:
     if not s:
         return None
     s = s.strip().replace(" ", "")
+    # Coma-decimal mal leída como '/' — muy común en OCR de tickets.
+    s = s.replace("/", ",")
     if "," in s and "." in s:
         # p.ej. "1.234,56" (español) o "1,234.56" (inglés) — asumimos español
         # cuando la última coma es el separador decimal.
