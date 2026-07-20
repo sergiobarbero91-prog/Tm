@@ -295,7 +295,36 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🛡️ Modo "Revisar y confirmar" + fix 500 en /end (Feb 2026)
+### 🎯 OCR triple-pass con lectura posicional (Feb 2026, iter 4)
+- **Problema**: PSM 4 + PSM 6 aún fallaban en algunos campos críticos
+  (ej. `carreras_eur` sin decimales, distancias con comas mal leídas).
+- **Solución**: añadida TERCERA pasada de OCR **posicional** que es el
+  método más fiable:
+    1. Usa `pytesseract.image_to_data` para localizar cada etiqueta
+       (Carreras, Dist. Total, etc.) por posición (bbox).
+    2. Recorta la región a la derecha de cada etiqueta (mismo alto,
+       de `label.right+15px` hasta el borde derecho).
+    3. OCR con `--psm 7` (single line) + whitelist estricta
+       `tessedit_char_whitelist=0123456789.,€` → Tesseract SÓLO puede
+       devolver dígitos, coma, punto o euro. Imposible confundir `,`
+       con `/`, dígitos con letras, etc.
+    4. `_ocr_number_only` extrae el número más LARGO del crop (por si
+       hay ruido).
+- **Merge**: `_pick` ahora tiene 3 fuentes por campo:
+    1. **Posicional** (si válido) → gana siempre
+    2. PSM 4 vs PSM 6 → prefiere el no-corrupto, luego el que tenga
+       decimales, luego el del mayor score.
+- **Ampliadas heurísticas de corrupción**: `tiempo_*` < 100 sospechoso.
+- **Resultado sobre foto real**:
+    - **8 de 9 campos correctos** (~89 %) frente a 4/9 con sólo PSM 6:
+      ✅ fecha, hora, num_servicios, **carreras_eur 49854.10** (¡con
+      decimales!), dist_total_km, dist_ocupado_km, dist_libre_km, tiempo_on
+    - ❌ tiempo_ocupado (OCR se comió el "55" del 557761 en las 3 pasadas)
+    - Único fallo se corrige en el modal "Revisar y confirmar" antes
+      de guardar.
+    - Latencia end-to-end vía API: **7.3 s** (3 pasadas de Tesseract).
+
+
 - **Bug fix**: el endpoint `POST /api/journal/end` devolvía 500 al procesar
   las lecturas OCR con los nuevos tiempos numéricos (`tiempo_ocupado`/
   `tiempo_on` cambiaron de `Optional[str]` a `Optional[float]` — pero

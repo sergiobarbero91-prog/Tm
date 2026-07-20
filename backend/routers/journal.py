@@ -241,6 +241,181 @@ def _preprocess_for_ocr(image_bytes: bytes):
     return Image.fromarray(best_bw), Image.fromarray(adaptive_bw)
 
 
+# Palabras que identifican cada campo en la sección de acumulados.
+# Cada key mapea a: (palabras de la etiqueta a buscar, campo destino).
+# Para OCR posicional se busca la última palabra clave y se extrae la región
+# a la derecha en la misma fila.
+POSITIONAL_LABELS = [
+    # (last_word_of_label, dest_key, must_not_be_preceded_by_P)
+    ("Servicios",  "num_servicios",   True),
+    ("Carreras",   "carreras_eur",    True),
+    ("Suplementos","suplementos",     True),
+    ("Total",      "total_eur",       True),   # "Total" solo (no "Dist. Total")
+    ("Total",      "dist_total_km",   True),   # segunda ocurrencia después de "Dist"
+    ("Ocupado",    "dist_ocupado_km", True),
+    ("Libre",      "dist_libre_km",   True),
+    ("OFF",        "dist_off_km",     True),
+    ("Ocupado",    "tiempo_ocupado",  True),   # segunda ocurrencia (Tiempo Ocupado)
+    ("On",         "tiempo_on",       True),
+    ("Borrados",   "borrados",        True),
+    ("LICENCIA",   "licencia",        True),
+]
+
+
+def _ocr_values_positional(pil_bw) -> Dict[str, Any]:
+    """OCR posicional: usa image_to_data para localizar etiquetas y hacer
+    una segunda pasada de OCR sobre la región a la derecha de cada etiqueta,
+    con whitelist restrictiva de dígitos + coma + punto.
+
+    Esto es mucho más robusto que parsear el texto plano del OCR porque:
+      1. Cada valor se OCR-ea aislado con `--psm 7` (una sola línea).
+      2. Con `-c tessedit_char_whitelist=0123456789.,` Tesseract sólo puede
+         devolver esos caracteres — imposible confundir ',' con '/', '5'
+         con letra, etc.
+      3. No depende de que la salida de texto plano preserve el layout.
+    """
+    import pytesseract
+    import cv2
+    import numpy as np
+
+    # Convertir PIL → numpy para poder recortar con OpenCV
+    arr = np.array(pil_bw)  # ya es escala de grises B/N
+    H, W = arr.shape[:2]
+
+    # 1) image_to_data para ubicar las palabras
+    try:
+        data = pytesseract.image_to_data(
+            pil_bw, lang="spa+eng",
+            config="--oem 3 --psm 6",
+            output_type=pytesseract.Output.DICT,
+        )
+    except Exception:
+        return {}
+
+    words = []
+    for i, txt in enumerate(data.get("text") or []):
+        t = (txt or "").strip()
+        if not t:
+            continue
+        try:
+            words.append({
+                "text": t,
+                "x": int(data["left"][i]),
+                "y": int(data["top"][i]),
+                "w": int(data["width"][i]),
+                "h": int(data["height"][i]),
+                "line": int(data["line_num"][i]),
+                "block": int(data["block_num"][i]),
+            })
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+
+    if not words:
+        return {}
+
+    # 2) Para cada etiqueta buscada, encontrar sus ocurrencias por texto
+    def _find_word_occurrences(keyword: str, must_not_preceded_by_P: bool) -> List[Dict]:
+        """Devuelve todas las words cuyo texto contiene keyword (case-insensitive),
+        opcionalmente descartando aquellas cuya línea empieza por 'P '."""
+        keyword_up = keyword.upper()
+        hits = []
+        for w in words:
+            wu = re.sub(r"[^\w]", "", w["text"].upper())
+            kk = re.sub(r"[^\w]", "", keyword_up)
+            if wu == kk or (len(kk) >= 4 and kk in wu):
+                if must_not_preceded_by_P:
+                    # Comprobar si en la MISMA línea hay una "P" al inicio
+                    same_line_words = [
+                        ow for ow in words
+                        if ow["block"] == w["block"] and ow["line"] == w["line"]
+                    ]
+                    same_line_words.sort(key=lambda o: o["x"])
+                    if same_line_words:
+                        first = same_line_words[0]
+                        # Si la primera palabra es exactamente "P" o "P." descartar
+                        if re.fullmatch(r"[Pp][.,:]?", first["text"]):
+                            continue
+                hits.append(w)
+        return hits
+
+    # 3) Extraer el número de cada campo
+    result: Dict[str, Any] = {}
+    label_used_positions = set()  # (block, line, x) para no reutilizar la misma etiqueta
+
+    # Recorrido en orden: primero labels específicas (Servicios, Carreras, etc.),
+    # luego "Total" (dos ocurrencias — 1º Total, 2º Dist. Total),
+    # luego "Ocupado" (dos: Dist. Ocupado y Tiempo Ocupado).
+    for keyword, dest_key, no_p in POSITIONAL_LABELS:
+        occurrences = _find_word_occurrences(keyword, no_p)
+        # Descartar ocurrencias ya usadas
+        remaining = [w for w in occurrences
+                     if (w["block"], w["line"], w["x"]) not in label_used_positions]
+        if not remaining:
+            continue
+        # Ordenar por posición vertical (top-down)
+        remaining.sort(key=lambda w: (w["y"], w["x"]))
+        # Tomar la primera no usada
+        label_word = remaining[0]
+        label_used_positions.add((label_word["block"], label_word["line"], label_word["x"]))
+
+        # Recorte: de label.right+15px a fin de imagen, mismo alto de la línea (+/- 5px)
+        x0 = min(label_word["x"] + label_word["w"] + 15, W - 1)
+        y0 = max(label_word["y"] - 4, 0)
+        y1 = min(label_word["y"] + label_word["h"] + 4, H)
+        # Estrechar a la parte útil: recortar la mitad derecha (los valores
+        # están alineados en columna derecha en el ticket)
+        crop = arr[y0:y1, x0:W]
+        if crop.size == 0 or crop.shape[0] < 5 or crop.shape[1] < 20:
+            continue
+
+        # OCR del recorte con whitelist estricta
+        val = _ocr_number_only(crop)
+        if val is None:
+            continue
+
+        if dest_key in ("num_servicios", "borrados", "licencia"):
+            iv = _es_to_int(val)
+            if iv is not None:
+                result[dest_key] = iv
+        else:
+            fv = _es_to_float(val)
+            if fv is not None:
+                result[dest_key] = fv
+
+    return result
+
+
+def _ocr_number_only(crop) -> Optional[str]:
+    """OCR sobre un recorte con whitelist de dígitos + coma + punto + espacio.
+    Devuelve el número más largo (por dígitos) que encuentre en el crop."""
+    import pytesseract
+    from PIL import Image as _Image
+    try:
+        text = pytesseract.image_to_string(
+            _Image.fromarray(crop),
+            lang="eng",
+            config=(
+                "--oem 3 --psm 7 "
+                "-c tessedit_char_whitelist=0123456789.,€ "
+                "-c preserve_interword_spaces=1"
+            ),
+        )
+    except Exception:
+        return None
+    text = text.strip()
+    # Buscar TODOS los números y quedarnos con el que tenga más dígitos.
+    # Un ticket sólo tiene UN valor por fila; si hay varios (ruido) el correcto
+    # es normalmente el que tiene más caracteres numéricos.
+    candidates = re.findall(r"-?\d+(?:[.,]\d+)?", text)
+    if not candidates:
+        return None
+    # Longest by count of digits
+    def _n_digits(s: str) -> int:
+        return sum(1 for c in s if c.isdigit())
+    candidates.sort(key=_n_digits, reverse=True)
+    return candidates[0]
+
+
 # ─── Regex patterns adaptados al formato REAL del taxímetro del usuario ────
 #
 # Un ticket parcial tiene DOS secciones:
@@ -517,6 +692,17 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     parsed_4 = _parse_ticket_text(text_psm4)
     parsed_6 = _parse_ticket_text(text_psm6)
 
+    # ── Tercera pasada: OCR POSICIONAL con whitelist de dígitos ──
+    # Localiza cada etiqueta por `image_to_data` y OCR-ea el recorte a la
+    # derecha con `--psm 7 -c tessedit_char_whitelist=0123456789.,`. Esto es
+    # el método MÁS FIABLE porque Tesseract sólo puede devolver dígitos.
+    try:
+        parsed_pos = _ocr_values_positional(img_bw)
+        logger.info(f"[journal-ocr] positional → {parsed_pos}")
+    except Exception:
+        logger.exception("[journal-ocr] positional OCR failed")
+        parsed_pos = {}
+
     # Score = número de campos válidos en totales_taximetro (para desempatar)
     score_4 = len(parsed_4.get("totales_taximetro") or {})
     score_6 = len(parsed_6.get("totales_taximetro") or {})
@@ -550,18 +736,29 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         if key == "num_servicios":
             if f < 0 or f > 999_999:
                 return True
+        if key.startswith("tiempo_"):
+            # Tiempos son enteros acumulados (segundos o cs desde encendido).
+            # Rango típico: 1000-9999999. Un valor < 100 con OCR es sospechoso.
+            if f < 100 or f > 100_000_000:
+                return True
         return False
 
     def _pick(key: str) -> Any:
         v4 = parsed_4.get(key)
         v6 = parsed_6.get(key)
+        vp = parsed_pos.get(key)  # OCR posicional (más fiable)
         c4 = _looks_ocr_corrupt(key, v4) if v4 is not None else True
         c6 = _looks_ocr_corrupt(key, v6) if v6 is not None else True
-        # Prefer un valor NO corrupto sobre uno corrupto.
+        cp = _looks_ocr_corrupt(key, vp) if vp is not None else True
+        # Regla 1: si el POSICIONAL da un valor válido, lo usamos SIEMPRE (es
+        # el método más fiable — OCR con whitelist estricta de dígitos).
+        if vp is not None and not cp:
+            return vp
+        # Regla 2: preferir cualquier PSM no corrupto sobre uno corrupto.
         if not c4 and c6: return v4
         if not c6 and c4: return v6
         if not c4 and not c6:
-            # Ambos válidos: prefer decimal (no int) para campos numéricos.
+            # Ambos válidos: preferir el que TENGA decimales (fields km/€).
             def has_dec(v):
                 try: return float(v) != int(float(v))
                 except (TypeError, ValueError): return False
@@ -569,8 +766,8 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             if has_dec(v6) and not has_dec(v4): return v6
             # Empate: prefer el del PSM con mejor score total
             return v4 if score_4 >= score_6 else v6
-        # Ambos corruptos → devuelve cualquiera (o None)
-        return v4 if v4 is not None else v6
+        # Todos corruptos → devuelve cualquiera no-None
+        return v4 if v4 is not None else (v6 if v6 is not None else vp)
 
     # Aplicar picking a los campos principales
     parsed: Dict[str, Any] = {}
@@ -581,20 +778,25 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         if v is not None:
             parsed[key] = v
 
-    # totales_taximetro: merge campo-por-campo con la misma lógica
+    # totales_taximetro: merge campo-por-campo con la misma lógica (incl. posicional)
     tot_4 = parsed_4.get("totales_taximetro") or {}
     tot_6 = parsed_6.get("totales_taximetro") or {}
     tot_merged: Dict[str, Any] = {}
-    all_keys = set(tot_4.keys()) | set(tot_6.keys())
+    all_keys = set(tot_4.keys()) | set(tot_6.keys()) | set(parsed_pos.keys())
     for k in all_keys:
         v4 = tot_4.get(k)
         v6 = tot_6.get(k)
+        vp = parsed_pos.get(k)
         c4 = _looks_ocr_corrupt(k, v4) if v4 is not None else True
         c6 = _looks_ocr_corrupt(k, v6) if v6 is not None else True
-        if not c4 and c6: tot_merged[k] = v4
+        cp = _looks_ocr_corrupt(k, vp) if vp is not None else True
+        # 1) Posicional válido gana
+        if vp is not None and not cp:
+            tot_merged[k] = vp
+        elif not c4 and c6: tot_merged[k] = v4
         elif not c6 and c4: tot_merged[k] = v6
         elif not c4 and not c6: tot_merged[k] = v4 if score_4 >= score_6 else v6
-        else: tot_merged[k] = v4 if v4 is not None else v6
+        else: tot_merged[k] = v4 if v4 is not None else (v6 if v6 is not None else vp)
     if tot_merged:
         parsed["totales_taximetro"] = tot_merged
 
