@@ -1058,6 +1058,50 @@ export default function TransportMeter() {
     }
   };
 
+  // Re-ejecuta OCR sobre la foto YA subida usando Gemini Vision.
+  // Mucho más preciso en tickets arrugados / mal iluminados. Usa cuota IA.
+  const ocrReparseWithAI = async () => {
+    if (!ocrJournal?.id || !ocrShowEditModal) return;
+    try {
+      setOcrBusy('reparse');
+      const headers = await ocrAuthHeaders();
+      const fd = new FormData();
+      fd.append('which', ocrShowEditModal);
+      fd.append('method', 'ai');
+      const r = await axios.post(
+        `${API_BASE}/api/journal/${ocrJournal.id}/reparse`,
+        fd,
+        { headers, timeout: 90_000 }
+      );
+      setOcrJournal(r.data);
+      const src = ocrShowEditModal === 'start' ? r.data?.start_reading : r.data?.end_reading;
+      if (src) {
+        const _minToHHMM = (m: any): string => {
+          if (m == null || m === '') return '';
+          const n = Number(m);
+          if (!Number.isFinite(n) || n < 0) return String(m);
+          return `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, '0')}`;
+        };
+        setOcrEditDraft({
+          fecha: src.fecha || '',
+          hora: src.hora || '',
+          num_servicios: src.num_servicios != null ? String(src.num_servicios) : '',
+          carreras_eur: src.carreras_eur != null ? String(src.carreras_eur) : '',
+          dist_total_km: src.dist_total_km != null ? String(src.dist_total_km) : '',
+          dist_ocupado_km: src.dist_ocupado_km != null ? String(src.dist_ocupado_km) : '',
+          dist_libre_km: src.dist_libre_km != null ? String(src.dist_libre_km) : '',
+          tiempo_ocupado: _minToHHMM(src.tiempo_ocupado),
+          tiempo_on: _minToHHMM(src.tiempo_on),
+        });
+      }
+    } catch (e: any) {
+      console.error('[ocr] reparse-ai error', e);
+      setOcrError(e?.response?.data?.detail || 'Error al re-escanear con IA. Reintenta en unos segundos.');
+    } finally {
+      setOcrBusy(null);
+    }
+  };
+
   const ocrSaveManual = async () => {
     if (!ocrJournal?.id || !ocrShowEditModal) return;
     try {
@@ -15071,6 +15115,15 @@ export default function TransportMeter() {
                             data-testid="ocr-edit-cancel"
                           >
                             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Cancelar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={ocrReparseWithAI}
+                            disabled={ocrBusy === 'reparse'}
+                            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#6366F1', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4, opacity: ocrBusy === 'reparse' ? 0.5 : 1 }}
+                            data-testid="ocr-reparse-ai"
+                          >
+                            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{ocrBusy === 'reparse' ? 'Escaneando…' : 'Re-escanear con IA'}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={ocrSaveManual}
