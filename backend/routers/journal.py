@@ -681,32 +681,71 @@ def _ocr_values_positional(pil_bw, pil_adp=None, pil_gray=None) -> Dict[str, Any
                 logger.info(f"[positional-xcheck] suplementos {result.get('suplementos')} → {s_ok}")
                 result["suplementos"] = s_ok
 
-    # Regla 2: dist_total ≈ dist_ocupado + dist_libre + dist_off (±2 km)
-    if all(k in result for k in ("dist_ocupado_km", "dist_libre_km")):
-        expected_dist = float(result["dist_ocupado_km"]) + float(result["dist_libre_km"])
-        if "dist_off_km" in result:
-            expected_dist += float(result["dist_off_km"])
-        cur_dist = result.get("dist_total_km")
-        if cur_dist is None or abs(float(cur_dist) - expected_dist) > 3.0:
-            better = _best_candidate_matching("dist_total_km", expected_dist, 3.0)
-            if better is not None:
-                logger.info(f"[positional-xcheck] dist_total_km {cur_dist} → {better} (=ocup+libre+off={expected_dist:.1f})")
-                result["dist_total_km"] = better
+    # Regla 2 (combinada): buscar la MEJOR combinación de candidatos de
+    # (dist_total, dist_ocupado, dist_libre, dist_off) que satisfaga:
+    #   dist_total ≈ dist_ocupado + dist_libre + dist_off  (±3 km).
+    # Esto es más robusto que corregir campos uno a uno cuando VARIOS
+    # están mal a la vez (por ejemplo, dist_ocupado=20 y dist_total=525379
+    # sólo se resuelven considerando las 4 combinaciones simultáneamente).
+    def _plausible_dist_cands(field: str) -> List[float]:
+        """Devuelve candidatos convertidos a float, sin duplicados y filtrados
+        a valores plausibles (0 ≤ x ≤ 1_000_000 y menos de 8 dígitos)."""
+        out = []
+        seen = set()
+        for v in _all_candidates.get(field, []):
+            fv = _es_to_float(v)
+            if fv is None or fv < 0 or fv > 1_000_000:
+                continue
+            # Descartar valores con demasiados dígitos totales (>=8 = probable
+            # OCR corrupto por fusión de dos números)
+            if sum(1 for c in v if c.isdigit()) > 7:
+                continue
+            key = round(fv, 2)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(fv)
+        return out
 
-    # Regla 3: dist_libre alternativo si dist_total ya está fijo — usar la
-    # consistencia con dist_total - dist_ocupado - dist_off para elegir entre
-    # candidatos empatados (ej: 26742,9 vs 26742,5).
-    if all(k in result for k in ("dist_total_km", "dist_ocupado_km")):
-        expected_libre = float(result["dist_total_km"]) - float(result["dist_ocupado_km"])
-        if "dist_off_km" in result:
-            expected_libre -= float(result["dist_off_km"])
-        cur_libre = result.get("dist_libre_km")
-        # Solo sustituir si hay un candidato MEJOR (más cercano al esperado)
-        if cur_libre is not None and abs(float(cur_libre) - expected_libre) > 0.5:
-            better = _best_candidate_matching("dist_libre_km", expected_libre, 1.0)
-            if better is not None and abs(better - expected_libre) < abs(float(cur_libre) - expected_libre):
-                logger.info(f"[positional-xcheck] dist_libre_km {cur_libre} → {better} (=total-ocup-off={expected_libre:.1f})")
-                result["dist_libre_km"] = better
+    total_c = _plausible_dist_cands("dist_total_km")
+    ocup_c = _plausible_dist_cands("dist_ocupado_km")
+    libre_c = _plausible_dist_cands("dist_libre_km")
+    off_c = _plausible_dist_cands("dist_off_km") or [
+        float(result.get("dist_off_km") or 0.0)
+    ]
+
+    # Añadir el valor actual del result si no está entre los candidatos
+    for field, cands in (("dist_total_km", total_c), ("dist_ocupado_km", ocup_c),
+                         ("dist_libre_km", libre_c), ("dist_off_km", off_c)):
+        cur = result.get(field)
+        if cur is not None and float(cur) not in cands:
+            cands.append(float(cur))
+
+    if total_c and ocup_c and libre_c:
+        best_combo = None
+        best_diff = 3.0  # tolerancia ±3 km
+        for t in total_c:
+            # dist_total debe ser ≥ ocupado (por definición) y de orden similar
+            for o in ocup_c:
+                if o > t:
+                    continue
+                for l_ in libre_c:
+                    if l_ > t:
+                        continue
+                    for off in off_c:
+                        diff = abs(t - (o + l_ + off))
+                        if diff < best_diff:
+                            best_diff = diff
+                            best_combo = (t, o, l_, off)
+
+        if best_combo is not None:
+            t_ok, o_ok, l_ok, off_ok = best_combo
+            for field, new_val in (("dist_total_km", t_ok), ("dist_ocupado_km", o_ok),
+                                    ("dist_libre_km", l_ok), ("dist_off_km", off_ok)):
+                cur = result.get(field)
+                if cur is None or abs(float(cur) - new_val) > 0.05:
+                    logger.info(f"[positional-xcheck-combined] {field} {cur} → {new_val}")
+                    result[field] = new_val
 
     return result
 
