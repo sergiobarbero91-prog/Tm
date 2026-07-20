@@ -24,6 +24,14 @@ Spanish-speaking taxi drivers in Madrid. Tone: professional, tutea, direct.
 The on-disk code in /app matches https://github.com/sergiobarbero91-prog/Tm (single commit `656183e`).
 Only the items below have been added on top of that baseline.
 
+
+### ✅ OCR Journal — Pipeline avanzado según receta usuario (Feb 2026)
+- `/app/backend/routers/journal.py` `_preprocess_for_ocr` y `_ocr_parcial_sync`:
+  - Nuevo **Deskew con `cv2.HoughLinesP`** (detecta líneas horizontales del ticket con Canny → mediana de ángulos ±15°). Fallback a `minAreaRect` si no hay ≥5 líneas.
+  - **Cuarta pasada de OCR**: se aprovecha la variante `adaptive_bw` (adaptiveThreshold Gaussian_C) que ya se calculaba pero no se usaba. Ahora Tesseract corre en `Otsu×PSM4`, `Otsu×PSM6`, `Adaptive×PSM4`, `Adaptive×PSM6` y se hace merge por campo con las 4 fuentes + posicional (whitelist estricta).
+  - **Whitelist ampliada** en OCR posicional: `0123456789.,€:/-` (antes: `0123456789.,€`) — mejor tolerancia a separadores hora/fecha.
+- Test en /tmp/tk.webp: 8/13 campos correctos, ~12s. Los campos que fallan (total_eur, tiempo_ocupado, licencia) están mal impresos físicamente en el ticket — Tesseract no puede recuperarlos sin AI.
+
 ## Changelog (this session — Feb 2026)
 
 ### ✅ Demanda Instantánea (Aviones)

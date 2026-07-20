@@ -217,29 +217,65 @@ def _preprocess_for_ocr(image_bytes: bytes):
 
     best_bw = _prep_bw(img)
 
-    # 3. Deskew fino sobre la mejor rotación (corrige inclinaciones <15°)
-    coords = np.column_stack(np.where(best_bw < 128))
+    # 3. Deskew fino sobre la mejor rotación (corrige inclinaciones <15°).
+    #
+    #    Estrategia dual (recomendada por el usuario):
+    #      a) HoughLinesP → detecta líneas rectas del texto/marco del ticket
+    #         y calcula la mediana del ángulo. Muy fiable con tickets
+    #         térmicos que tienen líneas horizontales claras.
+    #      b) minAreaRect sobre coords de píxeles negros (fallback).
+    #    Elegimos HoughLinesP si detecta suficientes líneas horizontales;
+    #    si no, caemos a minAreaRect.
     deskew_angle = 0.0
+
+    # (a) HoughLinesP: detectar líneas ~horizontales
+    edges = cv2.Canny(best_bw, 50, 150, apertureSize=3)
+    lines = cv2.HoughLinesP(
+        edges, rho=1, theta=np.pi / 180, threshold=200,
+        minLineLength=best_bw.shape[1] // 4, maxLineGap=20,
+    )
+    hough_angle = None
+    if lines is not None and len(lines) >= 5:
+        angles = []
+        for x1, y1, x2, y2 in lines[:, 0]:
+            if x2 == x1:
+                continue
+            a = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+            # Sólo líneas cercanas a horizontales (±15°)
+            if -15 < a < 15:
+                angles.append(a)
+        if len(angles) >= 5:
+            hough_angle = float(np.median(angles))
+
+    # (b) Fallback: minAreaRect
+    minarea_angle = None
+    coords = np.column_stack(np.where(best_bw < 128))
     if len(coords) > 500:
-        angle = cv2.minAreaRect(coords)[-1]
-        if angle < -45:
-            angle = -(90 + angle)
+        a = cv2.minAreaRect(coords)[-1]
+        if a < -45:
+            a = -(90 + a)
         else:
-            angle = -angle
-        if 0.5 < abs(angle) < 15:
-            deskew_angle = angle
-            (h2, w2) = best_bw.shape
-            M = cv2.getRotationMatrix2D((w2 // 2, h2 // 2), angle, 1.0)
-            best_bw = cv2.warpAffine(
-                best_bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
-                borderMode=cv2.BORDER_REPLICATE
-            )
-            # Aplicar el mismo deskew a la imagen color para poder generar
-            # la variante adaptativa alineada.
-            img = cv2.warpAffine(
-                img, M, (w2, h2), flags=cv2.INTER_CUBIC,
-                borderMode=cv2.BORDER_REPLICATE
-            )
+            a = -a
+        if 0.5 < abs(a) < 15:
+            minarea_angle = a
+
+    # Elegir el ángulo — preferir Hough (más robusto en tickets)
+    chosen_angle = hough_angle if hough_angle is not None else minarea_angle
+
+    if chosen_angle is not None and 0.5 < abs(chosen_angle) < 15:
+        deskew_angle = chosen_angle
+        (h2, w2) = best_bw.shape
+        M = cv2.getRotationMatrix2D((w2 // 2, h2 // 2), chosen_angle, 1.0)
+        best_bw = cv2.warpAffine(
+            best_bw, M, (w2, h2), flags=cv2.INTER_CUBIC,
+            borderMode=cv2.BORDER_REPLICATE
+        )
+        # Aplicar el mismo deskew a la imagen color para poder generar
+        # la variante adaptativa alineada.
+        img = cv2.warpAffine(
+            img, M, (w2, h2), flags=cv2.INTER_CUBIC,
+            borderMode=cv2.BORDER_REPLICATE
+        )
 
     # 4. Generar TAMBIÉN una variante con threshold adaptativo + unsharp mask
     #    (mejor con papel arrugado y sombras). El caller probará ambas y
@@ -415,7 +451,9 @@ def _ocr_number_only(crop) -> Optional[str]:
 
     all_candidates: List[str] = []
     for psm in (7, 8):
-        cfg = f"--oem 3 --psm {psm} -c tessedit_char_whitelist=0123456789.,€ "
+        # Whitelist ampliada (recomendación del usuario): dígitos, separadores
+        # decimales (,.), símbolo € y separadores de hora / fecha (:/-).
+        cfg = f"--oem 3 --psm {psm} -c tessedit_char_whitelist=0123456789.,€:/- "
         try:
             text = pytesseract.image_to_string(pil_bw, lang="eng", config=cfg)
         except Exception:
@@ -688,7 +726,7 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     import pytesseract
 
     try:
-        img_bw, _adaptive = _preprocess_for_ocr(image_bytes)
+        img_bw, img_adaptive = _preprocess_for_ocr(image_bytes)
     except Exception as e:
         logger.exception("[journal-ocr] preprocessing failed")
         raise HTTPException(
@@ -696,20 +734,25 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             detail=f"No se pudo abrir la imagen: {e}",
         )
 
-    def _try(psm: int) -> str:
+    def _try(img_variant, psm: int) -> str:
         try:
             return pytesseract.image_to_string(
-                img_bw, lang="spa+eng",
+                img_variant, lang="spa+eng",
                 config=f"--oem 3 --psm {psm} -c preserve_interword_spaces=1",
             )
         except Exception:
             return ""
 
-    text_psm4 = _try(4)
-    text_psm6 = _try(6)
+    # 4 pasadas: 2 PSM × 2 variantes de umbralizado (Otsu + adaptativo)
+    text_psm4 = _try(img_bw, 4)
+    text_psm6 = _try(img_bw, 6)
+    text_psm4_adp = _try(img_adaptive, 4)
+    text_psm6_adp = _try(img_adaptive, 6)
 
     parsed_4 = _parse_ticket_text(text_psm4)
     parsed_6 = _parse_ticket_text(text_psm6)
+    parsed_4_adp = _parse_ticket_text(text_psm4_adp)
+    parsed_6_adp = _parse_ticket_text(text_psm6_adp)
 
     # ── Tercera pasada: OCR POSICIONAL con whitelist de dígitos ──
     # Localiza cada etiqueta por `image_to_data` y OCR-ea el recorte a la
@@ -725,9 +768,12 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
     # Score = número de campos válidos en totales_taximetro (para desempatar)
     score_4 = len(parsed_4.get("totales_taximetro") or {})
     score_6 = len(parsed_6.get("totales_taximetro") or {})
+    score_4a = len(parsed_4_adp.get("totales_taximetro") or {})
+    score_6a = len(parsed_6_adp.get("totales_taximetro") or {})
 
     # ── Merge inteligente por campo ──
-    # Para cada campo, elegimos entre PSM 4 y PSM 6 el valor "más fiable":
+    # Para cada campo, elegimos entre las 4 variantes + posicional el valor
+    # "más fiable":
     #   - Valores en rango razonable
     #   - Valores con decimales (los tickets siempre imprimen X,Y en km)
     #     preferentes frente a enteros grandes (probable OCR sin coma)
@@ -762,31 +808,41 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
                 return True
         return False
 
+    # Lista de fuentes ordenada por prioridad (score total mayor = mayor peso).
+    all_sources = [
+        ("psm4",     parsed_4,     score_4),
+        ("psm6",     parsed_6,     score_6),
+        ("psm4_adp", parsed_4_adp, score_4a),
+        ("psm6_adp", parsed_6_adp, score_6a),
+    ]
+
     def _pick(key: str) -> Any:
-        v4 = parsed_4.get(key)
-        v6 = parsed_6.get(key)
         vp = parsed_pos.get(key)  # OCR posicional (más fiable)
-        c4 = _looks_ocr_corrupt(key, v4) if v4 is not None else True
-        c6 = _looks_ocr_corrupt(key, v6) if v6 is not None else True
         cp = _looks_ocr_corrupt(key, vp) if vp is not None else True
         # Regla 1: si el POSICIONAL da un valor válido, lo usamos SIEMPRE (es
         # el método más fiable — OCR con whitelist estricta de dígitos).
         if vp is not None and not cp:
             return vp
-        # Regla 2: preferir cualquier PSM no corrupto sobre uno corrupto.
-        if not c4 and c6: return v4
-        if not c6 and c4: return v6
-        if not c4 and not c6:
-            # Ambos válidos: preferir el que TENGA decimales (fields km/€).
-            def has_dec(v):
-                try: return float(v) != int(float(v))
-                except (TypeError, ValueError): return False
-            if has_dec(v4) and not has_dec(v6): return v4
-            if has_dec(v6) and not has_dec(v4): return v6
-            # Empate: prefer el del PSM con mejor score total
-            return v4 if score_4 >= score_6 else v6
-        # Todos corruptos → devuelve cualquiera no-None
-        return v4 if v4 is not None else (v6 if v6 is not None else vp)
+
+        # Reunir valores de las 4 variantes con su estado y score
+        candidates = []  # (val, corrupt, score, has_decimal)
+        for _name, src, sc in all_sources:
+            v = src.get(key)
+            if v is None:
+                continue
+            c = _looks_ocr_corrupt(key, v)
+            try:
+                has_dec = float(v) != int(float(v))
+            except (TypeError, ValueError):
+                has_dec = False
+            candidates.append((v, c, sc, has_dec))
+
+        if not candidates:
+            return vp  # todo None → devuelve el posicional (aunque sea None)
+
+        # Preferir: no-corrupto > tiene decimal > mayor score
+        candidates.sort(key=lambda t: (not t[1], t[3], t[2]), reverse=True)
+        return candidates[0][0]
 
     # Aplicar picking a los campos principales
     parsed: Dict[str, Any] = {}
@@ -797,35 +853,54 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         if v is not None:
             parsed[key] = v
 
-    # totales_taximetro: merge campo-por-campo con la misma lógica (incl. posicional)
-    tot_4 = parsed_4.get("totales_taximetro") or {}
-    tot_6 = parsed_6.get("totales_taximetro") or {}
+    # totales_taximetro: merge campo-por-campo con la misma lógica (incl. posicional + 4 variantes)
+    tots = [
+        (parsed_4.get("totales_taximetro") or {}, score_4),
+        (parsed_6.get("totales_taximetro") or {}, score_6),
+        (parsed_4_adp.get("totales_taximetro") or {}, score_4a),
+        (parsed_6_adp.get("totales_taximetro") or {}, score_6a),
+    ]
     tot_merged: Dict[str, Any] = {}
-    all_keys = set(tot_4.keys()) | set(tot_6.keys()) | set(parsed_pos.keys())
+    all_keys = set(parsed_pos.keys())
+    for t, _s in tots:
+        all_keys |= set(t.keys())
+
     for k in all_keys:
-        v4 = tot_4.get(k)
-        v6 = tot_6.get(k)
         vp = parsed_pos.get(k)
-        c4 = _looks_ocr_corrupt(k, v4) if v4 is not None else True
-        c6 = _looks_ocr_corrupt(k, v6) if v6 is not None else True
         cp = _looks_ocr_corrupt(k, vp) if vp is not None else True
-        # 1) Posicional válido gana
         if vp is not None and not cp:
             tot_merged[k] = vp
-        elif not c4 and c6: tot_merged[k] = v4
-        elif not c6 and c4: tot_merged[k] = v6
-        elif not c4 and not c6: tot_merged[k] = v4 if score_4 >= score_6 else v6
-        else: tot_merged[k] = v4 if v4 is not None else (v6 if v6 is not None else vp)
+            continue
+        # Reunir candidatos de las 4 variantes
+        cands = []
+        for t, sc in tots:
+            v = t.get(k)
+            if v is None:
+                continue
+            c = _looks_ocr_corrupt(k, v)
+            try:
+                has_dec = float(v) != int(float(v))
+            except (TypeError, ValueError):
+                has_dec = False
+            cands.append((v, c, sc, has_dec))
+        if cands:
+            cands.sort(key=lambda t: (not t[1], t[3], t[2]), reverse=True)
+            tot_merged[k] = cands[0][0]
+        elif vp is not None:
+            tot_merged[k] = vp
     if tot_merged:
         parsed["totales_taximetro"] = tot_merged
 
     # parcial_turno (referencia): del que más tenga
-    for src in (parsed_4, parsed_6):
+    for src in (parsed_4, parsed_6, parsed_4_adp, parsed_6_adp):
         if src.get("parcial_turno") and "parcial_turno" not in parsed:
             parsed["parcial_turno"] = src["parcial_turno"]
 
     # Texto crudo del PSM con mayor score (para el usuario si abre "Corregir")
-    raw_text = text_psm4 if score_4 >= score_6 else text_psm6
+    scored = [(text_psm4, score_4), (text_psm6, score_6),
+              (text_psm4_adp, score_4a), (text_psm6_adp, score_6a)]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    raw_text = scored[0][0]
 
     # ── Validación cruzada dist_total_km ──
     # Si el dist_total detectado es MUCHO mayor que la suma de ocupado+libre
@@ -844,9 +919,13 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             for src in (parsed_pos.get("dist_total_km"),
                         parsed_4.get("dist_total_km"),
                         parsed_6.get("dist_total_km"),
+                        parsed_4_adp.get("dist_total_km"),
+                        parsed_6_adp.get("dist_total_km"),
                         (parsed_pos.get("totales_taximetro") or {}).get("dist_total_km"),
                         (parsed_4.get("totales_taximetro") or {}).get("dist_total_km"),
-                        (parsed_6.get("totales_taximetro") or {}).get("dist_total_km")):
+                        (parsed_6.get("totales_taximetro") or {}).get("dist_total_km"),
+                        (parsed_4_adp.get("totales_taximetro") or {}).get("dist_total_km"),
+                        (parsed_6_adp.get("totales_taximetro") or {}).get("dist_total_km")):
                 if isinstance(src, (int, float)) and src != total_val:
                     candidates.append(float(src))
             # Descartar candidatos también absurdos
@@ -859,8 +938,11 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
                 if "totales_taximetro" in parsed:
                     parsed["totales_taximetro"]["dist_total_km"] = best
 
-    # Score log (ya lo tenías arriba)
-    logger.info(f"[journal-ocr] scores → psm4={score_4}, psm6={score_6}")
+    # Score log
+    logger.info(
+        f"[journal-ocr] scores → psm4={score_4}, psm6={score_6}, "
+        f"psm4_adp={score_4a}, psm6_adp={score_6a}"
+    )
 
     parsed["raw_ocr_text"] = raw_text.strip()
 
