@@ -470,6 +470,8 @@ export default function TransportMeter() {
   const [ocrEndApp, setOcrEndApp] = useState('');
   const [ocrShowEditModal, setOcrShowEditModal] = useState<null | 'start' | 'end'>(null);
   const [ocrEditDraft, setOcrEditDraft] = useState<Record<string, string>>({});
+  // Which "Totales taxímetro" panels are expanded (values: 'start' or 'end')
+  const [ocrExpandTotals, setOcrExpandTotals] = useState<Set<string>>(new Set());
 
   // Camera capture modal with visual guide frame ("encaja el ticket en el recuadro")
   const [ocrCameraModal, setOcrCameraModal] = useState<null | {
@@ -13414,7 +13416,43 @@ export default function TransportMeter() {
                   const isOpen = j?.status === 'open';
                   const t = j?.totals || {};
 
-                  const renderReading = (r: any, label: string, field: 'start' | 'end') => (
+                  const renderReading = (r: any, label: string, field: 'start' | 'end') => {
+                    // Detect impossible values by comparing end vs start
+                    // Fields that MUST be monotonic (end >= start): if reversed,
+                    // it means the OCR is definitely wrong.
+                    const startR = field === 'end' ? j?.start_reading : null;
+                    const isImpossible = (key: string, val: any): boolean => {
+                      if (val == null || val === '') return false;
+                      const num = Number(val);
+                      if (!Number.isFinite(num)) return false;
+                      // Values that must be >= 0 always
+                      if (num < 0) return true;
+                      // For END reading, compare with START (monotonic fields)
+                      if (field === 'end' && startR) {
+                        const monotonic = ['num_servicios', 'carreras_eur',
+                          'dist_total_km', 'dist_ocupado_km', 'dist_libre_km',
+                          'tiempo_ocupado', 'tiempo_on'];
+                        if (monotonic.includes(key)) {
+                          const s = Number(startR?.[key]);
+                          if (Number.isFinite(s) && num < s) return true;
+                        }
+                      }
+                      // For dist_libre + dist_ocupado > dist_total → imposible
+                      if (key === 'dist_libre_km' && r?.dist_total_km != null && r?.dist_ocupado_km != null) {
+                        const total = Number(r.dist_total_km);
+                        const ocup = Number(r.dist_ocupado_km);
+                        if (Number.isFinite(total) && Number.isFinite(ocup) && (ocup + num) > total * 1.05) {
+                          return true; // 5% de tolerancia por redondeo del taxímetro
+                        }
+                      }
+                      return false;
+                    };
+
+                    const expanded = ocrExpandTotals.has(field);
+                    const totales = r?.totales_taximetro;
+                    const hasTotales = totales && Object.keys(totales).length > 0;
+
+                    return (
                     <View style={{
                       backgroundColor: 'rgba(15,23,42,0.6)',
                       borderRadius: 10,
@@ -13435,8 +13473,8 @@ export default function TransportMeter() {
                               dist_total_km: r?.dist_total_km != null ? String(r.dist_total_km) : '',
                               dist_ocupado_km: r?.dist_ocupado_km != null ? String(r.dist_ocupado_km) : '',
                               dist_libre_km: r?.dist_libre_km != null ? String(r.dist_libre_km) : '',
-                              tiempo_ocupado: r?.tiempo_ocupado || '',
-                              tiempo_on: r?.tiempo_on || '',
+                              tiempo_ocupado: r?.tiempo_ocupado != null ? String(r.tiempo_ocupado) : '',
+                              tiempo_on: r?.tiempo_on != null ? String(r.tiempo_on) : '',
                             });
                             setOcrShowEditModal(field);
                           }}
@@ -13453,27 +13491,87 @@ export default function TransportMeter() {
                         </Text>
                       )}
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                        {[
-                          ['Fecha', r?.fecha],
-                          ['Hora', r?.hora],
-                          ['Servicios', r?.num_servicios],
-                          ['Carreras', r?.carreras_eur != null ? `${Number(r.carreras_eur).toFixed(2)} €` : null],
-                          ['Dist. total', r?.dist_total_km != null ? `${Number(r.dist_total_km).toFixed(2)} km` : null],
-                          ['Dist. ocup.', r?.dist_ocupado_km != null ? `${Number(r.dist_ocupado_km).toFixed(2)} km` : null],
-                          ['Dist. libre', r?.dist_libre_km != null ? `${Number(r.dist_libre_km).toFixed(2)} km` : null],
-                          ['T. ocupado', r?.tiempo_ocupado],
-                          ['T. ON', r?.tiempo_on],
-                        ].map(([k, v]) => (
-                          <View key={String(k)} style={{ minWidth: '47%', flexGrow: 1 }}>
-                            <Text style={{ color: '#64748B', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 }}>{String(k).toUpperCase()}</Text>
-                            <Text style={{ color: v == null || v === '' ? '#475569' : '#E2E8F0', fontSize: 14, fontWeight: '700' }}>
-                              {v == null || v === '' ? '—' : String(v)}
-                            </Text>
-                          </View>
-                        ))}
+                        {([
+                          ['Fecha', r?.fecha, 'fecha'],
+                          ['Hora', r?.hora, 'hora'],
+                          ['Servicios', r?.num_servicios, 'num_servicios'],
+                          ['Carreras', r?.carreras_eur != null ? `${Number(r.carreras_eur).toFixed(2)} €` : null, 'carreras_eur'],
+                          ['Dist. total', r?.dist_total_km != null ? `${Number(r.dist_total_km).toFixed(2)} km` : null, 'dist_total_km'],
+                          ['Dist. ocup.', r?.dist_ocupado_km != null ? `${Number(r.dist_ocupado_km).toFixed(2)} km` : null, 'dist_ocupado_km'],
+                          ['Dist. libre', r?.dist_libre_km != null ? `${Number(r.dist_libre_km).toFixed(2)} km` : null, 'dist_libre_km'],
+                          ['T. ocupado', r?.tiempo_ocupado, 'tiempo_ocupado'],
+                          ['T. ON', r?.tiempo_on, 'tiempo_on'],
+                        ] as [string, any, string][]).map(([k, v, key]) => {
+                          const bad = isImpossible(key, r?.[key]);
+                          const valueColor = v == null || v === ''
+                            ? '#475569'
+                            : bad ? '#F87171' : '#E2E8F0';
+                          return (
+                            <View key={k} style={{ minWidth: '47%', flexGrow: 1 }} data-testid={`ocr-${field}-${key}`}>
+                              <Text style={{ color: bad ? '#F87171' : '#64748B', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 }}>
+                                {k.toUpperCase()}{bad ? ' ⚠' : ''}
+                              </Text>
+                              <Text style={{ color: valueColor, fontSize: 14, fontWeight: '700' }}>
+                                {v == null || v === '' ? '—' : String(v)}
+                              </Text>
+                            </View>
+                          );
+                        })}
                       </View>
+
+                      {/* ── Sección plegable: Totales acumulados del taxímetro ── */}
+                      {hasTotales && (
+                        <View style={{ marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(148,163,184,0.15)' }}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setOcrExpandTotals((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(field)) next.delete(field);
+                                else next.add(field);
+                                return next;
+                              });
+                            }}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}
+                            data-testid={`ocr-toggle-totals-${field}`}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="analytics-outline" size={14} color="#94A3B8" />
+                              <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '700', letterSpacing: 0.4 }}>
+                                TOTALES TAXÍMETRO (acumulado)
+                              </Text>
+                            </View>
+                            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" />
+                          </TouchableOpacity>
+                          {expanded && (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                              {([
+                                ['Licencia', totales?.licencia],
+                                ['Servicios', totales?.num_servicios],
+                                ['Carreras', totales?.carreras_eur != null ? `${Number(totales.carreras_eur).toFixed(2)} €` : null],
+                                ['Suplementos', totales?.suplementos != null ? `${Number(totales.suplementos).toFixed(2)} €` : null],
+                                ['Total', totales?.total_eur != null ? `${Number(totales.total_eur).toFixed(2)} €` : null],
+                                ['Dist. total', totales?.dist_total_km != null ? `${Number(totales.dist_total_km).toFixed(1)} km` : null],
+                                ['Dist. ocup.', totales?.dist_ocupado_km != null ? `${Number(totales.dist_ocupado_km).toFixed(1)} km` : null],
+                                ['Dist. libre', totales?.dist_libre_km != null ? `${Number(totales.dist_libre_km).toFixed(1)} km` : null],
+                                ['Dist. OFF', totales?.dist_off_km != null ? `${Number(totales.dist_off_km).toFixed(1)} km` : null],
+                                ['T. ocupado', totales?.tiempo_ocupado],
+                                ['T. ON', totales?.tiempo_on],
+                                ['Borrados', totales?.borrados],
+                              ] as [string, any][]).map(([k, v]) => (
+                                <View key={k} style={{ minWidth: '47%', flexGrow: 1 }}>
+                                  <Text style={{ color: '#475569', fontSize: 9, fontWeight: '600', letterSpacing: 0.3 }}>{k.toUpperCase()}</Text>
+                                  <Text style={{ color: v == null || v === '' ? '#334155' : '#94A3B8', fontSize: 12, fontWeight: '600' }}>
+                                    {v == null || v === '' ? '—' : String(v)}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
-                  );
+                    );
+                  };
 
                   return (
                     <View style={[styles.faresSection, { backgroundColor: 'rgba(16,185,129,0.06)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(16,185,129,0.25)' }]} data-testid="ocr-journal-section">

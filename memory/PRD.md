@@ -295,7 +295,25 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🎯 OCR ajustado a formato REAL del ticket (Feb 2026, iteración 2)
+### 🎨 UI Journal: Panel plegable "Totales taxímetro" + destacar valores imposibles (Feb 2026)
+- **Nuevo panel colapsable "TOTALES TAXÍMETRO (acumulado)"** debajo de cada
+  lectura (start / end) en la pestaña Gestión. Muestra los 12 campos del
+  bloque de acumulados históricos (`totales_taximetro`): Licencia,
+  Servicios, Carreras €, Suplementos €, Total €, Dist. Total/Ocup/Libre/OFF,
+  T. ocupado, T. ON, Borrados. Se pliega/expande con un icono chevron.
+  Se muestra en gris (jerarquía visual — datos secundarios para auditoría).
+- **Detección de valores imposibles** (OCR Confidence): en la lectura de FIN
+  cualquier valor de campos monotónicos (`num_servicios`, `carreras_eur`,
+  `dist_*_km`, `tiempo_*`) que sea MENOR que la lectura de inicio se colorea
+  en **rojo #F87171** con un `⚠` junto a la etiqueta. Además:
+    - Valores negativos → rojo
+    - `dist_libre + dist_ocupado > dist_total × 1.05` → rojo (con 5% de
+      tolerancia por redondeo del taxímetro)
+- **Estado nuevo**: `ocrExpandTotals: Set<string>` (contiene 'start' / 'end'
+  para los paneles expandidos).
+- **Fichero**: `frontend/app/index.tsx` — refactor de `renderReading`
+  (líneas 13417-13560 aprox).
+
 - **Contexto**: El usuario compartió una foto real de su parcial. El ticket tiene
   DOS secciones:
     - **Sección superior — TOTALES ACUMULADOS** (histórico del taxímetro):
