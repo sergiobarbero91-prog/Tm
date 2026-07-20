@@ -295,7 +295,32 @@ Pressure points based on STATUS + minutes since landing:
 - Refactor `frontend/app/index.tsx` (~18000 lines)
 - Accessibility improvements
 
-### 🎨 UI Journal: Panel plegable "Totales taxímetro" + destacar valores imposibles (Feb 2026)
+### 🖼️ Historial de jornadas con miniaturas (Feb 2026)
+- **Backend** — Nuevo endpoint `GET /api/journal/{id}/photo/{which}?thumb=1`
+  en `routers/journal.py`:
+    - Auth-protected (ownership check: sólo el dueño de la jornada o admin).
+    - `which` ∈ {"start", "end"}. Devuelve 400 si otro valor.
+    - `?thumb=1` genera on-the-fly una miniatura 400×400 JPEG q=75 con PIL
+      (~20 KB vs ~1 MB del original). `Cache-Control: private, max-age=3600`
+      para que el navegador la cachee 1 hora.
+    - Sin thumb devuelve el fichero original con `FileResponse`.
+- **Frontend** — Nuevo componente `JournalThumb` en `app/index.tsx`:
+    - Fetcha el thumbnail vía `axios responseType: 'blob'` con el JWT en el
+      header (no exponemos token en la URL).
+    - Convierte el blob a ObjectURL y renderiza un `<img>` de 44×44 px.
+    - Cache in-memory con `useRef<Map>` para no re-fetchar en cada render.
+    - Estados: cargando (spinner) / error (icono placeholder) / listo.
+- **Integración**: en la lista de historial (últimas 6 jornadas), muestra
+  las miniaturas de las fotos de INICIO y FIN antes del texto.
+- **Fichero backend**: `backend/routers/journal.py` — nuevo endpoint
+  antes de `/start`.
+- **Fichero frontend**: `frontend/app/index.tsx` — componente `JournalThumb`
+  añadido tras `ocrLoadHistory`; fila de historial actualizada para
+  mostrar los thumbnails.
+- **Test**: `curl` a `/api/journal/{id}/photo/start?thumb=1` → 200,
+  `Content-Type: image/jpeg`, tamaño ~20 KB. Sin auth → 401. `which`
+  inválido → 400.
+
 - **Nuevo panel colapsable "TOTALES TAXÍMETRO (acumulado)"** debajo de cada
   lectura (start / end) en la pestaña Gestión. Muestra los 12 campos del
   bloque de acumulados históricos (`totales_taximetro`): Licencia,

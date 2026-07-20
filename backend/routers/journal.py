@@ -796,6 +796,62 @@ def _aggregate_period(journals: List[Dict[str, Any]], bucket: str) -> List[Dict[
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
+@router.get("/{journal_id}/photo/{which}")
+async def get_journal_photo(
+    journal_id: str,
+    which: str,   # "start" or "end"
+    thumb: int = 0,  # ?thumb=1 → return 400px width JPEG (~15-40 KB)
+    user=Depends(get_current_user_required),
+):
+    """Serve a taximeter photo (start or end) for a given journal.
+
+    Enforces ownership: only the user who owns the journal (or an admin) can
+    fetch the file. Passing ?thumb=1 returns a resized JPEG optimised for
+    listing thumbnails.
+    """
+    if which not in ("start", "end"):
+        raise HTTPException(status_code=400, detail="which must be 'start' or 'end'")
+
+    journal = await JOURNAL_COLLECTION.find_one({"id": journal_id}, {"_id": 0})
+    if not journal:
+        raise HTTPException(status_code=404, detail="Jornada no encontrada.")
+    if journal["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado.")
+
+    fname = journal.get(f"{which}_photo")
+    if not fname:
+        raise HTTPException(status_code=404, detail=f"Foto de {which} no disponible.")
+
+    fpath = os.path.join(PARCIAL_PHOTOS_DIR, fname)
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Fichero de foto no encontrado en el servidor.")
+
+    if thumb:
+        # Miniatura on-the-fly: 400px ancho, JPEG q=75 → ~20 KB.
+        try:
+            from PIL import Image
+            import io
+            with Image.open(fpath) as im:
+                im = im.convert("RGB")
+                im.thumbnail((400, 400), Image.LANCZOS)
+                buf = io.BytesIO()
+                im.save(buf, format="JPEG", quality=75, optimize=True)
+                buf.seek(0)
+                from fastapi.responses import Response
+                return Response(
+                    content=buf.getvalue(),
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": "private, max-age=3600"},
+                )
+        except Exception as e:
+            logger.exception("[journal] thumbnail generation failed: %s", e)
+            # Fallback: servir original
+            pass
+
+    from fastapi.responses import FileResponse
+    return FileResponse(fpath, headers={"Cache-Control": "private, max-age=3600"})
+
+
 @router.post("/start")
 async def start_journal(
     photo: UploadFile = File(...),

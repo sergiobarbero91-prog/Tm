@@ -771,6 +771,69 @@ export default function TransportMeter() {
     }
   };
 
+  // Thumbnail loader: fetches the parcial photo as a blob (auth-protected)
+  // and returns an object URL usable in <img src="...">. Uses an in-component
+  // cache so we don't re-fetch on every render.
+  const ocrThumbCacheRef = useRef<Map<string, string>>(new Map());
+  const JournalThumb = ({ journalId, which, size = 44 }: { journalId: string; which: 'start' | 'end'; size?: number }) => {
+    const cacheKey = `${journalId}:${which}`;
+    const [url, setUrl] = useState<string | null>(() => ocrThumbCacheRef.current.get(cacheKey) || null);
+    const [failed, setFailed] = useState(false);
+    useEffect(() => {
+      if (url || failed) return;
+      let cancelled = false;
+      (async () => {
+        try {
+          const headers = await ocrAuthHeaders();
+          const r = await axios.get(
+            `${API_BASE}/api/journal/${journalId}/photo/${which}?thumb=1`,
+            { headers, responseType: 'blob' }
+          );
+          if (cancelled) return;
+          const objUrl = URL.createObjectURL(r.data);
+          ocrThumbCacheRef.current.set(cacheKey, objUrl);
+          setUrl(objUrl);
+        } catch {
+          if (!cancelled) setFailed(true);
+        }
+      })();
+      return () => { cancelled = true; };
+    }, [journalId, which, url, failed, cacheKey]);
+
+    const commonStyle = { width: size, height: size, borderRadius: 6, backgroundColor: '#0F172A',
+      borderWidth: 1, borderColor: 'rgba(148,163,184,0.2)', overflow: 'hidden' as const,
+      alignItems: 'center' as const, justifyContent: 'center' as const };
+
+    if (failed || (!url && Platform.OS !== 'web')) {
+      return (
+        <View style={commonStyle} data-testid={`ocr-thumb-${which}-${journalId}`}>
+          <Ionicons name="image-outline" size={20} color="#475569" />
+        </View>
+      );
+    }
+    if (!url) {
+      return (
+        <View style={commonStyle} data-testid={`ocr-thumb-${which}-${journalId}`}>
+          <ActivityIndicator size="small" color="#64748B" />
+        </View>
+      );
+    }
+    // On web we can render a native <img> for best perf; on native we could
+    // use expo-image but the Gestión tab is web-only so this is fine.
+    return (
+      // @ts-ignore - <img> inside RN Web
+      <img
+        src={url}
+        alt="Parcial"
+        data-testid={`ocr-thumb-${which}-${journalId}`}
+        style={{
+          width: size, height: size, objectFit: 'cover',
+          borderRadius: 6, border: '1px solid rgba(148,163,184,0.2)',
+        }}
+      />
+    );
+  };
+
   const ocrLoadStats = async (bucket: 'day' | 'week' | 'month' = ocrStatsBucket) => {
     try {
       const headers = await ocrAuthHeaders();
@@ -13852,9 +13915,18 @@ export default function TransportMeter() {
                             <TouchableOpacity
                               key={h.id}
                               onPress={() => setOcrJournal(h)}
-                              style={{ backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, padding: 10, marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                              style={{ backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 8, padding: 10, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 10 }}
                               data-testid={`ocr-history-${h.id}`}
                             >
+                              {/* Thumbnails: start + end (si existen) */}
+                              <View style={{ flexDirection: 'row', gap: 4 }}>
+                                {h.start_photo && (
+                                  <JournalThumb journalId={h.id} which="start" size={44} />
+                                )}
+                                {h.end_photo && (
+                                  <JournalThumb journalId={h.id} which="end" size={44} />
+                                )}
+                              </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={{ color: '#E2E8F0', fontSize: 13, fontWeight: '700' }}>
                                   {h.start_reading?.fecha || h.start_at?.slice(0, 10) || '—'} · {h.status === 'open' ? '🟢 Abierta' : '✅ Cerrada'}
