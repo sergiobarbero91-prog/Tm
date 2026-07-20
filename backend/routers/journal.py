@@ -118,7 +118,16 @@ def _build_genai_client():
 
 
 def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
-    """Run OCR on a parciales photo via Gemini Vision. Returns parsed dict."""
+    """Run OCR on a parciales photo via Gemini Vision. Returns parsed dict.
+
+    Estrategia anti-saturación:
+      1. Intenta modelo principal (gemini-2.5-flash) con hasta 3 reintentos
+         y backoff exponencial (2s, 4s, 8s) ante 429/503/overloaded.
+      2. Si sigue fallando, cambia al modelo fallback (flash-lite) con
+         los mismos 3 reintentos.
+      3. Solo si ambos agotan sus reintentos → HTTP 503 al cliente.
+    """
+    import time
     from google.genai import types as gtypes
 
     client = _build_genai_client()
@@ -131,32 +140,44 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             config=gtypes.GenerateContentConfig(temperature=0.0),
         )
 
+    TRANSIENT_KEYS = ("429", "RESOURCE_EXHAUSTED", "quota", "503",
+                      "UNAVAILABLE", "overloaded", "high demand", "deadline")
+
+    def _try_with_retries(model_name: str, attempts: int = 3):
+        last_exc = None
+        for i in range(attempts):
+            try:
+                return _call(model_name)
+            except Exception as e:
+                msg = str(e)
+                last_exc = e
+                if not any(k in msg for k in TRANSIENT_KEYS):
+                    # Error no transitorio → no sirve reintentar
+                    raise
+                wait = 2 ** (i + 1)  # 2s, 4s, 8s
+                logger.warning(
+                    f"[journal-ocr] {model_name} transient error "
+                    f"(intento {i+1}/{attempts}, reintentando en {wait}s): {msg[:180]}"
+                )
+                time.sleep(wait)
+        # Agotados los reintentos
+        raise last_exc  # type: ignore[misc]
+
     try:
-        response = _call(OCR_MODEL)
+        response = _try_with_retries(OCR_MODEL, attempts=3)
     except Exception as e:
         msg = str(e)
-        # Quota exhausted → return a clean 503 with Retry-After so the frontend
-        # can show a friendly retry message.
-        if any(k in msg for k in ("429", "RESOURCE_EXHAUSTED", "quota")):
-            logger.warning(f"[journal-ocr] Gemini quota exhausted: {msg[:200]}")
-            raise HTTPException(
-                status_code=503,
-                detail="El servicio de IA está temporalmente saturado. Espera unos segundos e inténtalo de nuevo.",
-                headers={"Retry-After": "60"},
-            )
-        if any(k in msg for k in ("503", "UNAVAILABLE", "overloaded", "high demand")):
-            logger.warning(f"[journal-ocr] {OCR_MODEL} overloaded, using fallback")
+        if any(k in msg for k in TRANSIENT_KEYS):
+            logger.warning(f"[journal-ocr] {OCR_MODEL} agotado, saltando a fallback {OCR_MODEL_FALLBACK}")
             try:
-                response = _call(OCR_MODEL_FALLBACK)
+                response = _try_with_retries(OCR_MODEL_FALLBACK, attempts=3)
             except Exception as e2:
-                msg2 = str(e2)
-                if any(k in msg2 for k in ("429", "RESOURCE_EXHAUSTED", "quota")):
-                    raise HTTPException(
-                        status_code=503,
-                        detail="El servicio de IA está temporalmente saturado. Espera unos segundos e inténtalo de nuevo.",
-                        headers={"Retry-After": "60"},
-                    )
-                raise
+                logger.error(f"[journal-ocr] fallback también saturado: {str(e2)[:200]}")
+                raise HTTPException(
+                    status_code=503,
+                    detail="El servicio de IA está temporalmente saturado. Espera un minuto y vuelve a intentarlo.",
+                    headers={"Retry-After": "60"},
+                )
         else:
             raise
 

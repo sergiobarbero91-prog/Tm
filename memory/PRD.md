@@ -299,3 +299,16 @@ Pressure points based on STATUS + minutes since landing:
 - Fare Calculator T1/T2/T3/T4/T7/Nochebuena tariffs are exact official Madrid values.
 - Grouped airport terminals on login page: T1, T2-T3, T4-T4S.
 - WhatsApp hourly broadcast runs 6-23h with random minute 1-30.
+
+### 🐛 Bug fix #7 — "IA saturada" al subir foto del taxímetro (Feb 2026)
+- **Backend** `/app/backend/routers/journal.py`: `_ocr_parcial_sync` ahora reintenta hasta
+  3 veces con backoff exponencial (2s → 4s → 8s) contra el modelo principal
+  (`gemini-2.5-flash`) ante 429/RESOURCE_EXHAUSTED/503/overloaded/deadline.
+  Si se agotan, cambia al modelo fallback (`gemini-2.5-flash-lite`) con otros 3
+  reintentos. Solo si TAMBIÉN se agota el fallback devuelve HTTP 503 al cliente.
+- **Frontend** `/app/frontend/app/index.tsx`: `ocrStartShift` y `ocrEndShift` ahora
+  hacen un reintento extra automático tras 4s si el backend responde 503, de forma
+  que el usuario prácticamente nunca ve el mensaje de saturación.
+- **Nginx** `/app/nginx/nginx.conf`: `client_max_body_size 25M;` +
+  `client_body_buffer_size 128k;` + `client_body_timeout 120s;` añadidos al
+  bloque `http` para desbloquear la subida de fotos en producción.

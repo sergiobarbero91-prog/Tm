@@ -698,7 +698,7 @@ export default function TransportMeter() {
       const headers = await ocrAuthHeaders();
       const fd = new FormData();
       fd.append('photo', file);
-      const r = await axios.post(`${API_BASE}/api/journal/start`, fd, {
+      const doPost = () => axios.post(`${API_BASE}/api/journal/start`, fd, {
         headers: { ...headers },
         timeout: 90_000,
         maxContentLength: 25 * 1024 * 1024,
@@ -708,6 +708,19 @@ export default function TransportMeter() {
           setOcrUploadProgress(pct);
         },
       });
+      let r;
+      try {
+        r = await doPost();
+      } catch (err: any) {
+        // Retry once on transient AI saturation
+        if (err?.response?.status === 503) {
+          console.warn('[ocr] IA saturada, reintentando en 4s...');
+          await new Promise((res) => setTimeout(res, 4000));
+          r = await doPost();
+        } else {
+          throw err;
+        }
+      }
       setOcrJournal(r.data);
     } catch (e: any) {
       console.error('[ocr] start error', e);
@@ -762,16 +775,28 @@ export default function TransportMeter() {
       fd.append('precio_cerrado', String(parseFloat((ocrEndPrecioCerrado || '0').replace(',', '.')) || 0));
       fd.append('cobrado_tarjeta', String(parseFloat((ocrEndTarjeta || '0').replace(',', '.')) || 0));
       fd.append('cobrado_app', String(parseFloat((ocrEndApp || '0').replace(',', '.')) || 0));
-      const r = await axios.post(`${API_BASE}/api/journal/end`, fd, {
-        headers,
-        timeout: 90_000,
-        maxContentLength: 25 * 1024 * 1024,
-        maxBodyLength: 25 * 1024 * 1024,
-        onUploadProgress: (evt) => {
-          const pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
-          setOcrUploadProgress(pct);
-        },
-      });
+      const r = await (async () => {
+        const doPost = () => axios.post(`${API_BASE}/api/journal/end`, fd, {
+          headers,
+          timeout: 90_000,
+          maxContentLength: 25 * 1024 * 1024,
+          maxBodyLength: 25 * 1024 * 1024,
+          onUploadProgress: (evt) => {
+            const pct = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+            setOcrUploadProgress(pct);
+          },
+        });
+        try {
+          return await doPost();
+        } catch (err: any) {
+          if (err?.response?.status === 503) {
+            console.warn('[ocr] IA saturada al cerrar, reintentando en 4s...');
+            await new Promise((res) => setTimeout(res, 4000));
+            return await doPost();
+          }
+          throw err;
+        }
+      })();
       setOcrJournal(r.data); // closed journal with totals
       setOcrEndPhoto(null);
       setOcrEndPrecioCerrado('');
