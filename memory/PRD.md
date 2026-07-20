@@ -255,6 +255,23 @@ Pressure points based on STATUS + minutes since landing:
 - **Validado en vivo** (testing_agent iter_19, 9/9 backend + Playwright smoke happy+error): wildcard mode no emite credentials, specific mode las emite correctamente, botón diagnóstico devuelve `✅ Conexión OK 46ms` en happy path y `🔴 ERR_NETWORK [url]` en error path.
 - **Handoff producción**: en `asdelvolante.es`/`backend/.env` añadir `ALLOWED_ORIGINS=https://asdelvolante.es,https://www.asdelvolante.es` y reiniciar backend. Con eso las cookies y auth headers cross-origin funcionan correctamente.
 
+### 🐛 Bug fix #6 — Subida de foto en producción "imagen demasiado grande" + crash de compresión (Feb 2026)
+- **Síntomas encadenados**:
+  - Iter_19 arregló CORS → conexión al backend OK.
+  - Iter_20 el usuario vio "La imagen es demasiado grande" (413 de nginx con `client_max_body_size 1M` por defecto).
+  - Iter_20 fix intentó apretar la compresión, pero introdujo **bug crítico**: `new Image()` colisionaba con el `Image` importado de `react-native` en la línea 21 del `index.tsx`, tirando la pipeline entera de compresión con `TypeError: Image.default is not a constructor`.
+- **Fix aplicado**:
+  1. **Compresión más agresiva** (`_compressImage` en `index.tsx`): maxSide 1600→**1400**, quality 0.85→**0.75**, skip-threshold 900KB→**300KB**, con **segunda pasada** a 0.75× escala + quality 0.65 si el resultado sigue >800 KB.
+  2. **Fix del shadow**: `new Image()` → `new window.Image()` (usa la del DOM, no la de RN).
+  3. **Mensaje de error 413 accionable**: "La imagen es demasiado grande. Sube el límite de nginx (client_max_body_size 25M;) y reinicia el contenedor nginx. Si eres el usuario, avisa al admin."
+- **Validado por testing_agent iter_21** (100% PASS): fotos 3-4 MB se comprimen a <1 MB en cliente, POST llega al backend, si mock 413 sale el mensaje con la guía de nginx.
+- **Instrucciones para producción**:
+  1. Save to GitHub → `git pull` → `docker compose up -d --build frontend`
+  2. Edita el `nginx.conf` de tu setup añadiendo `client_max_body_size 25M;` dentro del bloque `server { listen 443 ssl; ... }`
+  3. `docker compose restart nginx`
+  4. En el móvil: cierra caché completa de asdelvolante.es → login → Gestión → sube foto
+- **Nota code-review**: `_friendlyUploadError` trataba TypeErrors como errores de red genéricos. Añadir en el futuro `if (e instanceof TypeError) return 'Error interno: ' + e.message` para exponer bugs JS claramente en el próximo P1.
+
 ### 🟡 P1 — Open items for next session
 - 🆕 **New AEROPUERTO section in daily summary with optimal terminal arrival time** (user request 13 May 2026): cross AENA flight data we already have at `/api/flights` (terminals, instant_demand_pct, saturation_30min/60min, large_30min, delivering_30min, arrival schedules) with the AI summary to suggest the taxi driver the **best time to head toward each terminal** based on landing "waves". Example output: "T4S — pico previsto 18:30h-19:15h (5 vuelos grandes seguidos, sal de aquí a las 17:50h)". Implementation notes:
    - DO NOT need more Gemini calls. Compute peaks in backend from the flights cache (group landings by 15-min buckets, weight by aircraft size/status, pick top-3 peaks of the next 6h per terminal).
