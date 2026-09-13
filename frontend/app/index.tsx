@@ -486,6 +486,16 @@ export default function TransportMeter() {
   const [ocrStats, setOcrStats] = useState<any | null>(null);
   const [ocrStatsBucket, setOcrStatsBucket] = useState<'day' | 'week' | 'month'>('week');
 
+  // Owner-mode filters in Gestión (only relevant if currentUser.role === 'propietario').
+  //   ocrDriverId: null = ver los datos propios; string = ver los del conductor.
+  //   ocrDriverLicencia: null = todas las licencias; string = filtro por licencia.
+  //   ocrView: 'individual' (charts+historial) | 'comparativa' (top ranking).
+  const [ocrDriverId, setOcrDriverId] = useState<string | null>(null);
+  const [ocrDriverLicencia, setOcrDriverLicencia] = useState<string | null>(null);
+  const [ocrView, setOcrView] = useState<'individual' | 'comparativa'>('individual');
+  const [ocrCompareData, setOcrCompareData] = useState<any | null>(null);
+  const [ocrCompareLoading, setOcrCompareLoading] = useState(false);
+
   // === OCR Journal — API helpers ===
   // === OCR — File picker with in-DOM attach + client-side compression ===
   //
@@ -764,7 +774,8 @@ export default function TransportMeter() {
   const ocrLoadHistory = async () => {
     try {
       const headers = await ocrAuthHeaders();
-      const r = await axios.get(`${API_BASE}/api/journal/list?limit=10`, { headers });
+      const q = ocrDriverId ? `&driver_id=${encodeURIComponent(ocrDriverId)}` : '';
+      const r = await axios.get(`${API_BASE}/api/journal/list?limit=10${q}`, { headers });
       setOcrHistory(Array.isArray(r.data) ? r.data : []);
     } catch (e) {
       console.error('[ocr] history error', e);
@@ -838,7 +849,8 @@ export default function TransportMeter() {
     try {
       const headers = await ocrAuthHeaders();
       const days = bucket === 'day' ? 30 : bucket === 'week' ? 90 : 365;
-      const r = await axios.get(`${API_BASE}/api/journal/stats?bucket=${bucket}&days=${days}`, { headers });
+      const q = ocrDriverId ? `&driver_id=${encodeURIComponent(ocrDriverId)}` : '';
+      const r = await axios.get(`${API_BASE}/api/journal/stats?bucket=${bucket}&days=${days}${q}`, { headers });
       setOcrStats(r.data);
     } catch (e) {
       console.error('[ocr] stats error', e);
@@ -849,7 +861,8 @@ export default function TransportMeter() {
     try {
       setSummaryLoading(true);
       const headers = await ocrAuthHeaders();
-      const r = await axios.get(`${API_BASE}/api/journal/summary?start=${start}&end=${end}`, { headers });
+      const q = ocrDriverId ? `&driver_id=${encodeURIComponent(ocrDriverId)}` : '';
+      const r = await axios.get(`${API_BASE}/api/journal/summary?start=${start}&end=${end}${q}`, { headers });
       setSummaryData(r.data);
     } catch (e) {
       console.error('[summary] error', e);
@@ -857,7 +870,25 @@ export default function TransportMeter() {
     } finally {
       setSummaryLoading(false);
     }
-  }, []);
+  }, [ocrDriverId]);
+
+  // Owner-mode: cargar comparativa de conductores (para pestaña Comparativa).
+  // No usamos useCallback porque `currentUser` se declara más abajo — la
+  // función se referencia mediante clausura y se llama sólo en eventos.
+  const loadOwnerComparativa = async (start: string, end: string) => {
+    if (currentUser?.role !== 'propietario') return;
+    try {
+      setOcrCompareLoading(true);
+      const headers = await ocrAuthHeaders();
+      const r = await axios.get(`${API_BASE}/api/owner/comparativa?start=${start}&end=${end}`, { headers });
+      setOcrCompareData(r.data);
+    } catch (e) {
+      console.error('[comparativa] error', e);
+      setOcrCompareData(null);
+    } finally {
+      setOcrCompareLoading(false);
+    }
+  };
 
   // Progress helper: exposed via ocrBusy but we also surface bytes uploaded.
   const [ocrUploadProgress, setOcrUploadProgress] = useState<number>(0);
@@ -1363,6 +1394,36 @@ export default function TransportMeter() {
   const [invitationCode, setInvitationCode] = useState('');
   const [sponsorLicense, setSponsorLicense] = useState('');
   const [registrationRequestSent, setRegistrationRequestSent] = useState(false);
+
+  // Rol de registro (conductor | propietario). Propietario permite añadir
+  // múltiples licencias y no requiere invitación de otro taxista.
+  const [registerRole, setRegisterRole] = useState<'conductor' | 'propietario'>('conductor');
+  const [registerLicenses, setRegisterLicenses] = useState<Array<{ numero: string; alias: string }>>([
+    { numero: '', alias: '' },
+  ]);
+
+  // ─── Owner (Propietario) state ──────────────────────────────────────────
+  type LicenciaItem = { numero: string; alias?: string | null };
+  type DriverItem = {
+    id: string;
+    username: string;
+    full_name?: string | null;
+    phone?: string | null;
+    licencia_asignada?: string | null;
+    created_at?: string | null;
+  };
+  const [ownerLicencias, setOwnerLicencias] = useState<LicenciaItem[]>([]);
+  const [ownerDrivers, setOwnerDrivers] = useState<DriverItem[]>([]);
+  const [showAddLicenciaModal, setShowAddLicenciaModal] = useState(false);
+  const [newLicenciaNumero, setNewLicenciaNumero] = useState('');
+  const [newLicenciaAlias, setNewLicenciaAlias] = useState('');
+  const [showCreateDriverModal, setShowCreateDriverModal] = useState(false);
+  const [createDriverLicencia, setCreateDriverLicencia] = useState<string>('');
+  const [newDriverUsername, setNewDriverUsername] = useState('');
+  const [newDriverPassword, setNewDriverPassword] = useState('');
+  const [newDriverFullName, setNewDriverFullName] = useState('');
+  const [newDriverPhone, setNewDriverPhone] = useState('');
+  const [ownerLoading, setOwnerLoading] = useState(false);
   
   // Invitations & Referrals states
   const [myInvitations, setMyInvitations] = useState<Array<{
@@ -2117,24 +2178,50 @@ export default function TransportMeter() {
 
   // Handle registration step 1 - Validate fields and check username availability
   const handleRegisterContinue = async () => {
-    if (!registerUsername || !registerPassword || !registerFullName || !registerLicenseNumber) {
-      Alert.alert('Error', 'Por favor completa los campos obligatorios: usuario, contraseña, nombre y licencia');
+    // Validaciones comunes a los dos roles
+    if (!registerUsername || !registerPassword || !registerFullName) {
+      Alert.alert('Error', 'Por favor completa: usuario, contraseña y nombre');
       return;
     }
-
     if (registerPassword !== registerPasswordConfirm) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-
     if (registerPassword.length < 4) {
       Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
       return;
     }
 
-    if (!/^\d+$/.test(registerLicenseNumber)) {
-      Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
-      return;
+    if (registerRole === 'conductor') {
+      if (!registerLicenseNumber) {
+        Alert.alert('Error', 'Por favor introduce el número de licencia');
+        return;
+      }
+      if (!/^\d+$/.test(registerLicenseNumber)) {
+        Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+        return;
+      }
+    } else {
+      // Propietario: al menos una licencia válida
+      const cleaned = registerLicenses
+        .map((l) => ({ numero: l.numero.trim(), alias: l.alias.trim() }))
+        .filter((l) => l.numero.length > 0);
+      if (cleaned.length === 0) {
+        Alert.alert('Error', 'Añade al menos una licencia');
+        return;
+      }
+      for (const l of cleaned) {
+        if (!/^\d{3,7}$/.test(l.numero)) {
+          Alert.alert('Error', `La licencia "${l.numero}" debe tener 3-7 dígitos`);
+          return;
+        }
+      }
+      // Comprobar duplicados
+      const nums = cleaned.map((l) => l.numero);
+      if (new Set(nums).size !== nums.length) {
+        Alert.alert('Error', 'Tienes licencias duplicadas en la lista');
+        return;
+      }
     }
 
     setRegisterLoading(true);
@@ -2145,13 +2232,170 @@ export default function TransportMeter() {
         Alert.alert('Error', 'Este nombre de usuario ya está en uso. Por favor, elige otro.');
         return;
       }
-      
-      // Proceed to step 2
+      // Propietario salta el paso 2 (no necesita invitación) — se registra directamente
+      if (registerRole === 'propietario') {
+        // Pero se requieren los toggles de privacidad, así que sí vamos al paso 2
+        // (que en modo propietario simplemente muestra los términos)
+      }
       setRegisterStep(2);
     } catch (error: any) {
       Alert.alert('Error', 'Error al verificar disponibilidad del usuario');
     } finally {
       setRegisterLoading(false);
+    }
+  };
+
+  // Registro de propietario (no requiere invitación ni licencia de otro)
+  const handleRegisterOwner = async () => {
+    if (!acceptPrivacyPolicy) {
+      Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
+      return;
+    }
+    if (!acceptGoodUse) {
+      Alert.alert('Error', 'Debes aceptar el compromiso de buen uso de la aplicación');
+      return;
+    }
+    const cleaned = registerLicenses
+      .map((l) => ({ numero: l.numero.trim(), alias: l.alias.trim() || undefined }))
+      .filter((l) => l.numero.length > 0);
+    setRegisterLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE}/api/owner/register`, {
+        username: registerUsername,
+        password: registerPassword,
+        full_name: registerFullName,
+        phone: registerPhone || null,
+        licencias: cleaned,
+      });
+      const { access_token, user } = response.data;
+      await AsyncStorage.setItem('token', access_token);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      setCurrentUser(user);
+      resetRegisterForm();
+      Alert.alert('¡Bienvenido!', `Cuenta de propietario creada, ${user.full_name}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo registrar el propietario');
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  // ─── Owner handlers ────────────────────────────────────────────────────
+  const fetchOwnerLicencias = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const resp = await axios.get(`${API_BASE}/api/owner/licencias`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOwnerLicencias(resp.data?.licencias || []);
+    } catch {
+      // Ignora silenciosamente si el usuario no es propietario
+    }
+  };
+
+  const fetchOwnerDrivers = async (licencia?: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const url = licencia
+        ? `${API_BASE}/api/owner/drivers?licencia=${encodeURIComponent(licencia)}`
+        : `${API_BASE}/api/owner/drivers`;
+      const resp = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      setOwnerDrivers(resp.data?.drivers || []);
+    } catch {
+      // Ignora silenciosamente
+    }
+  };
+
+  const handleAddLicencia = async () => {
+    const num = newLicenciaNumero.trim();
+    if (!/^\d{3,7}$/.test(num)) {
+      Alert.alert('Error', 'El número de licencia debe tener 3-7 dígitos');
+      return;
+    }
+    setOwnerLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const resp = await axios.post(
+        `${API_BASE}/api/owner/licencias`,
+        { numero: num, alias: newLicenciaAlias.trim() || null },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setOwnerLicencias(resp.data?.licencias || []);
+      setNewLicenciaNumero('');
+      setNewLicenciaAlias('');
+      setShowAddLicenciaModal(false);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo añadir la licencia');
+    } finally {
+      setOwnerLoading(false);
+    }
+  };
+
+  const handleDeleteLicencia = async (numero: string) => {
+    if (!window.confirm(`¿Eliminar la licencia ${numero}?`)) return;
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const resp = await axios.delete(`${API_BASE}/api/owner/licencias/${numero}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOwnerLicencias(resp.data?.licencias || []);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo eliminar la licencia');
+    }
+  };
+
+  const openCreateDriverModal = (licencia: string) => {
+    setCreateDriverLicencia(licencia);
+    setNewDriverUsername('');
+    setNewDriverPassword('');
+    setNewDriverFullName('');
+    setNewDriverPhone('');
+    setShowCreateDriverModal(true);
+  };
+
+  const handleCreateDriver = async () => {
+    if (!newDriverUsername || !newDriverPassword || !newDriverFullName) {
+      Alert.alert('Error', 'Rellena usuario, contraseña y nombre');
+      return;
+    }
+    if (newDriverPassword.length < 4) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
+      return;
+    }
+    setOwnerLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(
+        `${API_BASE}/api/owner/drivers`,
+        {
+          username: newDriverUsername.trim(),
+          password: newDriverPassword,
+          full_name: newDriverFullName.trim(),
+          licencia_asignada: createDriverLicencia,
+          phone: newDriverPhone.trim() || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setShowCreateDriverModal(false);
+      await fetchOwnerDrivers();
+      Alert.alert('Conductor creado', `Comparte con ${newDriverFullName} sus credenciales: usuario "${newDriverUsername}" y la contraseña que definiste.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo crear el conductor');
+    } finally {
+      setOwnerLoading(false);
+    }
+  };
+
+  const handleDeleteDriver = async (driverId: string, username: string) => {
+    if (!window.confirm(`¿Eliminar la cuenta de "${username}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.delete(`${API_BASE}/api/owner/drivers/${driverId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchOwnerDrivers();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.detail || 'No se pudo eliminar');
     }
   };
 
@@ -2247,6 +2491,8 @@ export default function TransportMeter() {
     setInvitationCode('');
     setSponsorLicense('');
     setRegistrationRequestSent(false);
+    setRegisterRole('conductor');
+    setRegisterLicenses([{ numero: '', alias: '' }]);
     setShowRegister(false);
   };
 
@@ -7492,6 +7738,14 @@ export default function TransportMeter() {
           ocrLoadStats(),
           loadSummary(summaryStart, summaryEnd),
         ]);
+        // Propietario: precargar licencias/conductores y comparativa
+        if (currentUser?.role === 'propietario') {
+          await Promise.all([
+            fetchOwnerLicencias(),
+            fetchOwnerDrivers(),
+            loadOwnerComparativa(summaryStart, summaryEnd),
+          ]);
+        }
     }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -8166,7 +8420,39 @@ export default function TransportMeter() {
                   <>
                     <Text style={styles.loginFormTitle}>Crear Cuenta</Text>
                     <Text style={styles.registerStepIndicator}>Paso 1 de 2 - Datos personales</Text>
-                    
+
+                    {/* Selector de ROL: Conductor / Propietario */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                      <TouchableOpacity
+                        testID="register-role-conductor"
+                        onPress={() => setRegisterRole('conductor')}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                          backgroundColor: registerRole === 'conductor' ? '#F59E0B' : '#1F2937',
+                          borderWidth: 1, borderColor: registerRole === 'conductor' ? '#F59E0B' : '#334155',
+                        }}
+                      >
+                        <Ionicons name="car-outline" size={20} color={registerRole === 'conductor' ? '#0F172A' : '#F1F5F9'} />
+                        <Text style={{ color: registerRole === 'conductor' ? '#0F172A' : '#F1F5F9', fontWeight: '700', marginTop: 4 }}>
+                          Conductor
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        testID="register-role-propietario"
+                        onPress={() => setRegisterRole('propietario')}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                          backgroundColor: registerRole === 'propietario' ? '#F59E0B' : '#1F2937',
+                          borderWidth: 1, borderColor: registerRole === 'propietario' ? '#F59E0B' : '#334155',
+                        }}
+                      >
+                        <Ionicons name="business-outline" size={20} color={registerRole === 'propietario' ? '#0F172A' : '#F1F5F9'} />
+                        <Text style={{ color: registerRole === 'propietario' ? '#0F172A' : '#F1F5F9', fontWeight: '700', marginTop: 4 }}>
+                          Propietario
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
                     <View style={styles.inputContainer}>
                       <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
                       <TextInput
@@ -8217,17 +8503,80 @@ export default function TransportMeter() {
                       />
                     </View>
 
-                    <View style={styles.inputContainer}>
-                      <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.loginScreenInput}
-                        placeholder="Número de licencia *"
-                        placeholderTextColor="#64748B"
-                        value={registerLicenseNumber}
-                        onChangeText={setRegisterLicenseNumber}
-                        keyboardType="numeric"
-                      />
-                    </View>
+                    {/* Licencia(s) — depende del rol */}
+                    {registerRole === 'conductor' ? (
+                      <View style={styles.inputContainer}>
+                        <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.loginScreenInput}
+                          placeholder="Número de licencia *"
+                          placeholderTextColor="#64748B"
+                          value={registerLicenseNumber}
+                          onChangeText={setRegisterLicenseNumber}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    ) : (
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={{ color: '#F1F5F9', fontWeight: '700', marginBottom: 8 }}>
+                          Licencias de tu flota *
+                        </Text>
+                        {registerLicenses.map((lic, idx) => (
+                          <View key={idx} style={{ flexDirection: 'row', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                            <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#334155' }}>
+                              <Ionicons name="document-text-outline" size={16} color="#64748B" />
+                              <TextInput
+                                testID={`register-license-numero-${idx}`}
+                                style={{ flex: 1, color: '#F1F5F9', paddingVertical: 10, paddingHorizontal: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                                placeholder="Nº licencia"
+                                placeholderTextColor="#64748B"
+                                value={lic.numero}
+                                onChangeText={(v) => {
+                                  const arr = [...registerLicenses];
+                                  arr[idx] = { ...arr[idx], numero: v.replace(/\D/g, '') };
+                                  setRegisterLicenses(arr);
+                                }}
+                                keyboardType="numeric"
+                              />
+                            </View>
+                            <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#334155' }}>
+                              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
+                              <TextInput
+                                testID={`register-license-alias-${idx}`}
+                                style={{ flex: 1, color: '#F1F5F9', paddingVertical: 10, paddingHorizontal: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                                placeholder="Alias (opcional)"
+                                placeholderTextColor="#64748B"
+                                value={lic.alias}
+                                onChangeText={(v) => {
+                                  const arr = [...registerLicenses];
+                                  arr[idx] = { ...arr[idx], alias: v };
+                                  setRegisterLicenses(arr);
+                                }}
+                              />
+                            </View>
+                            {registerLicenses.length > 1 && (
+                              <TouchableOpacity
+                                testID={`register-license-remove-${idx}`}
+                                onPress={() => {
+                                  setRegisterLicenses(registerLicenses.filter((_, i) => i !== idx));
+                                }}
+                                style={{ padding: 8 }}
+                              >
+                                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          testID="register-license-add"
+                          onPress={() => setRegisterLicenses([...registerLicenses, { numero: '', alias: '' }])}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B', borderStyle: 'dashed', gap: 6 }}
+                        >
+                          <Ionicons name="add-circle-outline" size={18} color="#F59E0B" />
+                          <Text style={{ color: '#F59E0B', fontWeight: '700' }}>Añadir otra licencia</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
                     <View style={styles.inputContainer}>
                       <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
@@ -8324,7 +8673,18 @@ export default function TransportMeter() {
                     <Text style={styles.loginFormTitle}>Términos y Verificación</Text>
                     <Text style={styles.registerStepIndicator}>Paso 2 de 2 - Verificación y términos</Text>
 
-                    {/* Method Selection */}
+                    {/* Method Selection — solo para conductor. El propietario
+                        no necesita invitación/aprobación de otro taxista. */}
+                    {registerRole === 'propietario' ? (
+                      <View style={styles.registerMethodSection}>
+                        <Text style={styles.registerMethodTitle}>
+                          <Ionicons name="business-outline" size={18} color="#F59E0B" /> Registro de Propietario
+                        </Text>
+                        <Text style={styles.registerMethodSubtitle}>
+                          Como propietario podrás gestionar tus licencias y crear cuentas para tus conductores desde tu perfil.
+                        </Text>
+                      </View>
+                    ) : (
                     <View style={styles.registerMethodSection}>
                       <Text style={styles.registerMethodTitle}>¿Cómo quieres verificar tu cuenta?</Text>
                       <Text style={styles.registerMethodSubtitle}>Para garantizar que eres taxista, necesitas una invitación o aprobación de otro taxista registrado.</Text>
@@ -8395,6 +8755,7 @@ export default function TransportMeter() {
                         </View>
                       )}
                     </View>
+                    )}
 
                     {/* Privacy Policy Content */}
                     <View style={styles.registerPolicyBox}>
@@ -8470,7 +8831,7 @@ export default function TransportMeter() {
                         styles.registerButton,
                         (!acceptPrivacyPolicy || !acceptGoodUse || !registerMethod) && styles.registerButtonDisabled
                       ]}
-                      onPress={handleRegister}
+                      onPress={registerRole === 'propietario' ? handleRegisterOwner : handleRegister}
                       disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse || !registerMethod}
                     >
                       {registerLoading ? (
@@ -10643,6 +11004,11 @@ export default function TransportMeter() {
                 fetchMyInvitations();
                 fetchPendingRequestsCount();
                 fetchMyPoints();
+                // Si es propietario, cargar sus licencias y conductores
+                if (currentUser?.role === 'propietario') {
+                  fetchOwnerLicencias();
+                  fetchOwnerDrivers();
+                }
                 setShowProfileModal(true);
               }}
             >
@@ -13609,11 +13975,212 @@ export default function TransportMeter() {
             const calcPercentage = calc?.percentage ?? gestionPercentage;
             const calcPagaGasolina = calc?.pagaGasolina ?? gestionPagaGasolina;
             const hasResult = calc !== null && recaudacion > 0;
-            
+
+            // Vista Comparativa (solo propietarios) — render alternativo
+            if (currentUser?.role === 'propietario' && ocrView === 'comparativa') {
+              const rows = ocrCompareData?.drivers || [];
+              return (
+                <View style={styles.faresContainer} data-testid="gestion-tab">
+                  <AdBanner position="top" />
+
+                  {/* Filtros propietario (misma barra que en Individual) */}
+                  <View style={{ padding: 12, backgroundColor: '#0F172A', borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B', marginHorizontal: 12, marginTop: 8, marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        testID="owner-view-individual-2"
+                        onPress={() => setOcrView('individual')}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: '#1F2937' }}
+                      >
+                        <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 12 }}>
+                          <Ionicons name="person-outline" size={12} /> Individual
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        testID="owner-view-comparativa-2"
+                        onPress={() => loadOwnerComparativa(summaryStart, summaryEnd)}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: '#10B981' }}
+                      >
+                        <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 12 }}>
+                          <Ionicons name="trophy-outline" size={12} /> Comparativa
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, alignItems: 'center' }}>
+                      <Text style={{ color: '#94A3B8', fontSize: 12 }}>Rango:</Text>
+                      <View style={{ flex: 1, backgroundColor: '#1F2937', borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: '#334155' }}>
+                        <TextInput
+                          value={summaryStart}
+                          onChangeText={setSummaryStart}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor="#64748B"
+                          style={{ color: '#F1F5F9', paddingVertical: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                        />
+                      </View>
+                      <Text style={{ color: '#94A3B8', fontSize: 12 }}>a</Text>
+                      <View style={{ flex: 1, backgroundColor: '#1F2937', borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: '#334155' }}>
+                        <TextInput
+                          value={summaryEnd}
+                          onChangeText={setSummaryEnd}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor="#64748B"
+                          style={{ color: '#F1F5F9', paddingVertical: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        testID="owner-comparativa-reload"
+                        onPress={() => loadOwnerComparativa(summaryStart, summaryEnd)}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#F59E0B' }}
+                      >
+                        <Ionicons name="refresh" size={14} color="#0F172A" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                      <Ionicons name="trophy" size={22} color="#F59E0B" />
+                      <Text style={{ color: '#F1F5F9', fontSize: 18, fontWeight: '800' }}>Top conductores</Text>
+                    </View>
+
+                    {ocrCompareLoading ? (
+                      <ActivityIndicator size="large" color="#F59E0B" />
+                    ) : rows.length === 0 ? (
+                      <Text style={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center', marginTop: 20 }}>
+                        No hay jornadas cerradas en este rango.
+                      </Text>
+                    ) : rows.map((r: any, idx: number) => (
+                      <View
+                        key={r.driver_id}
+                        testID={`compare-row-${r.driver_id}`}
+                        style={{
+                          backgroundColor: r.is_me ? '#1E293B' : '#0F172A',
+                          borderRadius: 10, padding: 12, marginBottom: 10,
+                          borderWidth: 1, borderColor: idx === 0 && r.jornadas > 0 ? '#F59E0B' : '#334155',
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontSize: 20, fontWeight: '900', color: idx === 0 ? '#F59E0B' : idx === 1 ? '#94A3B8' : idx === 2 ? '#CA8A04' : '#475569' }}>
+                              #{idx + 1}
+                            </Text>
+                            <View>
+                              <Text style={{ color: '#F1F5F9', fontSize: 15, fontWeight: '700' }}>
+                                {r.full_name || r.username}{r.is_me ? ' (Yo)' : ''}
+                              </Text>
+                              <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                                Licencia {r.licencia || '—'} · {r.jornadas} jornadas
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '800' }}>
+                            {r.neto_eur?.toFixed(2)} €
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {[
+                            ['Ingresos', `${r.ingresos_eur?.toFixed(2)} €`],
+                            ['Gasolina', `${r.gasolina_eur?.toFixed(2)} €`],
+                            ['Km', `${r.km_total?.toFixed(1)}`],
+                            ['Horas ON', `${r.horas_on?.toFixed(1)} h`],
+                            ['Servicios', `${r.servicios}`],
+                            ['€/hora', r.eur_por_hora != null ? `${r.eur_por_hora?.toFixed(2)} €` : '—'],
+                            ['€/km', r.eur_por_km != null ? `${r.eur_por_km?.toFixed(2)} €` : '—'],
+                          ].map(([label, value]) => (
+                            <View key={String(label)} style={{ backgroundColor: '#0B1220', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                              <Text style={{ color: '#64748B', fontSize: 10 }}>{label}</Text>
+                              <Text style={{ color: '#F1F5F9', fontSize: 13, fontWeight: '700' }}>{value}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              );
+            }
+
             return (
               <View style={styles.faresContainer} data-testid="gestion-tab">
                 <AdBanner position="top" />
-                
+
+                {/* ===== Barra de filtros para propietarios ===== */}
+                {currentUser?.role === 'propietario' && (
+                  <View style={{ padding: 12, backgroundColor: '#0F172A', borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B', marginHorizontal: 12, marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <Ionicons name="business-outline" size={16} color="#F59E0B" />
+                      <Text style={{ color: '#F59E0B', fontWeight: '800' }}>Filtros propietario</Text>
+                    </View>
+
+                    {/* Selector Licencia */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      <TouchableOpacity
+                        testID="owner-filter-licencia-todas"
+                        onPress={() => { setOcrDriverLicencia(null); }}
+                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: !ocrDriverLicencia ? '#F59E0B' : '#1F2937', borderWidth: 1, borderColor: !ocrDriverLicencia ? '#F59E0B' : '#334155' }}
+                      >
+                        <Text style={{ color: !ocrDriverLicencia ? '#0F172A' : '#F1F5F9', fontSize: 12, fontWeight: '700' }}>Todas licencias</Text>
+                      </TouchableOpacity>
+                      {ownerLicencias.map((lic) => (
+                        <TouchableOpacity
+                          key={lic.numero}
+                          testID={`owner-filter-licencia-${lic.numero}`}
+                          onPress={() => setOcrDriverLicencia(lic.numero)}
+                          style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: ocrDriverLicencia === lic.numero ? '#F59E0B' : '#1F2937', borderWidth: 1, borderColor: ocrDriverLicencia === lic.numero ? '#F59E0B' : '#334155' }}
+                        >
+                          <Text style={{ color: ocrDriverLicencia === lic.numero ? '#0F172A' : '#F1F5F9', fontSize: 12, fontWeight: '700' }}>
+                            {lic.numero}{lic.alias ? ` · ${lic.alias}` : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Selector Conductor (filtrado por licencia si aplica) */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      <TouchableOpacity
+                        testID="owner-filter-driver-me"
+                        onPress={async () => { setOcrDriverId(null); await Promise.all([ocrLoadHistory(), ocrLoadStats(), loadSummary(summaryStart, summaryEnd)]); }}
+                        style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: !ocrDriverId ? '#60A5FA' : '#1F2937', borderWidth: 1, borderColor: !ocrDriverId ? '#60A5FA' : '#334155' }}
+                      >
+                        <Text style={{ color: !ocrDriverId ? '#0F172A' : '#F1F5F9', fontSize: 12, fontWeight: '700' }}>Yo</Text>
+                      </TouchableOpacity>
+                      {ownerDrivers
+                        .filter((d) => !ocrDriverLicencia || d.licencia_asignada === ocrDriverLicencia)
+                        .map((d) => (
+                          <TouchableOpacity
+                            key={d.id}
+                            testID={`owner-filter-driver-${d.id}`}
+                            onPress={async () => { setOcrDriverId(d.id); await Promise.all([ocrLoadHistory(), ocrLoadStats(), loadSummary(summaryStart, summaryEnd)]); }}
+                            style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: ocrDriverId === d.id ? '#60A5FA' : '#1F2937', borderWidth: 1, borderColor: ocrDriverId === d.id ? '#60A5FA' : '#334155' }}
+                          >
+                            <Text style={{ color: ocrDriverId === d.id ? '#0F172A' : '#F1F5F9', fontSize: 12, fontWeight: '700' }}>{d.full_name || d.username}</Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Sub-tabs Individual/Comparativa */}
+                    <View style={{ flexDirection: 'row', gap: 6, borderTopWidth: 1, borderTopColor: '#334155', paddingTop: 8 }}>
+                      <TouchableOpacity
+                        testID="owner-view-individual"
+                        onPress={() => setOcrView('individual')}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: ocrView === 'individual' ? '#10B981' : '#1F2937' }}
+                      >
+                        <Text style={{ color: ocrView === 'individual' ? '#0F172A' : '#F1F5F9', fontWeight: '800', fontSize: 12 }}>
+                          <Ionicons name="person-outline" size={12} /> Individual
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        testID="owner-view-comparativa"
+                        onPress={() => { setOcrView('comparativa'); loadOwnerComparativa(summaryStart, summaryEnd); }}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: ocrView === 'comparativa' ? '#10B981' : '#1F2937' }}
+                      >
+                        <Text style={{ color: ocrView === 'comparativa' ? '#0F172A' : '#F1F5F9', fontWeight: '800', fontSize: 12 }}>
+                          <Ionicons name="trophy-outline" size={12} /> Comparativa
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
                 {/* Header */}
                 <View style={styles.faresHeader}>
                   <Ionicons name="cash" size={28} color="#10B981" />
@@ -18810,6 +19377,86 @@ export default function TransportMeter() {
                 </View>
               </View>
 
+              {/* Owner section: Mis Licencias + Mis Conductores */}
+              {currentUser?.role === 'propietario' && (
+                <View style={{ padding: 16, marginTop: 12, backgroundColor: '#0F172A', borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#F59E0B' }}>
+                      <Ionicons name="business" size={18} /> Mis Licencias
+                    </Text>
+                    <TouchableOpacity
+                      testID="owner-add-licencia-btn"
+                      onPress={() => setShowAddLicenciaModal(true)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F59E0B', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                    >
+                      <Ionicons name="add-circle-outline" size={16} color="#0F172A" />
+                      <Text style={{ color: '#0F172A', fontWeight: '700', fontSize: 12 }}>Añadir</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {ownerLicencias.length === 0 ? (
+                    <Text style={{ color: '#64748B', fontStyle: 'italic' }}>No tienes licencias. Añade una con el botón +.</Text>
+                  ) : (
+                    ownerLicencias.map((lic) => {
+                      const drivers = ownerDrivers.filter((d) => d.licencia_asignada === lic.numero);
+                      return (
+                        <View key={lic.numero} style={{ backgroundColor: '#1F2937', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#334155' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#F1F5F9', fontSize: 15, fontWeight: '700' }}>
+                                <Ionicons name="document-text" size={14} color="#F59E0B" /> Licencia {lic.numero}
+                              </Text>
+                              {lic.alias ? (
+                                <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>{lic.alias}</Text>
+                              ) : null}
+                            </View>
+                            <TouchableOpacity
+                              testID={`owner-delete-licencia-${lic.numero}`}
+                              onPress={() => handleDeleteLicencia(lic.numero)}
+                              style={{ padding: 6 }}
+                            >
+                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Conductores asignados a esta licencia */}
+                          {drivers.length > 0 && (
+                            <View style={{ marginTop: 6, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#334155' }}>
+                              {drivers.map((d) => (
+                                <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ color: '#F1F5F9', fontSize: 13 }}>
+                                      <Ionicons name="person-outline" size={12} color="#60A5FA" /> {d.full_name || d.username}
+                                    </Text>
+                                    <Text style={{ color: '#64748B', fontSize: 11 }}>@{d.username}</Text>
+                                  </View>
+                                  <TouchableOpacity
+                                    testID={`owner-delete-driver-${d.id}`}
+                                    onPress={() => handleDeleteDriver(d.id, d.username)}
+                                    style={{ padding: 4 }}
+                                  >
+                                    <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+
+                          <TouchableOpacity
+                            testID={`owner-create-driver-${lic.numero}`}
+                            onPress={() => openCreateDriverModal(lic.numero)}
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#60A5FA', borderStyle: 'dashed', gap: 4, marginTop: 6 }}
+                          >
+                            <Ionicons name="person-add-outline" size={14} color="#60A5FA" />
+                            <Text style={{ color: '#60A5FA', fontWeight: '700', fontSize: 12 }}>Crear conductor</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+
               {/* Points & Level Section */}
               <View style={styles.profilePointsSection}>
                 <TouchableOpacity 
@@ -19083,6 +19730,105 @@ export default function TransportMeter() {
               </View>
             </View>
           </ScrollView>
+        </View>
+      )}
+
+      {/* Modal: Añadir Licencia (propietario) */}
+      {showAddLicenciaModal && (
+        <View style={styles.modalOverlay}>
+          <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, width: '90%', maxWidth: 400, borderWidth: 1, borderColor: '#F59E0B' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={{ color: '#F59E0B', fontSize: 18, fontWeight: '800' }}>Añadir licencia</Text>
+              <TouchableOpacity onPress={() => setShowAddLicenciaModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: '#334155', marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="document-text-outline" size={16} color="#64748B" />
+              <TextInput
+                testID="owner-new-licencia-numero"
+                style={{ flex: 1, color: '#F1F5F9', paddingVertical: 10, paddingHorizontal: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                placeholder="Número de licencia (3-7 dígitos)"
+                placeholderTextColor="#64748B"
+                value={newLicenciaNumero}
+                onChangeText={(v) => setNewLicenciaNumero(v.replace(/\D/g, ''))}
+                keyboardType="numeric"
+                maxLength={7}
+              />
+            </View>
+            <View style={{ backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: '#334155', marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
+              <TextInput
+                testID="owner-new-licencia-alias"
+                style={{ flex: 1, color: '#F1F5F9', paddingVertical: 10, paddingHorizontal: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                placeholder="Alias (opcional, ej: Coche azul)"
+                placeholderTextColor="#64748B"
+                value={newLicenciaAlias}
+                onChangeText={setNewLicenciaAlias}
+              />
+            </View>
+
+            <TouchableOpacity
+              testID="owner-save-licencia"
+              onPress={handleAddLicencia}
+              disabled={ownerLoading}
+              style={{ backgroundColor: '#F59E0B', paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+            >
+              {ownerLoading ? <ActivityIndicator color="#0F172A" /> : (
+                <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 15 }}>Añadir</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Modal: Crear conductor (propietario) */}
+      {showCreateDriverModal && (
+        <View style={styles.modalOverlay}>
+          <View style={{ backgroundColor: '#0F172A', borderRadius: 14, padding: 20, width: '90%', maxWidth: 420, borderWidth: 1, borderColor: '#60A5FA' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ color: '#60A5FA', fontSize: 18, fontWeight: '800' }}>Nuevo conductor</Text>
+              <TouchableOpacity onPress={() => setShowCreateDriverModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>
+              Licencia asignada: <Text style={{ color: '#F59E0B', fontWeight: '700' }}>{createDriverLicencia}</Text>
+            </Text>
+
+            {[
+              { icon: 'person-outline', ph: 'Usuario *', v: newDriverUsername, s: setNewDriverUsername, testID: 'owner-new-driver-username' },
+              { icon: 'lock-closed-outline', ph: 'Contraseña *', v: newDriverPassword, s: setNewDriverPassword, secure: true, testID: 'owner-new-driver-password' },
+              { icon: 'id-card-outline', ph: 'Nombre completo *', v: newDriverFullName, s: setNewDriverFullName, testID: 'owner-new-driver-name' },
+              { icon: 'call-outline', ph: 'Teléfono (opcional)', v: newDriverPhone, s: setNewDriverPhone, testID: 'owner-new-driver-phone' },
+            ].map((f) => (
+              <View key={f.ph} style={{ backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: '#334155', marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name={f.icon as any} size={16} color="#64748B" />
+                <TextInput
+                  testID={f.testID}
+                  style={{ flex: 1, color: '#F1F5F9', paddingVertical: 10, paddingHorizontal: 8, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }}
+                  placeholder={f.ph}
+                  placeholderTextColor="#64748B"
+                  value={f.v}
+                  onChangeText={f.s}
+                  secureTextEntry={!!f.secure}
+                  autoCapitalize={f.ph.includes('Usuario') ? 'none' : 'sentences'}
+                />
+              </View>
+            ))}
+
+            <TouchableOpacity
+              testID="owner-save-driver"
+              onPress={handleCreateDriver}
+              disabled={ownerLoading}
+              style={{ backgroundColor: '#60A5FA', paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginTop: 6 }}
+            >
+              {ownerLoading ? <ActivityIndicator color="#0F172A" /> : (
+                <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 15 }}>Crear cuenta de conductor</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 

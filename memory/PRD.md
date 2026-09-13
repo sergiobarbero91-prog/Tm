@@ -36,7 +36,7 @@ Only the items below have been added on top of that baseline.
   - **Validación cruzada matemática al final**: `total = carreras + suplementos` (barrido combinado); `dist_total = ocupado + libre + off`; `dist_libre = total − ocupado − off`. Rescata campos que empataban entre candidatos ruidosos.
 - Test contra `/tmp/tk.webp` (foto real del ticket del usuario): **13/13 campos correctos** (fecha, hora, licencia 09218, num_servicios 4628, carreras 49854,10, suplementos 204,90, total 50059,00, dist_total 52537,9, dist_ocupado 25457,1, dist_libre 26742,5, dist_off 339,0, tiempo_ocupado 55761, tiempo_on 156015, borrados 454). Latencia ~22 s por foto.
 
-### ✅ Backend Propietario / Conductor (Feb 2026) — endpoints listos, frontend pendiente
+### ✅ Backend Propietario / Conductor (Feb 2026) — backend + frontend completos
 Nuevo router `/app/backend/routers/owner.py` con 7 endpoints (todos `/api/owner/*`):
 - `POST /register` — registro público de propietario con lista de licencias (mínimo 1)
 - `GET /licencias` — lista mis licencias
@@ -56,7 +56,17 @@ Modelo de datos ampliado en `users` (compatibilidad total, sin migración):
 Modificados en `/app/backend/routers/journal.py`:
 - `GET /journal/list?driver_id=`, `GET /journal/stats?driver_id=`, `GET /journal/summary?driver_id=` — todos aceptan ahora `driver_id` opcional. Sólo un `role=propietario` con `owner_id` sobre ese conductor (o `admin`) puede consultar los datos de otro; en otro caso 403.
 
-Frontend pendiente (no implementado en esta iteración): pantalla de registro con selector conductor/propietario, sección "Mis Licencias" en el perfil, dropdowns de licencia+conductor en Gestión, pestaña de Comparativa.
+**Frontend** (`/app/frontend/app/index.tsx`) — 3 cambios grandes:
+- **Registro**: selector Conductor/Propietario en el Paso 1. Si eliges "Propietario", en vez del campo de licencia único aparece una lista dinámica con botón "+ Añadir otra licencia" y papelera para eliminar. En el Paso 2 el propietario se salta la sección "invitación/aprobación de otro taxista" (mostrando en su lugar un texto informativo). El botón final llama a `POST /api/owner/register`.
+- **Perfil (arriba-derecha)**: nueva sección "Mis Licencias" que sólo se pinta si `currentUser.role === 'propietario'`. Lista de licencias con botón `+ Añadir`, para cada licencia se listan los conductores asignados y hay un botón "Crear conductor" que abre un modal con usuario/contraseña/nombre/teléfono. Papeleras para eliminar tanto licencias como conductores. Al abrir el perfil se llama a `fetchOwnerLicencias()` y `fetchOwnerDrivers()`.
+- **Gestión**: si eres propietario, aparece una barra de filtros arriba con:
+  · Chips de licencia (Todas | Lic 888771 | Lic 888772 …)
+  · Chips de conductor (Yo | Nombre1 | Nombre2 …, filtrados por licencia seleccionada)
+  · Sub-tabs Individual / Comparativa
+  Al cambiar de conductor se recargan `history`, `stats` y `summary` con el `driver_id`. La vista Comparativa muestra un ranking top con jornadas, ingresos, gasolina, km, horas, €/h y €/km — con el propietario visible como "Yo".
+
+**Test end-to-end backend** (curl): registro → añadir licencia → crear conductor → login del conductor → propietario ve journals del conductor → borrar licencia con conductor asignado da 400 → sin token → 401. ✅
+
 
 
 
