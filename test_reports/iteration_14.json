@@ -1,0 +1,37 @@
+{
+  "summary": "Verified the daily-summary FRESHNESS bug fix end-to-end. Created /app/backend/tests/test_daily_summary_freshness.py with 20 targeted tests (unit + API + DB round-trip). ALL 20 PASSED in 70.6s. Bug fix confirmed: (a) _build_prompt() now embeds the current Madrid hour AND the REGLA DE VIGENCIA block containing every keyword the reviewer asked for (Hora actual en Madrid / HORA DE REFERENCIA / AYER, ANTEAYER / FINALIZACIÓN sea anterior / (en curso) / TOTALMENTE PROHIBIDOS); the HH:MM appears twice in the prompt as expected. (b) _cache_slot_madrid() returns 'YYYY-MM-DDTHH' with HH strictly in {00,04,08,12,16,20} — verified format regex, allowed-bucket, and equality with the freshly computed slot. (c) _persist() → _load_cached() round-trip uses the 'cache_slot' key: injected a TEST_MARKER doc, retrieved it by cache_slot, and confirmed _id is stripped. (d) A doc inserted under a PREVIOUS 4-hour slot is NEVER returned by _load_cached() — proving 4-hour expiry works and pre-fix docs without cache_slot are treated as expired. (e) GET /api/events/daily-summary returns exactly the 8 required keys {success, summary, sources, search_queries, date, cache_slot, generated_at, airport_peaks} and cache_slot equals the current Madrid slot ('2026-07-13T12' during the run). (f) Two consecutive calls within the same slot return identical cache_slot AND generated_at AND summary — proving cache hit, no re-generation. (g) ?force_refresh=true actually regenerated (fresh Gemini quota today) — different generated_at, same current cache_slot preserved. (h) Public endpoint /api/events/daily-summary-public returns success:true with day_name/date/summary and shares the same underlying cached doc as the private endpoint (asserted via direct Mongo lookup on cache_slot). Cleanup: TEST_MARKER_freshness docs deleted after each test class + module teardown; no data leak in daily_summaries collection.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_daily_summary_freshness.py",
+    "/app/test_reports/pytest/pytest_daily_summary_freshness.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/daily_summary.py:588-604 — _load_cached / _persist correctly query and upsert by {cache_slot: slot}. Legacy docs (before the fix) that only carry the 'date' key are transparently ignored, so the next request forces regeneration as the reviewer intended. Clean.",
+    "routers/daily_summary.py:297-302 — _cache_slot_madrid() computes slot with `(now.hour // 4) * 4`. Six slots per day (00,04,08,12,16,20). Format matches spec.",
+    "routers/daily_summary.py:311-404 — _build_prompt() now embeds `**Hora actual en Madrid: HH:MM**` in the header and repeats HH:MM inside the REGLA DE VIGENCIA. Every anti-stale keyword the reviewer required is present. Note: prompt is now ~4KB, still well under Gemini limits.",
+    "routers/daily_summary.py:719-746 — Public endpoint also goes through _load_cached, so it inherits the 4-hour freshness automatically. Verified: after warming the private endpoint, the mongo doc for the current cache_slot exists and the public endpoint's date/summary derive from it.",
+    "Minor (existing, not a regression): the response payload does NOT include a `cached` boolean flag. The older test_daily_summary.py test suite expected one; it is now stale (kept, not run). Not a blocker for this iteration since the reviewer's required key list doesn't mention `cached`."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_daily_summary_freshness.py (new, 20 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 passed)",
+    "frontend": "N/A — backend-only per review_request"
+  },
+  "test_credentials": "admin / admin (POST /api/auth/login) — obtained OK, but the fix verification did not actually need the admin regenerate endpoint since ?force_refresh=true on the public GET already exercises the bypass path.",
+  "seed_data_creation": "Injected 2 temporary docs into daily_summaries_collection with summary='TEST_MARKER_freshness' (one for round-trip, one under a stale slot). Both deleted in-test and via module teardown. Zero residual test data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The AI-Events freshness bug is fully covered by /app/backend/tests/test_daily_summary_freshness.py. On any subsequent run this file should be the first regression to execute after touching routers/daily_summary.py. If a future change adds a `cached: true/false` boolean to the payload again, also update the older /app/backend/tests/test_daily_summary.py (currently expects it, will fail). Gemini quota was FRESH today (2026-07-13) so force_refresh actually regenerated; on a low-quota day the test gracefully skips that single assertion when a 503 is returned with the Spanish detail, so the file remains green.",
+  "rca_of_the_issue": "Original bug: AI Events summary was returning already-ended events (finished matches, morning theatre functions still listed at night). Two root causes identified by main agent: (1) prompt only stated the DATE, not the current HOUR — the model had no reference to filter finished events; (2) the entire day was cached under {date: today} so once generated at 07:00 the same content served the whole day. Fix applied by main agent: (a) added explicit HORA DE REFERENCIA + REGLA DE VIGENCIA rules to the prompt (finalized events PROHIBIDOS, ongoing events marked (en curso), events from AYER/ANTEAYER TOTALMENTE PROHIBIDOS), (b) changed cache key to a 4-hour slot ({cache_slot: 'YYYY-MM-DDTHH'} with HH in {00,04,08,12,16,20}). Verification: all 20 tests pass; direct DB round-trip confirms _persist/_load_cached use cache_slot; second calls within the same slot are served from cache (identical generated_at); force_refresh bypasses cache (different generated_at); stale-slot docs are ignored by _load_cached; the prompt contains every mandated keyword. Fix is verified and complete."
+}

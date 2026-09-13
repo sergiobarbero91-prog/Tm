@@ -1,0 +1,43 @@
+{
+  "summary": "Full backend + frontend testing of the new Jornada (Shift Journal) feature and the AI Daily Summary markdown rendering fix. 12/12 backend pytest tests PASS against the public preview URL (auth gate, OCR round-trip with tiny synthetic JPEG, fuel append, zero-amount rejection, close + totals computation with all 8 required keys, second-start-after-close allowed, 409 when open, sorted list with limit, manual override recomputes totals on closed journals, delete + verify-removed). Frontend smoke: Gestión tab shows the new 'Jornada con foto del taxímetro' section with the green 'FOTO INICIO DE JORNADA' CTA at the top and the existing manual calculator (40/45/50%, ¿Pagas tú la gasolina?, Datos del turno) remains intact BELOW it. Eventos tab shows the AI daily summary with **bold** rendered as styled bold (no literal asterisks) and section headers like METEO HOY, GRANDES EVENTOS, TEATROS Y OCIO, ALERTAS DE TRÁFICO, AEROPUERTO, PREVISIÓN MAÑANA rendered as violet bold uppercase WITHOUT the [brackets].",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "general", "issue": "Deprecation: server.py still uses @app.on_event(startup/shutdown) — migrate to lifespan context manager (carried over from iteration_10)."},
+      {"endpoint": "POST /api/journal/start, POST /api/journal/end", "issue": "Gemini OCR errors are wrapped as 502; if Gemini returns 429 RESOURCE_EXHAUSTED the test would skip — consider mapping 429 → 503 with Retry-After like daily_summary regenerate."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_journal.py",
+    "/app/test_reports/pytest/journal_results.xml"
+  ],
+  "action_items": [
+    "Optional: map Gemini 429 → HTTP 503 with Retry-After in /app/backend/routers/journal.py (mirror the cleanup already suggested for daily_summary).",
+    "Optional cleanup: migrate the two remaining @app.on_event handlers in /app/backend/server.py to FastAPI lifespan.",
+    "Optional UX: add data-testid attributes to the Gestión 'FOTO INICIO DE JORNADA' button and the page-selector dropdown items (Calle, Gestión, Eventos…). Tests currently rely on text labels, which is fragile if translations change."
+  ],
+  "critical_code_review_comments": [
+    "routers/journal.py: clean and self-contained (~470 lines). _strip_id helper used everywhere, Mongo _id correctly excluded via projection {\"_id\":0}, async + asyncio.to_thread used for the blocking Gemini call. Pydantic models validate the manual-override payload before merging. Good.",
+    "routers/journal.py /manual endpoint silently ignores unknown keys (only fields in ParcialReading.model_fields are merged). Consider returning a 422 if the override payload has keys the model rejects, to give the driver immediate feedback that 'tiempo_libre' (for example) is not a valid field.",
+    "routers/journal.py _save_photo writes to /app/backend/uploads/parciales/ which is local disk — fine for preview but if the container is replaced these images are lost. For production consider S3/GCS or at least a mounted persistent volume.",
+    "/app/backend/server.py remains 4448+ lines — well above the 700-line guideline; keep extracting routers (the new journal router is a good example of the target style)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_journal.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 pytest tests)",
+    "frontend": "100% (Gestión + Eventos smoke checks passing)"
+  },
+  "test_credentials": "admin / admin via POST /api/auth/login — confirmed working, returns valid JWT used for all /api/journal/* calls.",
+  "seed_data_creation": "Each test run creates 2 journals tagged via the synthetic 200×200 JPEG and DELETEs them at the end. No persistent data leaks.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend journal feature is fully wired and verified end-to-end against the public preview URL https://tariff-tool.preview.emergentagent.com. The synthetic 200×200 white JPEG used in tests is intentionally tiny — Gemini returns null for most OCR fields (that's fine; we only assert the round trip works and totals math is correct). Manual override is the path that exercises real numeric values. If you want to dry-run without burning Gemini quota, the 12 tests already share a session but still call Gemini twice per run (start + end + second start). Frontend uses Expo router; the Gestión section is rendered by /app/frontend/app/index.tsx around lines 13028–13234. Markdown bold renderer is at lines 12660–12698 and works correctly. Recommended improvements (non-blocking) are listed under critical_code_review_comments.",
+  "rca_of_the_issue": "N/A — no defects found."
+}

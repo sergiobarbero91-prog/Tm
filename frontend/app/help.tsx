@@ -1,0 +1,948 @@
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function HelpPage() {
+  const router = useRouter();
+
+  const Section = ({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons name={icon as any} size={24} color="#60A5FA" />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Manual de Usuario</Text>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Introducción */}
+        <View style={styles.intro}>
+          <Text style={styles.introTitle}>🚕 Bienvenido a TaxiMeter Madrid</Text>
+          <Text style={styles.introText}>
+            Tu herramienta para monitorear llegadas a estaciones de tren y terminales de aeropuerto en tiempo real.
+          </Text>
+        </View>
+
+        {/* Pestañas principales */}
+        <Section icon="apps" title="Pestañas Principales">
+          <View style={styles.featureItem}>
+            <Text style={styles.featureTitle}>🚄 Trenes</Text>
+            <Text style={styles.featureDesc}>
+              Muestra llegadas a Atocha y Chamartín. Incluye hora de llegada, tipo de tren (AVE, ALVIA, etc.), 
+              y andén cuando está disponible.
+            </Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureTitle}>✈️ Aviones</Text>
+            <Text style={styles.featureDesc}>
+              Llegadas a todas las terminales del aeropuerto (T1-T4S). 
+              Muestra vuelo, origen, aerolínea y estado.
+            </Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureTitle}>🛣️ Calle</Text>
+            <Text style={styles.featureDesc}>
+              Vista resumen con la "calle más caliente" (donde hay más actividad), 
+              estación y terminal con más llegadas próximas.
+            </Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureTitle}>📅 Eventos</Text>
+            <Text style={styles.featureDesc}>
+              Próximos eventos en Madrid que pueden generar demanda de taxis 
+              (conciertos, partidos de fútbol, etc.).
+            </Text>
+          </View>
+        </Section>
+
+        {/* Sistema de Score */}
+        <Section icon="analytics" title="Sistema de Puntuación">
+          <Text style={styles.paragraph}>
+            Cada estación y terminal tiene un <Text style={styles.highlight}>Score</Text> que indica 
+            el potencial de trabajo:
+          </Text>
+          <View style={styles.scoreExamples}>
+            <View style={styles.scoreItem}>
+              <View style={[styles.scoreBadge, { backgroundColor: '#22C55E' }]}>
+                <Text style={styles.scoreText}>8+</Text>
+              </View>
+              <Text style={styles.scoreLabel}>Excelente - Alta demanda</Text>
+            </View>
+            <View style={styles.scoreItem}>
+              <View style={[styles.scoreBadge, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.scoreText}>4-7</Text>
+              </View>
+              <Text style={styles.scoreLabel}>Bueno - Demanda media</Text>
+            </View>
+            <View style={styles.scoreItem}>
+              <View style={[styles.scoreBadge, { backgroundColor: '#EF4444' }]}>
+                <Text style={styles.scoreText}>0-3</Text>
+              </View>
+              <Text style={styles.scoreLabel}>Bajo - Poca actividad</Text>
+            </View>
+          </View>
+          <Text style={styles.paragraph}>
+            El score se calcula en base a llegadas previas vs próximas llegadas.
+          </Text>
+        </Section>
+
+        {/* Alertas */}
+        <Section icon="notifications" title="Sistema de Alertas">
+          <Text style={styles.paragraph}>
+            Puedes crear alertas para informar a otros taxistas sobre la situación en estaciones y terminales:
+          </Text>
+          <View style={styles.alertTypes}>
+            <View style={styles.alertItem}>
+              <View style={[styles.alertBadge, { backgroundColor: '#EF4444' }]}>
+                <Ionicons name="car" size={16} color="#FFF" />
+              </View>
+              <View style={styles.alertInfo}>
+                <Text style={styles.alertTitle}>Sin Taxis</Text>
+                <Text style={styles.alertDesc}>No hay taxis disponibles en la ubicación</Text>
+              </View>
+            </View>
+            <View style={styles.alertItem}>
+              <View style={[styles.alertBadge, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="people" size={16} color="#FFF" />
+              </View>
+              <View style={styles.alertInfo}>
+                <Text style={styles.alertTitle}>Barandilla</Text>
+                <Text style={styles.alertDesc}>Hay mucha gente esperando taxi</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.warningBox}>
+            <Ionicons name="warning" size={24} color="#EF4444" />
+            <View style={styles.warningContent}>
+              <Text style={styles.warningTitle}>⚠️ IMPORTANTE</Text>
+              <Text style={styles.warningText}>
+                Utiliza las alertas SOLO cuando la información sea real y verificada.
+              </Text>
+              <Text style={styles.warningText}>
+                Si creas alertas falsas y son detectadas por otros usuarios o el sistema, 
+                puedes ser <Text style={styles.warningBold}>BANEADO temporalmente o permanentemente</Text> de la plataforma.
+              </Text>
+              <Text style={styles.warningSubtext}>
+                Las penalizaciones van desde 6 horas hasta baneo permanente según la reincidencia.
+              </Text>
+            </View>
+          </View>
+        </Section>
+
+        {/* Check-in */}
+        <Section icon="location" title="Sistema de Check-in">
+          <Text style={styles.paragraph}>
+            Usa el botón <Text style={styles.highlight}>"ENTRAR EN ESTACIÓN/TERMINAL"</Text> para 
+            registrar tu presencia. Esto ayuda a otros taxistas a saber cuántos compañeros hay esperando.
+          </Text>
+          <View style={styles.tipBox}>
+            <Ionicons name="bulb" size={20} color="#F59E0B" />
+            <Text style={styles.tipText}>
+              Recuerda hacer check-out cuando salgas para mantener la información actualizada.
+            </Text>
+          </View>
+        </Section>
+
+        {/* Sistema de Puntos */}
+        <Section icon="trophy" title="Sistema de Puntos y Niveles">
+          <Text style={styles.paragraph}>
+            Gana puntos participando activamente en la comunidad. Los puntos te permiten subir de nivel 
+            y desbloquear privilegios especiales.
+          </Text>
+          
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>🎯 Cómo ganar puntos:</Text>
+          <View style={styles.pointsTable}>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#10B981' }]}>
+                <Text style={styles.pointsBadgeText}>+5</Text>
+              </View>
+              <Text style={styles.pointsAction}>Check-in / Check-out en estación o terminal</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.pointsBadgeText}>+10</Text>
+              </View>
+              <Text style={styles.pointsAction}>Crear una alerta válida (sin taxis / barandilla)</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#EF4444' }]}>
+                <Text style={styles.pointsBadgeText}>+5</Text>
+              </View>
+              <Text style={styles.pointsAction}>Recibir un "like" en un evento que creaste</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#6366F1' }]}>
+                <Text style={styles.pointsBadgeText}>+1</Text>
+              </View>
+              <Text style={styles.pointsAction}>Por cada minuto de transmisión en la radio</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#8B5CF6' }]}>
+                <Text style={styles.pointsBadgeText}>+50</Text>
+              </View>
+              <Text style={styles.pointsAction}>Invitar a un nuevo taxista que se registre</Text>
+            </View>
+            <View style={styles.pointsRow}>
+              <View style={[styles.pointsBadge, { backgroundColor: '#EC4899' }]}>
+                <Text style={styles.pointsBadgeText}>+25</Text>
+              </View>
+              <Text style={styles.pointsAction}>Aprobar la solicitud de registro de un nuevo usuario</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>🏅 Niveles:</Text>
+          <View style={styles.levelsTable}>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥉</Text>
+              <Text style={styles.levelName}>Novato</Text>
+              <Text style={styles.levelPoints}>0+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥈</Text>
+              <Text style={styles.levelName}>Activo</Text>
+              <Text style={styles.levelPoints}>101+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>🥇</Text>
+              <Text style={styles.levelName}>Veterano</Text>
+              <Text style={styles.levelPoints}>501+ puntos</Text>
+            </View>
+            <View style={styles.levelRow}>
+              <Text style={styles.levelBadge}>💎</Text>
+              <Text style={styles.levelName}>Leyenda</Text>
+              <Text style={styles.levelPoints}>1001+ puntos</Text>
+            </View>
+          </View>
+
+          <View style={styles.tipBox}>
+            <Ionicons name="star" size={20} color="#F59E0B" />
+            <Text style={styles.tipText}>
+              Al alcanzar 1500 puntos, recibirás automáticamente una petición para convertirte en Moderador.
+              Con 3000 puntos, podrás optar a ser Administrador.
+            </Text>
+          </View>
+        </Section>
+
+        {/* Sistema de Invitaciones */}
+        <Section icon="person-add" title="Sistema de Invitaciones">
+          <Text style={styles.paragraph}>
+            Para mantener una comunidad de taxistas verificados, el registro de nuevos usuarios 
+            requiere la aprobación de un taxista existente.
+          </Text>
+
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>📨 Cómo invitar a un nuevo taxista:</Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>Abre tu perfil tocando tu nombre de usuario</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca en "Invitaciones Activas" o el botón verde "Crear Código de Invitación"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Se generará un código único de 8 caracteres</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
+              <Text style={styles.stepText}>Comparte el código con el nuevo taxista (caduca en 7 días)</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>✅ Aprobar solicitudes:</Text>
+          <Text style={styles.paragraph}>
+            Si un nuevo usuario se registra usando tu número de licencia como referencia, 
+            recibirás una solicitud de aprobación en tu perfil.
+          </Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>El contador "Solicitudes Pendientes" mostrará un badge</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca para ver los detalles del solicitante</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Aprueba si conoces al taxista, rechaza si no</Text>
+            </View>
+          </View>
+
+          <View style={styles.warningBox}>
+            <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+            <View style={styles.warningContent}>
+              <Text style={[styles.warningTitle, { color: '#86EFAC' }]}>💡 IMPORTANTE</Text>
+              <Text style={[styles.warningText, { color: '#D1FAE5' }]}>
+                Solo invita o aprueba a taxistas que conozcas personalmente y que tengan licencia válida.
+                Eres responsable de los usuarios que invites a la plataforma.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.rewardsBox}>
+            <Ionicons name="gift" size={24} color="#F59E0B" />
+            <View style={styles.rewardsContent}>
+              <Text style={styles.rewardsTitle}>🎁 Recompensas por invitar</Text>
+              <Text style={styles.rewardsText}>
+                • +50 puntos cuando tu invitado se registre{'\n'}
+                • +25 puntos por aprobar una solicitud{'\n'}
+                • Ver tu contador de "Taxistas Invitados" crecer
+              </Text>
+            </View>
+          </View>
+        </Section>
+
+        {/* Sistema de Reportes */}
+        <Section icon="flag" title="Sistema de Reportes">
+          <Text style={styles.paragraph}>
+            Si observas comportamientos inadecuados o problemas con otros usuarios, 
+            puedes crear un reporte para que sea revisado por los moderadores.
+          </Text>
+
+          <Text style={[styles.featureTitle, { marginTop: 16, marginBottom: 8 }]}>🚩 Tipos de reportes:</Text>
+          <View style={styles.reportTypesContainer}>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#DC2626' }]}>
+                <Ionicons name="warning" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Comportamiento inapropiado</Text>
+                <Text style={styles.reportTypeDesc}>Conducta ofensiva o irrespetuosa</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="mail-unread" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Spam</Text>
+                <Text style={styles.reportTypeDesc}>Mensajes repetitivos o publicidad</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#6366F1' }]}>
+                <Ionicons name="alert-circle" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Información falsa</Text>
+                <Text style={styles.reportTypeDesc}>Alertas falsas o datos incorrectos</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#EC4899' }]}>
+                <Ionicons name="hand-left" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Acoso</Text>
+                <Text style={styles.reportTypeDesc}>Hostigamiento a otros usuarios</Text>
+              </View>
+            </View>
+            <View style={styles.reportTypeItem}>
+              <View style={[styles.reportTypeBadge, { backgroundColor: '#64748B' }]}>
+                <Ionicons name="ellipsis-horizontal" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.reportTypeInfo}>
+                <Text style={styles.reportTypeTitle}>Otro</Text>
+                <Text style={styles.reportTypeDesc}>Cualquier otro problema</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>📝 Cómo crear un reporte:</Text>
+          <View style={styles.stepsList}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+              <Text style={styles.stepText}>Ve a Ajustes (icono de engranaje)</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+              <Text style={styles.stepText}>Toca el botón rojo "Reportar Usuario o Problema"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+              <Text style={styles.stepText}>Selecciona el tipo de reporte</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>4</Text></View>
+              <Text style={styles.stepText}>Describe el problema con detalle (mínimo 10 caracteres)</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}><Text style={styles.stepNumberText}>5</Text></View>
+              <Text style={styles.stepText}>Opcional: Adjunta una imagen o video como evidencia</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>⚖️ Proceso de revisión:</Text>
+          <View style={styles.reviewProcessContainer}>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#6366F1' }]}>
+                <Text style={styles.reviewStepNumber}>1</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Moderador revisa</Text>
+                <Text style={styles.reviewStepDesc}>Un moderador verifica tu reporte</Text>
+              </View>
+            </View>
+            <View style={styles.reviewArrow}>
+              <Ionicons name="arrow-down" size={16} color="#64748B" />
+            </View>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#F59E0B' }]}>
+                <Text style={styles.reviewStepNumber}>2</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Pasa a administración</Text>
+                <Text style={styles.reviewStepDesc}>Si es válido, se escala al admin</Text>
+              </View>
+            </View>
+            <View style={styles.reviewArrow}>
+              <Ionicons name="arrow-down" size={16} color="#64748B" />
+            </View>
+            <View style={styles.reviewStep}>
+              <View style={[styles.reviewStepIcon, { backgroundColor: '#DC2626' }]}>
+                <Text style={styles.reviewStepNumber}>3</Text>
+              </View>
+              <View style={styles.reviewStepContent}>
+                <Text style={styles.reviewStepTitle}>Decisión final</Text>
+                <Text style={styles.reviewStepDesc}>El admin decide y puede aplicar sanciones</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.featureTitle, { marginTop: 20, marginBottom: 8 }]}>🚫 Sanciones posibles:</Text>
+          <View style={styles.sanctionsContainer}>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>6 horas</Text>
+              <Text style={styles.sanctionDesc}>Primera infracción leve</Text>
+            </View>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>12 horas</Text>
+              <Text style={styles.sanctionDesc}>Reincidencia o infracción moderada</Text>
+            </View>
+            <View style={styles.sanctionItem}>
+              <Text style={styles.sanctionDuration}>48 horas</Text>
+              <Text style={styles.sanctionDesc}>Infracciones graves</Text>
+            </View>
+            <View style={[styles.sanctionItem, { borderLeftColor: '#DC2626' }]}>
+              <Text style={[styles.sanctionDuration, { color: '#FCA5A5' }]}>Permanente</Text>
+              <Text style={styles.sanctionDesc}>Infracciones muy graves o reincidencia</Text>
+            </View>
+          </View>
+
+          <View style={styles.warningBox}>
+            <Ionicons name="information-circle" size={24} color="#60A5FA" />
+            <View style={styles.warningContent}>
+              <Text style={[styles.warningTitle, { color: '#93C5FD' }]}>ℹ️ NOTA</Text>
+              <Text style={[styles.warningText, { color: '#BFDBFE' }]}>
+                Los reportes falsos o malintencionados también pueden ser sancionados.
+                Usa el sistema de reportes de forma responsable.
+              </Text>
+            </View>
+          </View>
+        </Section>
+
+        {/* Juegos */}
+        <Section icon="game-controller" title="Juegos Online">
+          <Text style={styles.paragraph}>
+            Mientras esperas, puedes jugar con otros taxistas:
+          </Text>
+          <Text style={styles.bulletPoint}>🚢 <Text style={styles.bold}>Hundir la Flota</Text> - Coloca tus barcos y hunde los del rival</Text>
+          <Text style={styles.bulletPoint}>⭕ <Text style={styles.bold}>Tres en Raya</Text> - Clásico juego de X y O</Text>
+          <Text style={styles.bulletPoint}>🔤 <Text style={styles.bold}>Ahorcado</Text> - Adivina la palabra antes de que se complete el dibujo</Text>
+          <Text style={[styles.paragraph, { marginTop: 8 }]}>
+            Todas las partidas son "mejor de 3" rondas.
+          </Text>
+        </Section>
+
+        {/* Chat y Radio */}
+        <Section icon="chatbubbles" title="Chat y Radio">
+          <Text style={styles.paragraph}>
+            Comunícate con otros taxistas:
+          </Text>
+          <Text style={styles.bulletPoint}>💬 <Text style={styles.bold}>Chat</Text> - Mensajes de texto en canales (general, estaciones)</Text>
+          <Text style={styles.bulletPoint}>🎙️ <Text style={styles.bold}>Radio PTT</Text> - Comunicación por voz en tiempo real (pulsa para hablar)</Text>
+          <Text style={[styles.paragraph, { marginTop: 12, color: '#F87171' }]}>
+            ⚠️ El mal uso del chat puede resultar en bloqueo temporal o permanente.
+          </Text>
+        </Section>
+
+        {/* Filtros */}
+        <Section icon="options" title="Filtros y Opciones">
+          <Text style={styles.paragraph}>
+            Personaliza la información mostrada:
+          </Text>
+          <Text style={styles.bulletPoint}>⏱️ <Text style={styles.bold}>Ventana de tiempo</Text> - 30 o 60 minutos</Text>
+          <Text style={styles.bulletPoint}>🌙 <Text style={styles.bold}>Turno</Text> - Diurno (6:00-21:00), Nocturno (21:00-6:00), o Todos</Text>
+        </Section>
+
+        {/* Soporte */}
+        <View style={styles.supportBox}>
+          <Ionicons name="chatbubbles" size={32} color="#60A5FA" />
+          <Text style={styles.supportTitle}>¿Necesitas ayuda?</Text>
+          <Text style={styles.supportText}>
+            Abre un ticket de soporte y nuestro equipo te ayudará lo antes posible.
+          </Text>
+          <TouchableOpacity 
+            style={styles.supportButton}
+            onPress={() => router.push('/?openSupport=true')}
+          >
+            <Ionicons name="headset" size={20} color="#FFFFFF" />
+            <Text style={styles.supportButtonText}>Centro de Ayuda</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1F2937',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  intro: {
+    backgroundColor: '#1E3A5F',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  introTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  introText: {
+    fontSize: 14,
+    color: '#93C5FD',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  section: {
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 12,
+  },
+  paragraph: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    lineHeight: 22,
+  },
+  highlight: {
+    color: '#60A5FA',
+    fontWeight: '600',
+  },
+  bold: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  bulletPoint: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    lineHeight: 28,
+    paddingLeft: 4,
+  },
+  featureItem: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  featureDesc: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    lineHeight: 20,
+  },
+  scoreExamples: {
+    marginVertical: 12,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  scoreBadge: {
+    width: 40,
+    height: 28,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  scoreText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  scoreLabel: {
+    color: '#D1D5DB',
+    fontSize: 14,
+  },
+  alertTypes: {
+    marginTop: 12,
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  alertBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  alertInfo: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  alertDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#450A0A',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+  },
+  warningContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCA5A5',
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#FECACA',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  warningBold: {
+    fontWeight: '700',
+    color: '#FCA5A5',
+  },
+  warningSubtext: {
+    fontSize: 11,
+    color: '#F87171',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  tipBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#422006',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  tipText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#FCD34D',
+    lineHeight: 20,
+  },
+  supportBox: {
+    backgroundColor: '#1E3A5F',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  supportTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  supportText: {
+    fontSize: 14,
+    color: '#93C5FD',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  supportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F1',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 8,
+  },
+  supportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Points system styles
+  pointsTable: {
+    marginTop: 8,
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pointsBadge: {
+    width: 44,
+    height: 28,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  pointsBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  pointsAction: {
+    flex: 1,
+    color: '#D1D5DB',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  levelsTable: {
+    marginTop: 4,
+  },
+  levelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 10,
+  },
+  levelBadge: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  levelName: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  levelPoints: {
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  // Invitation system styles
+  stepsList: {
+    marginTop: 8,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepText: {
+    flex: 1,
+    color: '#D1D5DB',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingTop: 2,
+  },
+  rewardsBox: {
+    flexDirection: 'row',
+    backgroundColor: '#422006',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#78350F',
+  },
+  rewardsContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  rewardsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCD34D',
+    marginBottom: 8,
+  },
+  rewardsText: {
+    fontSize: 13,
+    color: '#FDE68A',
+    lineHeight: 22,
+  },
+  // Report system styles
+  reportTypesContainer: {
+    marginTop: 8,
+  },
+  reportTypeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reportTypeBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  reportTypeInfo: {
+    flex: 1,
+  },
+  reportTypeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reportTypeDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  reviewProcessContainer: {
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  reviewStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewStepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  reviewStepNumber: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reviewStepContent: {
+    flex: 1,
+  },
+  reviewStepTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reviewStepDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  reviewArrow: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 8,
+  },
+  sanctionsContainer: {
+    marginTop: 8,
+  },
+  sanctionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  sanctionDuration: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FCD34D',
+    width: 90,
+  },
+  sanctionDesc: {
+    flex: 1,
+    fontSize: 13,
+    color: '#D1D5DB',
+  },
+});

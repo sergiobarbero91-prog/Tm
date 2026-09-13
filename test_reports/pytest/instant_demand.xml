@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="4" failures="2" skipped="0" tests="11" time="3.131" timestamp="2026-05-11T21:27:26.116899+00:00" hostname="agent-env-df920cdb-683e-448e-8b96-d6d16cf4bc96"><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_terminals_present" time="1.949" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_instant_demand_fields_present" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_instant_demand_value_types_and_ranges" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_original_score_fields_preserved" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_basic_fields" time="0.140"><error message="failed on setup with &quot;AssertionError: daily-summary failed: 405 {&quot;detail&quot;:&quot;Method Not Allowed&quot;}&#10;assert 405 == 200&#10; +  where 405 = &lt;Response [405]&gt;.status_code&quot;">backend/tests/test_instant_demand_and_summary.py:71: in summary
+    assert r.status_code == 200, f"daily-summary failed: {r.status_code} {r.text[:200]}"
+E   AssertionError: daily-summary failed: 405 {"detail":"Method Not Allowed"}
+E   assert 405 == 200
+E    +  where 405 = &lt;Response [405]&gt;.status_code</error></testcase><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_four_sections_present" time="0.000"><error message="failed on setup with &quot;AssertionError: daily-summary failed: 405 {&quot;detail&quot;:&quot;Method Not Allowed&quot;}&#10;assert 405 == 200&#10; +  where 405 = &lt;Response [405]&gt;.status_code&quot;">backend/tests/test_instant_demand_and_summary.py:71: in summary
+    assert r.status_code == 200, f"daily-summary failed: {r.status_code} {r.text[:200]}"
+E   AssertionError: daily-summary failed: 405 {"detail":"Method Not Allowed"}
+E   assert 405 == 200
+E    +  where 405 = &lt;Response [405]&gt;.status_code</error></testcase><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_bold_markers_present" time="0.000"><error message="failed on setup with &quot;AssertionError: daily-summary failed: 405 {&quot;detail&quot;:&quot;Method Not Allowed&quot;}&#10;assert 405 == 200&#10; +  where 405 = &lt;Response [405]&gt;.status_code&quot;">backend/tests/test_instant_demand_and_summary.py:71: in summary
+    assert r.status_code == 200, f"daily-summary failed: {r.status_code} {r.text[:200]}"
+E   AssertionError: daily-summary failed: 405 {"detail":"Method Not Allowed"}
+E   assert 405 == 200
+E    +  where 405 = &lt;Response [405]&gt;.status_code</error></testcase><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_has_sources_and_queries" time="0.000"><error message="failed on setup with &quot;AssertionError: daily-summary failed: 405 {&quot;detail&quot;:&quot;Method Not Allowed&quot;}&#10;assert 405 == 200&#10; +  where 405 = &lt;Response [405]&gt;.status_code&quot;">backend/tests/test_instant_demand_and_summary.py:71: in summary
+    assert r.status_code == 200, f"daily-summary failed: {r.status_code} {r.text[:200]}"
+E   AssertionError: daily-summary failed: 405 {"detail":"Method Not Allowed"}
+E   assert 405 == 200
+E    +  where 405 = &lt;Response [405]&gt;.status_code</error></testcase><testcase classname="tests.test_instant_demand_and_summary.TestRegenerateAuth" name="test_no_auth_unauthorized" time="0.120"><failure message="AssertionError: Expected 401/403, got 404&#10;assert 404 in (401, 403)&#10; +  where 404 = &lt;Response [404]&gt;.status_code">backend/tests/test_instant_demand_and_summary.py:100: in test_no_auth_unauthorized
+    assert r.status_code in (401, 403), f"Expected 401/403, got {r.status_code}"
+E   AssertionError: Expected 401/403, got 404
+E   assert 404 in (401, 403)
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_instant_demand_and_summary.TestRegenerateAuth" name="test_with_admin_token_ok" time="0.726"><failure message="AssertionError: regen failed: 404 {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code">backend/tests/test_instant_demand_and_summary.py:106: in test_with_admin_token_ok
+    assert r.status_code == 200, f"regen failed: {r.status_code} {r.text[:200]}"
+E   AssertionError: regen failed: 404 {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</failure></testcase><testcase classname="tests.test_instant_demand_and_summary.TestTrainsRegression" name="test_trains_endpoint" time="0.126" /></testsuite></testsuites>

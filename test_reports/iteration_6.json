@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the new airport terminal card layout (P/E/F/S + GRANDE + DEMANDA bar) on both backend and frontend. Backend (11/11 pytest) returns correct per-terminal buckets {proximos, equipaje, finalizado, siguientes, grande, demand_pct, demand_level} and enriches arrivals with status_tag and is_large. Frontend renders the new layout correctly AFTER clearing the Metro cache — initial UI was serving a stale bundle showing the OLD 'XA - YP' format. Once the cache was cleared and Expo restarted, all 3 terminal cards (Zona T1, Zona T2-T3, Zona T4-T4S) display the 4 P/E/F/S colored counters, the GRANDE badge, the DEMANDA bar with right-aligned BAJA/MEDIA/ALTA/CRÍTICA label + percentage + trend arrow, the 'Baja Media Alta' scale labels, and the centered 'Score: X.X' chip. Backward-compat fields (total_next_30min, score_30min, past_30min, instant_pressure_*) are still returned.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Initial Aviones tab load", "issue": "Stale Metro bundle was being served — the old XA-YP layout was rendered instead of the new P/E/F/S layout, even though /app/frontend/app/index.tsx was already updated. Resolved by removing /app/frontend/.metro-cache/cache and /app/frontend/.expo/web then restarting expo via supervisorctl. Main agent should be aware Expo cache may need a clean restart after large UI rewrites.", "affected_selectors": ["[data-testid='instant-pressure-T1']"]}
+    ],
+    "design_issues": [
+      {"screen": "Aviones tab — DEMANDA bar header", "issues": ["The 'DEMANDA' label on the left and the 'BAJA/ALTA/etc.' label on the right render visually adjacent ('DEMANDABAJA 19%' appears almost concatenated) because the row uses space-between with no min-gap. Add marginRight to the DEMANDA Text or paddingHorizontal in /app/frontend/app/index.tsx line ~8018."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_terminal_demand.py",
+    "/app/test_reports/pytest/terminal_demand_results.xml"
+  ],
+  "action_items": [
+    "(Cosmetic) Add horizontal spacing between the 'DEMANDA' label and the BAJA/MEDIA/ALTA/CRITICA right-side label in renderTerminalCard (index.tsx ~8018).",
+    "(Optional) Document that Metro/Expo cache must be cleared after large UI rewrites — main agent could add `rm -rf /app/frontend/.metro-cache /app/frontend/.expo/web` to the deploy/restart script."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py lines 296-310 contain DUPLICATE field declarations for proximos/equipaje/finalizado/siguientes/grande/demand_pct/demand_level (declared twice). Pydantic accepts it (last wins) but this is a code-quality bug — remove the duplicate block.",
+    "aggregate_demand_buckets() in server.py:1571 correctly counts P (0-30 min future), E (-30 to 0 min past), F (-60 to -30 min past), S (30-90 min future). Edge values (exactly 0, 30, -30, -60) handled with inclusive bounds.",
+    "demand_pct mirrors instant_pressure_pct exactly (server.py:2144) — confirmed by test_demand_pct_equals_instant_pressure_pct.",
+    "/app/frontend/app/index.tsx is now ~18,000 lines; renderTerminalCard alone is ~300 lines. Strong candidate for extraction into a separate component file.",
+    "Frontend flight-status badges (`flight-status-{flight_number}` testIDs) exist in source at line ~8192 but are not rendered in the default collapsed card view — they only appear when the terminal expands to show individual flights. Not a bug, but worth knowing for next testing agent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_terminal_demand.py (new — 11 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "95% (all P/E/F/S, GRANDE, DEMANDA, BAJA-MEDIA-ALTA scale, Score chip, trend arrow rendered correctly across T1/T2-T3/T4-T4S; flight-status badges not visually testable because flights list is collapsed by default — code path verified in source)"},
+  "test_credentials": "admin / admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — used live AENA data (193 flights across terminals).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To reach the new airport card: open landing page, fill inputs[1]=admin / inputs[2]=admin, click 'Entrar', wait 7s, click 'Calle' dropdown header, click 'Aviones' option, wait ~8s. testIDs are `instant-pressure-T1`, `instant-pressure-T2`, `instant-pressure-T4` (representatives of the 3 terminal groups). Backend pytest: `EXPO_PUBLIC_BACKEND_URL=https://tariff-tool.preview.emergentagent.com PYTHONPATH=/app pytest backend/tests/test_terminal_demand.py -v`. IMPORTANT: if the UI ever falls back to the old XA-YP layout, the Metro bundle is stale — run `rm -rf /app/frontend/.metro-cache/cache /app/frontend/.expo/web && sudo supervisorctl restart expo` and wait ~30s.",
+  "rca_of_the_issue": "Stale Expo Metro bundle was serving an older compiled version of /app/frontend/app/index.tsx where renderTerminalCard still used the old XA-YP layout. Source code (line 7967+) had already been updated to the new P/E/F/S+GRANDE+DEMANDA layout, but Metro's incremental cache (under /app/frontend/.metro-cache/cache and /app/frontend/.expo/web) was not invalidated. Mitigation: clear those two directories and restart the expo supervisor program; after restart and ~30s warmup the new layout renders correctly across all three terminal cards."
+}

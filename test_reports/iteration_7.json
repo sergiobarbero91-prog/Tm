@@ -1,0 +1,41 @@
+{
+  "summary": "Backend testing: 11/11 pytest cases PASS (TASK 1 instant-demand fields on /api/flights, TASK 2 daily-summary 4 sections + sources + queries + auth-gated regenerate, trains regression). Frontend testing: TASK 1 Aviones works perfectly — all 3 terminal cards render the original 'XA - YP' counters, the original 'Previsión Próxima Hora · Score X.X' chip preserved verbatim, and the NEW 'Demanda en este Momento' bar with %, trend dash and progress bar below it; testIDs instant-demand-T1/T2/T4 all confirmed in DOM. TASK 2 FAILS in the frontend — the Eventos tab shows ONLY 'Añadir Evento' button and 'No hay eventos para hoy' empty state. The AI daily-summary card is NOT rendered: testIDs ai-daily-summary-card, ai-daily-summary-refresh-btn, ai-daily-summary-text are ABSENT from DOM; 'Resumen del Día' header is absent; none of the 4 section headers [GRANDES EVENTOS] / [TEATROS Y OCIO] / [ALERTAS DE TRÁFICO] / [PREVISIÓN MAÑANA] render in the Eventos tab. Backend GET /api/events/daily-summary returns a fully-formed payload (4 sections, 17 search queries, 26 sources, **bold** markers) so this is purely a frontend integration bug — the card component in /app/frontend/app/index.tsx (line ~11206-11365 per the request) either isn't being mounted under the Eventos tab or the fetchDailySummary path isn't being triggered after login.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Eventos tab — AI daily-summary card", "issue": "Card is NOT rendered. testIDs ai-daily-summary-card / ai-daily-summary-refresh-btn / ai-daily-summary-text are absent from DOM. Title 'Resumen del Día' and the 4 section headers [GRANDES EVENTOS] / [TEATROS Y OCIO] / [ALERTAS DE TRÁFICO] / [PREVISIÓN MAÑANA] are absent. Eventos tab only shows the existing 'Añadir Evento' button and 'No hay eventos para hoy' empty state.", "selector": "[data-testid='ai-daily-summary-card']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "fetchDailySummary in Eventos tab", "issue": "Backend /api/events/daily-summary returns 200 with full payload (4 sections, 17 queries, 26 sources, **bold** segments), but the frontend Eventos tab does not display it. Likely causes: (a) the dailySummary JSX block at line ~11206-11365 isn't inside the active branch when activeTab/section==='eventos', (b) fetchDailySummary at line ~3625-3645 isn't being invoked on tab change, or (c) the component is conditioned on a state variable that is never set to truthy.", "affected_selectors": ["[data-testid='ai-daily-summary-card']","[data-testid='ai-daily-summary-text']","[data-testid='ai-daily-summary-refresh-btn']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_instant_demand_and_summary.py",
+    "/app/test_reports/pytest/instant_demand_and_summary.xml"
+  ],
+  "action_items": [
+    "URGENT: Wire up the AI daily-summary card in the Eventos tab. The backend endpoint works; the JSX block at /app/frontend/app/index.tsx ~11206-11365 is not rendering. Verify: (1) the card is inside the eventos tab render branch (not inside the wrong section like 'calle' or 'aviones'), (2) fetchDailySummary() is called inside a useEffect on tab change OR on initial mount, (3) the conditional render isn't gated on dailySummary state being null when it should fall back to a loading state.",
+    "Note on Score chip: the request said the chip text must be EXACTLY 'Score: X.X', but the actual GitHub-restored chip reads 'Previsión Próxima Hora · Score 2.0' (no colon, with prefix). This matches what was rendered before the changes, so the 'restore to GitHub' was done correctly — the request wording was likely shorthand. No action needed unless main agent confirms otherwise."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/app/index.tsx is ~18000 lines; the Eventos tab and the daily-summary card live thousands of lines apart, which makes wiring errors like this easy to introduce. Strong recommendation to extract DailySummaryCard into its own component file.",
+    "Backend /api/events/daily-summary correctly handles cache hits in <1s and cache misses (regenerate) in ~30s. Auth on POST /regenerate works (401 without token, 200 with admin). No backend issues.",
+    "instant_demand_pct/level/trend are correctly populated per terminal in /api/flights and are stable (regression: original score_30min, score_60min, total_next_30min, total_next_60min, past_30min, past_60min are all preserved).",
+    "Trains endpoint regression: /api/trains returns 200 with Atocha+Chamartín arrivals (live RENFE data)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_instant_demand_and_summary.py (NEW — 11 pytest cases)",
+    "/app/test_reports/pytest/instant_demand_and_summary.xml (NEW — JUnit results)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 pytest pass: instant-demand fields, daily-summary structure, regenerate auth, trains regression)",
+    "frontend": "50% (TASK 1 Aviones instant-demand bar fully working with correct testIDs and original Score chip preserved; TASK 2 Eventos AI daily-summary card NOT rendered at all)"
+  },
+  "test_credentials": "admin / admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — used live data (AENA flights, RENFE trains, Gemini-grounded summary).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login flow: 3 inputs on landing — inputs[0]=Calculadora-destino (skip), inputs[1]=username, inputs[2]=password; click 'Entrar' then wait ~9s. To open Aviones: open the section dropdown which shows the current section label (e.g. 'Calle') by clicking it, then click the 'Aviones' option (force=True). To open Eventos: click the dropdown again and click 'Eventos'. testIDs validated working on Aviones: instant-demand-T1 ('Demanda en este Momento 0%'), instant-demand-T2 ('...3%'), instant-demand-T4 ('...0%'). Pytest: `EXPO_PUBLIC_BACKEND_URL=https://tariff-tool.preview.emergentagent.com PYTHONPATH=/app pytest backend/tests/test_instant_demand_and_summary.py -v`. The Eventos card bug is reproducible on every fresh load after login → switch to Eventos.",
+  "rca_of_the_issue": "Backend daily-summary works end-to-end (curl confirms 200 with summary+sources+queries+date+generated_at, 4 sections, **bold** markers). Frontend Eventos tab does NOT render the daily-summary card — the testIDs ai-daily-summary-card / -refresh-btn / -text are entirely absent from the DOM after navigating to Eventos. Reproduction: login admin/admin → open dropdown → click 'Eventos' → wait 12s → inspect DOM. Expected: a card titled 'Resumen del Día' with subtitle 'Eventos verificados · IA con Google Search' above the 'Añadir Evento' button. Observed: only the 'Añadir Evento' button and the 'No hay eventos para hoy' empty state. Most likely root cause: the JSX for the daily-summary card at /app/frontend/app/index.tsx ~11206-11365 is either (a) outside the conditional branch for the eventos tab, (b) gated on a state variable (e.g. dailySummary) that is never populated because fetchDailySummary() isn't called on tab activation, or (c) inside a conditional that short-circuits when no events exist. Main agent should verify the JSX placement, ensure fetchDailySummary fires in a useEffect keyed on the active section/tab, and confirm the loading/error/success states all render the card shell (not just on success)."
+}

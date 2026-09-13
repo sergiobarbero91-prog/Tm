@@ -1,0 +1,58 @@
+{
+  "summary": "Completed testing of public fare calculator on login page. All tariff scenarios work correctly: Tarifa 4 (33€ fixed for airport ↔ inside M30), Tarifa 3 (9km franchise for airport → outside M30), Tarifa 7 (1.4km franchise for station → any destination), and Tarifa 1/2 (flag fall + km rate for street origin). M30 boundary detection via backend geocoding endpoint works correctly - tested with multiple inside/outside M30 locations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/calculate-route-distance",
+        "issue": "Returns 401 Unauthorized without token - public fare calculator falls back to straight-line distance calculation"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Login page",
+        "issues": [
+          "AdSpace component styling: The ad spaces are visible as subtle gray boxes (rgba(30, 41, 59, 0.3)) between the summary and calculator, and between the calculator and login form. They appear as intended placeholders for Google AdSense ads."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_fare_calculator.py",
+    "/app/test_reports/pytest/pytest_fare_calculator_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Calculator styling correctly matches summary box styling (same backgroundColor, borderRadius, padding, borderWidth, borderColor)",
+    "Fare calculator logic correctly implements franchises (free km) instead of base amounts for Tarifa 3 (9km) and Tarifa 7 (1.4km)",
+    "M30 boundary detection now uses backend geocoding endpoint with M30_POLYGON for accurate point-in-polygon checking"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_fare_calculator.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed, 1 skipped)",
+    "frontend": "100% (All fare calculator scenarios verified)"
+  },
+  "test_credentials": {
+    "username": "admin",
+    "password": "admin"
+  },
+  "seed_data_creation": "None - tests use public endpoints that don't require authentication",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fare calculator on login page fully tested. Backend geocoding endpoint (/api/geocode/forward) is public and correctly returns is_inside_m30 for M30 boundary detection. Test file at /app/backend/tests/test_fare_calculator.py covers M30 boundary detection for multiple Madrid locations.",
+  "verified_features": {
+    "Tarifa 4 (Airport → inside M30)": "PASS - Shows 33€ fixed price with 'Tarifa 4 (Fija)' and 'Tarifa fija aeropuerto → dentro de M30'",
+    "Tarifa 3 (Airport → outside M30)": "PASS - Shows 'Tarifa 3 + Tarifa 1' with 9km franchise calculation (e.g., 'Franquicia 9km (sin coste) + 3.5km × 1.40€/km')",
+    "Tarifa 7 (Station → any destination)": "PASS - Shows 'Tarifa 7 + Tarifa 1' with 1.4km franchise calculation (e.g., 'Franquicia 1.4km (sin coste) + 1.4km × 1.40€/km')",
+    "Tarifa 1/2 (Street → any destination)": "PASS - Shows 'Tarifa 1' or 'Tarifa 2' with flag fall and km rate (e.g., 'Bajada bandera 2.50€ + 4.9km × 1.40€/km')",
+    "M30 boundary detection": "PASS - Backend geocoding endpoint correctly identifies locations inside/outside M30 using polygon algorithm",
+    "AdSpace component": "PASS - Visible between fare calculator and login form as subtle gray placeholder",
+    "Calculator styling": "PASS - Matches summary box styling (same background, border radius, padding, border color)"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the new 'Demanda en este Momento' (Instant Pressure) feature on /api/flights + the airports UI in the Aviones tab. All 9 pytest cases pass (schema, level mapping, custom-window omission, unit-level math + breakdown). Frontend renders the 3 terminal-group cards (T1, T2-T3, T4-T4S) with the new bar, percentage, trend arrow, colored bar and the renamed 'Previsión Próxima Hora · Score X.X' label. testIDs instant-pressure-T1/T2/T4 are present and contain the correct copy.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Aviones tab — terminal cards (Demanda bar)", "issues": ["Minor: no space between the label 'Demanda en este Momento' and the percentage value (rendered as 'Demanda en este Momento30%'). Add marginRight on the label Text or paddingHorizontal on the inner row in /app/frontend/app/index.tsx (~line 7957)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_instant_pressure.py",
+    "/app/test_reports/pytest/instant_pressure_results.xml"
+  ],
+  "action_items": [
+    "(Optional polish) Add a small gap between 'Demanda en este Momento' label and the percentage number in renderTerminalCard."
+  ],
+  "critical_code_review_comments": [
+    "calculate_instant_pressure correctly maps minute buckets (<5, 5-15, 15-30, 30-45, 45-60) to the documented points; long-haul boost multiplier ×1.5 verified.",
+    "pressure_level thresholds match spec: <40 green, 40-69 yellow, 70-100 red, >100 critical. Verified with edge values 0/39/40/69/70/100/101/150.",
+    "Custom time-window (start_time/end_time) correctly returns null for all 4 instant_pressure_* fields — verified at runtime.",
+    "_prev_instant_pressure cache is process-local (in-memory dict); trend may behave oddly with multiple backend workers, but acceptable for a single-worker deployment.",
+    "/app/frontend/app/index.tsx is 17.8k lines; consider extracting renderTerminalCard and similar large render helpers into separate components."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_instant_pressure.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9 pytest)", "frontend": "100% (3/3 testIDs + labels + bar render)"},
+  "test_credentials": "admin / admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used live AENA data (currently returning ~50 flights across terminals).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend uses Expo (EXPO_PUBLIC_BACKEND_URL). To reach the airport terminal cards: open the public landing, login with admin/admin (form on landing page → 'Entrar'), then click the 'Calle' dropdown at the top and switch to 'Aviones'. testIDs are instant-pressure-T1, instant-pressure-T2, instant-pressure-T4 (group representative). Backend pytest: PYTHONPATH=/app EXPO_PUBLIC_BACKEND_URL=https://tariff-tool.preview.emergentagent.com pytest backend/tests/test_instant_pressure.py -v.",
+  "rca_of_the_issue": "N/A — no bugs found; feature works as specified."
+}
