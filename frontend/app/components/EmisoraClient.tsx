@@ -41,6 +41,7 @@ type Ride = {
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_scope: 'assigned' | 'open';
   accepted_by_driver_name: string | null;
+  accepted_by_driver_phone: string | null;
   passengers: number;
   created_at: string;
 };
@@ -49,6 +50,22 @@ const notify = (msg: string) => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     // eslint-disable-next-line no-alert
     window.alert(msg);
+  }
+};
+
+const openTel = (phone: string | null | undefined) => {
+  if (!phone) return;
+  const clean = phone.replace(/\s+/g, '');
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.location.href = `tel:${clean}`;
+  } else {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Linking = require('react-native').Linking;
+      Linking.openURL(`tel:${clean}`);
+    } catch {
+      // ignore
+    }
   }
 };
 
@@ -532,6 +549,16 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
                 <Text style={{ color: '#3B82F6', marginTop: 6, fontSize: 12 }}>
                   <Ionicons name="person" size={11} /> Taxista: {r.accepted_by_driver_name}
                 </Text>
+              )}
+              {(r.status === 'accepted' || r.status === 'in_progress') && r.accepted_by_driver_phone && (
+                <TouchableOpacity
+                  onPress={() => openTel(r.accepted_by_driver_phone)}
+                  style={{ marginTop: 10, backgroundColor: '#10B981', paddingVertical: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                  testID={`emisora-call-driver-${r.id}`}
+                >
+                  <Ionicons name="call" size={16} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontWeight: '800' }}>Llamar al taxista · {r.accepted_by_driver_phone}</Text>
+                </TouchableOpacity>
               )}
               {r.status === 'pending' && (
                 <TouchableOpacity onPress={() => handleCancel(r.id)} style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#EF4444' }} testID={`emisora-cancel-${r.id}`}>

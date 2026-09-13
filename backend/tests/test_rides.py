@@ -138,7 +138,10 @@ def test_driver_accept_marks_ride_and_prevents_second_accept():
         timeout=10,
     )
     assert r1.status_code == 200
-    assert r1.json()["status"] == "accepted"
+    body = r1.json()
+    assert body["status"] == "accepted"
+    # accepted response includes the driver's phone so the client can dial them
+    assert "accepted_by_driver_phone" in body
 
     r2 = requests.post(
         f"{API}/rides/rides/{ride['id']}/accept",
@@ -146,6 +149,28 @@ def test_driver_accept_marks_ride_and_prevents_second_accept():
         timeout=10,
     )
     assert r2.status_code == 400
+
+
+def test_client_sees_driver_phone_after_accept():
+    """Client polling /rides/mine after acceptance should see the driver's
+    phone so the "Llamar al taxista" button can dial it."""
+    ct = _client_login("+34600999009", "Call", "Me")
+    dt = _driver_login()
+    ride = requests.post(
+        f"{API}/rides/rides",
+        json={"origin": "Sol", "destination": "T4", "ride_type": "asap"},
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    ).json()
+    requests.post(
+        f"{API}/rides/rides/{ride['id']}/accept",
+        headers={"Authorization": f"Bearer {dt}"},
+        timeout=10,
+    )
+    mine = requests.get(f"{API}/rides/rides/mine", headers={"Authorization": f"Bearer {ct}"}, timeout=10).json()
+    match = [r for r in mine if r["id"] == ride["id"]][0]
+    assert match["status"] == "accepted"
+    assert match["accepted_by_driver_phone"], "driver phone must be exposed after accept"
 
 
 def test_client_can_cancel_pending_ride():

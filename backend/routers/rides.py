@@ -480,6 +480,7 @@ class RideResponse(BaseModel):
     notes: Optional[str]
     passengers: int
     created_at: datetime
+    accepted_by_driver_phone: Optional[str] = None
 
 
 def _ride_to_response(doc: dict) -> RideResponse:
@@ -497,6 +498,7 @@ def _ride_to_response(doc: dict) -> RideResponse:
         associated_driver_id=doc.get("associated_driver_id"),
         accepted_by_driver_id=doc.get("accepted_by_driver_id"),
         accepted_by_driver_name=doc.get("accepted_by_driver_name"),
+        accepted_by_driver_phone=doc.get("accepted_by_driver_phone"),
         notes=doc.get("notes"),
         passengers=doc.get("passengers", 1),
         created_at=doc["created_at"],
@@ -642,12 +644,14 @@ async def driver_accept_ride(ride_id: str, current: dict = Depends(get_current_u
 
     # Race-safe: only accept if still pending
     driver_name = current.get("full_name") or current.get("username")
+    driver_phone = current.get("phone")
     upd = await rides_collection.update_one(
         {"id": ride_id, "status": "pending"},
         {"$set": {
             "status": "accepted",
             "accepted_by_driver_id": current["id"],
             "accepted_by_driver_name": driver_name,
+            "accepted_by_driver_phone": driver_phone,
             "updated_at": datetime.now(timezone.utc),
         }},
     )

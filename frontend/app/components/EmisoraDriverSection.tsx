@@ -40,7 +40,25 @@ type Ride = {
   notes: string | null;
   accepted_by_driver_id: string | null;
   accepted_by_driver_name: string | null;
+  accepted_by_driver_phone: string | null;
   created_at: string;
+};
+
+const openTel = (phone: string | null | undefined) => {
+  if (!phone) return;
+  const clean = phone.replace(/\s+/g, '');
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.location.href = `tel:${clean}`;
+  } else {
+    // React Native fallback via Linking (already available via expo-linking)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Linking = require('react-native').Linking;
+      Linking.openURL(`tel:${clean}`);
+    } catch {
+      // ignore
+    }
+  }
 };
 
 type QrInfo = {
@@ -163,8 +181,21 @@ export const EmisoraDriverSection: React.FC = () => {
 
   const accept = async (id: string) => {
     try {
-      await axios.post(`${API_BASE}/api/rides/rides/${id}/accept`, {}, { headers: await authHeaders() });
+      const r = await axios.post(`${API_BASE}/api/rides/rides/${id}/accept`, {}, { headers: await authHeaders() });
       await refresh();
+      // Show a very visible reminder + immediate call option
+      const clientName = r.data?.client_name || 'el cliente';
+      const clientPhone = r.data?.client_phone || '';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const call = window.confirm(
+          `✅ Servicio aceptado.\n\nLlama a ${clientName} (${clientPhone}) ahora mismo para confirmar la recogida.\n\n¿Quieres marcar su número?`
+        );
+        if (call && clientPhone) {
+          openTel(clientPhone);
+        }
+      } else {
+        notify(`Servicio aceptado. Llama a ${clientName} al ${clientPhone} para confirmar la recogida.`);
+      }
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo aceptar');
     }
@@ -223,6 +254,33 @@ export const EmisoraDriverSection: React.FC = () => {
         <Text style={{ color: '#60A5FA', fontSize: 12, marginTop: 4 }}>
           <Ionicons name="person" size={11} /> {r.client_name} · {r.client_phone}
         </Text>
+
+        {/* Persistent "call client" reminder when the driver has accepted the ride */}
+        {variant === 'active' && r.client_phone ? (
+          <View
+            testID={`emisora-driver-call-cta-${r.id}`}
+            style={{
+              marginTop: 10,
+              backgroundColor: '#064E3B',
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#10B981',
+              padding: 10,
+            }}
+          >
+            <Text style={{ color: '#6EE7B7', fontWeight: '800', fontSize: 12, marginBottom: 6 }}>
+              📞 Llama al cliente para confirmar la recogida
+            </Text>
+            <TouchableOpacity
+              onPress={() => openTel(r.client_phone)}
+              style={{ backgroundColor: '#10B981', paddingVertical: 10, borderRadius: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+              testID={`emisora-driver-call-${r.id}`}
+            >
+              <Ionicons name="call" size={16} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '800' }}>Llamar a {r.client_name.split(' ')[0] || 'cliente'} · {r.client_phone}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
           {variant !== 'active' && (

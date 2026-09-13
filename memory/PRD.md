@@ -680,3 +680,35 @@ Full new feature turning the app into a Uber-style radio dispatch:
 - `/app/backend/tests/test_rides.py` migrated to the code-based flow. New
   tests: wrong-code rejection and code rotation. **7/7 pass.**
 
+
+## 📞 Emisora — Call CTAs cuando el servicio es aceptado (Feb 2026)
+
+Al aceptar un servicio, ambos lados de la conversación ven un botón para
+llamar directamente al otro. Se abre el marcador nativo (`tel:` link).
+
+### Backend
+- `RideResponse` ahora expone `accepted_by_driver_phone` (`Optional[str]`).
+- `POST /rides/{id}/accept` guarda el teléfono del taxista (`current.phone`)
+  en el documento junto al nombre y el id.
+- Cualquier polling del cliente (`GET /rides/mine`) recibe el teléfono del
+  taxista una vez aceptado.
+
+### Frontend Driver (`EmisoraDriverSection.tsx`)
+- Al pulsar "Aceptar" aparece un `window.confirm` con el mensaje
+  "Servicio aceptado. Llama a <cliente> (<tel>) ahora mismo para confirmar
+  la recogida. ¿Quieres marcar su número?" — si acepta, se abre `tel:` con
+  el número del cliente ya marcado.
+- La tarjeta del servicio en "EN CURSO" muestra siempre un banner verde
+  recordatorio con un botón grande "📞 Llamar a <cliente> · <tel>".
+
+### Frontend Client (`EmisoraClient.tsx`)
+- Cuando un servicio pasa a `accepted` o `in_progress`, la tarjeta muestra
+  un botón verde "📞 Llamar al taxista · <tel>" que llama al teléfono del
+  taxista guardado en el ride.
+
+### Tests
+- `test_driver_accept_marks_ride_and_prevents_second_accept` verifica que
+  la respuesta al aceptar contiene `accepted_by_driver_phone`.
+- Nuevo test `test_client_sees_driver_phone_after_accept` confirma que el
+  cliente ve el teléfono del taxista al hacer polling. **8/8 pasan.**
+
