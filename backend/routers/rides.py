@@ -1,0 +1,579 @@
+"""
+Rides / Emisora — Uber-like extension for TaxiDash.
+
+Introduces a "cliente" role separate from the existing driver/owner accounts:
+- Cliente authenticates by phone + OTP (Twilio Verify, with DEV fallback when
+  credentials are empty). No password.
+- Cliente can request a ride ASAP or scheduled for a specific datetime.
+- Driver can generate a QR code linked to their account. Clients registering
+  through that QR are "associated" with the driver.
+- Dispatcher rules:
+    * ASAP → immediately open to all online drivers.
+    * Scheduled → offered exclusively to the associated driver until 6 hours
+      before service; then it falls into the open offers pool.
+
+This module lives under /api/rides.
+"""
+from __future__ import annotations
+
+import os
+import random
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Optional, List
+
+from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+from pydantic import BaseModel, Field, validator
+
+from shared import (
+    SECRET_KEY,
+    ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    clients_collection,
+    otp_codes_collection,
+    rides_collection,
+    driver_qrs_collection,
+    users_collection,
+    create_access_token,
+    security,
+    get_current_user_required,
+    logger,
+)
+
+router = APIRouter(prefix="/rides", tags=["rides"])
+
+
+# ─────────────────────────── Twilio helper ────────────────────────────
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+TWILIO_VERIFY_SERVICE_SID = os.environ.get("TWILIO_VERIFY_SERVICE_SID", "").strip()
+
+DEV_OTP_MODE = not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID)
+DEV_OTP_CODE = "123456"
+
+
+def _twilio_client():
+    """Lazy import so the module still loads when the twilio package is missing."""
+    from twilio.rest import Client  # type: ignore
+    return Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+
+async def _send_otp(phone: str) -> str:
+    """Send an OTP to the phone. Returns 'sent' or 'dev'. Raises HTTPException on real errors."""
+    if DEV_OTP_MODE:
+        # Persist code so verify path finds it. Overwrite existing entry for same phone.
+        await otp_codes_collection.update_one(
+            {"phone": phone},
+            {"$set": {
+                "phone": phone,
+                "code": DEV_OTP_CODE,
+                "created_at": datetime.now(timezone.utc),
+                "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+                "mode": "dev",
+            }},
+            upsert=True,
+        )
+        logger.info(f"[rides/OTP-DEV] phone={phone} code={DEV_OTP_CODE}")
+        return "dev"
+
+    # Real Twilio Verify send
+    try:
+        client = _twilio_client()
+        client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verifications.create(
+            to=phone, channel="sms"
+        )
+        return "sent"
+    except Exception as exc:  # pragma: no cover - external dependency
+        logger.exception("[rides] Twilio send OTP failed")
+        raise HTTPException(status_code=502, detail=f"No se pudo enviar el SMS: {exc}")
+
+
+async def _verify_otp(phone: str, code: str) -> bool:
+    """Return True if the code is valid for that phone."""
+    if DEV_OTP_MODE:
+        doc = await otp_codes_collection.find_one({"phone": phone})
+        if not doc:
+            return False
+        if doc.get("code") != code:
+            return False
+        # Optional expiry check
+        exp = doc.get("expires_at")
+        if exp:
+            if isinstance(exp, datetime):
+                if exp.tzinfo is None:
+                    exp = exp.replace(tzinfo=timezone.utc)
+                if exp < datetime.now(timezone.utc):
+                    return False
+        # Burn code (dev mode) so it can't be reused
+        await otp_codes_collection.delete_one({"phone": phone})
+        return True
+
+    try:
+        client = _twilio_client()
+        check = client.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verification_checks.create(
+            to=phone, code=code
+        )
+        return check.status == "approved"
+    except Exception:  # pragma: no cover
+        logger.exception("[rides] Twilio verify OTP failed")
+        return False
+
+
+# ────────────────────────── Cliente auth models ────────────────────────
+class SendOtpBody(BaseModel):
+    phone: str  # E.164 format, e.g. +34611223344
+
+    @validator("phone")
+    def _norm_phone(cls, v: str) -> str:  # noqa: N805
+        v = v.strip().replace(" ", "").replace("-", "")
+        if not v.startswith("+"):
+            raise ValueError("Teléfono debe ir en formato E.164 (ej. +34611223344)")
+        if len(v) < 8 or len(v) > 16:
+            raise ValueError("Teléfono con longitud inválida")
+        return v
+
+
+class VerifyOtpBody(BaseModel):
+    phone: str
+    code: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    associated_driver_qr: Optional[str] = None  # QR token from driver invite
+
+    @validator("phone")
+    def _norm_phone(cls, v: str) -> str:  # noqa: N805
+        return SendOtpBody._norm_phone(v)
+
+
+class ClientResponse(BaseModel):
+    id: str
+    phone: str
+    first_name: str
+    last_name: str
+    associated_driver_id: Optional[str] = None
+    created_at: datetime
+
+
+class ClientTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    client: ClientResponse
+
+
+# ─────────────────────── Cliente authorization ─────────────────────────
+async def get_current_client_required(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """Auth guard for cliente-only endpoints. Cliente JWTs carry ct='client'."""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if payload.get("ct") != "client":
+        raise HTTPException(status_code=403, detail="Solo clientes")
+    cid = payload.get("sub")
+    doc = await clients_collection.find_one({"id": cid})
+    if not doc:
+        raise HTTPException(status_code=401, detail="Cliente no encontrado")
+    return doc
+
+
+# ─────────────────────────── OTP endpoints ────────────────────────────
+@router.post("/client/send-otp")
+async def client_send_otp(body: SendOtpBody):
+    status_ = await _send_otp(body.phone)
+    return {"status": status_, "dev_mode": DEV_OTP_MODE}
+
+
+@router.post("/client/verify-otp", response_model=ClientTokenResponse)
+async def client_verify_otp(body: VerifyOtpBody):
+    ok = await _verify_otp(body.phone, body.code)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Código OTP incorrecto o caducado")
+
+    doc = await clients_collection.find_one({"phone": body.phone})
+    associated_driver_id: Optional[str] = None
+    if body.associated_driver_qr:
+        qr = await driver_qrs_collection.find_one({"token": body.associated_driver_qr})
+        if qr:
+            associated_driver_id = qr.get("driver_id")
+
+    if doc:
+        # Existing client — update names/associated driver if provided this time
+        update: dict = {}
+        if body.first_name and not doc.get("first_name"):
+            update["first_name"] = body.first_name.strip()
+        if body.last_name and not doc.get("last_name"):
+            update["last_name"] = body.last_name.strip()
+        if associated_driver_id and not doc.get("associated_driver_id"):
+            update["associated_driver_id"] = associated_driver_id
+        if update:
+            update["updated_at"] = datetime.now(timezone.utc)
+            await clients_collection.update_one({"id": doc["id"]}, {"$set": update})
+            doc.update(update)
+    else:
+        # Registration path — require first & last name
+        if not (body.first_name and body.last_name):
+            raise HTTPException(
+                status_code=400,
+                detail="Para registrarte necesitamos tu nombre y apellido",
+            )
+        import uuid
+        doc = {
+            "id": str(uuid.uuid4()),
+            "phone": body.phone,
+            "first_name": body.first_name.strip(),
+            "last_name": body.last_name.strip(),
+            "associated_driver_id": associated_driver_id,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        await clients_collection.insert_one(doc)
+
+    token = create_access_token(
+        {"sub": doc["id"], "ct": "client"},
+        expires_delta=timedelta(days=30),
+    )
+    return ClientTokenResponse(
+        access_token=token,
+        client=ClientResponse(
+            id=doc["id"],
+            phone=doc["phone"],
+            first_name=doc.get("first_name", ""),
+            last_name=doc.get("last_name", ""),
+            associated_driver_id=doc.get("associated_driver_id"),
+            created_at=doc["created_at"],
+        ),
+    )
+
+
+@router.get("/client/me", response_model=ClientResponse)
+async def client_me(current: dict = Depends(get_current_client_required)):
+    return ClientResponse(
+        id=current["id"],
+        phone=current["phone"],
+        first_name=current.get("first_name", ""),
+        last_name=current.get("last_name", ""),
+        associated_driver_id=current.get("associated_driver_id"),
+        created_at=current["created_at"],
+    )
+
+
+# ───────────────────────── Driver QR endpoints ─────────────────────────
+class DriverQrResponse(BaseModel):
+    token: str
+    url: str  # deep-link a la pantalla de registro cliente
+    driver_id: str
+    driver_name: str
+
+
+@router.post("/driver/qr", response_model=DriverQrResponse)
+async def driver_generate_qr(current: dict = Depends(get_current_user_required)):
+    """A driver/owner generates a QR token that new clients can scan to register
+    associated with this account. Idempotent: reuses an active token if present."""
+    if current.get("role") not in ("conductor", "propietario", "user", "admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Solo taxistas pueden generar QR")
+
+    existing = await driver_qrs_collection.find_one({"driver_id": current["id"]})
+    if existing:
+        token = existing["token"]
+    else:
+        token = secrets.token_urlsafe(10)
+        await driver_qrs_collection.insert_one({
+            "token": token,
+            "driver_id": current["id"],
+            "driver_username": current.get("username"),
+            "created_at": datetime.now(timezone.utc),
+        })
+
+    frontend_base = os.environ.get("FRONTEND_PUBLIC_URL", "").rstrip("/")
+    return DriverQrResponse(
+        token=token,
+        url=f"{frontend_base}/?cliente_qr={token}" if frontend_base else f"/?cliente_qr={token}",
+        driver_id=current["id"],
+        driver_name=current.get("full_name") or current.get("username") or "Taxista",
+    )
+
+
+@router.get("/qr/{token}/info")
+async def qr_info(token: str):
+    """Public endpoint the client's registration screen calls to display
+    which driver they're being associated with."""
+    qr = await driver_qrs_collection.find_one({"token": token})
+    if not qr:
+        raise HTTPException(status_code=404, detail="Código QR no válido")
+    driver = await users_collection.find_one({"id": qr["driver_id"]})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Taxista no encontrado")
+    return {
+        "token": token,
+        "driver_id": driver["id"],
+        "driver_name": driver.get("full_name") or driver.get("username"),
+        "license_number": driver.get("license_number"),
+    }
+
+
+# ─────────────────────────── Ride models ───────────────────────────────
+class RideCreateBody(BaseModel):
+    origin: str
+    destination: str
+    ride_type: str  # "asap" | "scheduled"
+    scheduled_at: Optional[datetime] = None  # required if ride_type == "scheduled"
+    notes: Optional[str] = None
+    passengers: Optional[int] = 1
+
+    @validator("ride_type")
+    def _rt(cls, v: str) -> str:  # noqa: N805
+        if v not in ("asap", "scheduled"):
+            raise ValueError("ride_type debe ser 'asap' o 'scheduled'")
+        return v
+
+
+class RideResponse(BaseModel):
+    id: str
+    origin: str
+    destination: str
+    ride_type: str
+    scheduled_at: Optional[datetime]
+    status: str  # pending, accepted, in_progress, completed, cancelled
+    dispatch_scope: str  # "assigned" (exclusive to associated driver) | "open"
+    client_id: str
+    client_name: str
+    client_phone: str
+    associated_driver_id: Optional[str]
+    accepted_by_driver_id: Optional[str]
+    accepted_by_driver_name: Optional[str] = None
+    notes: Optional[str]
+    passengers: int
+    created_at: datetime
+
+
+def _ride_to_response(doc: dict) -> RideResponse:
+    return RideResponse(
+        id=doc["id"],
+        origin=doc["origin"],
+        destination=doc["destination"],
+        ride_type=doc["ride_type"],
+        scheduled_at=doc.get("scheduled_at"),
+        status=doc["status"],
+        dispatch_scope=doc["dispatch_scope"],
+        client_id=doc["client_id"],
+        client_name=doc.get("client_name", ""),
+        client_phone=doc.get("client_phone", ""),
+        associated_driver_id=doc.get("associated_driver_id"),
+        accepted_by_driver_id=doc.get("accepted_by_driver_id"),
+        accepted_by_driver_name=doc.get("accepted_by_driver_name"),
+        notes=doc.get("notes"),
+        passengers=doc.get("passengers", 1),
+        created_at=doc["created_at"],
+    )
+
+
+# ────────────────────────── Ride endpoints (client) ────────────────────
+@router.post("/rides", response_model=RideResponse)
+async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_client_required)):
+    import uuid
+    now = datetime.now(timezone.utc)
+
+    if body.ride_type == "scheduled":
+        if not body.scheduled_at:
+            raise HTTPException(status_code=400, detail="Falta la fecha del servicio")
+        sched = body.scheduled_at
+        if sched.tzinfo is None:
+            sched = sched.replace(tzinfo=timezone.utc)
+        if sched <= now + timedelta(minutes=10):
+            raise HTTPException(status_code=400, detail="La reserva debe ser al menos 10 minutos en el futuro")
+    else:
+        sched = None
+
+    associated_driver_id = current.get("associated_driver_id")
+
+    # Dispatch scope:
+    #   ASAP → always open to everyone
+    #   Scheduled + associated_driver + >6h before service → exclusive
+    #   Scheduled + no associated driver (or <6h) → open
+    dispatch_scope = "open"
+    if body.ride_type == "scheduled" and associated_driver_id and sched:
+        hours_until = (sched - now).total_seconds() / 3600.0
+        if hours_until > 6:
+            dispatch_scope = "assigned"
+
+    doc = {
+        "id": str(uuid.uuid4()),
+        "origin": body.origin.strip(),
+        "destination": body.destination.strip(),
+        "ride_type": body.ride_type,
+        "scheduled_at": sched,
+        "status": "pending",
+        "dispatch_scope": dispatch_scope,
+        "client_id": current["id"],
+        "client_name": f"{current.get('first_name', '')} {current.get('last_name', '')}".strip(),
+        "client_phone": current["phone"],
+        "associated_driver_id": associated_driver_id if dispatch_scope == "assigned" else associated_driver_id,
+        "accepted_by_driver_id": None,
+        "accepted_by_driver_name": None,
+        "notes": body.notes,
+        "passengers": max(1, min(int(body.passengers or 1), 8)),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await rides_collection.insert_one(doc)
+    return _ride_to_response(doc)
+
+
+@router.get("/rides/mine", response_model=List[RideResponse])
+async def client_list_my_rides(current: dict = Depends(get_current_client_required)):
+    cursor = rides_collection.find({"client_id": current["id"]}).sort("created_at", -1).limit(50)
+    return [_ride_to_response(d) async for d in cursor]
+
+
+@router.post("/rides/{ride_id}/cancel", response_model=RideResponse)
+async def cancel_ride(ride_id: str, current: dict = Depends(get_current_client_required)):
+    doc = await rides_collection.find_one({"id": ride_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if doc["client_id"] != current["id"]:
+        raise HTTPException(status_code=403, detail="No puedes cancelar este servicio")
+    if doc["status"] in ("completed", "cancelled"):
+        raise HTTPException(status_code=400, detail=f"El servicio ya está {doc['status']}")
+    await rides_collection.update_one(
+        {"id": ride_id},
+        {"$set": {"status": "cancelled", "updated_at": datetime.now(timezone.utc)}},
+    )
+    doc["status"] = "cancelled"
+    return _ride_to_response(doc)
+
+
+# ────────────────────────── Ride endpoints (driver) ────────────────────
+async def _promote_scheduled_rides_near_deadline():
+    """Move any 'assigned' scheduled ride whose service time is within 6h to 'open'.
+    Called opportunistically on every driver list query."""
+    now = datetime.now(timezone.utc)
+    cutoff = now + timedelta(hours=6)
+    await rides_collection.update_many(
+        {
+            "status": "pending",
+            "dispatch_scope": "assigned",
+            "ride_type": "scheduled",
+            "scheduled_at": {"$lte": cutoff},
+        },
+        {"$set": {"dispatch_scope": "open", "updated_at": now}},
+    )
+
+
+@router.get("/driver/assigned", response_model=List[RideResponse])
+async def driver_list_assigned(current: dict = Depends(get_current_user_required)):
+    """Rides that are currently reserved for this driver (before the 6h cutoff)."""
+    await _promote_scheduled_rides_near_deadline()
+    cursor = rides_collection.find({
+        "status": "pending",
+        "dispatch_scope": "assigned",
+        "associated_driver_id": current["id"],
+    }).sort("scheduled_at", 1).limit(50)
+    return [_ride_to_response(d) async for d in cursor]
+
+
+@router.get("/driver/offers", response_model=List[RideResponse])
+async def driver_list_offers(current: dict = Depends(get_current_user_required)):
+    """Open-market rides available to any online driver."""
+    await _promote_scheduled_rides_near_deadline()
+    cursor = rides_collection.find({
+        "status": "pending",
+        "dispatch_scope": "open",
+    }).sort("created_at", -1).limit(50)
+    return [_ride_to_response(d) async for d in cursor]
+
+
+@router.get("/driver/active", response_model=List[RideResponse])
+async def driver_list_active(current: dict = Depends(get_current_user_required)):
+    """Rides this driver has already accepted/started (not completed/cancelled)."""
+    cursor = rides_collection.find({
+        "accepted_by_driver_id": current["id"],
+        "status": {"$in": ["accepted", "in_progress"]},
+    }).sort("created_at", -1).limit(50)
+    return [_ride_to_response(d) async for d in cursor]
+
+
+@router.post("/rides/{ride_id}/accept", response_model=RideResponse)
+async def driver_accept_ride(ride_id: str, current: dict = Depends(get_current_user_required)):
+    doc = await rides_collection.find_one({"id": ride_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if doc["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"El servicio ya está {doc['status']}")
+
+    # Assigned rides may only be accepted by the associated driver
+    if doc["dispatch_scope"] == "assigned" and doc.get("associated_driver_id") != current["id"]:
+        raise HTTPException(status_code=403, detail="Este servicio no está en oferta abierta todavía")
+
+    # Race-safe: only accept if still pending
+    driver_name = current.get("full_name") or current.get("username")
+    upd = await rides_collection.update_one(
+        {"id": ride_id, "status": "pending"},
+        {"$set": {
+            "status": "accepted",
+            "accepted_by_driver_id": current["id"],
+            "accepted_by_driver_name": driver_name,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    if upd.modified_count == 0:
+        raise HTTPException(status_code=409, detail="Otro taxista lo aceptó antes")
+    doc = await rides_collection.find_one({"id": ride_id})
+    return _ride_to_response(doc)
+
+
+@router.post("/rides/{ride_id}/start", response_model=RideResponse)
+async def driver_start_ride(ride_id: str, current: dict = Depends(get_current_user_required)):
+    doc = await rides_collection.find_one({"id": ride_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if doc.get("accepted_by_driver_id") != current["id"]:
+        raise HTTPException(status_code=403, detail="No eres el taxista asignado a este servicio")
+    if doc["status"] != "accepted":
+        raise HTTPException(status_code=400, detail=f"El servicio está en estado {doc['status']}")
+    await rides_collection.update_one(
+        {"id": ride_id},
+        {"$set": {"status": "in_progress", "updated_at": datetime.now(timezone.utc)}},
+    )
+    doc["status"] = "in_progress"
+    return _ride_to_response(doc)
+
+
+@router.post("/rides/{ride_id}/complete", response_model=RideResponse)
+async def driver_complete_ride(ride_id: str, current: dict = Depends(get_current_user_required)):
+    doc = await rides_collection.find_one({"id": ride_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if doc.get("accepted_by_driver_id") != current["id"]:
+        raise HTTPException(status_code=403, detail="No eres el taxista asignado")
+    if doc["status"] not in ("accepted", "in_progress"):
+        raise HTTPException(status_code=400, detail=f"El servicio está en estado {doc['status']}")
+    await rides_collection.update_one(
+        {"id": ride_id},
+        {"$set": {"status": "completed", "updated_at": datetime.now(timezone.utc)}},
+    )
+    doc["status"] = "completed"
+    return _ride_to_response(doc)
+
+
+@router.post("/rides/{ride_id}/reject", response_model=RideResponse)
+async def driver_reject_assigned(ride_id: str, current: dict = Depends(get_current_user_required)):
+    """Assigned driver can push a ride to the open pool without waiting for the 6h cutoff."""
+    doc = await rides_collection.find_one({"id": ride_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if doc["dispatch_scope"] != "assigned" or doc.get("associated_driver_id") != current["id"]:
+        raise HTTPException(status_code=403, detail="No puedes liberar este servicio")
+    if doc["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"El servicio está en estado {doc['status']}")
+    await rides_collection.update_one(
+        {"id": ride_id},
+        {"$set": {"dispatch_scope": "open", "updated_at": datetime.now(timezone.utc)}},
+    )
+    doc["dispatch_scope"] = "open"
+    return _ride_to_response(doc)

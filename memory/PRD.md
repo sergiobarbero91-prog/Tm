@@ -573,3 +573,65 @@ Pressure points based on STATUS + minutes since landing:
   - Paso 2: botón "Selecciona método" ya no queda bloqueado por `disabled`; ahora es
     siempre pulsable y produce feedback claro sobre lo que falta.
   - `resetRegisterForm` y "Volver" limpian `registerError`.
+
+## 🚕 Emisora — Uber-like ride hailing (Feb 2026)
+Full new feature turning the app into a Uber-style radio dispatch:
+
+### New role: `Cliente`
+- Registers with phone + OTP (Twilio Verify). DEV mode uses fixed OTP `123456`
+  when `TWILIO_*` env vars are empty. No password.
+- Data at signup: phone, first_name, last_name (more can be added later).
+- Optional `?cliente_qr=<token>` URL forces client experience and pre-links
+  the new client to the driver who owns that QR.
+
+### First-run role picker
+- `/app/frontend/app/components/RolePicker.tsx` — splash with "Soy taxista" /
+  "Necesito un taxi". Choice persisted in `AsyncStorage['appRole']`.
+- Small "swap" icon in the driver header lets them go back to the picker.
+- `AppRoot` default export in `index.tsx` decides which subtree to render;
+  the legacy `TransportMeter` is now un-exported and kept intact.
+
+### Backend
+- `/app/backend/routers/rides.py` — new router mounted at `/api/rides`:
+  - `POST /rides/client/send-otp` and `/rides/client/verify-otp`.
+  - `POST /rides/driver/qr` (idempotent) and public `GET /rides/qr/{token}/info`.
+  - `POST /rides/rides` (client) — creates ASAP or scheduled ride.
+  - `GET /rides/rides/mine` (client), `POST /rides/rides/{id}/cancel`.
+  - `GET /rides/driver/{assigned,offers,active}` (taxista).
+  - `POST /rides/rides/{id}/{accept,start,complete,reject}`.
+- New collections in `shared.py`: `clients`, `otp_codes`, `rides`, `driver_qrs`.
+- Cliente JWTs carry `ct:"client"` — separate guard `get_current_client_required`.
+- Dependencies: added `twilio==9.11.1` in `backend/requirements.txt`.
+
+### Dispatcher logic
+- **ASAP** rides → immediately `dispatch_scope="open"` (visible to any driver).
+- **Scheduled** rides:
+  - Client has associated driver + service is more than 6h away → `assigned`
+    exclusively to that driver.
+  - When the service falls within the 6h window → auto-promoted to `open` on
+    every driver query (`_promote_scheduled_rides_near_deadline`).
+- Race-safe accept: only updates when status is still `pending`.
+
+### Frontend — Client experience
+- `/app/frontend/app/components/EmisoraClient.tsx`:
+  - OTP login with DEV-mode helper banner.
+  - Ride request form: origin, destination, passengers, type (ASAP/scheduled +
+    date/time).
+  - Live "Mis servicios" panel (polling every 15s) with cancel action.
+  - Persists token in `AsyncStorage['emisora_client_token']` + client in
+    `emisora_client_info`.
+
+### Frontend — Driver experience
+- `/app/frontend/app/components/EmisoraDriverSection.tsx` mounted inside the
+  Reservas tab.
+- Displays QR "clientes" modal (uses `react-qr-code`), badge with pending
+  count, three sub-lists: **En curso**, **Reservadas para mí**, **Ofertas
+  abiertas**. Actions: Aceptar, Iniciar, Finalizar, Liberar.
+- In-app notification: WebAudio ping every time new rides appear on the
+  15s poll (skipped on first load to avoid ping-on-mount).
+
+### Tests
+- `/app/backend/tests/test_rides.py` — 5 tests covering: client OTP+create ASAP,
+  scheduled > 6h assigned, scheduled < 6h open, driver accept + double-accept
+  guard, and cancel. All passing.
+

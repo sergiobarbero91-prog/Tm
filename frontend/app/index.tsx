@@ -34,6 +34,9 @@ import { PublicFareCalculator } from './components/PublicFareCalculator';
 import { AirportTerminalsGrouped } from './components/AirportTerminalsGrouped';
 import { PublicEventsSummary } from './components/PublicEventsSummary';
 import { PublicBusArrivals } from './components/PublicBusArrivals';
+import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker';
+import { EmisoraClient } from './components/EmisoraClient';
+import { EmisoraDriverSection } from './components/EmisoraDriverSection';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -357,7 +360,7 @@ interface CheckInStatus {
 
 type GpsApp = 'google' | 'waze';
 
-export default function TransportMeter() {
+function TransportMeter() {
   // AdSpace component for Google AdSense - reusable across all tabs
   const AdBanner = ({ position = 'inline' }: { position?: 'top' | 'middle' | 'bottom' | 'inline' }) => {
     const adRef = React.useRef<HTMLDivElement>(null);
@@ -11012,6 +11015,21 @@ export default function TransportMeter() {
             >
               <Ionicons name="chatbubbles" size={20} color="#94A3B8" />
             </TouchableOpacity>
+            {/* Switch role (driver → client experience) */}
+            <TouchableOpacity
+              style={styles.headerChatButton}
+              onPress={async () => {
+                try {
+                  await AsyncStorage.removeItem(APP_ROLE_KEY);
+                } catch {}
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                  window.location.reload();
+                }
+              }}
+              testID="switch-role-button"
+            >
+              <Ionicons name="swap-horizontal" size={20} color="#94A3B8" />
+            </TouchableOpacity>
             {/* SOS Button - Moved to header */}
             <TouchableOpacity
               style={[
@@ -13250,6 +13268,9 @@ export default function TransportMeter() {
               <Ionicons name="add-circle" size={22} color="#FFF" />
               <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16, marginLeft: 8 }}>Nueva Reserva</Text>
             </TouchableOpacity>
+
+            {/* Emisora (Uber-like) section — QR clientes + servicios en vivo */}
+            <EmisoraDriverSection />
 
             {/* Create reservation form */}
             {showCreateReservation && (
@@ -22092,4 +22113,59 @@ export default function TransportMeter() {
       )}
     </SafeAreaView>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AppRoot — decides which experience to render:
+//   1) first-time visitors see the role picker (driver or client)
+//   2) drivers see the full TransportMeter dashboard
+//   3) clients see the EmisoraClient (ride-hailing) module
+// A ?cliente_qr=<token> URL param force-switches to the client flow
+// and pre-associates them to that driver on registration.
+// ─────────────────────────────────────────────────────────────────
+export default function AppRoot() {
+  const [appRole, setAppRole] = useState<'loading' | AppRole | null>('loading');
+  const [clientQrToken, setClientQrToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // If the URL contains ?cliente_qr=xxx, force the client experience.
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const qr = params.get('cliente_qr');
+          if (qr) {
+            setClientQrToken(qr);
+            await AsyncStorage.setItem(APP_ROLE_KEY, 'client');
+            setAppRole('client');
+            return;
+          }
+        }
+        const stored = await AsyncStorage.getItem(APP_ROLE_KEY);
+        setAppRole(stored === 'client' || stored === 'driver' ? (stored as AppRole) : null);
+      } catch {
+        setAppRole(null);
+      }
+    })();
+  }, []);
+
+  if (appRole === 'loading') return null;
+
+  if (appRole === null) {
+    return <RolePicker onPick={(r) => setAppRole(r)} />;
+  }
+
+  if (appRole === 'client') {
+    return (
+      <EmisoraClient
+        qrToken={clientQrToken}
+        onBack={async () => {
+          await AsyncStorage.removeItem(APP_ROLE_KEY);
+          setAppRole(null);
+        }}
+      />
+    );
+  }
+
+  return <TransportMeter />;
 }
