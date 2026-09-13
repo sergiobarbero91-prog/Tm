@@ -327,26 +327,61 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
     if existing_user:
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
     
-    # Check if license number already exists
-    existing_license = await users_collection.find_one({"license_number": register_data.license_number})
-    if existing_license:
-        raise HTTPException(status_code=400, detail="El número de licencia ya está registrado")
-    
-    # Validate license number is numeric
-    if not register_data.license_number.isdigit():
-        raise HTTPException(status_code=400, detail="El número de licencia debe contener solo dígitos")
-    
+    # Check if license number already exists (para conductor lo usamos como license_number,
+    # para propietario lo usamos como PRIMERA licencia y validamos también las demás)
+    licencias_list = []
+    if register_data.role == "propietario":
+        if not register_data.licencias:
+            raise HTTPException(status_code=400, detail="Un propietario necesita al menos una licencia")
+        # Validar todas las licencias (deben ser numéricas y únicas)
+        seen = set()
+        for lic in register_data.licencias:
+            if not lic.numero.isdigit():
+                raise HTTPException(status_code=400, detail=f"La licencia '{lic.numero}' debe contener sólo dígitos")
+            if lic.numero in seen:
+                raise HTTPException(status_code=400, detail=f"La licencia '{lic.numero}' está duplicada")
+            seen.add(lic.numero)
+            # Ver que ninguna esté en otro usuario
+            clash = await users_collection.find_one({
+                "$or": [
+                    {"license_number": lic.numero},
+                    {"licencias.numero": lic.numero},
+                ]
+            })
+            if clash:
+                raise HTTPException(status_code=400, detail=f"La licencia {lic.numero} ya está registrada")
+            licencias_list.append({"numero": lic.numero, "alias": lic.alias})
+    else:
+        existing_license = await users_collection.find_one({
+            "$or": [
+                {"license_number": register_data.license_number},
+                {"licencias.numero": register_data.license_number},
+            ]
+        })
+        if existing_license:
+            raise HTTPException(status_code=400, detail="El número de licencia ya está registrado")
+        # Validate license number is numeric
+        if not register_data.license_number.isdigit():
+            raise HTTPException(status_code=400, detail="El número de licencia debe contener solo dígitos")
+
     now = datetime.utcnow()
-    
+
     # Create new user
+    role = "propietario" if register_data.role == "propietario" else "user"
+    # Para propietarios, tomar la primera licencia como su license_number
+    # canónico (para compat con código existente que lo usa).
+    primary_license = (
+        licencias_list[0]["numero"] if role == "propietario" and licencias_list
+        else register_data.license_number
+    )
     new_user = {
         "id": str(uuid.uuid4()),
         "username": register_data.username,
         "hashed_password": get_password_hash(register_data.password),
         "full_name": register_data.full_name,
-        "license_number": register_data.license_number,
+        "license_number": primary_license,
         "phone": register_data.phone,
-        "role": "user",
+        "role": role,
         "preferred_shift": register_data.preferred_shift or "all",
         "created_at": now,
         "updated_at": now,
@@ -354,6 +389,9 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
         "invited_by_username": invitation["created_by_username"],
         "registration_method": "invitation"
     }
+    if role == "propietario":
+        new_user["licencias"] = licencias_list
+        new_user["licencia_asignada"] = primary_license
     
     await users_collection.insert_one(new_user)
     
@@ -402,8 +440,13 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
 @limiter.limit("5/minute")
 async def create_registration_request(request: Request, request_data: RegistrationRequestCreate):
     """Create a registration request that needs approval from an existing user."""
-    # Find sponsor by license number
-    sponsor = await users_collection.find_one({"license_number": request_data.sponsor_license})
+    # Find sponsor by license number (busca en license_number O en licencias.numero)
+    sponsor = await users_collection.find_one({
+        "$or": [
+            {"license_number": request_data.sponsor_license},
+            {"licencias.numero": request_data.sponsor_license},
+        ]
+    })
     if not sponsor:
         raise HTTPException(status_code=400, detail="No existe ningún usuario con esa licencia de referencia")
     
@@ -411,11 +454,40 @@ async def create_registration_request(request: Request, request_data: Registrati
     existing_user = await users_collection.find_one({"username": request_data.username})
     if existing_user:
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
-    
-    # Check if license number already exists
-    existing_license = await users_collection.find_one({"license_number": request_data.license_number})
-    if existing_license:
-        raise HTTPException(status_code=400, detail="El número de licencia ya está registrado")
+
+    # Validaciones específicas por rol
+    licencias_list = []
+    if request_data.role == "propietario":
+        if not request_data.licencias:
+            raise HTTPException(status_code=400, detail="Un propietario necesita al menos una licencia")
+        seen = set()
+        for lic in request_data.licencias:
+            if not lic.numero.isdigit():
+                raise HTTPException(status_code=400, detail=f"La licencia '{lic.numero}' debe contener sólo dígitos")
+            if lic.numero in seen:
+                raise HTTPException(status_code=400, detail=f"La licencia '{lic.numero}' está duplicada")
+            seen.add(lic.numero)
+            clash = await users_collection.find_one({
+                "$or": [
+                    {"license_number": lic.numero},
+                    {"licencias.numero": lic.numero},
+                ]
+            })
+            if clash:
+                raise HTTPException(status_code=400, detail=f"La licencia {lic.numero} ya está registrada")
+            licencias_list.append({"numero": lic.numero, "alias": lic.alias})
+        # Usar la primera licencia como license_number canónico
+        request_data.license_number = licencias_list[0]["numero"]
+    else:
+        # Check if license number already exists
+        existing_license = await users_collection.find_one({
+            "$or": [
+                {"license_number": request_data.license_number},
+                {"licencias.numero": request_data.license_number},
+            ]
+        })
+        if existing_license:
+            raise HTTPException(status_code=400, detail="El número de licencia ya está registrado")
     
     # Check if there's already a pending request with this username or license
     existing_request = await registration_requests_collection.find_one({
@@ -447,7 +519,11 @@ async def create_registration_request(request: Request, request_data: Registrati
         "sponsor_full_name": sponsor.get("full_name"),
         "status": "pending",
         "created_at": now,
-        "resolved_at": None
+        "resolved_at": None,
+        # Nuevo: guardamos rol y licencias para que la aprobación cree el
+        # usuario final con el rol correcto y todas las licencias.
+        "role": request_data.role or "conductor",
+        "licencias": licencias_list if licencias_list else None,
     }
     
     await registration_requests_collection.insert_one(registration_request)
@@ -535,6 +611,12 @@ async def approve_registration_request(
     
     now = datetime.utcnow()
     
+    # Determinar rol y licencias — la solicitud puede ser de conductor o
+    # propietario (guardadas al crearse la solicitud).
+    saved_role = reg_request.get("role") or "conductor"
+    saved_licencias = reg_request.get("licencias") or []
+    role_final = "propietario" if saved_role == "propietario" else "user"
+
     # Create the user
     new_user = {
         "id": str(uuid.uuid4()),
@@ -543,7 +625,7 @@ async def approve_registration_request(
         "full_name": reg_request["full_name"],
         "license_number": reg_request["license_number"],
         "phone": reg_request.get("phone"),
-        "role": "user",
+        "role": role_final,
         "preferred_shift": reg_request.get("preferred_shift", "all"),
         "created_at": now,
         "updated_at": now,
@@ -551,6 +633,9 @@ async def approve_registration_request(
         "approved_by_username": current_user["username"],
         "registration_method": "approval"
     }
+    if role_final == "propietario" and saved_licencias:
+        new_user["licencias"] = saved_licencias
+        new_user["licencia_asignada"] = saved_licencias[0]["numero"]
     
     await users_collection.insert_one(new_user)
     

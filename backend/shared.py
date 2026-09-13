@@ -176,6 +176,11 @@ class InvitationResponse(BaseModel):
     created_at: datetime
     expires_at: datetime
 
+class LicenciaInput(BaseModel):
+    """Licencia individual dentro de la flota de un propietario."""
+    numero: str
+    alias: Optional[str] = None
+
 class RegistrationRequestCreate(BaseModel):
     """Model for creating a registration request"""
     username: str
@@ -185,6 +190,11 @@ class RegistrationRequestCreate(BaseModel):
     phone: Optional[str] = None
     preferred_shift: Optional[str] = "all"
     sponsor_license: str  # License of the user who will approve
+    # Nuevo (opcional): permite que un propietario también solicite registro.
+    #   role = "conductor" | "propietario" (default "conductor" para compat)
+    #   licencias = lista opcional (obligatoria si role="propietario")
+    role: Optional[str] = "conductor"
+    licencias: Optional[List["LicenciaInput"]] = None
 
 class RegistrationRequestResponse(BaseModel):
     """Response model for registration request"""
@@ -209,6 +219,9 @@ class RegisterWithInvitation(BaseModel):
     license_number: str
     phone: Optional[str] = None
     preferred_shift: Optional[str] = "all"
+    # Nuevo (opcional): permite propietario también con invitación.
+    role: Optional[str] = "conductor"
+    licencias: Optional[List["LicenciaInput"]] = None
 
 class SponsorInfo(BaseModel):
     """Info about the user who invited/approved"""

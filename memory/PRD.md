@@ -57,7 +57,7 @@ Modificados en `/app/backend/routers/journal.py`:
 - `GET /journal/list?driver_id=`, `GET /journal/stats?driver_id=`, `GET /journal/summary?driver_id=` — todos aceptan ahora `driver_id` opcional. Sólo un `role=propietario` con `owner_id` sobre ese conductor (o `admin`) puede consultar los datos de otro; en otro caso 403.
 
 **Frontend** (`/app/frontend/app/index.tsx`) — 3 cambios grandes:
-- **Registro**: selector Conductor/Propietario en el Paso 1. Si eliges "Propietario", en vez del campo de licencia único aparece una lista dinámica con botón "+ Añadir otra licencia" y papelera para eliminar. En el Paso 2 el propietario se salta la sección "invitación/aprobación de otro taxista" (mostrando en su lugar un texto informativo). El botón final llama a `POST /api/owner/register`.
+- **Registro**: selector Conductor/Propietario en el Paso 1. Si eliges "Propietario", en vez del campo de licencia único aparece una lista dinámica con botón "+ Añadir otra licencia" y papelera para eliminar. En el Paso 2 **AMBOS roles** pasan por la misma sección de invitación/aprobación (código de invitación o licencia de otro taxista) — el propietario también necesita ser verificado por otro conductor o propietario. El submit llama a `POST /api/auth/register-with-invitation` o `POST /api/auth/registration-requests` con `role` y `licencias` opcionales.
 - **Perfil (arriba-derecha)**: nueva sección "Mis Licencias" que sólo se pinta si `currentUser.role === 'propietario'`. Lista de licencias con botón `+ Añadir`, para cada licencia se listan los conductores asignados y hay un botón "Crear conductor" que abre un modal con usuario/contraseña/nombre/teléfono. Papeleras para eliminar tanto licencias como conductores. Al abrir el perfil se llama a `fetchOwnerLicencias()` y `fetchOwnerDrivers()`.
 - **Gestión**: si eres propietario, aparece una barra de filtros arriba con:
   · Chips de licencia (Todas | Lic 888771 | Lic 888772 …)
@@ -65,7 +65,18 @@ Modificados en `/app/backend/routers/journal.py`:
   · Sub-tabs Individual / Comparativa
   Al cambiar de conductor se recargan `history`, `stats` y `summary` con el `driver_id`. La vista Comparativa muestra un ranking top con jornadas, ingresos, gasolina, km, horas, €/h y €/km — con el propietario visible como "Yo".
 
-**Test end-to-end backend** (curl): registro → añadir licencia → crear conductor → login del conductor → propietario ve journals del conductor → borrar licencia con conductor asignado da 400 → sin token → 401. ✅
+**Backend extendido para acepetar rol propietario en flujos de invitación/aprobación**:
+- `RegisterWithInvitation` y `RegistrationRequestCreate` en `shared.py` ahora aceptan `role` (default "conductor") y `licencias` opcional.
+- `POST /api/auth/register-with-invitation` valida licencias del propietario y crea usuario con `role=propietario`, `licencias`, `licencia_asignada`.
+- `POST /api/auth/registration-requests` guarda `role` y `licencias` en la solicitud pendiente.
+- `POST /api/auth/registration-requests/{id}/approve` respeta el `role` guardado y crea el usuario final con las licencias correctas.
+- `sponsor_license` ahora busca en `license_number` O en `licencias.numero` (para poder ser apadrinado por un propietario).
+
+**Test end-to-end backend** (curl):
+1. Sponsor conductor genera invitación → propietario se registra con `role=propietario`+2 licencias vía invitation code → cuenta creada instantáneamente ✅
+2. Propietario crea solicitud pendiente con licencia de sponsor → sponsor aprueba → cuenta creada con role/licencias correctos ✅
+3. Owner endpoints (`/api/owner/*`) probados con curl end-to-end: crear licencia, crear conductor, listar, borrar con conductor asignado da 400, sin token 401 ✅
+
 
 
 
@@ -547,3 +558,18 @@ Pressure points based on STATUS + minutes since landing:
 - **Nginx** `/app/nginx/nginx.conf`: `client_max_body_size 25M;` +
   `client_body_buffer_size 128k;` + `client_body_timeout 120s;` añadidos al
   bloque `http` para desbloquear la subida de fotos en producción.
+
+
+### 🐛 Bug fix #8 — Registro: "el botón no reacciona" (Feb 2026)
+- **Causa raíz**: en React Native Web, `Alert.alert` es un no-op silencioso. Cuando el
+  registro fallaba (usuario ya existía, o botón de Paso 2 deshabilitado por falta de
+  método/checks), el usuario no veía ningún mensaje y parecía que el botón no hacía nada.
+- **Frontend** `/app/frontend/app/index.tsx`:
+  - Nuevo helper cross-platform `notify(title, message)` que usa `window.alert` en web y
+    `Alert.alert` en nativo.
+  - Nuevo estado `registerError` con banner rojo inline (visible en Paso 1 y Paso 2) que
+    muestra siempre el motivo del fallo (usuario en uso, licencia inválida, checks sin
+    marcar, método sin seleccionar, error del backend…).
+  - Paso 2: botón "Selecciona método" ya no queda bloqueado por `disabled`; ahora es
+    siempre pulsable y produce feedback claro sobre lo que falta.
+  - `resetRegisterForm` y "Volver" limpian `registerError`.

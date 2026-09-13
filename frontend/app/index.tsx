@@ -41,6 +41,24 @@ import { useRouter } from 'expo-router';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+// Cross-platform alert helper. React Native's Alert.alert is a no-op on
+// React Native Web, so any user-facing message shown with Alert.alert
+// silently disappears. This helper falls back to window.alert on web so
+// the user actually sees the message (e.g. "usuario ya en uso").
+const notify = (title: string, message?: string) => {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const text = message ? `${title}\n\n${message}` : title;
+      // eslint-disable-next-line no-alert
+      window.alert(text);
+    } else {
+      Alert.alert(title, message);
+    }
+  } catch {
+    // Never let notifications crash the app
+  }
+};
+
 // =============================================================================
 // ANALYTICS - Simple privacy-friendly analytics
 // =============================================================================
@@ -1401,6 +1419,9 @@ export default function TransportMeter() {
   const [registerLicenses, setRegisterLicenses] = useState<Array<{ numero: string; alias: string }>>([
     { numero: '', alias: '' },
   ]);
+  // Error inline visible en la propia pantalla de registro (Alert.alert
+  // no siempre se muestra en web; este mensaje es siempre visible).
+  const [registerError, setRegisterError] = useState<string | null>(null);
 
   // ─── Owner (Propietario) state ──────────────────────────────────────────
   type LicenciaItem = { numero: string; alias?: string | null };
@@ -2178,27 +2199,33 @@ export default function TransportMeter() {
 
   // Handle registration step 1 - Validate fields and check username availability
   const handleRegisterContinue = async () => {
+    // Reset inline error at every attempt
+    setRegisterError(null);
+    const fail = (msg: string) => {
+      setRegisterError(msg);
+      notify('Error', msg);
+    };
     // Validaciones comunes a los dos roles
     if (!registerUsername || !registerPassword || !registerFullName) {
-      Alert.alert('Error', 'Por favor completa: usuario, contraseña y nombre');
+      fail('Por favor completa: usuario, contraseña y nombre');
       return;
     }
     if (registerPassword !== registerPasswordConfirm) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      fail('Las contraseñas no coinciden');
       return;
     }
     if (registerPassword.length < 4) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
+      fail('La contraseña debe tener al menos 4 caracteres');
       return;
     }
 
     if (registerRole === 'conductor') {
       if (!registerLicenseNumber) {
-        Alert.alert('Error', 'Por favor introduce el número de licencia');
+        fail('Por favor introduce el número de licencia');
         return;
       }
       if (!/^\d+$/.test(registerLicenseNumber)) {
-        Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
+        fail('El número de licencia debe contener solo dígitos');
         return;
       }
     } else {
@@ -2207,19 +2234,19 @@ export default function TransportMeter() {
         .map((l) => ({ numero: l.numero.trim(), alias: l.alias.trim() }))
         .filter((l) => l.numero.length > 0);
       if (cleaned.length === 0) {
-        Alert.alert('Error', 'Añade al menos una licencia');
+        fail('Añade al menos una licencia');
         return;
       }
       for (const l of cleaned) {
         if (!/^\d{3,7}$/.test(l.numero)) {
-          Alert.alert('Error', `La licencia "${l.numero}" debe tener 3-7 dígitos`);
+          fail(`La licencia "${l.numero}" debe tener 3-7 dígitos`);
           return;
         }
       }
       // Comprobar duplicados
       const nums = cleaned.map((l) => l.numero);
       if (new Set(nums).size !== nums.length) {
-        Alert.alert('Error', 'Tienes licencias duplicadas en la lista');
+        fail('Tienes licencias duplicadas en la lista');
         return;
       }
     }
@@ -2229,52 +2256,14 @@ export default function TransportMeter() {
       // Check if username is available
       const response = await axios.get(`${API_BASE}/api/auth/check-username/${registerUsername}`);
       if (!response.data.available) {
-        Alert.alert('Error', 'Este nombre de usuario ya está en uso. Por favor, elige otro.');
+        fail('Este nombre de usuario ya está en uso. Por favor, elige otro.');
         return;
       }
-      // Propietario salta el paso 2 (no necesita invitación) — se registra directamente
-      if (registerRole === 'propietario') {
-        // Pero se requieren los toggles de privacidad, así que sí vamos al paso 2
-        // (que en modo propietario simplemente muestra los términos)
-      }
+      // Ambos roles (conductor y propietario) pasan por el mismo paso 2 con
+      // invitación / aprobación de otro taxista.
       setRegisterStep(2);
     } catch (error: any) {
-      Alert.alert('Error', 'Error al verificar disponibilidad del usuario');
-    } finally {
-      setRegisterLoading(false);
-    }
-  };
-
-  // Registro de propietario (no requiere invitación ni licencia de otro)
-  const handleRegisterOwner = async () => {
-    if (!acceptPrivacyPolicy) {
-      Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
-      return;
-    }
-    if (!acceptGoodUse) {
-      Alert.alert('Error', 'Debes aceptar el compromiso de buen uso de la aplicación');
-      return;
-    }
-    const cleaned = registerLicenses
-      .map((l) => ({ numero: l.numero.trim(), alias: l.alias.trim() || undefined }))
-      .filter((l) => l.numero.length > 0);
-    setRegisterLoading(true);
-    try {
-      const response = await axios.post(`${API_BASE}/api/owner/register`, {
-        username: registerUsername,
-        password: registerPassword,
-        full_name: registerFullName,
-        phone: registerPhone || null,
-        licencias: cleaned,
-      });
-      const { access_token, user } = response.data;
-      await AsyncStorage.setItem('token', access_token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      setCurrentUser(user);
-      resetRegisterForm();
-      Alert.alert('¡Bienvenido!', `Cuenta de propietario creada, ${user.full_name}`);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'No se pudo registrar el propietario');
+      fail('Error al verificar disponibilidad del usuario');
     } finally {
       setRegisterLoading(false);
     }
@@ -2401,33 +2390,50 @@ export default function TransportMeter() {
 
   // Handle registration step 2 - Create account (with invitation or license request)
   const handleRegister = async () => {
+    setRegisterError(null);
+    const fail = (msg: string) => {
+      setRegisterError(msg);
+      notify('Error', msg);
+    };
     if (!acceptPrivacyPolicy) {
-      Alert.alert('Error', 'Debes aceptar la política de privacidad y el aviso de responsabilidad');
+      fail('Debes aceptar la política de privacidad y el aviso de responsabilidad');
       return;
     }
 
     if (!acceptGoodUse) {
-      Alert.alert('Error', 'Debes aceptar el compromiso de buen uso de la aplicación');
+      fail('Debes aceptar el compromiso de buen uso de la aplicación');
       return;
     }
 
     if (!registerMethod) {
-      Alert.alert('Error', 'Debes seleccionar un método de registro');
+      fail('Debes seleccionar un método de registro');
       return;
     }
 
     if (registerMethod === 'invitation' && !invitationCode.trim()) {
-      Alert.alert('Error', 'Debes introducir el código de invitación');
+      fail('Debes introducir el código de invitación');
       return;
     }
 
     if (registerMethod === 'license' && !sponsorLicense.trim()) {
-      Alert.alert('Error', 'Debes introducir la licencia del taxista que te aprueba');
+      fail('Debes introducir la licencia del taxista que te aprueba');
       return;
     }
 
     setRegisterLoading(true);
     try {
+      // Payload común (con role/licencias si es propietario)
+      const isOwner = registerRole === 'propietario';
+      const licenciasClean = isOwner
+        ? registerLicenses
+            .map((l) => ({ numero: l.numero.trim(), alias: l.alias.trim() || null }))
+            .filter((l) => l.numero.length > 0)
+        : undefined;
+      // Para propietario, usar la primera licencia como license_number canónico
+      const licenseNumberForRequest = isOwner && licenciasClean && licenciasClean.length > 0
+        ? licenciasClean[0].numero
+        : registerLicenseNumber;
+
       if (registerMethod === 'invitation') {
         // Register with invitation code - immediate account creation
         const response = await axios.post(`${API_BASE}/api/auth/register-with-invitation`, {
@@ -2435,9 +2441,11 @@ export default function TransportMeter() {
           username: registerUsername,
           password: registerPassword,
           full_name: registerFullName,
-          license_number: registerLicenseNumber,
+          license_number: licenseNumberForRequest,
           phone: registerPhone || null,
-          preferred_shift: registerPreferredShift
+          preferred_shift: registerPreferredShift,
+          role: isOwner ? 'propietario' : 'conductor',
+          licencias: licenciasClean,
         });
 
         const { access_token, user } = response.data;
@@ -2446,30 +2454,30 @@ export default function TransportMeter() {
         
         setCurrentUser(user);
         resetRegisterForm();
-        Alert.alert('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
+        notify('¡Bienvenido!', `Registro exitoso, ${user.full_name}`);
       } else {
         // Register with license approval - request pending
         await axios.post(`${API_BASE}/api/auth/registration-requests`, {
           username: registerUsername,
           password: registerPassword,
           full_name: registerFullName,
-          license_number: registerLicenseNumber,
+          license_number: licenseNumberForRequest,
           phone: registerPhone || null,
           preferred_shift: registerPreferredShift,
-          sponsor_license: sponsorLicense.trim()
+          sponsor_license: sponsorLicense.trim(),
+          role: isOwner ? 'propietario' : 'conductor',
+          licencias: licenciasClean,
         });
 
         setRegistrationRequestSent(true);
-        Alert.alert(
-          'Solicitud Enviada', 
-          `Tu solicitud ha sido enviada al taxista con licencia ${sponsorLicense}. Cuando la apruebe, podrás iniciar sesión con tu usuario y contraseña.`,
-          [{ text: 'Entendido', onPress: () => {
-            resetRegisterForm();
-          }}]
+        notify(
+          'Solicitud Enviada',
+          `Tu solicitud ha sido enviada al taxista con licencia ${sponsorLicense}. Cuando la apruebe, podrás iniciar sesión con tu usuario y contraseña.`
         );
+        resetRegisterForm();
       }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Error al procesar el registro');
+      fail(error.response?.data?.detail || 'Error al procesar el registro');
     } finally {
       setRegisterLoading(false);
     }
@@ -2493,6 +2501,7 @@ export default function TransportMeter() {
     setRegistrationRequestSent(false);
     setRegisterRole('conductor');
     setRegisterLicenses([{ numero: '', alias: '' }]);
+    setRegisterError(null);
     setShowRegister(false);
   };
 
@@ -8635,10 +8644,34 @@ export default function TransportMeter() {
                       </View>
                     </View>
 
+                    {registerError && (
+                      <View
+                        testID="register-error-inline"
+                        style={{
+                          backgroundColor: '#7F1D1D',
+                          borderWidth: 1,
+                          borderColor: '#EF4444',
+                          borderRadius: 10,
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          marginBottom: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Ionicons name="alert-circle" size={18} color="#FCA5A5" />
+                        <Text style={{ color: '#FEE2E2', flex: 1, fontSize: 13 }}>
+                          {registerError}
+                        </Text>
+                      </View>
+                    )}
+
                     <TouchableOpacity 
                       style={[styles.loginScreenButton, styles.registerContinueButton]}
                       onPress={handleRegisterContinue}
                       disabled={registerLoading}
+                      testID="register-continue-button"
                     >
                       {registerLoading ? (
                         <ActivityIndicator color="#FFFFFF" />
@@ -8664,7 +8697,7 @@ export default function TransportMeter() {
                   <>
                     <TouchableOpacity 
                       style={styles.registerBackButton}
-                      onPress={() => setRegisterStep(1)}
+                      onPress={() => { setRegisterStep(1); setRegisterError(null); }}
                     >
                       <Ionicons name="arrow-back" size={20} color="#60A5FA" />
                       <Text style={styles.registerBackText}>Volver</Text>
@@ -8673,18 +8706,9 @@ export default function TransportMeter() {
                     <Text style={styles.loginFormTitle}>Términos y Verificación</Text>
                     <Text style={styles.registerStepIndicator}>Paso 2 de 2 - Verificación y términos</Text>
 
-                    {/* Method Selection — solo para conductor. El propietario
-                        no necesita invitación/aprobación de otro taxista. */}
-                    {registerRole === 'propietario' ? (
-                      <View style={styles.registerMethodSection}>
-                        <Text style={styles.registerMethodTitle}>
-                          <Ionicons name="business-outline" size={18} color="#F59E0B" /> Registro de Propietario
-                        </Text>
-                        <Text style={styles.registerMethodSubtitle}>
-                          Como propietario podrás gestionar tus licencias y crear cuentas para tus conductores desde tu perfil.
-                        </Text>
-                      </View>
-                    ) : (
+                    {/* Method Selection — la sección de invitación / aprobación
+                        es la misma tanto para conductores como para propietarios.
+                        Ambos necesitan ser verificados por otro taxista. */}
                     <View style={styles.registerMethodSection}>
                       <Text style={styles.registerMethodTitle}>¿Cómo quieres verificar tu cuenta?</Text>
                       <Text style={styles.registerMethodSubtitle}>Para garantizar que eres taxista, necesitas una invitación o aprobación de otro taxista registrado.</Text>
@@ -8755,7 +8779,6 @@ export default function TransportMeter() {
                         </View>
                       )}
                     </View>
-                    )}
 
                     {/* Privacy Policy Content */}
                     <View style={styles.registerPolicyBox}>
@@ -8825,14 +8848,38 @@ export default function TransportMeter() {
                       </TouchableOpacity>
                     </View>
 
+                    {registerError && (
+                      <View
+                        testID="register-error-inline-step2"
+                        style={{
+                          backgroundColor: '#7F1D1D',
+                          borderWidth: 1,
+                          borderColor: '#EF4444',
+                          borderRadius: 10,
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          marginBottom: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Ionicons name="alert-circle" size={18} color="#FCA5A5" />
+                        <Text style={{ color: '#FEE2E2', flex: 1, fontSize: 13 }}>
+                          {registerError}
+                        </Text>
+                      </View>
+                    )}
+
                     <TouchableOpacity 
                       style={[
                         styles.loginScreenButton, 
                         styles.registerButton,
                         (!acceptPrivacyPolicy || !acceptGoodUse || !registerMethod) && styles.registerButtonDisabled
                       ]}
-                      onPress={registerRole === 'propietario' ? handleRegisterOwner : handleRegister}
-                      disabled={registerLoading || !acceptPrivacyPolicy || !acceptGoodUse || !registerMethod}
+                      onPress={handleRegister}
+                      disabled={registerLoading}
+                      testID="register-submit-button"
                     >
                       {registerLoading ? (
                         <ActivityIndicator color="#FFFFFF" />
