@@ -1400,6 +1400,43 @@ export default function TransportMeter() {
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showInvitationsSection, setShowInvitationsSection] = useState(false);
+
+  // Handlers for pending sponsorship requests (approve/reject).
+  // Referenced from the profile-tab UI at lines ~19346/19353.
+  const handleApproveRequest = async (requestId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const resp = await fetch(`${API_BASE}/api/referrals/requests/${requestId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+        setPendingRequestsCount((n) => Math.max(0, n - 1));
+      } else {
+        window.alert('No se pudo aprobar la solicitud.');
+      }
+    } catch {
+      window.alert('Error de red al aprobar.');
+    }
+  };
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const resp = await fetch(`${API_BASE}/api/referrals/requests/${requestId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+        setPendingRequestsCount((n) => Math.max(0, n - 1));
+      } else {
+        window.alert('No se pudo rechazar la solicitud.');
+      }
+    } catch {
+      window.alert('Error de red al rechazar.');
+    }
+  };
   
   // Points system states
   const [myPoints, setMyPoints] = useState<{

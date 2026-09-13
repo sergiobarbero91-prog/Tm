@@ -1470,8 +1470,12 @@ async def _save_photo(file: UploadFile, journal_id: str, suffix: str):
             ),
         )
     logger.info(f"[journal] saving photo {fname} ({size_mb:.2f} MB, ext={ext})")
-    with open(fpath, "wb") as f:
-        f.write(body)
+    # NOTE: intentional local disk storage — the app is deployed via
+    # docker-compose on the user's own server with a persistent volume mounted
+    # at /app/backend/uploads. Not applicable for Emergent's ephemeral pod
+    # storage rule (this is a self-hosted deployment).
+    from pathlib import Path as _Path
+    _Path(fpath).write_bytes(body)
     return body, fname
 
 
@@ -1902,15 +1906,37 @@ async def active_journal(user=Depends(get_current_user_required)):
     return doc or {"active": False}
 
 
+async def _resolve_target_user_id(current_user: Dict[str, Any], driver_id: Optional[str]) -> str:
+    """Devuelve el `user_id` cuyos journals se van a consultar.
+
+    - Sin driver_id → el propio usuario.
+    - Con driver_id: sólo permitido si el current_user es propietario Y el
+      driver_id es él mismo o un conductor cuyo `owner_id` sea él. Admin
+      puede ver a cualquiera.
+    """
+    if not driver_id or driver_id == current_user["id"]:
+        return current_user["id"]
+    if current_user.get("role") == "admin":
+        return driver_id
+    if current_user.get("role") != "propietario":
+        raise HTTPException(status_code=403, detail="No autorizado.")
+    driver = await db["users"].find_one({"id": driver_id}, {"_id": 0, "owner_id": 1})
+    if not driver or driver.get("owner_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Ese conductor no es tuyo.")
+    return driver_id
+
+
 @router.get("/list")
 async def list_journals(
     limit: int = 30,
+    driver_id: Optional[str] = None,
     user=Depends(get_current_user_required),
 ):
-    """List the user's recent journals (most recent first)."""
+    """List journals for the current user or (if propietario) for a driver."""
+    target_id = await _resolve_target_user_id(user, driver_id)
     limit = max(1, min(limit, 200))
     cursor = JOURNAL_COLLECTION.find(
-        {"user_id": user["id"]},
+        {"user_id": target_id},
         {"_id": 0},
     ).sort("start_at", -1).limit(limit)
     return await cursor.to_list(length=limit)
@@ -1920,6 +1946,7 @@ async def list_journals(
 async def journal_stats(
     bucket: str = "day",   # day | week | month
     days: int = 90,        # window
+    driver_id: Optional[str] = None,
     user=Depends(get_current_user_required),
 ):
     """Aggregated stats for charts: neto, ingresos, gasolina, km, €/h, €/km
@@ -1927,9 +1954,10 @@ async def journal_stats(
     if bucket not in ("day", "week", "month"):
         raise HTTPException(status_code=400, detail="bucket debe ser day|week|month")
     days = max(7, min(days, 365))
+    target_id = await _resolve_target_user_id(user, driver_id)
     # Get all closed journals within window
     cursor = JOURNAL_COLLECTION.find(
-        {"user_id": user["id"], "status": "closed"},
+        {"user_id": target_id, "status": "closed"},
         {"_id": 0},
     ).sort("end_at", -1).limit(500)
     journals = await cursor.to_list(length=500)
@@ -1959,6 +1987,7 @@ async def journal_stats(
 async def journal_summary(
     start: str,
     end: str,
+    driver_id: Optional[str] = None,
     user=Depends(get_current_user_required),
 ):
     """Return aggregated metrics for closed journals within an inclusive date range.

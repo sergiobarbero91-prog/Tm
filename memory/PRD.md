@@ -36,6 +36,29 @@ Only the items below have been added on top of that baseline.
   - **Validación cruzada matemática al final**: `total = carreras + suplementos` (barrido combinado); `dist_total = ocupado + libre + off`; `dist_libre = total − ocupado − off`. Rescata campos que empataban entre candidatos ruidosos.
 - Test contra `/tmp/tk.webp` (foto real del ticket del usuario): **13/13 campos correctos** (fecha, hora, licencia 09218, num_servicios 4628, carreras 49854,10, suplementos 204,90, total 50059,00, dist_total 52537,9, dist_ocupado 25457,1, dist_libre 26742,5, dist_off 339,0, tiempo_ocupado 55761, tiempo_on 156015, borrados 454). Latencia ~22 s por foto.
 
+### ✅ Backend Propietario / Conductor (Feb 2026) — endpoints listos, frontend pendiente
+Nuevo router `/app/backend/routers/owner.py` con 7 endpoints (todos `/api/owner/*`):
+- `POST /register` — registro público de propietario con lista de licencias (mínimo 1)
+- `GET /licencias` — lista mis licencias
+- `POST /licencias` — añade una licencia (valida que no esté en otro usuario ni duplicada)
+- `DELETE /licencias/{numero}` — quita una licencia (bloquea si tienes conductores asignados)
+- `GET /drivers?licencia=xxx` — lista mis conductores (filtro opcional por licencia)
+- `POST /drivers` — crea cuenta de conductor (username+password que el propietario define y comparte; se asigna a una de mis licencias)
+- `DELETE /drivers/{driver_id}` — elimina cuenta
+- `GET /comparativa?start=&end=` — devuelve top de conductores + `is_me` (incluyéndose a sí mismo) con ingresos, neto, km, horas, servicios, €/h, €/km
+
+Modelo de datos ampliado en `users` (compatibilidad total, sin migración):
+- `role`: acepta ahora también `"propietario"` (además de `"admin"` y `"user"`)
+- `licencias: [{numero, alias}]` — sólo para propietarios
+- `owner_id: str` — sólo para conductores creados por propietario
+- `licencia_asignada: str` — sólo para conductores creados por propietario (los conductores NO tienen `license_number` porque hay índice único; la licencia pertenece al propietario)
+
+Modificados en `/app/backend/routers/journal.py`:
+- `GET /journal/list?driver_id=`, `GET /journal/stats?driver_id=`, `GET /journal/summary?driver_id=` — todos aceptan ahora `driver_id` opcional. Sólo un `role=propietario` con `owner_id` sobre ese conductor (o `admin`) puede consultar los datos de otro; en otro caso 403.
+
+Frontend pendiente (no implementado en esta iteración): pantalla de registro con selector conductor/propietario, sección "Mis Licencias" en el perfil, dropdowns de licencia+conductor en Gestión, pestaña de Comparativa.
+
+
 
 ## Changelog (this session — Feb 2026)
 

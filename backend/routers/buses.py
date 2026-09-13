@@ -252,7 +252,7 @@ def filter_and_count_arrivals(arrivals: List[Dict], minutes: int) -> tuple:
                 future_count += 1
             elif past_cutoff <= arr_dt < now:
                 past_count += 1
-        except:
+        except Exception:
             continue
 
     return future_count, past_count
@@ -274,7 +274,7 @@ def filter_upcoming(arrivals: List[Dict]) -> List[Dict]:
                 arr_dt += timedelta(days=1)
             if now - timedelta(minutes=5) <= arr_dt <= now + timedelta(hours=3):
                 result.append(a)
-        except:
+        except Exception:
             continue
     return result
 

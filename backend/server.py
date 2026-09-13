@@ -76,6 +76,7 @@ from routers import buses as buses_router
 from routers import reservations as reservations_router
 from routers import daily_summary as daily_summary_router
 from routers import journal as journal_router
+from routers import owner as owner_router
 from routers import radio as radio_router
 from routers import games as games_router
 from routers import analytics as analytics_router
@@ -961,7 +962,7 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
                                 arrival = now + timedelta(minutes=mins)
                                 real_time = arrival.strftime("%H:%M")
                                 scheduled_time = real_time
-                            except:
+                            except Exception:
                                 continue
                         else:
                             # Look for two times concatenated (delayed): "22:1022:46"
@@ -983,7 +984,7 @@ async def fetch_adif_arrivals_scrape(station_id: str) -> List[Dict]:
                                         status = f"Retraso {delay} min"
                                     elif delay < 0:
                                         status = "Adelantado"
-                                except:
+                                except Exception:
                                     status = "Retrasado"
                             elif len(time_match) == 1:
                                 scheduled_time = normalize_time_string(time_match[0])
@@ -1438,7 +1439,7 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
             diff = f_mins - now_mins
             if diff < -360:  # If more than 6 hours in the past, it's tomorrow
                 diff += 1440
-        except:
+        except Exception:
             diff = 9999
         
         if status in landed_statuses:
@@ -1544,7 +1545,7 @@ async def fetch_aena_arrivals_fallback() -> Dict[str, List[Dict]]:
                                                 status = "Finalizado"
                                             else:
                                                 continue
-                                        except:
+                                        except Exception:
                                             continue
                                     elif "retrasado" in status_text:
                                         status = "Retrasado"
@@ -1563,7 +1564,7 @@ async def fetch_aena_arrivals_fallback() -> Dict[str, List[Dict]]:
                                         delay_minutes = (int(rp[0])*60+int(rp[1])) - (int(sp[0])*60+int(sp[1]))
                                         if delay_minutes < -120:
                                             delay_minutes += 1440
-                                    except:
+                                    except Exception:
                                         pass
                                 existing = [f for f in terminal_arrivals[terminal] if f['flight_number'] == flight_number and f['time'] == final_time]
                                 if not existing:
@@ -2338,7 +2339,7 @@ async def get_flight_comparison(
                         # (e.g., now=00:15, arrival_time=23:55 means yesterday's 23:55)
                         a_time -= timedelta(days=1)
                     diff_mins = (a_time - now_local).total_seconds() / 60
-                except:
+                except Exception:
                     continue
                 
                 # Large/wide-body aircraft counter (any visible wide-body in the relevant window)
@@ -2629,7 +2630,7 @@ def filter_strictly_future_arrivals(arrivals: List[Dict]) -> List[Dict]:
                 arrival_copy = arrival.copy()
                 arrival_copy['_sort_key'] = diff_minutes
                 filtered.append(arrival_copy)
-        except:
+        except Exception:
             pass
     
     # Sort by actual time until arrival (not alphabetically by time string)
@@ -2711,7 +2712,7 @@ async def get_public_summary():
             
             try:
                 flight_hour = int(flight_time.split(':')[0])
-            except:
+            except Exception:
                 continue
             
             # Skip flights that are "tomorrow" (after midnight when we're before midnight)
@@ -2775,7 +2776,7 @@ def is_within_minutes(time_str: str, minutes: int) -> bool:
         
         diff = (arrival_time - now).total_seconds() / 60
         return 0 <= diff <= minutes
-    except:
+    except Exception:
         return False
 
 @api_router.get("/health")
@@ -4035,6 +4036,7 @@ api_router.include_router(station_alerts_router.router)
 api_router.include_router(buses_router.router)
 api_router.include_router(reservations_router.router)
 api_router.include_router(journal_router.router)
+api_router.include_router(owner_router.router)
 api_router.include_router(radio_router.router)
 api_router.include_router(games_router.router)
 api_router.include_router(support_router.router)
