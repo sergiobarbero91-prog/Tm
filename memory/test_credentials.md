@@ -16,15 +16,15 @@
 - Source: https://aistudio.google.com/apikey
 - Owner: User (asdelvolante.es)
 
-### Twilio SMS (Emisora — OTP for clients)
-- Stored in `/app/backend/.env` as `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`
-- Currently EMPTY → backend runs in **DEV OTP MODE**: any client can log in with the fixed OTP `123456`.
-- To enable real SMS: create a Twilio account, create a Verify service, fill the three vars and restart backend.
-- Source: https://console.twilio.com/ (Account SID/Auth Token on dashboard, Verify service under Explore → Verify → Services)
+### Twilio SMS (Emisora — DEPRECATED)
+- Kept in `/app/backend/.env` (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_VERIFY_SERVICE_SID) but no longer used by the frontend.
+- Client verification is now done via a 6-digit code shown on the taxista's screen next to the QR (see below).
 
-## Emisora / Cliente Test Flow
-- To force the CLIENT experience without going through the role picker, open: `<base>/?cliente_qr=<QR_TOKEN>` or clear `localStorage['appRole']` and reload.
-- Any phone works in DEV mode; the fixed OTP is `123456`.
+## Emisora / Cliente Test Flow (Feb 2026)
+- Driver logs in → opens Reservas → "Emisora" section → "QR clientes". The modal shows a QR and a big 6-digit code.
+- Client opens `<base>/?cliente_qr=<token>` (or scans the QR), fills phone + nombre + apellido + the 6-digit code the taxista dictates, and gets logged in.
+- Endpoint: `POST /api/rides/client/authenticate` with `{phone, first_name, last_name, qr_token, verification_code}`.
+- To rotate the driver's code manually: `POST /api/rides/driver/qr/rotate` (auth required).
 
 ## Notes
 - `admin` account is seeded by the backend on first run (see auth router).

@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { calculateEstimatedFare, type FareResult } from '../utils/fareEstimator';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -56,13 +57,11 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [associatedDriverName, setAssociatedDriverName] = useState<string | null>(null);
 
-  // Auth flow state
+  // Auth flow state (driver-code, NOT SMS)
   const [phone, setPhone] = useState('+34');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [devMode, setDevMode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -77,6 +76,11 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
 
   const [rides, setRides] = useState<Ride[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estimated fare (recomputed on-demand by pressing "Ver precio")
+  const [fareEstimate, setFareEstimate] = useState<FareResult | null>(null);
+  const [fareLoading, setFareLoading] = useState(false);
+  const [fareError, setFareError] = useState<string | null>(null);
 
   // Restore session on mount
   useEffect(() => {
@@ -128,48 +132,38 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     return () => clearInterval(t);
   }, [client, refreshRides]);
 
-  const handleSendOtp = async () => {
+  const handleAuthenticate = async () => {
     setAuthError(null);
-    if (!phone.startsWith('+') || phone.length < 8) {
-      setAuthError('Introduce tu teléfono en formato internacional (ej. +34611223344)');
+    if (!qrToken) {
+      setAuthError('Necesitas escanear el QR de un taxista para registrarte. Pídele al taxista que te lo enseñe.');
       return;
     }
-    setAuthBusy(true);
-    try {
-      const r = await axios.post(`${API_BASE}/api/rides/client/send-otp`, { phone });
-      setOtpSent(true);
-      setDevMode(!!r.data?.dev_mode);
-    } catch (e: any) {
-      setAuthError(e?.response?.data?.detail || 'No se pudo enviar el código');
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setAuthError(null);
-    if (!otpCode || otpCode.length < 4) {
-      setAuthError('Escribe el código que recibiste');
+    if (!phone.startsWith('+') || phone.length < 8) {
+      setAuthError('Introduce tu teléfono con prefijo (ej. +34611223344)');
       return;
     }
     if (!firstName || !lastName) {
       setAuthError('Escribe tu nombre y apellido');
       return;
     }
+    if (!/^\d{6}$/.test(verificationCode)) {
+      setAuthError('El código son 6 dígitos que verás en la pantalla del taxista');
+      return;
+    }
     setAuthBusy(true);
     try {
-      const r = await axios.post(`${API_BASE}/api/rides/client/verify-otp`, {
+      const r = await axios.post(`${API_BASE}/api/rides/client/authenticate`, {
         phone,
-        code: otpCode,
         first_name: firstName,
         last_name: lastName,
-        associated_driver_qr: qrToken || null,
+        qr_token: qrToken,
+        verification_code: verificationCode,
       });
       await AsyncStorage.setItem(CLIENT_TOKEN_KEY, r.data.access_token);
       await AsyncStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(r.data.client));
       setClient(r.data.client);
     } catch (e: any) {
-      setAuthError(e?.response?.data?.detail || 'Código incorrecto o caducado');
+      setAuthError(e?.response?.data?.detail || 'No se pudo iniciar sesión');
     } finally {
       setAuthBusy(false);
     }
@@ -179,8 +173,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     await AsyncStorage.multiRemove([CLIENT_TOKEN_KEY, CLIENT_INFO_KEY]);
     setClient(null);
     setRides([]);
-    setOtpSent(false);
-    setOtpCode('');
+    setVerificationCode('');
     setPhone('+34');
     setFirstName('');
     setLastName('');
@@ -257,17 +250,18 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
 
   // ─────────── UNAUTHENTICATED ───────────
   if (!client) {
+    const hasQr = !!qrToken;
     return (
       <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
         <Header title="Solicitar taxi" />
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
               <Ionicons name="car-sport" size={38} color="#0F172A" />
             </View>
             <Text style={{ color: '#F1F5F9', fontSize: 22, fontWeight: '800' }}>Pide tu taxi</Text>
-            <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
-              Te enviaremos un código por SMS para verificar tu número.
+            <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' }}>
+              Para verificarte introduce el código que te enseña el taxista en su pantalla.
             </Text>
             {associatedDriverName && (
               <View style={{ marginTop: 12, backgroundColor: '#1E293B', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
@@ -276,82 +270,67 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
                 </Text>
               </View>
             )}
+            {!hasQr && (
+              <View style={{ marginTop: 12, backgroundColor: '#7F1D1D', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EF4444' }}>
+                <Text style={{ color: '#FEE2E2', fontSize: 13, textAlign: 'center' }}>
+                  Pídele al taxista que te enseñe su QR y escanéalo con la cámara del móvil.
+                </Text>
+              </View>
+            )}
           </View>
 
-          {!otpSent ? (
-            <>
-              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Teléfono</Text>
-              <TextInput
-                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12, fontSize: 16 }}
-                placeholder="+34611223344"
-                placeholderTextColor="#64748B"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                testID="emisora-phone-input"
-              />
-              {authError && <Text style={{ color: '#F87171', marginBottom: 8, fontSize: 13 }}>{authError}</Text>}
-              <TouchableOpacity
-                onPress={handleSendOtp}
-                disabled={authBusy}
-                style={{ backgroundColor: '#F59E0B', padding: 14, borderRadius: 10, alignItems: 'center' }}
-                testID="emisora-send-otp-btn"
-              >
-                {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>Recibir código</Text>}
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {devMode && (
-                <View style={{ backgroundColor: '#78350F', borderColor: '#F59E0B', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12 }}>
-                  <Text style={{ color: '#FEF3C7', fontSize: 12 }}>
-                    Modo desarrollo: introduce <Text style={{ fontWeight: '700' }}>123456</Text> como código.
-                  </Text>
-                </View>
-              )}
-              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Código recibido</Text>
-              <TextInput
-                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12, fontSize: 18, textAlign: 'center', letterSpacing: 8 }}
-                placeholder="123456"
-                placeholderTextColor="#64748B"
-                value={otpCode}
-                onChangeText={t => setOtpCode(t.replace(/\D/g, ''))}
-                keyboardType="number-pad"
-                maxLength={6}
-                testID="emisora-otp-input"
-              />
-              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Nombre</Text>
-              <TextInput
-                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
-                placeholder="Tu nombre"
-                placeholderTextColor="#64748B"
-                value={firstName}
-                onChangeText={setFirstName}
-                testID="emisora-firstname-input"
-              />
-              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Apellido</Text>
-              <TextInput
-                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
-                placeholder="Tu apellido"
-                placeholderTextColor="#64748B"
-                value={lastName}
-                onChangeText={setLastName}
-                testID="emisora-lastname-input"
-              />
-              {authError && <Text style={{ color: '#F87171', marginBottom: 8, fontSize: 13 }}>{authError}</Text>}
-              <TouchableOpacity
-                onPress={handleVerifyOtp}
-                disabled={authBusy}
-                style={{ backgroundColor: '#F59E0B', padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 8 }}
-                testID="emisora-verify-otp-btn"
-              >
-                {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>Entrar</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setOtpSent(false); setOtpCode(''); }} style={{ padding: 10, alignItems: 'center' }}>
-                <Text style={{ color: '#94A3B8', fontSize: 13 }}>Cambiar teléfono</Text>
-              </TouchableOpacity>
-            </>
+          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Teléfono</Text>
+          <TextInput
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12, fontSize: 16 }}
+            placeholder="+34611223344"
+            placeholderTextColor="#64748B"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            testID="emisora-phone-input"
+          />
+          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Nombre</Text>
+          <TextInput
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
+            placeholder="Tu nombre"
+            placeholderTextColor="#64748B"
+            value={firstName}
+            onChangeText={setFirstName}
+            testID="emisora-firstname-input"
+          />
+          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Apellido</Text>
+          <TextInput
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
+            placeholder="Tu apellido"
+            placeholderTextColor="#64748B"
+            value={lastName}
+            onChangeText={setLastName}
+            testID="emisora-lastname-input"
+          />
+          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Código del taxista (6 dígitos)</Text>
+          <TextInput
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: hasQr ? '#F59E0B' : '#334155', marginBottom: 12, fontSize: 22, textAlign: 'center', letterSpacing: 10, fontWeight: '700' }}
+            placeholder="000000"
+            placeholderTextColor="#475569"
+            value={verificationCode}
+            onChangeText={t => setVerificationCode(t.replace(/\D/g, '').slice(0, 6))}
+            keyboardType="number-pad"
+            maxLength={6}
+            testID="emisora-code-input"
+          />
+          {authError && (
+            <View style={{ backgroundColor: '#7F1D1D', borderRadius: 8, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#EF4444' }}>
+              <Text style={{ color: '#FEE2E2', fontSize: 13 }}>{authError}</Text>
+            </View>
           )}
+          <TouchableOpacity
+            onPress={handleAuthenticate}
+            disabled={authBusy || !hasQr}
+            style={{ backgroundColor: hasQr ? '#F59E0B' : '#334155', padding: 14, borderRadius: 10, alignItems: 'center' }}
+            testID="emisora-authenticate-btn"
+          >
+            {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>Entrar</Text>}
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -457,6 +436,64 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
             keyboardType="number-pad"
             testID="emisora-passengers-input"
           />
+
+          {/* Estimated fare */}
+          <TouchableOpacity
+            onPress={async () => {
+              setFareError(null);
+              setFareEstimate(null);
+              if (!origin.trim() || !destination.trim()) {
+                setFareError('Escribe origen y destino primero');
+                return;
+              }
+              setFareLoading(true);
+              try {
+                // Use scheduled time when applicable so night/weekend surcharge applies correctly
+                const at =
+                  rideType === 'scheduled' && schedDate && schedTime
+                    ? new Date(`${schedDate}T${schedTime}:00`)
+                    : new Date();
+                const est = await calculateEstimatedFare(origin.trim(), destination.trim(), at);
+                setFareEstimate(est);
+              } catch (e: any) {
+                setFareError(e?.message || 'No se pudo calcular la tarifa');
+              } finally {
+                setFareLoading(false);
+              }
+            }}
+            disabled={fareLoading}
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#334155', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}
+            testID="emisora-estimate-fare-btn"
+          >
+            {fareLoading ? (
+              <ActivityIndicator color="#F59E0B" size="small" />
+            ) : (
+              <>
+                <Ionicons name="calculator" size={16} color="#F59E0B" />
+                <Text style={{ color: '#F59E0B', fontWeight: '700' }}>Ver precio estimado</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {fareError && (
+            <Text style={{ color: '#F87171', marginBottom: 10, fontSize: 12 }}>{fareError}</Text>
+          )}
+          {fareEstimate && (
+            <View
+              testID="emisora-fare-estimate"
+              style={{ backgroundColor: '#064E3B', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#10B981', marginBottom: 12 }}
+            >
+              <Text style={{ color: '#6EE7B7', fontSize: 12, fontWeight: '700', marginBottom: 4 }}>{fareEstimate.tarifa}</Text>
+              <Text style={{ color: '#F1F5F9', fontSize: 22, fontWeight: '900' }}>
+                {fareEstimate.fare_min.toFixed(2)}€
+                {fareEstimate.fare_max > fareEstimate.fare_min && ` – ${fareEstimate.fare_max.toFixed(2)}€`}
+              </Text>
+              <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 4 }}>{fareEstimate.details}</Text>
+              <Text style={{ color: '#64748B', fontSize: 10, marginTop: 2 }}>
+                Distancia estimada: {fareEstimate.distance_km.toFixed(1)} km · precio orientativo
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity
             onPress={handleCreateRide}
             disabled={creating}

@@ -635,3 +635,48 @@ Full new feature turning the app into a Uber-style radio dispatch:
   scheduled > 6h assigned, scheduled < 6h open, driver accept + double-accept
   guard, and cancel. All passing.
 
+
+## 🔁 Emisora — Code-based verification + estimated fare (Feb 2026)
+
+### Verification code replaces SMS OTP
+- Removed the Twilio SMS handshake for the client experience.
+- Every driver QR now carries a rotating 6-digit `verification_code` inside
+  `driver_qrs` (auto-generated on QR creation, rotated on demand with
+  `POST /api/rides/driver/qr/rotate`, and auto-rotated if older than 24h).
+- New backend endpoint `POST /api/rides/client/authenticate` accepts
+  `{phone, first_name, last_name, qr_token, verification_code}` and returns
+  a client JWT if the code matches the QR's active `verification_code`.
+- Old `/rides/client/send-otp` and `/rides/client/verify-otp` endpoints
+  remain in the code base for backward-compatibility but are no longer used
+  by the frontend.
+- Verification is by physical presence: only someone standing next to the
+  taxista can see the code on their screen. This removes SMS cost, Twilio
+  dependency and OTP delivery failures.
+
+### Frontend changes
+- `EmisoraClient.tsx` login is now a single screen: phone + name + surname +
+  6-digit code, using `POST /api/rides/client/authenticate`. When the URL
+  lacks `?cliente_qr=...` a red warning tells the user to scan the taxista's
+  QR first (button stays disabled).
+- `EmisoraDriverSection.tsx` QR modal displays the QR **and** a big amber
+  code with a "Generar nuevo código" button that calls the rotate endpoint.
+
+### Estimated fare on the client side
+- New shared utility `/app/frontend/app/utils/fareEstimator.ts` extracts the
+  official Madrid fare logic (T1/T2/T3/T4/T7) used by the public calculator.
+- `EmisoraClient` shows a "Ver precio estimado" button under the ride form
+  that geocodes origin+destination, computes the correct fare and displays
+  it in an inline green card with `tarifa · X,XX€ · distancia`. Uses
+  scheduled datetime when applicable so night/weekend surcharges apply.
+
+### Bug fix: internal Tarifas tab was buggy on Tarifa 3
+- Root cause: the internal `calculatePublicFare` in `index.tsx` was missing
+  the 22€ base of Tarifa 3 (Aeropuerto ↔ fuera M30), computing the fare as
+  `extra_km * per_km_rate` (starting at 0€) instead of `22 + extra_km * rate`.
+- Fixed by aligning the internal Tarifa 3 block with the public component.
+- Details string also reworded to `Base 22€ (9km incluidos) + …`.
+
+### Tests
+- `/app/backend/tests/test_rides.py` migrated to the code-based flow. New
+  tests: wrong-code rejection and code rotation. **7/7 pass.**
+

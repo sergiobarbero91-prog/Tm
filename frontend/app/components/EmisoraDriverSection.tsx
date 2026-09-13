@@ -48,6 +48,7 @@ type QrInfo = {
   url: string;
   driver_id: string;
   driver_name: string;
+  verification_code: string;
 };
 
 const notify = (msg: string) => {
@@ -322,22 +323,55 @@ export const EmisoraDriverSection: React.FC = () => {
       {/* QR modal */}
       <Modal visible={qrModalOpen} transparent animationType="fade" onRequestClose={() => setQrModalOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: '#0F172A', borderRadius: 16, padding: 22, alignItems: 'center', maxWidth: 380, width: '100%' }}>
+          <View style={{ backgroundColor: '#0F172A', borderRadius: 16, padding: 22, alignItems: 'center', maxWidth: 400, width: '100%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: 14 }}>
-              <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 18 }}>Tu QR de clientes</Text>
+              <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 18 }}>Alta de cliente</Text>
               <TouchableOpacity onPress={() => setQrModalOpen(false)} testID="emisora-driver-qr-close">
                 <Ionicons name="close-circle" size={28} color="#94A3B8" />
               </TouchableOpacity>
             </View>
             {qr ? (
               <>
-                <View style={{ backgroundColor: '#FFFFFF', padding: 14, borderRadius: 12, marginBottom: 12 }}>
-                  <QRCode value={qr.url} size={220} />
+                <View style={{ backgroundColor: '#FFFFFF', padding: 14, borderRadius: 12, marginBottom: 14 }}>
+                  <QRCode value={qr.url} size={200} />
                 </View>
-                <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 13, marginBottom: 4 }}>
-                  Enséñale este código a tu cliente. Al escanearlo se registrará asociado a tu cuenta y sus reservas te llegarán primero (hasta 6h antes del servicio).
+                <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 12, marginBottom: 10 }}>
+                  1. El cliente escanea este QR con la cámara.
                 </Text>
-                <Text style={{ color: '#64748B', fontSize: 11, marginTop: 6 }} selectable>{qr.url}</Text>
+                <Text style={{ color: '#94A3B8', textAlign: 'center', fontSize: 12, marginBottom: 6 }}>
+                  2. Le dictas este código para verificarlo:
+                </Text>
+                <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginBottom: 14 }}>
+                  <Text
+                    testID="emisora-driver-verification-code"
+                    style={{ color: '#0F172A', fontSize: 34, fontWeight: '900', letterSpacing: 8 }}
+                    selectable
+                  >
+                    {qr.verification_code}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={async () => {
+                    setQrBusy(true);
+                    try {
+                      const r = await axios.post(`${API_BASE}/api/rides/driver/qr/rotate`, {}, { headers: await authHeaders() });
+                      const origin = (typeof window !== 'undefined' ? window.location.origin : '');
+                      const finalUrl = r.data.url?.startsWith('http') ? r.data.url : `${origin}${r.data.url}`;
+                      setQr({ ...r.data, url: finalUrl });
+                    } catch (e: any) {
+                      notify(e?.response?.data?.detail || 'No se pudo rotar el código');
+                    } finally {
+                      setQrBusy(false);
+                    }
+                  }}
+                  disabled={qrBusy}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
+                  testID="emisora-driver-rotate-code"
+                >
+                  <Ionicons name="refresh" size={14} color="#F59E0B" />
+                  <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 12 }}>Generar nuevo código</Text>
+                </TouchableOpacity>
+                <Text style={{ color: '#64748B', fontSize: 10, marginTop: 12, textAlign: 'center' }} selectable>{qr.url}</Text>
               </>
             ) : (
               <ActivityIndicator color="#F59E0B" />
