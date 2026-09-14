@@ -81,6 +81,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [lastName, setLastName] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [password, setPassword] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -182,6 +183,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         qr_token: qrToken,
         verification_code: verificationCode,
         password: password || null,
+        email: signupEmail || null,
       });
       await AsyncStorage.setItem(CLIENT_TOKEN_KEY, r.data.access_token);
       await AsyncStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(r.data.client));
@@ -390,6 +392,19 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
                 maxLength={6}
                 testID="emisora-code-input"
               />
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>
+                Email <Text style={{ color: '#64748B', fontSize: 11 }}>(opcional, para recuperar contraseña)</Text>
+              </Text>
+              <TextInput
+                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
+                placeholder="tu@email.com"
+                placeholderTextColor="#64748B"
+                value={signupEmail}
+                onChangeText={setSignupEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                testID="emisora-signup-email-input"
+              />
             </>
           )}
 
@@ -419,6 +434,31 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           >
             {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>{authMode === 'signup' ? 'Crear cuenta' : 'Entrar'}</Text>}
           </TouchableOpacity>
+
+          {authMode === 'login' && (
+            <TouchableOpacity
+              onPress={async () => {
+                if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+                const emailPrompt = window.prompt('Introduce el email de tu cuenta:');
+                if (!emailPrompt) return;
+                try {
+                  await axios.post(`${API_BASE}/api/rides/client/forgot-password`, { email: emailPrompt.trim() });
+                  window.alert(
+                    'Si esa cuenta tiene email asociado te acabamos de enviar un enlace. ' +
+                    'Si no lo recibes en unos minutos, pídele al taxista un código nuevo y crea otra contraseña desde ahí.'
+                  );
+                } catch (e: any) {
+                  window.alert(e?.response?.data?.detail || 'No se pudo enviar');
+                }
+              }}
+              style={{ padding: 12, alignItems: 'center' }}
+              testID="emisora-forgot-password-btn"
+            >
+              <Text style={{ color: '#94A3B8', fontSize: 13, textDecorationLine: 'underline' }}>
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     );

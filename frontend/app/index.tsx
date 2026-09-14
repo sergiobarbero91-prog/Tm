@@ -37,6 +37,7 @@ import { PublicBusArrivals } from './components/PublicBusArrivals';
 import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker';
 import { EmisoraClient } from './components/EmisoraClient';
 import { EmisoraDriverSection } from './components/EmisoraDriverSection';
+import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -8420,6 +8421,29 @@ function TransportMeter() {
                 >
                   <Text style={styles.switchAuthText}>
                     ¿No tienes cuenta? <Text style={styles.switchAuthLink}>Regístrate aquí</Text>
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.switchAuthButton}
+                  onPress={async () => {
+                    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+                    const emailPrompt = window.prompt('Introduce el email de tu cuenta:');
+                    if (!emailPrompt) return;
+                    try {
+                      await axios.post(`${API_BASE}/api/auth/forgot-password`, { email: emailPrompt.trim() });
+                      window.alert(
+                        'Si esa cuenta tiene email asociado te acabamos de enviar un enlace válido durante 1 hora. ' +
+                        'Si no lo tenías guardado, edítalo desde tu perfil al iniciar sesión y vuelve a intentarlo.'
+                      );
+                    } catch (e: any) {
+                      window.alert(e?.response?.data?.detail || 'No se pudo enviar');
+                    }
+                  }}
+                  testID="driver-forgot-password-btn"
+                >
+                  <Text style={styles.switchAuthText}>
+                    <Text style={styles.switchAuthLink}>¿Olvidaste tu contraseña?</Text>
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -22125,13 +22149,26 @@ function TransportMeter() {
 export default function AppRoot() {
   const [appRole, setAppRole] = useState<'loading' | AppRole | null>('loading');
   const [clientQrToken, setClientQrToken] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetRole, setResetRole] = useState<'driver' | 'client'>('driver');
 
   useEffect(() => {
     (async () => {
       try {
-        // If the URL contains ?cliente_qr=xxx, force the client experience.
+        // If the URL contains ?reset_token=xxx, show the reset password screen
+        // regardless of the stored role.
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           const params = new URLSearchParams(window.location.search);
+          const rt = params.get('reset_token');
+          if (rt) {
+            setResetToken(rt);
+            setResetRole(params.get('role') === 'client' ? 'client' : 'driver');
+            // Still resolve stored role so onDone can navigate back correctly
+            const stored = await AsyncStorage.getItem(APP_ROLE_KEY);
+            setAppRole(stored === 'client' || stored === 'driver' ? (stored as AppRole) : null);
+            return;
+          }
+          // If the URL contains ?cliente_qr=xxx, force the client experience.
           const qr = params.get('cliente_qr');
           if (qr) {
             setClientQrToken(qr);
@@ -22149,6 +22186,17 @@ export default function AppRoot() {
   }, []);
 
   if (appRole === 'loading') return null;
+
+  // Password reset takes precedence over everything else
+  if (resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        role={resetRole}
+        onDone={() => setResetToken(null)}
+      />
+    );
+  }
 
   if (appRole === null) {
     return <RolePicker onPick={(r) => setAppRole(r)} />;

@@ -36,6 +36,7 @@ from shared import (
     rides_collection,
     driver_qrs_collection,
     users_collection,
+    password_reset_tokens_collection,
     create_access_token,
     security,
     get_current_user_required,
@@ -43,6 +44,7 @@ from shared import (
     get_password_hash,
     verify_password,
 )
+from email_service import send_email
 
 router = APIRouter(prefix="/rides", tags=["rides"])
 
@@ -154,6 +156,7 @@ class ClientResponse(BaseModel):
     phone: str
     first_name: str
     last_name: str
+    email: Optional[str] = None
     associated_driver_id: Optional[str] = None
     created_at: datetime
 
@@ -247,6 +250,7 @@ async def client_verify_otp(body: VerifyOtpBody):
             phone=doc["phone"],
             first_name=doc.get("first_name", ""),
             last_name=doc.get("last_name", ""),
+            email=doc.get("email"),
             associated_driver_id=doc.get("associated_driver_id"),
             created_at=doc["created_at"],
         ),
@@ -260,6 +264,7 @@ async def client_me(current: dict = Depends(get_current_client_required)):
         phone=current["phone"],
         first_name=current.get("first_name", ""),
         last_name=current.get("last_name", ""),
+        email=current.get("email"),
         associated_driver_id=current.get("associated_driver_id"),
         created_at=current["created_at"],
     )
@@ -275,6 +280,8 @@ class ClientAuthenticateBody(BaseModel):
     # Optional password the client can set during code-based signup so they
     # can log back in later without asking the taxista for a new code.
     password: Optional[str] = None
+    # Optional email so the client can later use "olvidé mi contraseña".
+    email: Optional[str] = None
 
     @validator("phone")
     def _norm_phone(cls, v: str) -> str:  # noqa: N805
@@ -293,6 +300,15 @@ class ClientAuthenticateBody(BaseModel):
             return None
         if len(v) < 4:
             raise ValueError("La contraseña debe tener al menos 4 caracteres")
+        return v
+
+    @validator("email")
+    def _norm_em(cls, v: Optional[str]) -> Optional[str]:  # noqa: N805
+        if v is None or v == "":
+            return None
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Email no válido")
         return v
 
 
@@ -325,6 +341,7 @@ def _client_token(doc: dict) -> ClientTokenResponse:
             phone=doc["phone"],
             first_name=doc.get("first_name", ""),
             last_name=doc.get("last_name", ""),
+            email=doc.get("email"),
             associated_driver_id=doc.get("associated_driver_id"),
             created_at=doc["created_at"],
         ),
@@ -356,6 +373,8 @@ async def client_authenticate(body: ClientAuthenticateBody):
             update["last_name"] = body.last_name.strip()
         if body.password:
             update["password_hash"] = get_password_hash(body.password)
+        if body.email and not doc.get("email"):
+            update["email"] = body.email
         # Always update the last associated driver so newest QR wins
         update["associated_driver_id"] = associated_driver_id
         await clients_collection.update_one({"id": doc["id"]}, {"$set": update})
@@ -372,6 +391,7 @@ async def client_authenticate(body: ClientAuthenticateBody):
             "phone": body.phone,
             "first_name": body.first_name.strip(),
             "last_name": body.last_name.strip(),
+            "email": body.email,
             "associated_driver_id": associated_driver_id,
             "password_hash": get_password_hash(body.password) if body.password else None,
             "created_at": now,
@@ -410,6 +430,120 @@ async def client_set_password(
         {"$set": {"password_hash": get_password_hash(body.password), "updated_at": datetime.now(timezone.utc)}},
     )
     return
+
+
+class ClientSetEmailBody(BaseModel):
+    email: str
+
+    @validator("email")
+    def _norm(cls, v: str) -> str:  # noqa: N805
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Email no válido")
+        return v
+
+
+@router.post("/client/set-email", status_code=204)
+async def client_set_email(
+    body: ClientSetEmailBody,
+    current: dict = Depends(get_current_client_required),
+):
+    """Set or update the client's email so they can use password recovery."""
+    # Uniqueness check across clients
+    existing = await clients_collection.find_one({"email": body.email, "id": {"$ne": current["id"]}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ese email ya está en uso")
+    await clients_collection.update_one(
+        {"id": current["id"]},
+        {"$set": {"email": body.email, "updated_at": datetime.now(timezone.utc)}},
+    )
+    return
+
+
+# ─────────────────── Client password recovery (email) ─────────────────
+class ClientForgotPasswordBody(BaseModel):
+    email: str
+
+
+class ClientResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+
+def _client_reset_url(token: str) -> str:
+    base = (os.environ.get("FRONTEND_PUBLIC_URL", "") or "").rstrip("/")
+    return f"{base}/?reset_token={token}&role=client" if base else f"/?reset_token={token}&role=client"
+
+
+@router.post("/client/forgot-password")
+async def client_forgot_password(body: ClientForgotPasswordBody):
+    """Send a reset link to the client's email. Always returns 200 to
+    prevent email enumeration. If the client has no email on file the
+    response is still 200 but no email is sent — the frontend already
+    tells the user to ask their taxista for a fresh code."""
+    email = (body.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email no válido")
+    doc = await clients_collection.find_one({"email": email})
+    if not doc:
+        logger.info(f"[rides/client-forgot] Unknown email requested reset: {email}")
+        return {"status": "ok"}
+
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    await password_reset_tokens_collection.insert_one({
+        "token": token,
+        "role": "client",
+        "user_id": doc["id"],
+        "email": email,
+        "created_at": now,
+        "expires_at": now + timedelta(hours=1),
+        "used": False,
+    })
+    url = _client_reset_url(token)
+    name = doc.get("first_name") or "cliente"
+    text = (
+        f"Hola {name},\n\n"
+        "Recibimos una petición para restablecer tu contraseña en TaxiDash.\n\n"
+        f"Abre este enlace (válido durante 1 hora):\n\n{url}\n\n"
+        "Si no lo pediste tú, ignora este email."
+    )
+    html = (
+        f"<p>Hola <strong>{name}</strong>,</p>"
+        "<p>Recibimos una petición para restablecer tu contraseña en TaxiDash.</p>"
+        f"<p><a href=\"{url}\" style=\"background:#F59E0B;color:#0F172A;"
+        "padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700\">"
+        "Restablecer contraseña</a></p>"
+        "<p style=\"font-size:12px;color:#666\">Este enlace caduca en 1 hora. "
+        "Si no lo pediste tú, ignora este mensaje.</p>"
+    )
+    send_email(email, "TaxiDash — Restablecer contraseña", text, html)
+    return {"status": "ok"}
+
+
+@router.post("/client/reset-password")
+async def client_reset_password(body: ClientResetPasswordBody):
+    if not body.new_password or len(body.new_password) < 4:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 4 caracteres")
+    doc = await password_reset_tokens_collection.find_one({"token": body.token})
+    if not doc or doc.get("used") or doc.get("role") != "client":
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado")
+    exp = doc.get("expires_at")
+    if isinstance(exp, datetime):
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="El enlace ha caducado. Solicita otro.")
+
+    await clients_collection.update_one(
+        {"id": doc["user_id"]},
+        {"$set": {"password_hash": get_password_hash(body.new_password), "updated_at": datetime.now(timezone.utc)}},
+    )
+    await password_reset_tokens_collection.update_one(
+        {"token": body.token},
+        {"$set": {"used": True, "used_at": datetime.now(timezone.utc)}},
+    )
+    return {"status": "ok"}
 
 
 # ───────────────────────── Driver QR endpoints ─────────────────────────

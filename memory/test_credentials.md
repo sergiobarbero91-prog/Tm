@@ -26,6 +26,21 @@
 - Endpoint: `POST /api/rides/client/authenticate` with `{phone, first_name, last_name, qr_token, verification_code}`.
 - To rotate the driver's code manually: `POST /api/rides/driver/qr/rotate` (auth required).
 
+### Gmail SMTP (Password Recovery) — configuration
+Optional but required if you want real emails. Add to `/app/backend/.env`:
+```
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USERNAME="tu-cuenta@gmail.com"
+SMTP_PASSWORD="tu app password"     # NOT your normal Gmail password
+SMTP_FROM="tu-cuenta@gmail.com"
+FRONTEND_PUBLIC_URL="https://asdelvolante.es"
+```
+1. Enable 2FA on the Gmail account.
+2. Go to https://myaccount.google.com/apppasswords and create an app password.
+3. Paste it into `SMTP_PASSWORD`. Restart backend.
+Without those, the backend logs the "email" body instead of sending it (dev mode).
+
 ## Notes
 - `admin` account is seeded by the backend on first run (see auth router).
 - Default DB: `test_database` (preview) / `taximeter_madrid` (production).

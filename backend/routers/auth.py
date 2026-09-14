@@ -4,14 +4,17 @@ Authentication router for login, registration, and profile management.
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from datetime import datetime, timedelta
 import uuid
+import os
 import secrets
 import string
 from typing import List
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from shared import (
     users_collection, invitations_collection, registration_requests_collection,
+    password_reset_tokens_collection,
     UserLogin, UserRegister, UserProfileUpdate, PasswordChange,
     UserResponse, TokenResponse,
     InvitationCreate, InvitationResponse, 
@@ -22,6 +25,7 @@ from shared import (
     POINTS_CONFIG
 )
 from routers.points import add_points
+from email_service import send_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
@@ -150,6 +154,27 @@ async def update_profile(
                 detail="Turno de preferencia inválido"
             )
         update_fields["preferred_shift"] = profile_data.preferred_shift
+
+    if profile_data.email is not None:
+        email_norm = profile_data.email.strip().lower()
+        # Simple validation — enough to catch obvious typos before hitting SMTP
+        if email_norm and ("@" not in email_norm or "." not in email_norm.split("@")[-1]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email no válido"
+            )
+        # Ensure unique
+        if email_norm:
+            existing = await users_collection.find_one({
+                "email": email_norm,
+                "id": {"$ne": current_user["id"]},
+            })
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ese email ya está en uso"
+                )
+        update_fields["email"] = email_norm or None
     
     if update_fields:
         update_fields["updated_at"] = datetime.utcnow()
@@ -167,6 +192,7 @@ async def update_profile(
         full_name=updated_user.get("full_name"),
         license_number=updated_user.get("license_number"),
         phone=updated_user.get("phone"),
+        email=updated_user.get("email"),
         role=updated_user.get("role", "user"),
         preferred_shift=updated_user.get("preferred_shift", "all"),
         created_at=updated_user["created_at"]
@@ -754,5 +780,108 @@ async def get_my_referrals(current_user: dict = Depends(get_current_user_require
     
     # Sort by created_at descending
     referrals.sort(key=lambda x: x.created_at, reverse=True)
-    
+
     return referrals
+
+
+# ────────────────────── PASSWORD RECOVERY (drivers) ──────────────────────
+# Flow:
+#   1. POST /auth/forgot-password {email}       → generates a 1h reset token,
+#      persists it, emails the user a link like <FRONTEND_PUBLIC_URL>/?reset_token=…
+#      Response is ALWAYS 200 even if the email doesn't exist (to prevent
+#      email enumeration attacks).
+#   2. POST /auth/reset-password {token, new_password} → sets new password
+#      and burns the token.
+
+
+class ForgotPasswordBody(BaseModel):
+    email: str
+
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+
+def _norm_email(v: str) -> str:
+    v = (v or "").strip().lower()
+    if not v or "@" not in v or "." not in v.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Email no válido")
+    return v
+
+
+def _reset_link_url(token: str) -> str:
+    base = (os.environ.get("FRONTEND_PUBLIC_URL", "") or "").rstrip("/")
+    return f"{base}/?reset_token={token}" if base else f"/?reset_token={token}"
+
+
+def _reset_email_bodies(name: str, url: str) -> tuple[str, str]:
+    text = (
+        f"Hola {name},\n\n"
+        "Recibimos una petición para restablecer tu contraseña en TaxiDash.\n\n"
+        f"Abre este enlace en tu móvil o navegador para elegir una nueva contraseña "
+        f"(válido durante 1 hora):\n\n{url}\n\n"
+        "Si no lo pediste tú, puedes ignorar este email."
+    )
+    html = (
+        f"<p>Hola <strong>{name}</strong>,</p>"
+        "<p>Recibimos una petición para restablecer tu contraseña en TaxiDash.</p>"
+        f"<p><a href=\"{url}\" style=\"background:#F59E0B;color:#0F172A;"
+        "padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700\">"
+        "Restablecer contraseña</a></p>"
+        "<p style=\"font-size:12px;color:#666\">Este enlace caduca en 1 hora. "
+        "Si no lo pediste tú, ignora este mensaje.</p>"
+    )
+    return text, html
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, body: ForgotPasswordBody):
+    """Send a reset link to a driver's email. Always returns 200."""
+    email = _norm_email(body.email)
+    user = await users_collection.find_one({"email": email})
+    # Always return the same response to avoid leaking whether the email exists
+    if not user:
+        logger.info(f"[auth/forgot-password] Unknown email requested reset: {email}")
+        return {"status": "ok"}
+
+    token = secrets.token_urlsafe(32)
+    now = datetime.utcnow()
+    await password_reset_tokens_collection.insert_one({
+        "token": token,
+        "role": "driver",
+        "user_id": user["id"],
+        "email": email,
+        "created_at": now,
+        "expires_at": now + timedelta(hours=1),
+        "used": False,
+    })
+    url = _reset_link_url(token)
+    text, html = _reset_email_bodies(user.get("full_name") or user.get("username") or "", url)
+    send_email(email, "TaxiDash — Restablecer contraseña", text, html)
+    return {"status": "ok"}
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+async def reset_password(request: Request, body: ResetPasswordBody):
+    if not body.new_password or len(body.new_password) < 4:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 4 caracteres")
+    doc = await password_reset_tokens_collection.find_one({"token": body.token})
+    if not doc or doc.get("used") or doc.get("role") != "driver":
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado")
+    exp = doc.get("expires_at")
+    if isinstance(exp, datetime) and exp < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="El enlace ha caducado. Solicita otro.")
+
+    hashed = get_password_hash(body.new_password)
+    await users_collection.update_one(
+        {"id": doc["user_id"]},
+        {"$set": {"hashed_password": hashed, "updated_at": datetime.utcnow()}},
+    )
+    await password_reset_tokens_collection.update_one(
+        {"token": body.token},
+        {"$set": {"used": True, "used_at": datetime.utcnow()}},
+    )
+    return {"status": "ok"}

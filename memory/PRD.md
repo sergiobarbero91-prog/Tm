@@ -745,3 +745,51 @@ Los clientes ya no dependen del código del taxista para volver a la app.
 - Cache de token admin dentro de los tests para no toparse con el rate
   limiter del /api/auth/login. **10/10 pasan.**
 
+
+## 📧 Recuperación de contraseña por email (Feb 2026)
+
+Flujo tipo "olvidé mi contraseña" gratis, para taxistas y clientes.
+
+### Proveedor de email
+- Gmail SMTP (500 emails/día gratis), sin DNS. El usuario configura:
+  - `SMTP_HOST=smtp.gmail.com` `SMTP_PORT=587`
+  - `SMTP_USERNAME=<gmail>` `SMTP_PASSWORD=<app-password>` `SMTP_FROM=<gmail>`
+- `/app/backend/email_service.py` — `send_email()` con **modo DEV**: si
+  faltan credenciales, escribe el email en el log en vez de intentar SMTP.
+  Así el flujo funciona en la pod sin tener que configurar nada.
+
+### Nuevos endpoints
+- **Taxistas** (`/api/auth`):
+  - `POST /forgot-password {email}` — genera token 1h, guarda en
+    `password_reset_tokens`, manda enlace. Responde 200 aunque el email no
+    exista (anti-enumeración). Rate limited 3/min.
+  - `POST /reset-password {token, new_password}` — 5/min.
+- **Clientes** (`/api/rides`):
+  - `POST /client/forgot-password {email}`
+  - `POST /client/reset-password {token, new_password}`
+  - `POST /client/set-email {email}` — permite añadir email a posteriori.
+- El campo `email` se añade a `UserProfileUpdate` y a `UserResponse`, y a
+  `ClientAuthenticateBody` / `ClientResponse`. Se persiste como `email` en
+  `users` (taxistas) y `clients` (cliente Emisora).
+
+### Nueva colección
+- `password_reset_tokens`: `{token, role, user_id, email, created_at,
+  expires_at, used}`. Tokens URL-safe de 32 bytes.
+
+### Frontend
+- **Cliente `EmisoraClient.tsx`**: en el signup nuevo campo Email opcional.
+  En modo login añadido "¿Olvidaste tu contraseña?" que pide email con
+  `window.prompt`, llama a `client/forgot-password` y muestra confirmación.
+- **Taxista `index.tsx`**: botón "¿Olvidaste tu contraseña?" bajo el login,
+  con el mismo patrón.
+- **Nueva pantalla `ResetPasswordScreen.tsx`**: se muestra automáticamente
+  cuando la URL contiene `?reset_token=…` (opcionalmente `role=client`).
+  Válida para ambos roles. Al terminar, limpia la URL y muestra
+  confirmación "Contraseña actualizada".
+
+### Tests
+- `/app/backend/tests/test_password_reset.py` — 3 tests: reset de driver
+  end-to-end (con reuso denegado), anti-enumeración, y reset de cliente
+  end-to-end (login con contraseña vieja falla, nueva OK).
+- Total en el módulo Emisora: **13/13 pasan.**
+
