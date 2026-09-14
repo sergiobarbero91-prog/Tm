@@ -866,7 +866,7 @@ async def forgot_password(request: Request, body: ForgotPasswordBody):
     })
     url = _reset_link_url(token)
     text, html = _reset_email_bodies(user.get("full_name") or user.get("username") or "", url)
-    send_email(email, "TaxiDash — Restablecer contraseña", text, html)
+    await send_email(email, "TaxiDash — Restablecer contraseña", text, html)
     return {"status": "ok"}
 
 

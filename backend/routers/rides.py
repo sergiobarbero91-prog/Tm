@@ -517,7 +517,7 @@ async def client_forgot_password(body: ClientForgotPasswordBody):
         "<p style=\"font-size:12px;color:#666\">Este enlace caduca en 1 hora. "
         "Si no lo pediste tú, ignora este mensaje.</p>"
     )
-    send_email(email, "TaxiDash — Restablecer contraseña", text, html)
+    await send_email(email, "TaxiDash — Restablecer contraseña", text, html)
     return {"status": "ok"}
 
 
