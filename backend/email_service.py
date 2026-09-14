@@ -62,15 +62,34 @@ def send_email(to: str, subject: str, text_body: str, html_body: Optional[str] =
         msg.add_alternative(html_body, subtype="html")
 
     context = ssl.create_default_context()
+
+    # Forzar IPv4 SIN romper la validacion SSL (que necesita el hostname).
+    # Parcheamos getaddrinfo solo durante esta llamada para descartar IPv6,
+    # asi el hostname sigue viajando en la conexion (SNI + cert verify).
+    import socket as _sock
+    _original_getaddrinfo = _sock.getaddrinfo
+
+    def _getaddrinfo_ipv4(host, port, *args, **kwargs):
+        return _original_getaddrinfo(host, port, _sock.AF_INET, _sock.SOCK_STREAM)
+
+    _sock.getaddrinfo = _getaddrinfo_ipv4
     try:
-        with smtplib.SMTP(c["host"], c["port"], timeout=15) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
-            server.login(c["user"], c["password"])
-            server.send_message(msg)
+        # Puerto 465 = SSL implicito; 587 = STARTTLS
+        if c["port"] == 465:
+            with smtplib.SMTP_SSL(c["host"], c["port"], context=context, timeout=15) as server:
+                server.login(c["user"], c["password"])
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(c["host"], c["port"], timeout=15) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(c["user"], c["password"])
+                server.send_message(msg)
         logger.info(f"[email] Sent '{subject}' to {to}")
         return True
     except Exception as exc:  # pragma: no cover — network/SMTP failure paths
         logger.exception(f"[email] Send failed to={to}: {exc}")
         return False
+    finally:
+        _sock.getaddrinfo = _original_getaddrinfo
