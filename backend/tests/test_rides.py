@@ -258,3 +258,52 @@ def test_client_can_cancel_pending_ride():
     )
     assert r.status_code == 200
     assert r.json()["status"] == "cancelled"
+
+
+def test_client_can_cancel_accepted_ride():
+    """Cliente puede cancelar un servicio ya aceptado por un taxista."""
+    dt = _driver_login()
+    ct = _client_login("+34600999006", "Ana", "Cancel", driver_token=dt)
+    ride = requests.post(
+        f"{API}/rides/rides",
+        json={"origin": "Sol", "destination": "T4", "ride_type": "asap"},
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    ).json()
+    # taxista acepta
+    acc = requests.post(
+        f"{API}/rides/rides/{ride['id']}/accept",
+        headers={"Authorization": f"Bearer {dt}"},
+        timeout=10,
+    )
+    assert acc.status_code == 200
+    # cliente cancela
+    r = requests.post(
+        f"{API}/rides/rides/{ride['id']}/cancel",
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "cancelled"
+
+
+def test_client_cannot_cancel_in_progress_ride():
+    """Una vez iniciado el trayecto el cliente ya no puede cancelar."""
+    dt = _driver_login()
+    ct = _client_login("+34600999007", "Ivan", "InProg", driver_token=dt)
+    ride = requests.post(
+        f"{API}/rides/rides",
+        json={"origin": "Sol", "destination": "T4", "ride_type": "asap"},
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    ).json()
+    requests.post(f"{API}/rides/rides/{ride['id']}/accept", headers={"Authorization": f"Bearer {dt}"}, timeout=10).raise_for_status()
+    requests.post(f"{API}/rides/rides/{ride['id']}/start", headers={"Authorization": f"Bearer {dt}"}, timeout=10).raise_for_status()
+    r = requests.post(
+        f"{API}/rides/rides/{ride['id']}/cancel",
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    )
+    assert r.status_code == 400
+    assert "curso" in r.json()["detail"].lower()
+

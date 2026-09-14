@@ -774,7 +774,13 @@ async def cancel_ride(ride_id: str, current: dict = Depends(get_current_client_r
         raise HTTPException(status_code=404, detail="Servicio no encontrado")
     if doc["client_id"] != current["id"]:
         raise HTTPException(status_code=403, detail="No puedes cancelar este servicio")
-    if doc["status"] in ("completed", "cancelled"):
+    # Solo se puede cancelar antes de que empiece el trayecto.
+    # - pending: nadie lo ha aceptado todavía
+    # - accepted: un taxista lo aceptó pero aún no ha empezado
+    # - in_progress / completed / cancelled: ya no se puede cancelar
+    if doc["status"] not in ("pending", "accepted"):
+        if doc["status"] == "in_progress":
+            raise HTTPException(status_code=400, detail="El servicio ya está en curso y no se puede cancelar")
         raise HTTPException(status_code=400, detail=f"El servicio ya está {doc['status']}")
     await rides_collection.update_one(
         {"id": ride_id},

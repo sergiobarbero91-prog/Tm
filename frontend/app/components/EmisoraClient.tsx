@@ -271,14 +271,18 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     }
   };
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = async (id: string, isAccepted: boolean) => {
+    const msg = isAccepted
+      ? 'Un taxista ya aceptó tu servicio. Si cancelas ahora, se le avisará. ¿Cancelar de todas formas?'
+      : '¿Cancelar este servicio?';
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       // eslint-disable-next-line no-alert
-      if (!window.confirm('¿Cancelar este servicio?')) return;
+      if (!window.confirm(msg)) return;
     }
     try {
       await axios.post(`${API_BASE}/api/rides/rides/${id}/cancel`, {}, { headers: await authHeaders() });
       await refreshRides();
+      notify('Servicio cancelado');
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo cancelar');
     }
@@ -671,8 +675,8 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
                   <Text style={{ color: '#FFF', fontWeight: '800' }}>Llamar al taxista · {r.accepted_by_driver_phone}</Text>
                 </TouchableOpacity>
               )}
-              {r.status === 'pending' && (
-                <TouchableOpacity onPress={() => handleCancel(r.id)} style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#EF4444' }} testID={`emisora-cancel-${r.id}`}>
+              {(r.status === 'pending' || r.status === 'accepted') && (
+                <TouchableOpacity onPress={() => handleCancel(r.id, r.status === 'accepted')} style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#EF4444' }} testID={`emisora-cancel-${r.id}`}>
                   <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Cancelar</Text>
                 </TouchableOpacity>
               )}
