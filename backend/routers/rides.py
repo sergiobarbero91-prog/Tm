@@ -19,10 +19,11 @@ from __future__ import annotations
 import os
 import random
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, validator
@@ -38,6 +39,8 @@ from shared import (
     users_collection,
     password_reset_tokens_collection,
     client_addresses_collection,
+    ride_ratings_collection,
+    ride_blocks_collection,
     create_access_token,
     security,
     get_current_user_required,
@@ -186,6 +189,29 @@ async def get_current_client_required(
     if not doc:
         raise HTTPException(status_code=401, detail="Cliente no encontrado")
     return doc
+
+
+async def get_current_any(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """Auth guard that accepts either a driver JWT or a client JWT.
+    Returns {'id', 'role': 'driver'|'client', 'doc': ...}."""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalido")
+    if payload.get("ct") == "client":
+        doc = await clients_collection.find_one({"id": payload.get("sub")})
+        if not doc:
+            raise HTTPException(status_code=401, detail="Cliente no encontrado")
+        return {"id": doc["id"], "role": "client", "doc": doc}
+    # Driver / propietario / admin / moderator
+    doc = await users_collection.find_one({"id": payload.get("sub")})
+    if not doc:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    return {"id": doc["id"], "role": "driver", "doc": doc}
 
 
 # ─────────────────────────── OTP endpoints ────────────────────────────
@@ -930,15 +956,37 @@ async def _promote_scheduled_rides_near_deadline():
     )
 
 
+async def _blocked_counterpart_ids(viewer_id: str) -> list:
+    """IDs (client or driver) with a two-way block relation to viewer."""
+    docs = await ride_blocks_collection.find({
+        "$or": [
+            {"blocker_id": viewer_id},
+            {"blocked_id": viewer_id},
+        ]
+    }).to_list(500)
+    ids = set()
+    for d in docs:
+        if d["blocker_id"] == viewer_id:
+            ids.add(d["blocked_id"])
+        else:
+            ids.add(d["blocker_id"])
+    return list(ids)
+
+
+
 @router.get("/driver/assigned", response_model=List[RideResponse])
 async def driver_list_assigned(current: dict = Depends(get_current_user_required)):
     """Rides that are currently reserved for this driver (before the 6h cutoff)."""
     await _promote_scheduled_rides_near_deadline()
-    cursor = rides_collection.find({
+    blocked_client_ids = await _blocked_counterpart_ids(current["id"])
+    q: dict = {
         "status": "pending",
         "dispatch_scope": "assigned",
         "associated_driver_id": current["id"],
-    }).sort("scheduled_at", 1).limit(50)
+    }
+    if blocked_client_ids:
+        q["client_id"] = {"$nin": blocked_client_ids}
+    cursor = rides_collection.find(q).sort("scheduled_at", 1).limit(50)
     return [_ride_to_response(d) async for d in cursor]
 
 
@@ -946,10 +994,11 @@ async def driver_list_assigned(current: dict = Depends(get_current_user_required
 async def driver_list_offers(current: dict = Depends(get_current_user_required)):
     """Open-market rides available to any online driver."""
     await _promote_scheduled_rides_near_deadline()
-    cursor = rides_collection.find({
-        "status": "pending",
-        "dispatch_scope": "open",
-    }).sort("created_at", -1).limit(50)
+    blocked_client_ids = await _blocked_counterpart_ids(current["id"])
+    q: dict = {"status": "pending", "dispatch_scope": "open"}
+    if blocked_client_ids:
+        q["client_id"] = {"$nin": blocked_client_ids}
+    cursor = rides_collection.find(q).sort("created_at", -1).limit(50)
     return [_ride_to_response(d) async for d in cursor]
 
 
@@ -1044,3 +1093,255 @@ async def driver_reject_assigned(ride_id: str, current: dict = Depends(get_curre
     )
     doc["dispatch_scope"] = "open"
     return _ride_to_response(doc)
+
+
+# ============ RATINGS, REPORTS, BLOCKS, HISTORY ============
+
+class RideRatingBody(BaseModel):
+    stars: int
+    comment: Optional[str] = None
+
+    @validator("stars")
+    def _stars(cls, v: int) -> int:  # noqa: N805
+        if not (1 <= int(v) <= 5):
+            raise ValueError("stars debe estar entre 1 y 5")
+        return int(v)
+
+
+class RideReportBody(BaseModel):
+    report_type: str  # matches moderation REPORT_TYPES
+    description: str
+
+
+class BlockBody(BaseModel):
+    target_id: str
+    target_role: str  # 'driver' | 'client'
+
+
+async def _resolve_ride_parties(ride: dict) -> tuple[str, Optional[str]]:
+    """Return (client_id, driver_id_if_any) for a completed/accepted ride."""
+    return ride.get("client_id"), ride.get("accepted_by_driver_id")
+
+
+async def _is_blocked_pair(a_id: str, b_id: str) -> bool:
+    doc = await ride_blocks_collection.find_one({
+        "$or": [
+            {"blocker_id": a_id, "blocked_id": b_id},
+            {"blocker_id": b_id, "blocked_id": a_id},
+        ]
+    })
+    return doc is not None
+
+
+@router.post("/rides/{ride_id}/rate")
+async def rate_ride(
+    ride_id: str,
+    body: RideRatingBody,
+    who: dict = Depends(get_current_any),
+):
+    """Both client and driver can rate the counterpart once the ride is completed or in progress."""
+    ride = await rides_collection.find_one({"id": ride_id})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if ride["status"] not in ("completed", "in_progress"):
+        raise HTTPException(status_code=400, detail="Solo se puede calificar despues de iniciar el trayecto")
+
+    if who["role"] == "driver" and ride.get("accepted_by_driver_id") == who["id"]:
+        from_role, from_id = "driver", who["id"]
+        to_role, to_id = "client", ride["client_id"]
+    elif who["role"] == "client" and ride["client_id"] == who["id"]:
+        from_role, from_id = "client", who["id"]
+        to_role, to_id = "driver", ride.get("accepted_by_driver_id")
+    else:
+        raise HTTPException(status_code=403, detail="No participaste en este servicio")
+
+    if not to_id:
+        raise HTTPException(status_code=400, detail="No hay contraparte que calificar")
+
+    now = datetime.now(timezone.utc)
+    await ride_ratings_collection.update_one(
+        {"ride_id": ride_id, "from_id": from_id},
+        {
+            "$set": {
+                "ride_id": ride_id,
+                "from_id": from_id,
+                "from_role": from_role,
+                "to_id": to_id,
+                "to_role": to_role,
+                "stars": body.stars,
+                "comment": (body.comment or "").strip() or None,
+                "updated_at": now,
+            },
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+    return {"success": True, "stars": body.stars}
+
+
+@router.post("/rides/{ride_id}/report")
+async def report_ride(
+    ride_id: str,
+    body: RideReportBody,
+    who: dict = Depends(get_current_any),
+):
+    """Create a moderation report tied to a ride. Reporter can be driver or client."""
+    from routers.moderation import reports_collection, REPORT_TYPES
+    if body.report_type not in REPORT_TYPES:
+        raise HTTPException(status_code=400, detail="Tipo de reporte invalido")
+    if not body.description or len(body.description.strip()) < 10:
+        raise HTTPException(status_code=400, detail="La descripcion debe tener al menos 10 caracteres")
+
+    ride = await rides_collection.find_one({"id": ride_id})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    if who["role"] == "driver" and ride.get("accepted_by_driver_id") == who["id"]:
+        reporter_id = who["id"]
+        reporter_username = who["doc"].get("username")
+        reported_user_id = ride["client_id"]
+        reported_username = ride.get("client_name")
+    elif who["role"] == "client" and ride["client_id"] == who["id"]:
+        reporter_id = who["id"]
+        reporter_username = f"cliente:{who['doc'].get('phone')}"
+        reported_user_id = ride.get("accepted_by_driver_id")
+        reported_username = None
+        if reported_user_id:
+            drv = await users_collection.find_one({"id": reported_user_id}, {"username": 1})
+            reported_username = drv.get("username") if drv else None
+    else:
+        raise HTTPException(status_code=403, detail="No participaste en este servicio")
+
+    report_id = str(uuid.uuid4())
+    await reports_collection.insert_one({
+        "id": report_id,
+        "reporter_id": reporter_id,
+        "reporter_username": reporter_username,
+        "reported_user_id": reported_user_id,
+        "reported_username": reported_username,
+        "report_type": body.report_type,
+        "report_type_name": REPORT_TYPES.get(body.report_type, "Otro"),
+        "description": body.description.strip(),
+        "context": "ride",
+        "context_id": ride_id,
+        "media_base64": None,
+        "media_type": None,
+        "status": "pending_mod",
+        "created_at": datetime.now(timezone.utc),
+        "moderator_id": None, "moderator_username": None, "moderator_approved": None,
+        "moderator_notes": None, "moderated_at": None,
+        "admin_id": None, "admin_username": None, "admin_approved": None,
+        "admin_notes": None, "admin_decided_at": None, "ban_applied": None,
+        "message_count": 0, "unread_by_reporter": 0, "unread_by_staff": 0,
+        "last_message_at": None,
+    })
+    return {"success": True, "report_id": report_id}
+
+
+@router.post("/blocks")
+async def create_block(
+    body: BlockBody,
+    who: dict = Depends(get_current_any),
+):
+    """Block a user (client blocks driver, or driver blocks client). Idempotent."""
+    if body.target_role not in ("driver", "client"):
+        raise HTTPException(status_code=400, detail="target_role invalido")
+    if who["id"] == body.target_id:
+        raise HTTPException(status_code=400, detail="No puedes bloquearte a ti mismo")
+    if body.target_role == "driver":
+        target = await users_collection.find_one({"id": body.target_id})
+    else:
+        target = await clients_collection.find_one({"id": body.target_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario a bloquear no encontrado")
+
+    now = datetime.now(timezone.utc)
+    await ride_blocks_collection.update_one(
+        {"blocker_id": who["id"], "blocked_id": body.target_id},
+        {
+            "$set": {
+                "blocker_id": who["id"],
+                "blocker_role": who["role"],
+                "blocked_id": body.target_id,
+                "blocked_role": body.target_role,
+            },
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+    return {"success": True}
+
+
+@router.delete("/blocks/{target_id}")
+async def remove_block(target_id: str, who: dict = Depends(get_current_any)):
+    r = await ride_blocks_collection.delete_one({"blocker_id": who["id"], "blocked_id": target_id})
+    return {"success": True, "removed": r.deleted_count}
+
+
+@router.get("/blocks")
+async def list_blocks(who: dict = Depends(get_current_any)):
+    docs = await ride_blocks_collection.find({"blocker_id": who["id"]}).to_list(200)
+    out = []
+    for d in docs:
+        if d["blocked_role"] == "driver":
+            u = await users_collection.find_one({"id": d["blocked_id"]}, {"username": 1, "full_name": 1})
+            label = (u or {}).get("full_name") or (u or {}).get("username") or "Taxista"
+        else:
+            c = await clients_collection.find_one({"id": d["blocked_id"]}, {"first_name": 1, "last_name": 1, "phone": 1})
+            label = (f"{(c or {}).get('first_name', '')} {(c or {}).get('last_name', '')}").strip() or (c or {}).get("phone") or "Cliente"
+        out.append({
+            "blocked_id": d["blocked_id"],
+            "blocked_role": d["blocked_role"],
+            "label": label,
+            "created_at": d.get("created_at"),
+        })
+    return out
+
+
+async def _ride_history_item(ride: dict, viewer_role: str, viewer_id: str) -> dict:
+    """Return a ride enriched with counterpart info + my rating + their rating."""
+    my = await ride_ratings_collection.find_one({"ride_id": ride["id"], "from_id": viewer_id})
+    their = await ride_ratings_collection.find_one({"ride_id": ride["id"], "to_id": viewer_id})
+    counterpart_id = ride.get("accepted_by_driver_id") if viewer_role == "client" else ride.get("client_id")
+    counterpart_name = None
+    if viewer_role == "client":
+        if ride.get("accepted_by_driver_id"):
+            drv = await users_collection.find_one({"id": ride["accepted_by_driver_id"]}, {"full_name": 1, "username": 1})
+            if drv:
+                counterpart_name = drv.get("full_name") or drv.get("username")
+    else:
+        counterpart_name = ride.get("client_name")
+    return {
+        "id": ride["id"],
+        "origin": ride["origin"],
+        "destination": ride["destination"],
+        "ride_type": ride["ride_type"],
+        "scheduled_at": ride.get("scheduled_at"),
+        "status": ride["status"],
+        "created_at": ride.get("created_at"),
+        "counterpart_id": counterpart_id,
+        "counterpart_name": counterpart_name,
+        "my_rating": my.get("stars") if my else None,
+        "their_rating": their.get("stars") if their else None,
+    }
+
+
+@router.get("/client/history")
+async def client_history(current: dict = Depends(get_current_client_required)):
+    """Rides history for the client (both open and completed)."""
+    cursor = rides_collection.find({"client_id": current["id"]}).sort("created_at", -1).limit(200)
+    out = []
+    async for r in cursor:
+        out.append(await _ride_history_item(r, "client", current["id"]))
+    return out
+
+
+@router.get("/driver/history")
+async def driver_history(current: dict = Depends(get_current_user_required)):
+    """Rides history for the driver (rides accepted by him)."""
+    cursor = rides_collection.find({"accepted_by_driver_id": current["id"]}).sort("created_at", -1).limit(200)
+    out = []
+    async for r in cursor:
+        out.append(await _ride_history_item(r, "driver", current["id"]))
+    return out
+

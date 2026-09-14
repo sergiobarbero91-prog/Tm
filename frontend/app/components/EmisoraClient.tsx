@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { calculateEstimatedFare, type FareResult } from '../utils/fareEstimator';
 import { DateTimePicker } from './DateTimePicker';
+import { RideHistoryPanel } from './RideHistoryPanel';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -112,6 +113,9 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
 
   // Frequent addresses (one-tap re-use)
   const [frequentAddresses, setFrequentAddresses] = useState<Array<{ address: string; uses: number }>>([]);
+
+  // Ride history modal
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
@@ -552,6 +556,9 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         title={`Hola, ${client.first_name}`}
         right={
           <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={() => setHistoryOpen(true)} testID="emisora-history-btn">
+              <Ionicons name="time-outline" size={22} color="#94A3B8" />
+            </TouchableOpacity>
             <TouchableOpacity onPress={openProfile} testID="emisora-profile-btn">
               <Ionicons name="person-circle-outline" size={22} color="#94A3B8" />
             </TouchableOpacity>
@@ -780,6 +787,15 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           );
         })}
       </ScrollView>
+
+      {/* Ride history modal */}
+      <Modal visible={historyOpen} transparent animationType="fade" onRequestClose={() => setHistoryOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={{ width: '100%', maxWidth: 560, backgroundColor: '#0F172A', borderRadius: 14, borderWidth: 1, borderColor: '#334155' }}>
+            <RideHistoryPanel viewerRole="client" onClose={() => setHistoryOpen(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Client profile edit modal */}
       <Modal visible={profileOpen} transparent animationType="fade" onRequestClose={() => setProfileOpen(false)}>

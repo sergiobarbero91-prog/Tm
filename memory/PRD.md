@@ -888,3 +888,16 @@ de recuperación de contraseña.
 - Tests `tests/test_report_thread.py` (4 nuevos, 10/10 pasan): mensajeria bidireccional, cambio de estado, permisos (403 para terceros, 403 para moderador que intenta resolver).
 
 
+
+### ✅ Historial + calificaciones + reportes + bloqueos (Feb 2026)
+- Nuevas colecciones: `ride_ratings` (5 estrellas + comentario) y `ride_blocks`.
+- Nuevo helper backend `get_current_any` que acepta tanto tokens de driver como de cliente.
+- Endpoints:
+  - `POST /api/rides/rides/{id}/rate` — cliente y taxista califican (1-5 + comentario, idempotente).
+  - `POST /api/rides/rides/{id}/report` — crea reporte en `reports_collection` con `context='ride'`.
+  - `POST /api/rides/blocks` / `DELETE /api/rides/blocks/{id}` / `GET /api/rides/blocks`.
+  - `GET /api/rides/client/history` y `GET /api/rides/driver/history` con `my_rating`, `their_rating`, `counterpart_name`.
+- Dispatch (`driver/offers`, `driver/assigned`) filtra los rides cuyo cliente forma parte de un bloqueo mutuo.
+- Frontend: nuevo componente `RideHistoryPanel.tsx` reutilizable con estrellas, boton Reportar y Bloquear + lista de bloqueos con desbloqueo. Integrado en cabecera de `EmisoraClient` (icono reloj) y en el header de `EmisoraDriverSection` (boton "Historial").
+- Tests `tests/test_ride_extras.py` (4/4 pasan): rating bidireccional, bloqueo filtra offers, reporte crea entrada moderacion, tercero no puede calificar.
+

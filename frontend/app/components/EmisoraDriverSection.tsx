@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-qr-code';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { RideHistoryPanel } from './RideHistoryPanel';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -104,6 +105,7 @@ export const EmisoraDriverSection: React.FC = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qr, setQr] = useState<QrInfo | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [assigned, setAssigned] = useState<Ride[]>([]);
   const [offers, setOffers] = useState<Ride[]>([]);
@@ -341,6 +343,14 @@ export const EmisoraDriverSection: React.FC = () => {
             <Ionicons name={loading ? 'sync' : 'refresh'} size={18} color="#94A3B8" />
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => setHistoryOpen(true)}
+            style={{ backgroundColor: '#0F172A', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#334155' }}
+            testID="emisora-driver-history-btn"
+          >
+            <Ionicons name="time-outline" size={16} color="#94A3B8" />
+            <Text style={{ color: '#94A3B8', fontWeight: '800', fontSize: 12 }}>Historial</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={openQr}
             disabled={qrBusy}
             style={{ backgroundColor: '#F59E0B', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -351,6 +361,15 @@ export const EmisoraDriverSection: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* History modal */}
+      <Modal visible={historyOpen} transparent animationType="fade" onRequestClose={() => setHistoryOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0009', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={{ width: '100%', maxWidth: 560, backgroundColor: '#0F172A', borderRadius: 14, borderWidth: 1, borderColor: '#334155' }}>
+            <RideHistoryPanel viewerRole="driver" onClose={() => setHistoryOpen(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Active rides section */}
       {active.length > 0 && (
