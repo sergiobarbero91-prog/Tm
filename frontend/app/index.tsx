@@ -37,6 +37,7 @@ import { PublicBusArrivals } from './components/PublicBusArrivals';
 import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker';
 import { EmisoraClient } from './components/EmisoraClient';
 import { EmisoraDriverSection } from './components/EmisoraDriverSection';
+import { EmisoraBanner } from './components/EmisoraBanner';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { useRouter } from 'expo-router';
 
@@ -11131,6 +11132,12 @@ function TransportMeter() {
           Frecuencia de llegadas en Madrid
         </Text>
       </View>
+
+      {/* Emisora live banner — visible from any tab */}
+      <EmisoraBanner
+        onGoToEmisora={() => setActiveTab('reservations')}
+        isEmisoraOpen={activeTab === 'reservations'}
+      />
 
       {/* Radio Dropdown - Using Modal to prevent background interaction */}
       <Modal
