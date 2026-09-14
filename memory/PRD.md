@@ -837,3 +837,23 @@ de recuperación de contraseña.
 - Backend reiniciado; prueba real `send_email()` devolvio `True` y correo
   entregado a la propia cuenta. Flujo de recuperacion de contrasena (drivers
   y clientes) operativo en produccion.
+
+
+### ✅ Emergent Managed Email + Admin panel extendido (Feb 2026)
+**Motivo**: Clouding.io bloquea todos los puertos SMTP salientes (25/465/587/2525). UFW inactivo => bloqueo en red del datacenter.
+
+**Migracion a Emergent Managed Email (HTTPS)**:
+- `/app/backend/email_service.py` reescrito: usa `POST integrations.emergentagent.com/api/v1/email/send`. Incluye guardrail gate (G2/G3).
+- `send_email` ahora async. Callers actualizados con `await` en `auth.py` y `rides.py`.
+- Env vars: `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`.
+- Test real: 202 Accepted, correo entregado.
+
+**Admin panel extendido**:
+- Backend `/app/backend/routers/admin.py`: `PUT /admin/users/{id}` acepta full_name/license/email/role/preferred_shift/licencias. CRUD clientes completo (`GET/POST/PUT/DELETE /admin/clients` + password).
+- Tests `/app/backend/tests/test_admin_extended.py` (6 tests, 21/21 backend total pasan).
+- Frontend `AdminClients.tsx` y `AdminUserEditModal.tsx` en `/app/frontend/app/components/admin/`. Integrados en index.tsx.
+
+### ✅ Cancel ride + EmisoraBanner (Feb 2026)
+- Cancel ride ahora bloquea `in_progress`, y cliente puede cancelar `accepted` con confirmacion.
+- `EmisoraBanner.tsx` visible en cabecera: "Para mi/Activas/ASAP" con ping y boton "Ver".
+

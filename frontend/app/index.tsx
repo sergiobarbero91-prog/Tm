@@ -38,6 +38,8 @@ import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker'
 import { EmisoraClient } from './components/EmisoraClient';
 import { EmisoraDriverSection } from './components/EmisoraDriverSection';
 import { EmisoraBanner } from './components/EmisoraBanner';
+import { AdminClients } from './components/admin/AdminClients';
+import { AdminUserEditModal } from './components/admin/AdminUserEditModal';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { useRouter } from 'expo-router';
 
@@ -1305,6 +1307,7 @@ function TransportMeter() {
   const [adminSearching, setAdminSearching] = useState(false);
   const [adminStats, setAdminStats] = useState<{total_users: number; active_last_month: number; online_now: number} | null>(null);
   const [showUsersList, setShowUsersList] = useState(false);
+  const [showClientsPanel, setShowClientsPanel] = useState(false);
   
   // Admin Panel - Blocked Users Management
   const [showBlockedUsers, setShowBlockedUsers] = useState(false);
@@ -16722,6 +16725,27 @@ function TransportMeter() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Clientes toggle (Emisora) */}
+            <TouchableOpacity
+              style={[styles.adminBlockedUsersButton, showClientsPanel && styles.adminBlockedUsersButtonActive]}
+              onPress={() => setShowClientsPanel(!showClientsPanel)}
+              testID="admin-toggle-clients"
+            >
+              <View style={styles.adminBlockedUsersButtonContent}>
+                <Ionicons name="people-circle" size={22} color={showClientsPanel ? '#FFFFFF' : '#F59E0B'} />
+                <Text style={[styles.adminBlockedUsersButtonText, showClientsPanel && { color: '#FFFFFF' }]}>
+                  {showClientsPanel ? 'Ocultar Clientes' : 'Gestionar Clientes'}
+                </Text>
+              </View>
+              <Ionicons name={showClientsPanel ? "chevron-up" : "chevron-forward"} size={20} color={showClientsPanel ? '#FFFFFF' : '#F59E0B'} />
+            </TouchableOpacity>
+
+            {showClientsPanel && (
+              <View testID="admin-clients-panel" style={{ marginTop: 8, marginBottom: 8, backgroundColor: '#0F172A', borderRadius: 12, borderWidth: 1, borderColor: '#1E293B' }}>
+                <AdminClients />
+              </View>
+            )}
             
             {/* Blocked Users Button */}
             <TouchableOpacity 
@@ -17195,6 +17219,7 @@ function TransportMeter() {
                           <View style={styles.userActions}>
                             <TouchableOpacity
                               style={styles.editUserButton}
+                              testID={`admin-user-edit-btn-${user.id}`}
                               onPress={() => {
                                 setEditingUser(user);
                                 setShowEditUserModal(true);
@@ -17204,6 +17229,7 @@ function TransportMeter() {
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.deleteUserButton}
+                              testID={`admin-user-delete-btn-${user.id}`}
                               onPress={() => deleteUser(user.id, user.username)}
                             >
                               <Ionicons name="trash-outline" size={20} color="#EF4444" />
@@ -17525,6 +17551,7 @@ function TransportMeter() {
                           <View style={styles.userActions}>
                             <TouchableOpacity
                               style={styles.editUserButton}
+                              testID={`admin-user-edit-btn-${user.id}`}
                               onPress={() => {
                                 setEditingUser(user);
                                 setShowEditUserModal(true);
@@ -17534,6 +17561,7 @@ function TransportMeter() {
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.deleteUserButton}
+                              testID={`admin-user-delete-btn-${user.id}`}
                               onPress={() => deleteUser(user.id, user.username)}
                             >
                               <Ionicons name="trash-outline" size={20} color="#EF4444" />
@@ -21492,71 +21520,13 @@ function TransportMeter() {
         </View>
       )}
 
-      {/* Edit User Role Modal (Admin) */}
-      {showEditUserModal && editingUser && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.addEventModal}>
-            <View style={styles.addEventHeader}>
-              <Ionicons name="create" size={48} color="#3B82F6" />
-              <Text style={styles.addEventTitle}>Cambiar Rol</Text>
-              <Text style={styles.addEventSubtitle}>Usuario: {editingUser.username}</Text>
-            </View>
-            
-            <View style={styles.addEventForm}>
-              <View style={styles.addEventInputGroup}>
-                <Text style={styles.addEventLabel}>🏷️ Nuevo Rol</Text>
-                <View style={styles.roleSelector}>
-                  <TouchableOpacity
-                    style={[styles.roleOption, editingUser.role === 'user' && styles.roleOptionActive]}
-                    onPress={() => setEditingUser({...editingUser, role: 'user'})}
-                  >
-                    <Text style={[styles.roleOptionText, editingUser.role === 'user' && styles.roleOptionTextActive]}>Usuario</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.roleOption, editingUser.role === 'moderator' && styles.roleOptionActiveMod]}
-                    onPress={() => setEditingUser({...editingUser, role: 'moderator'})}
-                  >
-                    <Text style={[styles.roleOptionText, editingUser.role === 'moderator' && styles.roleOptionTextActive]}>Moderador</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.roleOption, editingUser.role === 'admin' && styles.roleOptionActiveAdmin]}
-                    onPress={() => setEditingUser({...editingUser, role: 'admin'})}
-                  >
-                    <Text style={[styles.roleOptionText, editingUser.role === 'admin' && styles.roleOptionTextActive]}>Admin</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.addEventButtons}>
-                <TouchableOpacity
-                  style={styles.addEventCancelButton}
-                  onPress={() => {
-                    setShowEditUserModal(false);
-                    setEditingUser(null);
-                  }}
-                >
-                  <Text style={styles.addEventCancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.adminSubmitButton}
-                  onPress={() => updateUserRole(editingUser.id, editingUser.role)}
-                  disabled={adminLoading}
-                >
-                  {adminLoading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                      <Text style={styles.addEventSubmitButtonText}>Guardar</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Edit User Modal (Admin) — full rewrite */}
+      <AdminUserEditModal
+        visible={showEditUserModal && !!editingUser}
+        user={editingUser as any}
+        onClose={() => { setShowEditUserModal(false); setEditingUser(null); }}
+        onSaved={() => { fetchAdminUsers(); }}
+      />
 
       {/* Time Range Selector Modal */}
       {showTimeRangeDropdown && (

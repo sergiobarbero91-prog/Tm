@@ -3,18 +3,24 @@ Admin router for user management (admin only).
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
-from datetime import datetime, timedelta
-from pydantic import BaseModel
+from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel, validator
 import uuid
 import re
 
 from shared import (
     users_collection,
+    clients_collection,
     UserCreate, UserUpdate, PasswordChange, UserResponse,
+    LicenciaInput,
     get_admin_user, get_password_hash
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+VALID_ROLES = {"user", "conductor", "propietario", "moderator", "admin"}
+VALID_SHIFTS = {"all", "day", "night"}
 
 
 class UserStats(BaseModel):
@@ -29,11 +35,57 @@ class UserSearchResult(BaseModel):
     full_name: Optional[str] = None
     license_number: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
     role: str
     preferred_shift: str = "all"
+    licencias: Optional[List[dict]] = None
     created_at: datetime
     last_seen: Optional[datetime] = None
     is_online: bool = False
+
+
+class AdminUserUpdate(BaseModel):
+    """Extended fields an admin can edit on any user."""
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    preferred_shift: Optional[str] = None
+    licencias: Optional[List[LicenciaInput]] = None
+
+    @validator("role")
+    def _v_role(cls, v):  # noqa: N805
+        if v is None:
+            return v
+        if v not in VALID_ROLES:
+            raise ValueError(f"Rol invalido. Validos: {sorted(VALID_ROLES)}")
+        return v
+
+    @validator("preferred_shift")
+    def _v_shift(cls, v):  # noqa: N805
+        if v is None:
+            return v
+        if v not in VALID_SHIFTS:
+            raise ValueError(f"Turno invalido. Validos: {sorted(VALID_SHIFTS)}")
+        return v
+
+    @validator("email")
+    def _v_email(cls, v):  # noqa: N805
+        if v is None or v == "":
+            return None
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Email no valido")
+        return v
+
+    @validator("license_number")
+    def _v_lic(cls, v):  # noqa: N805
+        if v is None or v == "":
+            return v
+        if not v.isdigit():
+            raise ValueError("El numero de licencia debe contener solo digitos")
+        return v
 
 
 @router.get("/stats", response_model=UserStats)
@@ -98,8 +150,10 @@ async def search_users(
             full_name=u.get("full_name"),
             license_number=u.get("license_number"),
             phone=u.get("phone"),
+            email=u.get("email"),
             role=u.get("role", "user"),
             preferred_shift=u.get("preferred_shift", "all"),
+            licencias=u.get("licencias"),
             created_at=u["created_at"],
             last_seen=last_seen,
             is_online=is_online
@@ -126,8 +180,10 @@ async def list_users(admin: dict = Depends(get_admin_user)):
             full_name=u.get("full_name"),
             license_number=u.get("license_number"),
             phone=u.get("phone"),
+            email=u.get("email"),
             role=u.get("role", "user"),
             preferred_shift=u.get("preferred_shift", "all"),
+            licencias=u.get("licencias"),
             created_at=u["created_at"],
             last_seen=last_seen,
             is_online=is_online
@@ -171,28 +227,86 @@ async def create_user(user_data: UserCreate, admin: dict = Depends(get_admin_use
 @router.put("/users/{user_id}")
 async def update_user(
     user_id: str,
-    user_data: UserUpdate,
+    user_data: AdminUserUpdate,
     admin: dict = Depends(get_admin_user)
 ):
-    """Update user details (admin only)."""
+    """Update user details (admin only). Supports all editable fields + licencias."""
     user = await users_collection.find_one({"id": user_id})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado"
         )
-    
-    update_data = {"updated_at": datetime.utcnow()}
+
+    update_data: dict = {"updated_at": datetime.utcnow()}
+
+    if user_data.full_name is not None:
+        update_data["full_name"] = user_data.full_name.strip() or None
+
     if user_data.phone is not None:
-        update_data["phone"] = user_data.phone
+        update_data["phone"] = user_data.phone.strip() or None
+
+    if user_data.email is not None:
+        # Uniqueness across users
+        if user_data.email:
+            clash = await users_collection.find_one({
+                "email": user_data.email,
+                "id": {"$ne": user_id},
+            })
+            if clash:
+                raise HTTPException(status_code=400, detail="Ese email ya esta en uso")
+        update_data["email"] = user_data.email
+
+    if user_data.preferred_shift is not None:
+        update_data["preferred_shift"] = user_data.preferred_shift
+
     if user_data.role is not None:
         update_data["role"] = user_data.role
-    
+
+    if user_data.license_number is not None:
+        if user_data.license_number:
+            clash = await users_collection.find_one({
+                "$or": [
+                    {"license_number": user_data.license_number},
+                    {"licencias.numero": user_data.license_number},
+                ],
+                "id": {"$ne": user_id},
+            })
+            if clash:
+                raise HTTPException(status_code=400, detail="Esa licencia ya esta registrada")
+        update_data["license_number"] = user_data.license_number or None
+
+    # Manage licencias list (owners) — replace whole list atomically
+    if user_data.licencias is not None:
+        licencias_out = []
+        seen = set()
+        for lic in user_data.licencias:
+            numero = (lic.numero or "").strip()
+            if not numero.isdigit():
+                raise HTTPException(status_code=400, detail=f"La licencia '{numero}' debe contener solo digitos")
+            if numero in seen:
+                raise HTTPException(status_code=400, detail=f"La licencia '{numero}' esta duplicada")
+            seen.add(numero)
+            clash = await users_collection.find_one({
+                "$or": [
+                    {"license_number": numero},
+                    {"licencias.numero": numero},
+                ],
+                "id": {"$ne": user_id},
+            })
+            if clash:
+                raise HTTPException(status_code=400, detail=f"La licencia {numero} ya esta registrada en otro usuario")
+            licencias_out.append({"numero": numero, "alias": (lic.alias or "").strip() or None})
+        update_data["licencias"] = licencias_out
+        # For owners, canonical license_number tracks first licencia
+        if update_data.get("role", user.get("role")) == "propietario" and licencias_out:
+            update_data.setdefault("license_number", licencias_out[0]["numero"])
+
     await users_collection.update_one(
         {"id": user_id},
         {"$set": update_data}
     )
-    
+
     return {"message": "Usuario actualizado correctamente"}
 
 
@@ -435,3 +549,209 @@ async def reset_fraud_count(user_id: str, block_type: str = "all", admin: dict =
         await users_collection.update_one({"id": user_id}, update_ops)
     
     return {"message": f"Contador de {user['username']} reseteado correctamente"}
+
+
+# ============ CLIENT MANAGEMENT (ADMIN) ============
+
+_PHONE_RE = re.compile(r"^\+\d{8,15}$")
+
+
+def _norm_phone(v: str) -> str:
+    v = (v or "").strip().replace(" ", "").replace("-", "")
+    if not _PHONE_RE.match(v):
+        raise HTTPException(status_code=400, detail="Telefono debe ir en formato E.164 (ej. +34611223344)")
+    return v
+
+
+def _norm_email(v: Optional[str]) -> Optional[str]:
+    if v is None or v == "":
+        return None
+    v = v.strip().lower()
+    if "@" not in v or "." not in v.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Email no valido")
+    return v
+
+
+class ClientResult(BaseModel):
+    id: str
+    phone: str
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    associated_driver_id: Optional[str] = None
+    associated_driver_name: Optional[str] = None
+    has_password: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class ClientCreateBody(BaseModel):
+    phone: str
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    password: Optional[str] = None
+    associated_driver_id: Optional[str] = None
+
+
+class ClientUpdateBody(BaseModel):
+    phone: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    associated_driver_id: Optional[str] = None
+
+
+class ClientPasswordBody(BaseModel):
+    new_password: str
+
+
+async def _client_to_result(doc: dict) -> ClientResult:
+    driver_name = None
+    if doc.get("associated_driver_id"):
+        drv = await users_collection.find_one({"id": doc["associated_driver_id"]}, {"full_name": 1, "username": 1})
+        if drv:
+            driver_name = drv.get("full_name") or drv.get("username")
+    return ClientResult(
+        id=doc["id"],
+        phone=doc.get("phone", ""),
+        first_name=doc.get("first_name", ""),
+        last_name=doc.get("last_name", ""),
+        email=doc.get("email"),
+        associated_driver_id=doc.get("associated_driver_id"),
+        associated_driver_name=driver_name,
+        has_password=bool(doc.get("password_hash")),
+        created_at=doc.get("created_at", datetime.utcnow()),
+        updated_at=doc.get("updated_at"),
+    )
+
+
+@router.get("/clients", response_model=List[ClientResult])
+async def list_clients(admin: dict = Depends(get_admin_user)):
+    """List all clients (admin only)."""
+    docs = await clients_collection.find().sort("created_at", -1).to_list(1000)
+    return [await _client_to_result(d) for d in docs]
+
+
+@router.get("/clients/search", response_model=List[ClientResult])
+async def search_clients(
+    q: str = Query(..., min_length=1),
+    admin: dict = Depends(get_admin_user),
+):
+    """Search clients by phone / name / email (admin only)."""
+    pattern = re.compile(re.escape(q), re.IGNORECASE)
+    docs = await clients_collection.find({
+        "$or": [
+            {"phone": {"$regex": pattern}},
+            {"first_name": {"$regex": pattern}},
+            {"last_name": {"$regex": pattern}},
+            {"email": {"$regex": pattern}},
+        ]
+    }).limit(100).to_list(100)
+    return [await _client_to_result(d) for d in docs]
+
+
+@router.post("/clients", response_model=ClientResult)
+async def create_client(body: ClientCreateBody, admin: dict = Depends(get_admin_user)):
+    """Create a new client account (admin only)."""
+    phone = _norm_phone(body.phone)
+    if await clients_collection.find_one({"phone": phone}):
+        raise HTTPException(status_code=400, detail="Ya existe un cliente con ese telefono")
+    email = _norm_email(body.email)
+    if email:
+        clash = await clients_collection.find_one({"email": email})
+        if clash:
+            raise HTTPException(status_code=400, detail="Ya existe un cliente con ese email")
+    if body.associated_driver_id:
+        drv = await users_collection.find_one({"id": body.associated_driver_id})
+        if not drv:
+            raise HTTPException(status_code=400, detail="Taxista asociado no encontrado")
+
+    fn = (body.first_name or "").strip()
+    ln = (body.last_name or "").strip()
+    if not fn or not ln:
+        raise HTTPException(status_code=400, detail="Nombre y apellido son obligatorios")
+
+    now = datetime.now(timezone.utc)
+    doc = {
+        "id": str(uuid.uuid4()),
+        "phone": phone,
+        "first_name": fn,
+        "last_name": ln,
+        "email": email,
+        "associated_driver_id": body.associated_driver_id,
+        "password_hash": get_password_hash(body.password) if body.password else None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await clients_collection.insert_one(doc)
+    return await _client_to_result(doc)
+
+
+@router.put("/clients/{client_id}", response_model=ClientResult)
+async def update_client(client_id: str, body: ClientUpdateBody, admin: dict = Depends(get_admin_user)):
+    """Update client fields (admin only)."""
+    doc = await clients_collection.find_one({"id": client_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    update: dict = {"updated_at": datetime.now(timezone.utc)}
+    if body.phone is not None:
+        phone = _norm_phone(body.phone)
+        if phone != doc.get("phone"):
+            clash = await clients_collection.find_one({"phone": phone, "id": {"$ne": client_id}})
+            if clash:
+                raise HTTPException(status_code=400, detail="Ese telefono ya esta en uso")
+        update["phone"] = phone
+    if body.first_name is not None:
+        update["first_name"] = body.first_name.strip()
+    if body.last_name is not None:
+        update["last_name"] = body.last_name.strip()
+    if body.email is not None:
+        email = _norm_email(body.email)
+        if email and email != doc.get("email"):
+            clash = await clients_collection.find_one({"email": email, "id": {"$ne": client_id}})
+            if clash:
+                raise HTTPException(status_code=400, detail="Ese email ya esta en uso")
+        update["email"] = email
+    if body.associated_driver_id is not None:
+        if body.associated_driver_id:
+            drv = await users_collection.find_one({"id": body.associated_driver_id})
+            if not drv:
+                raise HTTPException(status_code=400, detail="Taxista asociado no encontrado")
+        update["associated_driver_id"] = body.associated_driver_id or None
+
+    await clients_collection.update_one({"id": client_id}, {"$set": update})
+    doc = await clients_collection.find_one({"id": client_id})
+    return await _client_to_result(doc)
+
+
+@router.put("/clients/{client_id}/password")
+async def change_client_password(
+    client_id: str, body: ClientPasswordBody, admin: dict = Depends(get_admin_user)
+):
+    """Reset a client's password (admin only)."""
+    if not body.new_password or len(body.new_password) < 4:
+        raise HTTPException(status_code=400, detail="La contrasena debe tener al menos 4 caracteres")
+    doc = await clients_collection.find_one({"id": client_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    await clients_collection.update_one(
+        {"id": client_id},
+        {"$set": {
+            "password_hash": get_password_hash(body.new_password),
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    return {"message": "Contrasena actualizada correctamente"}
+
+
+@router.delete("/clients/{client_id}")
+async def delete_client(client_id: str, admin: dict = Depends(get_admin_user)):
+    """Delete a client (admin only)."""
+    doc = await clients_collection.find_one({"id": client_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    await clients_collection.delete_one({"id": client_id})
+    return {"message": "Cliente eliminado correctamente"}
+

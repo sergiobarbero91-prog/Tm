@@ -26,20 +26,26 @@
 - Endpoint: `POST /api/rides/client/authenticate` with `{phone, first_name, last_name, qr_token, verification_code}`.
 - To rotate the driver's code manually: `POST /api/rides/driver/qr/rotate` (auth required).
 
-### Gmail SMTP (Password Recovery) — configuration
-Optional but required if you want real emails. Add to `/app/backend/.env`:
+### Emergent Managed Email (Password Recovery) — Feb 2026
+El VPS de Clouding bloquea todos los puertos SMTP salientes (25/465/587/2525). Migrado a `integrations.emergentagent.com` (HTTPS/443). Config en `/app/backend/.env`:
+```
+EMERGENT_EMAIL_KEY="ek_..."
+EMAIL_FROM_NAME="As del Volante"
+EMAIL_REPLY_TO="as.del.volante.2026@gmail.com"
+```
+No hace falta cuenta ni verificar dominio. Codigo en `/app/backend/email_service.py` (usa `send_email(...)` async con guardrails G2/G3).
+Las variables SMTP_* siguen en el .env pero no se usan.
+
+### Gmail SMTP (Password Recovery) — LEGADO
+Guarda historial de la config anterior; no usada actualmente (VPS bloquea SMTP).
 ```
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
-SMTP_USERNAME="tu-cuenta@gmail.com"
-SMTP_PASSWORD="tu app password"     # NOT your normal Gmail password
-SMTP_FROM="tu-cuenta@gmail.com"
-FRONTEND_PUBLIC_URL="https://asdelvolante.es"
+SMTP_USERNAME="as.del.volante.2026@gmail.com"
+SMTP_PASSWORD="ygem ibyw dxeq ifea"
+SMTP_FROM="as.del.volante.2026@gmail.com"
+FRONTEND_PUBLIC_URL="https://www.asdelvolante.es/"
 ```
-1. Enable 2FA on the Gmail account.
-2. Go to https://myaccount.google.com/apppasswords and create an app password.
-3. Paste it into `SMTP_PASSWORD`. Restart backend.
-Without those, the backend logs the "email" body instead of sending it (dev mode).
 
 ## Notes
 - `admin` account is seeded by the backend on first run (see auth router).
