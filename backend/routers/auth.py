@@ -71,6 +71,7 @@ async def login(request: Request, login_data: UserLogin):
             full_name=user.get("full_name"),
             license_number=user.get("license_number"),
             phone=user.get("phone"),
+            email=user.get("email"),
             role=user.get("role", "user"),
             preferred_shift=user.get("preferred_shift", "all"),
             created_at=user["created_at"]
@@ -107,6 +108,7 @@ async def get_me(current_user: dict = Depends(get_current_user_required)):
         full_name=current_user.get("full_name"),
         license_number=current_user.get("license_number"),
         phone=current_user.get("phone"),
+        email=current_user.get("email"),
         role=current_user.get("role", "user"),
         preferred_shift=current_user.get("preferred_shift", "all"),
         created_at=current_user["created_at"]
@@ -262,6 +264,7 @@ async def refresh_token(current_user: dict = Depends(get_current_user_required))
             full_name=current_user.get("full_name"),
             license_number=current_user.get("license_number"),
             phone=current_user.get("phone"),
+            email=current_user.get("email"),
             role=current_user.get("role", "user"),
             preferred_shift=current_user.get("preferred_shift", "all"),
             created_at=current_user["created_at"]
@@ -407,6 +410,7 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
         "full_name": register_data.full_name,
         "license_number": primary_license,
         "phone": register_data.phone,
+        "email": (register_data.email or None) and register_data.email.strip().lower() or None,
         "role": role,
         "preferred_shift": register_data.preferred_shift or "all",
         "created_at": now,
@@ -453,6 +457,7 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
             full_name=new_user["full_name"],
             license_number=new_user["license_number"],
             phone=new_user.get("phone"),
+            email=new_user.get("email"),
             role=new_user["role"],
             preferred_shift=new_user["preferred_shift"],
             created_at=new_user["created_at"]
@@ -538,6 +543,7 @@ async def create_registration_request(request: Request, request_data: Registrati
         "full_name": request_data.full_name,
         "license_number": request_data.license_number,
         "phone": request_data.phone,
+        "email": (request_data.email or None) and request_data.email.strip().lower() or None,
         "preferred_shift": request_data.preferred_shift or "all",
         "sponsor_license": request_data.sponsor_license,
         "sponsor_id": sponsor["id"],
@@ -651,6 +657,7 @@ async def approve_registration_request(
         "full_name": reg_request["full_name"],
         "license_number": reg_request["license_number"],
         "phone": reg_request.get("phone"),
+        "email": reg_request.get("email"),
         "role": role_final,
         "preferred_shift": reg_request.get("preferred_shift", "all"),
         "created_at": now,

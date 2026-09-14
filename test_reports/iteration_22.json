@@ -1,0 +1,37 @@
+{
+  "summary": "Tested driver email field in registration form (Bug 1) and Edit Profile modal (Bug 2). Both UI inputs render correctly with expected data-testids, placeholders, and accept typing. Backend persists email correctly in Mongo for PUT /api/auth/profile and POST /api/auth/register-with-invitation. Found and fixed a critical omission where /login, /me, /register-with-invitation, and another /me-like path built UserResponse without email=… — the email was saved in DB but never returned to the frontend, so openProfileModal always showed an empty email even for users that had one. 7/7 backend tests pass (4 new + 3 password_reset regression); 10/10 test_rides regression pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register-with-invitation", "issue": "Line 410 uses convoluted short-circuit expression `(email or None) and email.strip().lower() or None` — works but hard to read; consider explicit `email.strip().lower() if email else None`."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_field.py",
+    "/app/test_reports/pytest/email_field.xml"
+  ],
+  "action_items": [
+    "None blocking — the missing email in UserResponse was fixed here. Main agent should verify the fix in /app/backend/routers/auth.py at lines 68, 104, 259, 451."
+  ],
+  "critical_code_review_comments": [
+    "auth.py: 4 of 5 UserResponse constructions were missing email=… (login, /me, one intermediate handler around line 259, and register-with-invitation). Only PUT /profile included it. This meant the email persisted in DB was never surfaced to the frontend after login/refresh, making the 'Editar Perfil' modal always open with an empty email field. Fixed.",
+    "index.tsx is 22k+ lines — extremely hard to review. Recommend splitting into feature-oriented modules (driver auth, profile, rides, etc.).",
+    "Login form (auth screen) has no data-testid on username/password inputs — only on the submit button. Add data-testid=\"login-username-input\" and \"login-password-input\" for testability."
+  ],
+  "updated_files": [
+    "/app/backend/routers/auth.py (added email= to 4 UserResponse constructions)",
+    "/app/backend/tests/test_email_field.py (new regression test file, 4 tests)"
+  ],
+  "success_rate": {"backend": "100% (7/7 new + regression)", "frontend": "100% (both testIDs render and accept input)"},
+  "test_credentials": "admin / admin (already documented in /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test suite creates and cleans up TEST_reguser_* users and TEST_dupuser; test admin ends with email 'admin+profileput@test.com' persisted — harmless.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both email fields (register-email-input, profile-email-input) are wired end-to-end. To exercise manually: role-picker-driver → login admin/admin → click 'admin' chip top-right → 'Editar Perfil'. Backend regression suite: pytest backend/tests/test_email_field.py backend/tests/test_password_reset.py backend/tests/test_rides.py.",
+  "rca of the issue": "The main agent implemented the frontend inputs and the DB persistence layer (email in Mongo doc, PUT /profile validation with unicity, register-with-invitation persistence) correctly. But when constructing UserResponse for login/me/register-with-invitation responses, the email= keyword was omitted, so Pydantic defaulted to None. Frontend openProfileModal reads currentUser.email, which came from those responses → always empty even when DB had the value. Fix was to add email=user.get('email') to 4 UserResponse constructions in /app/backend/routers/auth.py (lines ~68, 104, 259, 451)."
+}

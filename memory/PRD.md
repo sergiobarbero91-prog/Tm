@@ -793,3 +793,47 @@ Flujo tipo "olvidé mi contraseña" gratis, para taxistas y clientes.
   end-to-end (login con contraseña vieja falla, nueva OK).
 - Total en el módulo Emisora: **13/13 pasan.**
 
+
+## 🐛 Bug fix #9 — Falta campo email en registro y perfil del taxista (Feb 2026)
+
+Reportado por el usuario: la app no permitía introducir un email en el
+registro del taxista ni editarlo en el perfil, imposibilitando el flujo
+de recuperación de contraseña.
+
+### Fixes
+- **Frontend `index.tsx`**:
+  - Nuevo campo `Email (opcional, para recuperar contraseña)` en la pantalla
+    de registro (paso 1). testID `register-email-input`.
+  - Nuevo campo `Email` en el modal `Editar Perfil` con testID
+    `profile-email-input`; se precarga con el email actual del usuario.
+  - `handleRegister` y `handleUpdateProfile` envían `email` en el payload.
+- **Backend `shared.py`**:
+  - `RegisterWithInvitation`, `RegistrationRequestCreate` y `UserResponse`
+    ahora incluyen `email` opcional.
+- **Backend `routers/auth.py`**:
+  - `register_with_invitation`, `create_registration_request` y
+    `approve_registration_request` persisten `email` (trim + lowercase).
+  - **Fix crítico añadido por el testing agent**: `login`, `get_me` y
+    `refresh_token` construían `UserResponse` sin `email=…`, lo cual
+    hacía que el email se guardase en Mongo pero nunca volviese al
+    frontend, y el modal "Editar Perfil" apareciese siempre vacío.
+
+### Verificado por testing_agent (iteration_22)
+- Ambos inputs renderizan con los data-testids correctos y aceptan texto.
+- Backend persiste `email` en `PUT /api/auth/profile` y
+  `POST /api/auth/register-with-invitation`.
+- Regresiones: 10/10 en `test_rides.py`, 3/3 en `test_password_reset.py`.
+
+
+
+### ✅ SMTP Gmail configurado en produccion (Feb 2026)
+- `/app/backend/.env` — anadidos valores reales:
+  - `SMTP_HOST=smtp.gmail.com`
+  - `SMTP_PORT=587`
+  - `SMTP_USERNAME=as.del.volante.2026@gmail.com`
+  - `SMTP_PASSWORD=<app password Gmail 16 chars>`
+  - `SMTP_FROM=as.del.volante.2026@gmail.com`
+  - `FRONTEND_PUBLIC_URL=https://www.asdelvolante.es/`
+- Backend reiniciado; prueba real `send_email()` devolvio `True` y correo
+  entregado a la propia cuenta. Flujo de recuperacion de contrasena (drivers
+  y clientes) operativo en produccion.

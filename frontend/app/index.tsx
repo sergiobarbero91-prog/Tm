@@ -1409,6 +1409,7 @@ function TransportMeter() {
   const [registerFullName, setRegisterFullName] = useState('');
   const [registerLicenseNumber, setRegisterLicenseNumber] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
   const [registerPreferredShift, setRegisterPreferredShift] = useState<'all' | 'day' | 'night'>('all');
   const [registerLoading, setRegisterLoading] = useState(false);
   const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
@@ -1556,6 +1557,7 @@ function TransportMeter() {
   const [profileFullName, setProfileFullName] = useState('');
   const [profileLicenseNumber, setProfileLicenseNumber] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
   const [profilePreferredShift, setProfilePreferredShift] = useState<'all' | 'day' | 'night'>('all');
   const [profileLoading, setProfileLoading] = useState(false);
   
@@ -2447,6 +2449,7 @@ function TransportMeter() {
           full_name: registerFullName,
           license_number: licenseNumberForRequest,
           phone: registerPhone || null,
+          email: registerEmail.trim().toLowerCase() || null,
           preferred_shift: registerPreferredShift,
           role: isOwner ? 'propietario' : 'conductor',
           licencias: licenciasClean,
@@ -2467,6 +2470,7 @@ function TransportMeter() {
           full_name: registerFullName,
           license_number: licenseNumberForRequest,
           phone: registerPhone || null,
+          email: registerEmail.trim().toLowerCase() || null,
           preferred_shift: registerPreferredShift,
           sponsor_license: sponsorLicense.trim(),
           role: isOwner ? 'propietario' : 'conductor',
@@ -2495,6 +2499,7 @@ function TransportMeter() {
     setRegisterFullName('');
     setRegisterLicenseNumber('');
     setRegisterPhone('');
+    setRegisterEmail('');
     setRegisterPreferredShift('all');
     setAcceptPrivacyPolicy(false);
     setAcceptGoodUse(false);
@@ -2724,6 +2729,7 @@ function TransportMeter() {
       setProfileFullName(currentUser.full_name || '');
       setProfileLicenseNumber(currentUser.license_number || '');
       setProfilePhone(currentUser.phone || '');
+      setProfileEmail((currentUser as any).email || '');
       setProfilePreferredShift((currentUser.preferred_shift as 'all' | 'day' | 'night') || 'all');
       setShowEditProfileModal(true);
     }
@@ -2748,6 +2754,7 @@ function TransportMeter() {
         full_name: profileFullName,
         license_number: profileLicenseNumber,
         phone: profilePhone || null,
+        email: profileEmail.trim().toLowerCase() || null,
         preferred_shift: profilePreferredShift
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -8622,6 +8629,20 @@ function TransportMeter() {
                         value={registerPhone}
                         onChangeText={setRegisterPhone}
                         keyboardType="phone-pad"
+                      />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="mail-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.loginScreenInput}
+                        placeholder="Email (opcional, para recuperar contraseña)"
+                        placeholderTextColor="#64748B"
+                        value={registerEmail}
+                        onChangeText={setRegisterEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        testID="register-email-input"
                       />
                     </View>
 
@@ -19646,6 +19667,7 @@ function TransportMeter() {
                     setProfileFullName(currentUser?.full_name || '');
                     setProfileLicenseNumber(currentUser?.license_number || '');
                     setProfilePhone(currentUser?.phone || '');
+                    setProfileEmail(((currentUser as any)?.email) || '');
                     setProfilePreferredShift((currentUser?.preferred_shift as 'all' | 'day' | 'night') || 'all');
                     setShowEditProfileModal(true);
                   }}
@@ -19745,6 +19767,20 @@ function TransportMeter() {
                     placeholder="Tu número de teléfono"
                     placeholderTextColor="#6B7280"
                     keyboardType="phone-pad"
+                  />
+                </View>
+
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>Email (para recuperar contraseña)</Text>
+                  <TextInput
+                    style={styles.profileInput}
+                    value={profileEmail}
+                    onChangeText={setProfileEmail}
+                    placeholder="tu@email.com"
+                    placeholderTextColor="#6B7280"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    testID="profile-email-input"
                   />
                 </View>
                 

@@ -196,6 +196,7 @@ class RegistrationRequestCreate(BaseModel):
     full_name: str
     license_number: str
     phone: Optional[str] = None
+    email: Optional[str] = None
     preferred_shift: Optional[str] = "all"
     sponsor_license: str  # License of the user who will approve
     # Nuevo (opcional): permite que un propietario también solicite registro.
@@ -226,6 +227,7 @@ class RegisterWithInvitation(BaseModel):
     full_name: str
     license_number: str
     phone: Optional[str] = None
+    email: Optional[str] = None
     preferred_shift: Optional[str] = "all"
     # Nuevo (opcional): permite propietario también con invitación.
     role: Optional[str] = "conductor"
