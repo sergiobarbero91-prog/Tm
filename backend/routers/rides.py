@@ -1345,3 +1345,37 @@ async def driver_history(current: dict = Depends(get_current_user_required)):
         out.append(await _ride_history_item(r, "driver", current["id"]))
     return out
 
+
+class RatingSummaryBody(BaseModel):
+    user_ids: List[str]
+
+
+@router.post("/rating-summary")
+async def rating_summary(body: RatingSummaryBody, _who: dict = Depends(get_current_any)):
+    """Return average rating + count over the LAST 50 ratings received per user_id.
+
+    Frontend calls this in batch (drivers looking at client ratings, clients
+    looking at driver ratings). Empty ids returns empty dict.
+    """
+    out: dict = {}
+    unique_ids = [uid for uid in {u for u in body.user_ids if u}][:200]
+    if not unique_ids:
+        return out
+    for uid in unique_ids:
+        cursor = ride_ratings_collection.find(
+            {"to_id": uid}, {"stars": 1}
+        ).sort("created_at", -1).limit(50)
+        stars: list = []
+        async for r in cursor:
+            s = r.get("stars")
+            if isinstance(s, (int, float)) and 1 <= s <= 5:
+                stars.append(float(s))
+        if stars:
+            out[uid] = {
+                "avg": round(sum(stars) / len(stars), 2),
+                "count": len(stars),
+            }
+        else:
+            out[uid] = {"avg": None, "count": 0}
+    return out
+

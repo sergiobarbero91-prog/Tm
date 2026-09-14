@@ -24,6 +24,7 @@ import QRCode from 'react-qr-code';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { RideHistoryPanel } from './RideHistoryPanel';
+import { RatingBadge, useUserRatings } from './RatingBadge';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -35,6 +36,7 @@ type Ride = {
   scheduled_at: string | null;
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_scope: 'assigned' | 'open';
+  client_id: string;
   client_name: string;
   client_phone: string;
   passengers: number;
@@ -179,6 +181,13 @@ export const EmisoraDriverSection: React.FC = () => {
     return () => clearInterval(t);
   }, [refresh]);
 
+  // Fetch client ratings for every visible ride so we can display the badge.
+  const clientIds = React.useMemo(
+    () => [...assigned, ...offers, ...active].map(r => r.client_id),
+    [assigned, offers, active],
+  );
+  const ratings = useUserRatings(clientIds, 'token');
+
   const totalBadge = assigned.length + offers.length;
 
   const accept = async (id: string) => {
@@ -253,9 +262,12 @@ export const EmisoraDriverSection: React.FC = () => {
         </View>
         <Text style={{ color: '#F1F5F9', fontWeight: '700' }}>{r.origin}</Text>
         <Text style={{ color: '#94A3B8', fontSize: 12 }}>→ {r.destination}</Text>
-        <Text style={{ color: '#60A5FA', fontSize: 12, marginTop: 4 }}>
-          <Ionicons name="person" size={11} /> {r.client_name} · {r.client_phone}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+          <Text style={{ color: '#60A5FA', fontSize: 12 }}>
+            <Ionicons name="person" size={11} /> {r.client_name} · {r.client_phone}
+          </Text>
+          <RatingBadge rating={ratings[r.client_id]} testID={`emisora-driver-client-rating-${r.id}`} />
+        </View>
 
         {/* Persistent "call client" reminder when the driver has accepted the ride */}
         {variant === 'active' && r.client_phone ? (

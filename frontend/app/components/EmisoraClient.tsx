@@ -22,6 +22,7 @@ import axios from 'axios';
 import { calculateEstimatedFare, type FareResult } from '../utils/fareEstimator';
 import { DateTimePicker } from './DateTimePicker';
 import { RideHistoryPanel } from './RideHistoryPanel';
+import { RatingBadge, useUserRatings } from './RatingBadge';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -44,6 +45,7 @@ type Ride = {
   scheduled_at: string | null;
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_scope: 'assigned' | 'open';
+  accepted_by_driver_id: string | null;
   accepted_by_driver_name: string | null;
   accepted_by_driver_phone: string | null;
   passengers: number;
@@ -177,6 +179,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     const t = setInterval(refreshRides, 15000);
     return () => clearInterval(t);
   }, [client, refreshRides, refreshFrequentAddresses]);
+
+  // Fetch ratings of every taxista who accepted one of my rides.
+  const driverIds = React.useMemo(
+    () => rides.map(r => r.accepted_by_driver_id).filter((x): x is string => !!x),
+    [rides],
+  );
+  const driverRatings = useUserRatings(driverIds, CLIENT_TOKEN_KEY);
 
   const handleAuthenticate = async () => {
     setAuthError(null);
@@ -764,9 +773,17 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
               <Text style={{ color: '#F1F5F9', fontWeight: '700' }}>{r.origin}</Text>
               <Text style={{ color: '#94A3B8', fontSize: 12 }}>→ {r.destination}</Text>
               {r.accepted_by_driver_name && (
-                <Text style={{ color: '#3B82F6', marginTop: 6, fontSize: 12 }}>
-                  <Ionicons name="person" size={11} /> Taxista: {r.accepted_by_driver_name}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                  <Text style={{ color: '#3B82F6', fontSize: 12 }}>
+                    <Ionicons name="person" size={11} /> Taxista: {r.accepted_by_driver_name}
+                  </Text>
+                  {r.accepted_by_driver_id && (
+                    <RatingBadge
+                      rating={driverRatings[r.accepted_by_driver_id]}
+                      testID={`emisora-driver-rating-${r.id}`}
+                    />
+                  )}
+                </View>
               )}
               {(r.status === 'accepted' || r.status === 'in_progress') && r.accepted_by_driver_phone && (
                 <TouchableOpacity

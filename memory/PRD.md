@@ -901,3 +901,13 @@ de recuperación de contraseña.
 - Frontend: nuevo componente `RideHistoryPanel.tsx` reutilizable con estrellas, boton Reportar y Bloquear + lista de bloqueos con desbloqueo. Integrado en cabecera de `EmisoraClient` (icono reloj) y en el header de `EmisoraDriverSection` (boton "Historial").
 - Tests `tests/test_ride_extras.py` (4/4 pasan): rating bidireccional, bloqueo filtra offers, reporte crea entrada moderacion, tercero no puede calificar.
 
+
+### ✅ Valoracion media visible en cabecera (Feb 2026)
+- Nuevo endpoint batch `POST /api/rides/rating-summary` (auth: driver o cliente). Recibe `{user_ids: [...]}` y devuelve `{user_id: {avg, count}}` calculado sobre las ULTIMAS 50 valoraciones recibidas por cada usuario.
+- Nuevo componente `RatingBadge.tsx` + hook `useUserRatings(userIds, tokenKey)` que hace la peticion en batch cuando cambia la lista visible (deduplicacion + cache por clave `join(',')` para evitar refetches innecesarios).
+- Integrado en:
+  - `EmisoraDriverSection`: al lado del nombre del cliente en cada tarjeta (ofertas, reservadas, en curso).
+  - `EmisoraClient`: al lado del nombre del taxista en cada tarjeta de "Mis servicios" cuando el ride esta aceptado o en curso.
+- Estilo del badge: pill con color por tramo (verde >=4.5, ambar >=3.5, rojo <3.5) y placeholder gris "Sin valoraciones" cuando el usuario aun no acumula rating.
+- Tests `test_rating_summary_averages_last_ratings` y `test_rating_summary_requires_auth` (6/6 pasan en total).
+

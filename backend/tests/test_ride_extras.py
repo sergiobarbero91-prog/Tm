@@ -164,3 +164,67 @@ def test_third_party_cannot_rate_ride():
     finally:
         _cleanup(phone1)
         _cleanup(phone2)
+
+
+def test_rating_summary_averages_last_ratings():
+    """Rating summary must average all ratings received (bounded to last 50)."""
+    phone = f"+346556{int(time.time()) % 10000:04d}"
+    ct = _mk_client(phone)
+    dt = _admin_token()
+    try:
+        # Get driver id
+        me = requests.get(f"{API}/auth/me", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+        drv_id = me["id"]
+        client_me = requests.get(f"{API}/rides/client/me", headers={"Authorization": f"Bearer {ct}"}, timeout=10).json()
+        client_id = client_me["id"]
+
+        # Run 2 rides and rate each in both directions with different stars.
+        for stars_pair in [(5, 4), (3, 2)]:
+            rid = _run_ride(ct, dt)
+            requests.post(
+                f"{API}/rides/rides/{rid}/rate",
+                json={"stars": stars_pair[0]},
+                headers={"Authorization": f"Bearer {ct}"},
+                timeout=10,
+            ).raise_for_status()
+            requests.post(
+                f"{API}/rides/rides/{rid}/rate",
+                json={"stars": stars_pair[1]},
+                headers={"Authorization": f"Bearer {dt}"},
+                timeout=10,
+            ).raise_for_status()
+
+        # Driver looks up the client's rating (client received 4 and 2 -> avg 3.0)
+        r = requests.post(
+            f"{API}/rides/rating-summary",
+            json={"user_ids": [client_id, "does-not-exist"]},
+            headers={"Authorization": f"Bearer {dt}"},
+            timeout=10,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data[client_id]["count"] == 2
+        assert abs(data[client_id]["avg"] - 3.0) < 0.01
+        assert data["does-not-exist"]["count"] == 0
+        assert data["does-not-exist"]["avg"] is None
+
+        # Client looks up the driver's rating. Admin/driver is reused across
+        # tests so we only assert that the newly-added ratings are part of the
+        # summary (count grew by >=2, avg within [1, 5]).
+        r2 = requests.post(
+            f"{API}/rides/rating-summary",
+            json={"user_ids": [drv_id]},
+            headers={"Authorization": f"Bearer {ct}"},
+            timeout=10,
+        )
+        assert r2.status_code == 200
+        drv_summary = r2.json()[drv_id]
+        assert drv_summary["count"] >= 2
+        assert 1.0 <= drv_summary["avg"] <= 5.0
+    finally:
+        _cleanup(phone)
+
+
+def test_rating_summary_requires_auth():
+    r = requests.post(f"{API}/rides/rating-summary", json={"user_ids": ["x"]}, timeout=10)
+    assert r.status_code == 401
