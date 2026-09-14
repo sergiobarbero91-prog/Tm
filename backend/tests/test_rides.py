@@ -45,10 +45,19 @@ def _client_login(phone: str, first_name: str, last_name: str, driver_token: str
     return r.json()["access_token"]
 
 
+_DRIVER_TOKEN: str | None = None
+
+
 def _driver_login(username: str = "admin", password: str = "admin") -> str:
+    """Login once and cache the token to avoid hitting the auth rate limiter
+    across the whole test file."""
+    global _DRIVER_TOKEN
+    if _DRIVER_TOKEN:
+        return _DRIVER_TOKEN
     r = requests.post(f"{API}/auth/login", json={"username": username, "password": password}, timeout=10)
     r.raise_for_status()
-    return r.json()["access_token"]
+    _DRIVER_TOKEN = r.json()["access_token"]
+    return _DRIVER_TOKEN
 
 
 def test_client_rejected_when_verification_code_is_wrong():
@@ -74,6 +83,67 @@ def test_driver_qr_rotate_generates_new_code():
     q2 = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
     assert q1["token"] == q2["token"], "same driver keeps same QR token"
     assert q1["verification_code"] != q2["verification_code"], "rotating changes the code"
+
+
+def test_client_can_set_password_and_log_in_with_it():
+    dt = _driver_login()
+    qr = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+
+    # 1) Register through code, setting a password on the way
+    reg = requests.post(
+        f"{API}/rides/client/authenticate",
+        json={
+            "phone": "+34600888777",
+            "first_name": "Pw",
+            "last_name": "User",
+            "qr_token": qr["token"],
+            "verification_code": qr["verification_code"],
+            "password": "strongpass",
+        },
+        timeout=10,
+    )
+    assert reg.status_code == 200
+
+    # 2) Log back in with phone + password (no QR/code needed)
+    lo = requests.post(
+        f"{API}/rides/client/login",
+        json={"phone": "+34600888777", "password": "strongpass"},
+        timeout=10,
+    )
+    assert lo.status_code == 200
+    assert lo.json()["client"]["phone"] == "+34600888777"
+
+    # 3) Wrong password rejected
+    bad = requests.post(
+        f"{API}/rides/client/login",
+        json={"phone": "+34600888777", "password": "wrong"},
+        timeout=10,
+    )
+    assert bad.status_code == 401
+
+
+def test_login_fails_when_account_has_no_password():
+    dt = _driver_login()
+    qr = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+    # Register WITHOUT password
+    requests.post(
+        f"{API}/rides/client/authenticate",
+        json={
+            "phone": "+34600888778",
+            "first_name": "Nopw",
+            "last_name": "User",
+            "qr_token": qr["token"],
+            "verification_code": qr["verification_code"],
+        },
+        timeout=10,
+    )
+    r = requests.post(
+        f"{API}/rides/client/login",
+        json={"phone": "+34600888778", "password": "anything"},
+        timeout=10,
+    )
+    assert r.status_code == 400
+    assert "contraseña" in r.json()["detail"].lower()
 
 
 def test_client_can_register_and_create_asap_ride():

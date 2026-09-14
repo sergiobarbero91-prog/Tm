@@ -40,6 +40,8 @@ from shared import (
     security,
     get_current_user_required,
     logger,
+    get_password_hash,
+    verify_password,
 )
 
 router = APIRouter(prefix="/rides", tags=["rides"])
@@ -270,6 +272,9 @@ class ClientAuthenticateBody(BaseModel):
     last_name: Optional[str] = None
     qr_token: str
     verification_code: str  # 6-digit code shown on the driver's screen
+    # Optional password the client can set during code-based signup so they
+    # can log back in later without asking the taxista for a new code.
+    password: Optional[str] = None
 
     @validator("phone")
     def _norm_phone(cls, v: str) -> str:  # noqa: N805
@@ -282,12 +287,55 @@ class ClientAuthenticateBody(BaseModel):
             raise ValueError("El código debe tener 6 dígitos")
         return v
 
+    @validator("password")
+    def _norm_pw(cls, v: Optional[str]) -> Optional[str]:  # noqa: N805
+        if v is None or v == "":
+            return None
+        if len(v) < 4:
+            raise ValueError("La contraseña debe tener al menos 4 caracteres")
+        return v
+
+
+class ClientLoginBody(BaseModel):
+    """Password-based login for returning clients (no QR/code needed)."""
+    phone: str
+    password: str
+
+    @validator("phone")
+    def _norm_phone(cls, v: str) -> str:  # noqa: N805
+        return SendOtpBody._norm_phone(v)
+
+
+class ClientSetPasswordBody(BaseModel):
+    password: str
+
+    @validator("password")
+    def _norm(cls, v: str) -> str:  # noqa: N805
+        if len(v) < 4:
+            raise ValueError("La contraseña debe tener al menos 4 caracteres")
+        return v
+
+
+def _client_token(doc: dict) -> ClientTokenResponse:
+    token = create_access_token({"sub": doc["id"], "ct": "client"}, expires_delta=timedelta(days=30))
+    return ClientTokenResponse(
+        access_token=token,
+        client=ClientResponse(
+            id=doc["id"],
+            phone=doc["phone"],
+            first_name=doc.get("first_name", ""),
+            last_name=doc.get("last_name", ""),
+            associated_driver_id=doc.get("associated_driver_id"),
+            created_at=doc["created_at"],
+        ),
+    )
+
 
 @router.post("/client/authenticate", response_model=ClientTokenResponse)
 async def client_authenticate(body: ClientAuthenticateBody):
     """Register or log in a client using the code shown on the taxista's screen.
-    This replaces the SMS OTP flow: verification is done by physical presence
-    (the client can only get the code from the driver in person).
+    Optionally sets a password so the client can log back in with phone+password
+    later, without needing another code from the driver.
     """
     qr = await driver_qrs_collection.find_one({"token": body.qr_token})
     if not qr:
@@ -306,6 +354,8 @@ async def client_authenticate(body: ClientAuthenticateBody):
             update["first_name"] = body.first_name.strip()
         if body.last_name and not doc.get("last_name"):
             update["last_name"] = body.last_name.strip()
+        if body.password:
+            update["password_hash"] = get_password_hash(body.password)
         # Always update the last associated driver so newest QR wins
         update["associated_driver_id"] = associated_driver_id
         await clients_collection.update_one({"id": doc["id"]}, {"$set": update})
@@ -323,23 +373,43 @@ async def client_authenticate(body: ClientAuthenticateBody):
             "first_name": body.first_name.strip(),
             "last_name": body.last_name.strip(),
             "associated_driver_id": associated_driver_id,
+            "password_hash": get_password_hash(body.password) if body.password else None,
             "created_at": now,
             "updated_at": now,
         }
         await clients_collection.insert_one(doc)
 
-    token = create_access_token({"sub": doc["id"], "ct": "client"}, expires_delta=timedelta(days=30))
-    return ClientTokenResponse(
-        access_token=token,
-        client=ClientResponse(
-            id=doc["id"],
-            phone=doc["phone"],
-            first_name=doc.get("first_name", ""),
-            last_name=doc.get("last_name", ""),
-            associated_driver_id=doc.get("associated_driver_id"),
-            created_at=doc["created_at"],
-        ),
+    return _client_token(doc)
+
+
+@router.post("/client/login", response_model=ClientTokenResponse)
+async def client_login(body: ClientLoginBody):
+    """Log in an existing client using phone + password. No QR/code required."""
+    doc = await clients_collection.find_one({"phone": body.phone})
+    if not doc:
+        raise HTTPException(status_code=404, detail="No hay cuenta con ese teléfono")
+    pw_hash = doc.get("password_hash")
+    if not pw_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Esta cuenta no tiene contraseña. Pídele al taxista un código nuevo para acceder y esta vez fija tu contraseña.",
+        )
+    if not verify_password(body.password, pw_hash):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+    return _client_token(doc)
+
+
+@router.post("/client/set-password", status_code=204)
+async def client_set_password(
+    body: ClientSetPasswordBody,
+    current: dict = Depends(get_current_client_required),
+):
+    """Allow a logged-in client to set/change their password."""
+    await clients_collection.update_one(
+        {"id": current["id"]},
+        {"$set": {"password_hash": get_password_hash(body.password), "updated_at": datetime.now(timezone.utc)}},
     )
+    return
 
 
 # ───────────────────────── Driver QR endpoints ─────────────────────────

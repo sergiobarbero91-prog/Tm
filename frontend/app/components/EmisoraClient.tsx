@@ -75,10 +75,12 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [associatedDriverName, setAssociatedDriverName] = useState<string | null>(null);
 
   // Auth flow state (driver-code, NOT SMS)
+  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [phone, setPhone] = useState('+34');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [password, setPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -167,6 +169,10 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       setAuthError('El código son 6 dígitos que verás en la pantalla del taxista');
       return;
     }
+    if (password && password.length < 4) {
+      setAuthError('La contraseña debe tener al menos 4 caracteres');
+      return;
+    }
     setAuthBusy(true);
     try {
       const r = await axios.post(`${API_BASE}/api/rides/client/authenticate`, {
@@ -175,6 +181,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         last_name: lastName,
         qr_token: qrToken,
         verification_code: verificationCode,
+        password: password || null,
       });
       await AsyncStorage.setItem(CLIENT_TOKEN_KEY, r.data.access_token);
       await AsyncStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(r.data.client));
@@ -186,11 +193,40 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     }
   };
 
+  const handleLogin = async () => {
+    setAuthError(null);
+    if (!phone.startsWith('+') || phone.length < 8) {
+      setAuthError('Introduce tu teléfono con prefijo (ej. +34611223344)');
+      return;
+    }
+    if (!password || password.length < 4) {
+      setAuthError('Escribe tu contraseña');
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const r = await axios.post(`${API_BASE}/api/rides/client/login`, { phone, password });
+      await AsyncStorage.setItem(CLIENT_TOKEN_KEY, r.data.access_token);
+      await AsyncStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(r.data.client));
+      setClient(r.data.client);
+    } catch (e: any) {
+      setAuthError(e?.response?.data?.detail || 'No se pudo iniciar sesión');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  // If the user landed via a driver's QR, default to signup mode.
+  useEffect(() => {
+    if (qrToken) setAuthMode('signup');
+  }, [qrToken]);
+
   const handleLogout = async () => {
     await AsyncStorage.multiRemove([CLIENT_TOKEN_KEY, CLIENT_INFO_KEY]);
     setClient(null);
     setRides([]);
     setVerificationCode('');
+    setPassword('');
     setPhone('+34');
     setFirstName('');
     setLastName('');
@@ -272,29 +308,45 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
         <Header title="Solicitar taxi" />
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <Ionicons name="car-sport" size={38} color="#0F172A" />
+          <View style={{ alignItems: 'center', marginBottom: 18 }}>
+            <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <Ionicons name="car-sport" size={36} color="#0F172A" />
             </View>
             <Text style={{ color: '#F1F5F9', fontSize: 22, fontWeight: '800' }}>Pide tu taxi</Text>
-            <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 6, textAlign: 'center' }}>
-              Para verificarte introduce el código que te enseña el taxista en su pantalla.
-            </Text>
-            {associatedDriverName && (
-              <View style={{ marginTop: 12, backgroundColor: '#1E293B', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
-                <Text style={{ color: '#F1F5F9', fontSize: 13 }}>
-                  Vas a quedar asociado al taxista <Text style={{ fontWeight: '700', color: '#F59E0B' }}>{associatedDriverName}</Text>
-                </Text>
-              </View>
-            )}
-            {!hasQr && (
-              <View style={{ marginTop: 12, backgroundColor: '#7F1D1D', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EF4444' }}>
-                <Text style={{ color: '#FEE2E2', fontSize: 13, textAlign: 'center' }}>
-                  Pídele al taxista que te enseñe su QR y escanéalo con la cámara del móvil.
-                </Text>
-              </View>
-            )}
           </View>
+
+          {/* Segmented switch: Ya tengo cuenta / Primera vez */}
+          <View style={{ flexDirection: 'row', backgroundColor: '#1E293B', borderRadius: 12, padding: 4, marginBottom: 18 }}>
+            <TouchableOpacity
+              onPress={() => { setAuthMode('login'); setAuthError(null); }}
+              style={{ flex: 1, backgroundColor: authMode === 'login' ? '#F59E0B' : 'transparent', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+              testID="emisora-mode-login"
+            >
+              <Text style={{ color: authMode === 'login' ? '#0F172A' : '#94A3B8', fontWeight: '700', fontSize: 13 }}>Ya tengo cuenta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setAuthMode('signup'); setAuthError(null); }}
+              style={{ flex: 1, backgroundColor: authMode === 'signup' ? '#F59E0B' : 'transparent', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+              testID="emisora-mode-signup"
+            >
+              <Text style={{ color: authMode === 'signup' ? '#0F172A' : '#94A3B8', fontWeight: '700', fontSize: 13 }}>Primera vez</Text>
+            </TouchableOpacity>
+          </View>
+
+          {associatedDriverName && authMode === 'signup' && (
+            <View style={{ marginBottom: 12, backgroundColor: '#1E293B', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
+              <Text style={{ color: '#F1F5F9', fontSize: 13 }}>
+                Vas a quedar asociado al taxista <Text style={{ fontWeight: '700', color: '#F59E0B' }}>{associatedDriverName}</Text>
+              </Text>
+            </View>
+          )}
+          {!hasQr && authMode === 'signup' && (
+            <View style={{ marginBottom: 12, backgroundColor: '#7F1D1D', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EF4444' }}>
+              <Text style={{ color: '#FEE2E2', fontSize: 13, textAlign: 'center' }}>
+                Para registrarte pídele al taxista que te enseñe su QR y escanéalo con la cámara del móvil.
+              </Text>
+            </View>
+          )}
 
           <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Teléfono</Text>
           <TextInput
@@ -306,47 +358,66 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
             keyboardType="phone-pad"
             testID="emisora-phone-input"
           />
-          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Nombre</Text>
+
+          {authMode === 'signup' && (
+            <>
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Nombre</Text>
+              <TextInput
+                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
+                placeholder="Tu nombre"
+                placeholderTextColor="#64748B"
+                value={firstName}
+                onChangeText={setFirstName}
+                testID="emisora-firstname-input"
+              />
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Apellido</Text>
+              <TextInput
+                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
+                placeholder="Tu apellido"
+                placeholderTextColor="#64748B"
+                value={lastName}
+                onChangeText={setLastName}
+                testID="emisora-lastname-input"
+              />
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Código del taxista (6 dígitos)</Text>
+              <TextInput
+                style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: hasQr ? '#F59E0B' : '#334155', marginBottom: 12, fontSize: 22, textAlign: 'center', letterSpacing: 10, fontWeight: '700' }}
+                placeholder="000000"
+                placeholderTextColor="#475569"
+                value={verificationCode}
+                onChangeText={t => setVerificationCode(t.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                testID="emisora-code-input"
+              />
+            </>
+          )}
+
+          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>
+            Contraseña {authMode === 'signup' && <Text style={{ color: '#64748B', fontSize: 11 }}>(opcional pero recomendado)</Text>}
+          </Text>
           <TextInput
-            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
-            placeholder="Tu nombre"
+            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12, fontSize: 16 }}
+            placeholder={authMode === 'signup' ? 'Elige una contraseña para poder volver' : 'Tu contraseña'}
             placeholderTextColor="#64748B"
-            value={firstName}
-            onChangeText={setFirstName}
-            testID="emisora-firstname-input"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            testID="emisora-password-input"
           />
-          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Apellido</Text>
-          <TextInput
-            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 12 }}
-            placeholder="Tu apellido"
-            placeholderTextColor="#64748B"
-            value={lastName}
-            onChangeText={setLastName}
-            testID="emisora-lastname-input"
-          />
-          <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 6 }}>Código del taxista (6 dígitos)</Text>
-          <TextInput
-            style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 14, color: '#F1F5F9', borderWidth: 1, borderColor: hasQr ? '#F59E0B' : '#334155', marginBottom: 12, fontSize: 22, textAlign: 'center', letterSpacing: 10, fontWeight: '700' }}
-            placeholder="000000"
-            placeholderTextColor="#475569"
-            value={verificationCode}
-            onChangeText={t => setVerificationCode(t.replace(/\D/g, '').slice(0, 6))}
-            keyboardType="number-pad"
-            maxLength={6}
-            testID="emisora-code-input"
-          />
+
           {authError && (
             <View style={{ backgroundColor: '#7F1D1D', borderRadius: 8, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#EF4444' }}>
               <Text style={{ color: '#FEE2E2', fontSize: 13 }}>{authError}</Text>
             </View>
           )}
           <TouchableOpacity
-            onPress={handleAuthenticate}
-            disabled={authBusy || !hasQr}
-            style={{ backgroundColor: hasQr ? '#F59E0B' : '#334155', padding: 14, borderRadius: 10, alignItems: 'center' }}
-            testID="emisora-authenticate-btn"
+            onPress={authMode === 'signup' ? handleAuthenticate : handleLogin}
+            disabled={authBusy || (authMode === 'signup' && !hasQr)}
+            style={{ backgroundColor: (authMode === 'login' || hasQr) ? '#F59E0B' : '#334155', padding: 14, borderRadius: 10, alignItems: 'center' }}
+            testID={authMode === 'signup' ? 'emisora-authenticate-btn' : 'emisora-login-btn'}
           >
-            {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>Entrar</Text>}
+            {authBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>{authMode === 'signup' ? 'Crear cuenta' : 'Entrar'}</Text>}
           </TouchableOpacity>
         </ScrollView>
       </View>

@@ -712,3 +712,36 @@ llamar directamente al otro. Se abre el marcador nativo (`tel:` link).
 - Nuevo test `test_client_sees_driver_phone_after_accept` confirma que el
   cliente ve el teléfono del taxista al hacer polling. **8/8 pasan.**
 
+
+## 🔐 Emisora — Cliente password login (Feb 2026)
+
+Los clientes ya no dependen del código del taxista para volver a la app.
+
+### Backend
+- `clients` guarda `password_hash` (bcrypt, reutilizando el `pwd_context`
+  del resto de la app).
+- `POST /api/rides/client/authenticate` acepta un campo opcional `password`.
+  Si se envía en el alta con código, la contraseña se hashea y almacena.
+- Nuevo `POST /api/rides/client/login` con `{phone, password}` — devuelve JWT
+  cliente (30 días). No requiere QR/código.
+- Nuevo `POST /api/rides/client/set-password` (auth cliente) para fijar o
+  cambiar la contraseña una vez ya está dentro.
+- Mensaje de error explícito si el cliente intenta login pero su cuenta se
+  creó sin contraseña: le pide un código nuevo al taxista.
+
+### Frontend `EmisoraClient.tsx`
+- Segmentado "Ya tengo cuenta" / "Primera vez" en la pantalla de auth.
+- Modo **Login**: teléfono + contraseña, sin QR ni código. Botón Entrar.
+- Modo **Signup**: teléfono, nombre, apellido, código del taxista y un
+  nuevo campo "Contraseña (opcional pero recomendado)" para poder volver.
+- Cuando el usuario llega con `?cliente_qr=...` el modo Signup se activa
+  automáticamente por defecto.
+
+### Tests
+- `test_client_can_set_password_and_log_in_with_it` — alta con password,
+  login por phone+password, rechazo con password incorrecta.
+- `test_login_fails_when_account_has_no_password` — mensaje 400 con
+  instrucciones cuando la cuenta no tiene contraseña.
+- Cache de token admin dentro de los tests para no toparse con el rate
+  limiter del /api/auth/login. **10/10 pasan.**
+
