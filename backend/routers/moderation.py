@@ -29,6 +29,7 @@ db = client[os.environ['DB_NAME']]
 
 # Collections
 reports_collection = db['reports']
+report_messages_collection = db['report_messages']
 promotion_requests_collection = db['promotion_requests']
 
 router = APIRouter(prefix="/moderation", tags=["Moderation"])
@@ -56,6 +57,17 @@ class AdminDecision(BaseModel):
     approved: bool  # True = valid report, False = invalid
     admin_notes: Optional[str] = None
     ban_duration: Optional[str] = None  # "6h", "12h", "48h", "permanent", or null
+
+
+class ReportMessageCreate(BaseModel):
+    """Payload to post a new message in a report thread."""
+    body: str
+
+
+class ReportStatusUpdate(BaseModel):
+    """Payload for flexible status changes (staff only)."""
+    status: str  # 'in_progress' | 'awaiting_reporter' | 'resolved'
+    note: Optional[str] = None
 
 class PromotionDecision(BaseModel):
     """Model for promotion decision"""
@@ -195,7 +207,12 @@ async def create_report(
         "admin_approved": None,
         "admin_notes": None,
         "admin_decided_at": None,
-        "ban_applied": None
+        "ban_applied": None,
+        # Threaded conversation counters
+        "message_count": 0,
+        "unread_by_reporter": 0,
+        "unread_by_staff": 0,
+        "last_message_at": None,
     }
     
     await reports_collection.insert_one(report_doc)
@@ -238,7 +255,10 @@ async def get_pending_reports_for_moderator(
                 "context": r.get("context"),
                 "media_base64": r.get("media_base64"),
                 "media_type": r.get("media_type"),
-                "created_at": r["created_at"].isoformat() if r.get("created_at") else None
+                "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+                "message_count": r.get("message_count", 0),
+                "unread_for_viewer": r.get("unread_by_staff", 0),
+                "last_message_at": r.get("last_message_at").isoformat() if r.get("last_message_at") else None
             }
             for r in reports
         ],
@@ -271,11 +291,27 @@ async def get_pending_reports_for_admin(
                 "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
                 "moderator_username": r.get("moderator_username"),
                 "moderator_notes": r.get("moderator_notes"),
-                "moderated_at": r["moderated_at"].isoformat() if r.get("moderated_at") else None
+                "moderated_at": r["moderated_at"].isoformat() if r.get("moderated_at") else None,
+                "message_count": r.get("message_count", 0),
+                "unread_for_viewer": r.get("unread_by_staff", 0),
+                "last_message_at": r.get("last_message_at").isoformat() if r.get("last_message_at") else None
             }
             for r in reports
         ],
         "total": len(reports)
+    }
+
+
+@router.get("/reports/active")
+async def get_all_active_reports(current_user: dict = Depends(get_moderator_or_admin_user)):
+    """All non-final reports (for the staff inbox). Sorted by unread + recency."""
+    active_statuses = ["pending_mod", "pending_admin", "in_progress", "awaiting_reporter"]
+    reports = await reports_collection.find(
+        {"status": {"$in": active_statuses}}
+    ).sort([("unread_by_staff", -1), ("last_message_at", -1), ("created_at", -1)]).to_list(200)
+    return {
+        "reports": [await _serialize_report(r, current_user) for r in reports],
+        "total": len(reports),
     }
 
 
@@ -306,7 +342,16 @@ async def moderate_report(
             "moderated_at": datetime.utcnow()
         }}
     )
-    
+
+    # Notify reporter through the thread
+    if review.approved:
+        sys_body = "Un moderador ha revisado el reporte y lo ha pasado a administracion."
+    else:
+        sys_body = "Un moderador ha rechazado el reporte."
+    if review.moderator_notes:
+        sys_body += f"\nNota: {review.moderator_notes.strip()}"
+    await _push_system_message(report_id, sys_body, current_user)
+
     return {
         "success": True,
         "message": "Reporte pasado a administración" if review.approved else "Reporte rechazado"
@@ -356,7 +401,18 @@ async def admin_decide_report(
             "ban_applied": decision.ban_duration if ban_until else None
         }}
     )
-    
+
+    # Notify reporter through the thread
+    if decision.approved:
+        sys_body = "Administracion ha aprobado el reporte."
+        if ban_until and decision.ban_duration:
+            sys_body += f" Se ha aplicado una sancion: {decision.ban_duration}."
+    else:
+        sys_body = "Administracion ha rechazado el reporte."
+    if decision.admin_notes:
+        sys_body += f"\nNota: {decision.admin_notes.strip()}"
+    await _push_system_message(report_id, sys_body, current_user)
+
     return {
         "success": True,
         "message": "Decisión aplicada correctamente",
@@ -387,6 +443,9 @@ async def get_my_reports(current_user: dict = Depends(get_current_user_required)
                 "description": r["description"][:100] + "..." if len(r["description"]) > 100 else r["description"],
                 "status": r["status"],
                 "status_name": status_names.get(r["status"], r["status"]),
+                "message_count": r.get("message_count", 0),
+                "unread_for_viewer": r.get("unread_by_reporter", 0),
+                "last_message_at": r.get("last_message_at").isoformat() if r.get("last_message_at") else None,
                 "created_at": r["created_at"].isoformat() if r.get("created_at") else None
             }
             for r in reports
@@ -536,3 +595,228 @@ async def get_admin_moderation_stats(
         "pending_promotions": pending_promotions,
         "total_reports_today": total_reports_today
     }
+
+
+# ============== REPORT THREAD / MESSAGING ==============
+
+FINAL_REPORT_STATUSES = {"approved", "rejected", "resolved"}
+
+
+def _is_staff(user: dict) -> bool:
+    return user.get("role") in ("moderator", "admin")
+
+
+async def _serialize_report(r: dict, viewer: dict) -> dict:
+    """Return the full report with role-aware unread counter for the viewer."""
+    is_reporter = r["reporter_id"] == viewer["id"]
+    is_staff = _is_staff(viewer)
+    status_names = {
+        "pending_mod": "Pendiente de revisión",
+        "pending_admin": "En revisión por administración",
+        "in_progress": "En curso",
+        "awaiting_reporter": "Esperando al usuario",
+        "resolved": "Resuelto",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+    }
+    return {
+        "id": r["id"],
+        "reporter_id": r["reporter_id"],
+        "reporter_username": r["reporter_username"],
+        "reported_user_id": r.get("reported_user_id"),
+        "reported_username": r.get("reported_username"),
+        "report_type": r.get("report_type"),
+        "report_type_name": r.get("report_type_name"),
+        "description": r.get("description"),
+        "context": r.get("context"),
+        "context_id": r.get("context_id"),
+        "media_base64": r.get("media_base64"),
+        "media_type": r.get("media_type"),
+        "status": r["status"],
+        "status_name": status_names.get(r["status"], r["status"]),
+        "created_at": r.get("created_at"),
+        "message_count": r.get("message_count", 0),
+        "unread_for_viewer": (
+            r.get("unread_by_reporter", 0) if is_reporter
+            else r.get("unread_by_staff", 0) if is_staff
+            else 0
+        ),
+        "last_message_at": r.get("last_message_at"),
+        "moderator_username": r.get("moderator_username"),
+        "admin_username": r.get("admin_username"),
+        "moderator_notes": r.get("moderator_notes"),
+        "admin_notes": r.get("admin_notes"),
+    }
+
+
+async def _load_report_for_viewer(report_id: str, viewer: dict) -> dict:
+    r = await reports_collection.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado")
+    if not (_is_staff(viewer) or r["reporter_id"] == viewer["id"]):
+        raise HTTPException(status_code=403, detail="No tienes acceso a este reporte")
+    return r
+
+
+async def _push_system_message(report_id: str, body: str, actor: dict) -> None:
+    """Insert a system message (used when staff changes status)."""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "report_id": report_id,
+        "sender_id": actor["id"],
+        "sender_username": actor["username"],
+        "sender_role": actor.get("role"),
+        "body": body,
+        "is_system": True,
+        "created_at": datetime.utcnow(),
+    }
+    await report_messages_collection.insert_one(doc)
+    await reports_collection.update_one(
+        {"id": report_id},
+        {
+            "$inc": {"message_count": 1, "unread_by_reporter": 1},
+            "$set": {"last_message_at": doc["created_at"]},
+        },
+    )
+
+
+@router.get("/reports/{report_id}")
+async def get_report_detail(
+    report_id: str,
+    current_user: dict = Depends(get_current_user_required),
+):
+    """Return a single report (accessible to its reporter or staff)."""
+    r = await _load_report_for_viewer(report_id, current_user)
+    return await _serialize_report(r, current_user)
+
+
+@router.get("/reports/{report_id}/messages")
+async def list_report_messages(
+    report_id: str,
+    current_user: dict = Depends(get_current_user_required),
+):
+    """List all messages of a report thread. Marks unread as read for the viewer."""
+    r = await _load_report_for_viewer(report_id, current_user)
+    docs = await report_messages_collection.find({"report_id": report_id}).sort("created_at", 1).to_list(500)
+
+    # Mark unread as read for the viewer
+    is_reporter = r["reporter_id"] == current_user["id"]
+    if is_reporter and r.get("unread_by_reporter", 0) > 0:
+        await reports_collection.update_one({"id": report_id}, {"$set": {"unread_by_reporter": 0}})
+    if _is_staff(current_user) and r.get("unread_by_staff", 0) > 0:
+        await reports_collection.update_one({"id": report_id}, {"$set": {"unread_by_staff": 0}})
+
+    return {
+        "messages": [
+            {
+                "id": m["id"],
+                "sender_id": m["sender_id"],
+                "sender_username": m["sender_username"],
+                "sender_role": m.get("sender_role"),
+                "body": m["body"],
+                "is_system": bool(m.get("is_system", False)),
+                "created_at": m["created_at"].isoformat() if m.get("created_at") else None,
+            }
+            for m in docs
+        ]
+    }
+
+
+@router.post("/reports/{report_id}/messages")
+async def send_report_message(
+    report_id: str,
+    payload: ReportMessageCreate,
+    current_user: dict = Depends(get_current_user_required),
+):
+    """Reporter, moderator or admin can post a message. Resolved reports are read-only."""
+    r = await _load_report_for_viewer(report_id, current_user)
+    if r["status"] in FINAL_REPORT_STATUSES:
+        raise HTTPException(status_code=400, detail="El reporte esta cerrado, no se pueden enviar mensajes")
+    body = (payload.body or "").strip()
+    if len(body) < 1:
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacio")
+    if len(body) > 2000:
+        raise HTTPException(status_code=400, detail="El mensaje es demasiado largo (max 2000 caracteres)")
+
+    is_reporter = r["reporter_id"] == current_user["id"]
+    is_staff = _is_staff(current_user)
+
+    doc = {
+        "id": str(uuid.uuid4()),
+        "report_id": report_id,
+        "sender_id": current_user["id"],
+        "sender_username": current_user["username"],
+        "sender_role": current_user.get("role"),
+        "body": body,
+        "is_system": False,
+        "created_at": datetime.utcnow(),
+    }
+    await report_messages_collection.insert_one(doc)
+
+    inc = {"message_count": 1}
+    # If reporter posts -> staff has unread; if staff -> reporter has unread
+    if is_reporter:
+        inc["unread_by_staff"] = 1
+    elif is_staff:
+        inc["unread_by_reporter"] = 1
+
+    set_fields = {"last_message_at": doc["created_at"]}
+    # First staff response bumps status out of "awaiting_reporter"
+    if is_staff and r["status"] == "awaiting_reporter":
+        set_fields["status"] = "in_progress"
+    # First reporter reply after "awaiting_reporter" -> back to in_progress
+    if is_reporter and r["status"] == "awaiting_reporter":
+        set_fields["status"] = "in_progress"
+
+    await reports_collection.update_one({"id": report_id}, {"$inc": inc, "$set": set_fields})
+
+    return {
+        "message": {
+            "id": doc["id"],
+            "sender_username": doc["sender_username"],
+            "sender_role": doc["sender_role"],
+            "body": doc["body"],
+            "is_system": False,
+            "created_at": doc["created_at"].isoformat(),
+        }
+    }
+
+
+@router.put("/reports/{report_id}/status")
+async def change_report_status(
+    report_id: str,
+    payload: ReportStatusUpdate,
+    current_user: dict = Depends(get_moderator_or_admin_user),
+):
+    """Staff-only flexible status transitions with an optional system note."""
+    allowed = {"in_progress", "awaiting_reporter", "resolved"}
+    if payload.status not in allowed:
+        raise HTTPException(status_code=400, detail=f"Estado invalido. Validos: {sorted(allowed)}")
+    if payload.status == "resolved" and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo un administrador puede resolver un reporte")
+
+    r = await reports_collection.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado")
+    if r["status"] in FINAL_REPORT_STATUSES:
+        raise HTTPException(status_code=400, detail="El reporte ya esta cerrado")
+
+    await reports_collection.update_one(
+        {"id": report_id},
+        {"$set": {
+            "status": payload.status,
+            "last_message_at": datetime.utcnow(),
+        }},
+    )
+    labels = {
+        "in_progress": "La conversacion esta en curso",
+        "awaiting_reporter": "Los moderadores necesitan mas informacion",
+        "resolved": "Reporte marcado como resuelto",
+    }
+    system_body = labels[payload.status]
+    if payload.note:
+        system_body += f"\nNota: {payload.note.strip()}"
+    await _push_system_message(report_id, system_body, current_user)
+
+    return {"success": True, "status": payload.status}
+

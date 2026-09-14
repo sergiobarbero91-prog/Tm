@@ -40,6 +40,7 @@ import { EmisoraDriverSection } from './components/EmisoraDriverSection';
 import { EmisoraBanner } from './components/EmisoraBanner';
 import { AdminClients } from './components/admin/AdminClients';
 import { AdminUserEditModal } from './components/admin/AdminUserEditModal';
+import { ReportThread } from './components/ReportThread';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { useRouter } from 'expo-router';
 
@@ -1972,6 +1973,9 @@ function TransportMeter() {
 
   // Moderation and Reports states
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showMyReportsModal, setShowMyReportsModal] = useState(false);
+  const [myReports, setMyReports] = useState<any[]>([]);
+  const [myReportsLoading, setMyReportsLoading] = useState(false);
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [reportedUserId, setReportedUserId] = useState<string | null>(null);
@@ -1987,6 +1991,7 @@ function TransportMeter() {
   const [moderationStats, setModerationStats] = useState<{pending_reports: number; pending_promotions: number} | null>(null);
   // Admin reports states (reports passed by moderators)
   const [adminReports, setAdminReports] = useState<any[]>([]);
+  const [activeThreadReportId, setActiveThreadReportId] = useState<string | null>(null);
   const [adminPromotions, setAdminPromotions] = useState<any[]>([]);
   const [adminModerationStats, setAdminModerationStats] = useState<{pending_reports: number; pending_promotions: number} | null>(null);
   const [showBanModal, setShowBanModal] = useState(false);
@@ -16608,6 +16613,17 @@ function TransportMeter() {
                         <Text style={styles.moderationApproveButtonText}>✅ Pasar a Admin</Text>
                       </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                      style={{ marginTop: 8, backgroundColor: '#0F172A', borderRadius: 8, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                      onPress={() => setActiveThreadReportId(report.id)}
+                      testID={`report-mod-chat-${report.id}`}
+                    >
+                      <Ionicons name="chatbubbles" size={16} color="#F59E0B" />
+                      <Text style={{ color: '#F59E0B', fontWeight: '800' }}>
+                        💬 Chatear con el usuario
+                        {report.unread_for_viewer > 0 ? `  (${report.unread_for_viewer})` : ''}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 ))
               )}
@@ -17017,6 +17033,17 @@ function TransportMeter() {
                         <Text style={styles.moderationApproveButtonText}>⚠️ Aprobar + Banear</Text>
                       </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                      style={{ marginTop: 8, backgroundColor: '#0F172A', borderRadius: 8, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F59E0B', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                      onPress={() => setActiveThreadReportId(report.id)}
+                      testID={`report-admin-chat-${report.id}`}
+                    >
+                      <Ionicons name="chatbubbles" size={16} color="#F59E0B" />
+                      <Text style={{ color: '#F59E0B', fontWeight: '800' }}>
+                        💬 Chatear con el usuario
+                        {report.unread_for_viewer > 0 ? `  (${report.unread_for_viewer})` : ''}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 ))
               )}
@@ -17885,6 +17912,29 @@ function TransportMeter() {
                   <Ionicons name="flag" size={22} color="#FFFFFF" />
                   <Text style={[styles.settingsLinkText, { color: '#FFFFFF' }]}>Reportar Usuario o Problema</Text>
                   <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.settingsLinkButton, { marginBottom: 12 }]}
+                  onPress={async () => {
+                    setShowSettings(false);
+                    setShowMyReportsModal(true);
+                    setMyReportsLoading(true);
+                    try {
+                      const tk = await AsyncStorage.getItem('token');
+                      const r = await axios.get(`${API_BASE}/api/moderation/reports/my-reports`, { headers: tk ? { Authorization: `Bearer ${tk}` } : {} });
+                      setMyReports(r.data.reports || []);
+                    } catch (e) {
+                      setMyReports([]);
+                    } finally {
+                      setMyReportsLoading(false);
+                    }
+                  }}
+                  testID="settings-my-reports-btn"
+                >
+                  <Ionicons name="chatbubbles" size={22} color="#F59E0B" />
+                  <Text style={styles.settingsLinkText}>Mis Reportes</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -21527,6 +21577,71 @@ function TransportMeter() {
         onClose={() => { setShowEditUserModal(false); setEditingUser(null); }}
         onSaved={() => { fetchAdminUsers(); }}
       />
+
+      {/* Report chat thread modal */}
+      {activeThreadReportId && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0009', justifyContent: 'center', alignItems: 'center', padding: 16, zIndex: 1000 }}>
+          <View style={{ width: '100%', maxWidth: 640 }}>
+            <ReportThread
+              reportId={activeThreadReportId}
+              viewerRole={currentUser?.role || 'user'}
+              onClose={() => setActiveThreadReportId(null)}
+              onUpdate={() => {
+                if (currentUser?.role === 'moderator') fetchModerationReports?.();
+                if (currentUser?.role === 'admin') fetchAdminReports?.();
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Mis Reportes modal */}
+      {showMyReportsModal && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0009', justifyContent: 'center', alignItems: 'center', padding: 16, zIndex: 999 }}>
+          <View style={{ width: '100%', maxWidth: 520, backgroundColor: '#0F172A', borderRadius: 14, padding: 18, borderWidth: 1, borderColor: '#334155' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800' }}>Mis Reportes</Text>
+              <TouchableOpacity onPress={() => setShowMyReportsModal(false)} testID="my-reports-close">
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            {myReportsLoading ? (
+              <ActivityIndicator color="#F59E0B" />
+            ) : myReports.length === 0 ? (
+              <Text style={{ color: '#64748B', fontStyle: 'italic', padding: 12, textAlign: 'center' }}>No has creado ningun reporte.</Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 460 }}>
+                {myReports.map((r: any) => (
+                  <TouchableOpacity
+                    key={r.id}
+                    onPress={() => setActiveThreadReportId(r.id)}
+                    testID={`my-report-open-${r.id}`}
+                    style={{ backgroundColor: '#1E293B', borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: r.unread_for_viewer > 0 ? '#F59E0B' : '#334155' }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 13 }}>
+                        {r.report_type_name}
+                      </Text>
+                      <Text style={{ color: '#94A3B8', fontSize: 11 }}>{r.status_name}</Text>
+                    </View>
+                    <Text style={{ color: '#94A3B8', fontSize: 12 }}>{r.description}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                      <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                        <Ionicons name="chatbubble-ellipses" size={11} color="#94A3B8" /> {r.message_count} mensaje{r.message_count === 1 ? '' : 's'}
+                      </Text>
+                      {r.unread_for_viewer > 0 && (
+                        <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 }}>
+                          <Text style={{ color: '#0F172A', fontSize: 11, fontWeight: '800' }}>{r.unread_for_viewer} nuevo{r.unread_for_viewer === 1 ? '' : 's'}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Time Range Selector Modal */}
       {showTimeRangeDropdown && (

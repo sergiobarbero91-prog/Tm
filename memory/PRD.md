@@ -872,3 +872,19 @@ de recuperación de contraseña.
 - Test backend: `test_frequent_addresses_are_tracked` (22/22 pasan).
 
 
+
+### ✅ Sistema de chat en reportes (Feb 2026)
+- Backend `moderation.py`:
+  - Nueva coleccion `report_messages` (id, report_id, sender, body, is_system, created_at).
+  - `GET /moderation/reports/{id}` — detalle del reporte con permisos por rol.
+  - `GET /moderation/reports/{id}/messages` — lista + marca como leidos.
+  - `POST /moderation/reports/{id}/messages` — enviar mensaje (max 2000 chars).
+  - `PUT /moderation/reports/{id}/status` — staff cambia entre `in_progress` / `awaiting_reporter` / `resolved` (solo admin).
+  - `GET /moderation/reports/active` — inbox de staff con todos los hilos activos.
+  - Contadores `unread_by_reporter` / `unread_by_staff` en el propio reporte.
+  - Mensajes system automaticos cuando se hace moderate/admin-decision/status change.
+- Frontend nuevo componente `/app/frontend/app/components/ReportThread.tsx` con burbujas, composer, polling 15s, y botones de estado para staff.
+- Integracion en `index.tsx`: boton "💬 Chatear con el usuario" en cada tarjeta de reporte del moderador y del admin. Nuevo boton "Mis Reportes" en Settings para el reporter con badge de mensajes sin leer.
+- Tests `tests/test_report_thread.py` (4 nuevos, 10/10 pasan): mensajeria bidireccional, cambio de estado, permisos (403 para terceros, 403 para moderador que intenta resolver).
+
+

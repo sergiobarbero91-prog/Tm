@@ -15,10 +15,17 @@ def _live() -> bool:
 pytestmark = pytest.mark.skipif(not _live(), reason="Backend not running")
 
 
+_TOKEN_CACHE: dict = {}
+
+
 def _admin_token() -> str:
+    if "t" in _TOKEN_CACHE:
+        return _TOKEN_CACHE["t"]
     r = requests.post(f"{API}/auth/login", json={"username": "admin", "password": "admin"}, timeout=10)
     r.raise_for_status()
-    return r.json()["access_token"]
+    tok = r.json()["access_token"]
+    _TOKEN_CACHE["t"] = tok
+    return tok
 
 
 def _hdr():

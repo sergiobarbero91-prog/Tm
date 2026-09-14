@@ -311,7 +311,9 @@ def test_client_cannot_cancel_in_progress_ride():
 
 def test_frequent_addresses_are_tracked():
     """Cada vez que el cliente pide un servicio se incrementa el contador de las direcciones usadas."""
-    ct = _client_login("+34600999010", "Freq", "Usage")
+    import time
+    phone = f"+346{int(time.time()) % 10_000_000:07d}"
+    ct = _client_login(phone, "Freq", "Usage")
     for o, d in [("Puerta del Sol", "Aeropuerto T4"), ("Atocha", "Puerta del Sol"), ("Aeropuerto T4", "Atocha")]:
         requests.post(
             f"{API}/rides/rides",
