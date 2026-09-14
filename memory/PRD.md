@@ -857,3 +857,18 @@ de recuperación de contraseña.
 - Cancel ride ahora bloquea `in_progress`, y cliente puede cancelar `accepted` con confirmacion.
 - `EmisoraBanner.tsx` visible en cabecera: "Para mi/Activas/ASAP" con ping y boton "Ver".
 
+
+
+### ✅ Date/Time picker + perfil cliente + historial admin (Feb 2026)
+- **DateTimePicker** en `/app/frontend/app/components/DateTimePicker.tsx`: web usa `<input type="date">` y `<input type="time">` nativos (calendario y reloj del navegador), native fall-back a TextInput. Chips rapidos "Hoy/Mañana/Pasado" y "08/14/22:00". Integrado en `EmisoraClient.tsx` para reservas.
+- **Perfil Cliente**: nuevo endpoint `PUT /api/rides/client/profile` acepta first_name/last_name/phone/email/new_password con validacion completa. Frontend en `EmisoraClient.tsx`: boton icono persona en cabecera abre modal de perfil con todos los campos.
+- **Historial Admin**: nuevos endpoints `GET /api/admin/users/{id}/rides` y `GET /api/admin/clients/{id}/rides`. Nuevo componente `/app/frontend/app/components/admin/RideHistoryList.tsx` reutilizable. Tabs "Datos / Historial" añadidos a `AdminUserEditModal` y `AdminClients` edit modal.
+
+
+### ✅ Direcciones frecuentes cliente (Feb 2026)
+- Backend: nueva coleccion `client_addresses` (client_id + key normalizada + uses + last_used_at). Hook `_bump_client_address` en `POST /rides/rides` incrementa contador por origen y destino de cada servicio.
+- Endpoint `GET /api/rides/client/frequent-addresses?limit=8` devuelve top usadas (uses desc, luego last_used_at).
+- Frontend `EmisoraClient.tsx`: nueva fila "⭐ Frecuentes" con chips scrollables. Cada chip lleva boton ⬆ verde (rellena Recogida) y ⬇ azul (rellena Destino).
+- Test backend: `test_frequent_addresses_are_tracked` (22/22 pasan).
+
+

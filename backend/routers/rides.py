@@ -37,6 +37,7 @@ from shared import (
     driver_qrs_collection,
     users_collection,
     password_reset_tokens_collection,
+    client_addresses_collection,
     create_access_token,
     security,
     get_current_user_required,
@@ -443,6 +444,38 @@ class ClientSetEmailBody(BaseModel):
         return v
 
 
+class ClientProfileUpdateBody(BaseModel):
+    """Full self-profile update the client can perform from the app."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    new_password: Optional[str] = None
+
+    @validator("phone")
+    def _v_phone(cls, v):  # noqa: N805
+        if v is None or v == "":
+            return None
+        return SendOtpBody._norm_phone(v)
+
+    @validator("email")
+    def _v_email(cls, v):  # noqa: N805
+        if v is None or v == "":
+            return None
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Email no válido")
+        return v
+
+    @validator("new_password")
+    def _v_pw(cls, v):  # noqa: N805
+        if v is None or v == "":
+            return None
+        if len(v) < 4:
+            raise ValueError("La contraseña debe tener al menos 4 caracteres")
+        return v
+
+
 @router.post("/client/set-email", status_code=204)
 async def client_set_email(
     body: ClientSetEmailBody,
@@ -458,6 +491,50 @@ async def client_set_email(
         {"$set": {"email": body.email, "updated_at": datetime.now(timezone.utc)}},
     )
     return
+
+
+@router.put("/client/profile", response_model=ClientResponse)
+async def client_update_profile(
+    body: ClientProfileUpdateBody,
+    current: dict = Depends(get_current_client_required),
+):
+    """Client self-update of profile fields (name, phone, email, password)."""
+    update: dict = {"updated_at": datetime.now(timezone.utc)}
+    if body.first_name is not None:
+        fn = body.first_name.strip()
+        if not fn:
+            raise HTTPException(status_code=400, detail="Nombre obligatorio")
+        update["first_name"] = fn
+    if body.last_name is not None:
+        ln = body.last_name.strip()
+        if not ln:
+            raise HTTPException(status_code=400, detail="Apellido obligatorio")
+        update["last_name"] = ln
+    if body.phone is not None and body.phone != current.get("phone"):
+        clash = await clients_collection.find_one({"phone": body.phone, "id": {"$ne": current["id"]}})
+        if clash:
+            raise HTTPException(status_code=400, detail="Ese telefono ya esta en uso")
+        update["phone"] = body.phone
+    if body.email is not None:
+        if body.email:
+            clash = await clients_collection.find_one({"email": body.email, "id": {"$ne": current["id"]}})
+            if clash:
+                raise HTTPException(status_code=400, detail="Ese email ya esta en uso")
+        update["email"] = body.email
+    if body.new_password:
+        update["password_hash"] = get_password_hash(body.new_password)
+
+    await clients_collection.update_one({"id": current["id"]}, {"$set": update})
+    doc = await clients_collection.find_one({"id": current["id"]})
+    return ClientResponse(
+        id=doc["id"],
+        phone=doc["phone"],
+        first_name=doc.get("first_name", ""),
+        last_name=doc.get("last_name", ""),
+        email=doc.get("email"),
+        associated_driver_id=doc.get("associated_driver_id"),
+        created_at=doc["created_at"],
+    )
 
 
 # ─────────────────── Client password recovery (email) ─────────────────
@@ -758,7 +835,53 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
         "updated_at": now,
     }
     await rides_collection.insert_one(doc)
+
+    # Track frequent addresses for one-tap re-use on next rides.
+    await _bump_client_address(current["id"], body.origin)
+    await _bump_client_address(current["id"], body.destination)
+
     return _ride_to_response(doc)
+
+
+async def _bump_client_address(client_id: str, address: str) -> None:
+    """Upsert usage counter for an address the client has just used."""
+    address = (address or "").strip()
+    if len(address) < 3:
+        return
+    # Normalize on lowercase key for grouping while keeping original casing on display
+    key = address.lower()
+    now = datetime.now(timezone.utc)
+    await client_addresses_collection.update_one(
+        {"client_id": client_id, "key": key},
+        {
+            "$set": {"last_used_at": now, "address": address},
+            "$inc": {"uses": 1},
+            "$setOnInsert": {"client_id": client_id, "key": key, "created_at": now},
+        },
+        upsert=True,
+    )
+
+
+@router.get("/client/frequent-addresses")
+async def client_frequent_addresses(
+    limit: int = 8,
+    current: dict = Depends(get_current_client_required),
+):
+    """Return the client's most-used addresses (both origin and destination combined)."""
+    limit = max(1, min(int(limit or 8), 20))
+    cursor = (
+        client_addresses_collection.find({"client_id": current["id"]})
+        .sort([("uses", -1), ("last_used_at", -1)])
+        .limit(limit)
+    )
+    out = []
+    async for d in cursor:
+        out.append({
+            "address": d.get("address", ""),
+            "uses": int(d.get("uses", 0)),
+            "last_used_at": d.get("last_used_at"),
+        })
+    return out
 
 
 @router.get("/rides/mine", response_model=List[RideResponse])

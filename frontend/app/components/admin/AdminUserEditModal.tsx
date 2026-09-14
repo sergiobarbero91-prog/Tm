@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { RideHistoryList } from './RideHistoryList';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -67,6 +68,7 @@ export const AdminUserEditModal: React.FC<Props> = ({ visible, user, onClose, on
   const [licencias, setLicencias] = useState<Licencia[]>([]);
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<'data' | 'history'>('data');
 
   useEffect(() => {
     if (!user) return;
@@ -149,6 +151,36 @@ export const AdminUserEditModal: React.FC<Props> = ({ visible, user, onClose, on
             </TouchableOpacity>
           </View>
 
+          {/* Tabs */}
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+            <TouchableOpacity
+              onPress={() => setTab('data')}
+              testID="admin-user-tab-data"
+              style={{
+                flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                backgroundColor: tab === 'data' ? '#3B82F6' : '#1E293B',
+                borderWidth: 1, borderColor: tab === 'data' ? '#3B82F6' : '#334155',
+              }}
+            >
+              <Text style={{ color: tab === 'data' ? '#FFF' : '#94A3B8', fontWeight: '800', fontSize: 12 }}>Datos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTab('history')}
+              testID="admin-user-tab-history"
+              style={{
+                flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                backgroundColor: tab === 'history' ? '#3B82F6' : '#1E293B',
+                borderWidth: 1, borderColor: tab === 'history' ? '#3B82F6' : '#334155',
+              }}
+            >
+              <Text style={{ color: tab === 'history' ? '#FFF' : '#94A3B8', fontWeight: '800', fontSize: 12 }}>Historial</Text>
+            </TouchableOpacity>
+          </View>
+
+          {tab === 'history' ? (
+            <RideHistoryList endpoint={`admin/users/${user.id}/rides`} perspective="driver" />
+          ) : (
+          <>
           <ScrollView style={{ maxHeight: 520 }}>
             {/* Basic fields */}
             <Field label="Nombre completo" value={full_name} onChange={setFullName} testID="admin-user-edit-full-name" />
@@ -261,6 +293,8 @@ export const AdminUserEditModal: React.FC<Props> = ({ visible, user, onClose, on
           >
             {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar cambios</Text>}
           </TouchableOpacity>
+          </>
+          )}
         </View>
       </View>
     </Modal>

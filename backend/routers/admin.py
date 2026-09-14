@@ -11,6 +11,7 @@ import re
 from shared import (
     users_collection,
     clients_collection,
+    rides_collection,
     UserCreate, UserUpdate, PasswordChange, UserResponse,
     LicenciaInput,
     get_admin_user, get_password_hash
@@ -754,4 +755,74 @@ async def delete_client(client_id: str, admin: dict = Depends(get_admin_user)):
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     await clients_collection.delete_one({"id": client_id})
     return {"message": "Cliente eliminado correctamente"}
+
+
+
+# ============ SERVICE HISTORY (ADMIN) ============
+
+class RideHistoryItem(BaseModel):
+    id: str
+    origin: str
+    destination: str
+    ride_type: str
+    scheduled_at: Optional[datetime] = None
+    status: str
+    dispatch_scope: str
+    client_id: str
+    client_name: str
+    client_phone: str
+    associated_driver_id: Optional[str] = None
+    accepted_by_driver_id: Optional[str] = None
+    accepted_by_driver_name: Optional[str] = None
+    notes: Optional[str] = None
+    passengers: int = 1
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+def _ride_history(doc: dict) -> RideHistoryItem:
+    return RideHistoryItem(
+        id=doc["id"],
+        origin=doc.get("origin", ""),
+        destination=doc.get("destination", ""),
+        ride_type=doc.get("ride_type", "asap"),
+        scheduled_at=doc.get("scheduled_at"),
+        status=doc.get("status", "pending"),
+        dispatch_scope=doc.get("dispatch_scope", "open"),
+        client_id=doc.get("client_id", ""),
+        client_name=doc.get("client_name", ""),
+        client_phone=doc.get("client_phone", ""),
+        associated_driver_id=doc.get("associated_driver_id"),
+        accepted_by_driver_id=doc.get("accepted_by_driver_id"),
+        accepted_by_driver_name=doc.get("accepted_by_driver_name"),
+        notes=doc.get("notes"),
+        passengers=doc.get("passengers", 1),
+        created_at=doc.get("created_at", datetime.utcnow()),
+        updated_at=doc.get("updated_at"),
+    )
+
+
+@router.get("/users/{user_id}/rides", response_model=List[RideHistoryItem])
+async def admin_user_ride_history(user_id: str, admin: dict = Depends(get_admin_user)):
+    """History of rides the driver has accepted (or been assigned)."""
+    user = await users_collection.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    cursor = rides_collection.find({
+        "$or": [
+            {"accepted_by_driver_id": user_id},
+            {"associated_driver_id": user_id},
+        ]
+    }).sort("created_at", -1).limit(200)
+    return [_ride_history(d) async for d in cursor]
+
+
+@router.get("/clients/{client_id}/rides", response_model=List[RideHistoryItem])
+async def admin_client_ride_history(client_id: str, admin: dict = Depends(get_admin_user)):
+    """History of rides requested by the client."""
+    client = await clients_collection.find_one({"id": client_id})
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    cursor = rides_collection.find({"client_id": client_id}).sort("created_at", -1).limit(200)
+    return [_ride_history(d) async for d in cursor]
 

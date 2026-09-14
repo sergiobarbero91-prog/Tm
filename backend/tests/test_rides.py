@@ -307,3 +307,27 @@ def test_client_cannot_cancel_in_progress_ride():
     assert r.status_code == 400
     assert "curso" in r.json()["detail"].lower()
 
+
+
+def test_frequent_addresses_are_tracked():
+    """Cada vez que el cliente pide un servicio se incrementa el contador de las direcciones usadas."""
+    ct = _client_login("+34600999010", "Freq", "Usage")
+    for o, d in [("Puerta del Sol", "Aeropuerto T4"), ("Atocha", "Puerta del Sol"), ("Aeropuerto T4", "Atocha")]:
+        requests.post(
+            f"{API}/rides/rides",
+            json={"origin": o, "destination": d, "ride_type": "asap"},
+            headers={"Authorization": f"Bearer {ct}"},
+            timeout=10,
+        ).raise_for_status()
+    r = requests.get(
+        f"{API}/rides/client/frequent-addresses",
+        headers={"Authorization": f"Bearer {ct}"},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    addresses = {a["address"]: a["uses"] for a in data}
+    # Cada direccion aparece 2 veces (una como origen, otra como destino)
+    for name in ("Puerta del Sol", "Aeropuerto T4", "Atocha"):
+        assert addresses.get(name) == 2, addresses
+

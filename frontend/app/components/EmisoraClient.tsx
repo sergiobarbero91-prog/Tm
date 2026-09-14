@@ -14,11 +14,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { calculateEstimatedFare, type FareResult } from '../utils/fareEstimator';
+import { DateTimePicker } from './DateTimePicker';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -29,6 +31,7 @@ type ClientInfo = {
   phone: string;
   first_name: string;
   last_name: string;
+  email?: string | null;
   associated_driver_id: string | null;
 };
 
@@ -102,6 +105,14 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [fareLoading, setFareLoading] = useState(false);
   const [fareError, setFareError] = useState<string | null>(null);
 
+  // Client profile edit modal
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', phone: '', email: '', new_password: '' });
+  const [profileBusy, setProfileBusy] = useState(false);
+
+  // Frequent addresses (one-tap re-use)
+  const [frequentAddresses, setFrequentAddresses] = useState<Array<{ address: string; uses: number }>>([]);
+
   // Restore session on mount
   useEffect(() => {
     (async () => {
@@ -145,12 +156,23 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     }
   }, [client, authHeaders]);
 
+  const refreshFrequentAddresses = useCallback(async () => {
+    if (!client) return;
+    try {
+      const r = await axios.get(`${API_BASE}/api/rides/client/frequent-addresses?limit=6`, { headers: await authHeaders() });
+      setFrequentAddresses(r.data || []);
+    } catch {
+      /* silent */
+    }
+  }, [client, authHeaders]);
+
   useEffect(() => {
     refreshRides();
+    refreshFrequentAddresses();
     if (!client) return;
     const t = setInterval(refreshRides, 15000);
     return () => clearInterval(t);
-  }, [client, refreshRides]);
+  }, [client, refreshRides, refreshFrequentAddresses]);
 
   const handleAuthenticate = async () => {
     setAuthError(null);
@@ -263,6 +285,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       setSchedTime('');
       setPassengers('1');
       await refreshRides();
+      await refreshFrequentAddresses();
       notify('Servicio solicitado correctamente');
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo crear el servicio');
@@ -270,6 +293,50 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       setCreating(false);
     }
   };
+
+  const openProfile = () => {
+    if (!client) return;
+    setProfileForm({
+      first_name: client.first_name || '',
+      last_name: client.last_name || '',
+      phone: client.phone || '',
+      email: client.email || '',
+      new_password: '',
+    });
+    setProfileOpen(true);
+  };
+
+  const saveProfile = async () => {
+    if (!client) return;
+    setProfileBusy(true);
+    try {
+      const payload: any = {
+        first_name: profileForm.first_name.trim(),
+        last_name: profileForm.last_name.trim(),
+        phone: profileForm.phone.trim(),
+        email: profileForm.email.trim() || null,
+      };
+      if (profileForm.new_password.trim()) {
+        if (profileForm.new_password.trim().length < 4) {
+          notify('La contraseña debe tener al menos 4 caracteres');
+          setProfileBusy(false);
+          return;
+        }
+        payload.new_password = profileForm.new_password.trim();
+      }
+      const r = await axios.put(`${API_BASE}/api/rides/client/profile`, payload, { headers: await authHeaders() });
+      const updated: ClientInfo = { ...client, ...r.data };
+      setClient(updated);
+      await AsyncStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(updated));
+      setProfileOpen(false);
+      notify('Perfil actualizado');
+    } catch (e: any) {
+      notify(e?.response?.data?.detail || 'No se pudo guardar');
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
 
   const handleCancel = async (id: string, isAccepted: boolean) => {
     const msg = isAccepted
@@ -484,9 +551,14 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       <Header
         title={`Hola, ${client.first_name}`}
         right={
-          <TouchableOpacity onPress={handleLogout} testID="emisora-logout-btn">
-            <Ionicons name="log-out-outline" size={22} color="#94A3B8" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={openProfile} testID="emisora-profile-btn">
+              <Ionicons name="person-circle-outline" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} testID="emisora-logout-btn">
+              <Ionicons name="log-out-outline" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
         }
       />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -514,29 +586,53 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           </View>
 
           {rideType === 'scheduled' && (
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Fecha</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155' }}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#475569"
-                  value={schedDate}
-                  onChangeText={setSchedDate}
-                  testID="emisora-sched-date"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Hora</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155' }}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#475569"
-                  value={schedTime}
-                  onChangeText={setSchedTime}
-                  testID="emisora-sched-time"
-                />
-              </View>
+            <DateTimePicker
+              date={schedDate}
+              time={schedTime}
+              onChangeDate={setSchedDate}
+              onChangeTime={setSchedTime}
+            />
+          )}
+
+          {frequentAddresses.length > 0 && (
+            <View style={{ marginBottom: 10 }} testID="emisora-frequent-addresses">
+              <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 6 }}>
+                <Ionicons name="star" size={11} color="#F59E0B" /> Frecuentes
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {frequentAddresses.map(fa => (
+                  <View
+                    key={fa.address}
+                    testID={`freq-chip-${fa.address}`}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center',
+                      backgroundColor: '#0F172A', borderRadius: 999, paddingLeft: 10, paddingRight: 4, paddingVertical: 3,
+                      borderWidth: 1, borderColor: '#334155',
+                    }}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={{ color: '#F1F5F9', fontSize: 12, maxWidth: 160, marginRight: 6 }}
+                    >
+                      {fa.address}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setOrigin(fa.address)}
+                      testID={`freq-chip-origin-${fa.address}`}
+                      style={{ backgroundColor: '#10B981', borderRadius: 999, padding: 4, marginRight: 3 }}
+                    >
+                      <Ionicons name="arrow-up" size={12} color="#0F172A" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setDestination(fa.address)}
+                      testID={`freq-chip-dest-${fa.address}`}
+                      style={{ backgroundColor: '#3B82F6', borderRadius: 999, padding: 4 }}
+                    >
+                      <Ionicons name="arrow-down" size={12} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           )}
 
@@ -684,8 +780,60 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           );
         })}
       </ScrollView>
+
+      {/* Client profile edit modal */}
+      <Modal visible={profileOpen} transparent animationType="fade" onRequestClose={() => setProfileOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={{ width: '100%', maxWidth: 460, backgroundColor: '#0F172A', borderRadius: 14, padding: 18, borderWidth: 1, borderColor: '#334155' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800' }}>Mi perfil</Text>
+              <TouchableOpacity onPress={() => setProfileOpen(false)} testID="emisora-profile-close">
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 460 }}>
+              <ProfileField label="Nombre" value={profileForm.first_name} onChange={v => setProfileForm({ ...profileForm, first_name: v })} testID="emisora-profile-first-name" />
+              <ProfileField label="Apellido" value={profileForm.last_name} onChange={v => setProfileForm({ ...profileForm, last_name: v })} testID="emisora-profile-last-name" />
+              <ProfileField label="Telefono (E.164)" value={profileForm.phone} onChange={v => setProfileForm({ ...profileForm, phone: v })} testID="emisora-profile-phone" />
+              <ProfileField label="Email" value={profileForm.email} onChange={v => setProfileForm({ ...profileForm, email: v })} testID="emisora-profile-email" />
+              <ProfileField
+                label="Nueva contrasena (dejar en blanco para no cambiar)"
+                value={profileForm.new_password}
+                onChange={v => setProfileForm({ ...profileForm, new_password: v })}
+                secure
+                testID="emisora-profile-password"
+              />
+            </ScrollView>
+            <TouchableOpacity
+              onPress={saveProfile}
+              disabled={profileBusy}
+              testID="emisora-profile-save"
+              style={{ marginTop: 10, backgroundColor: '#F59E0B', paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+            >
+              {profileBusy ? <ActivityIndicator color="#0F172A" /> : <Text style={{ color: '#0F172A', fontWeight: '800' }}>Guardar cambios</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
+
+const ProfileField: React.FC<{
+  label: string; value: string; onChange: (v: string) => void;
+  secure?: boolean; testID?: string;
+}> = ({ label, value, onChange, secure, testID }) => (
+  <View style={{ marginBottom: 10 }}>
+    <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>{label}</Text>
+    <TextInput
+      value={value}
+      onChangeText={onChange}
+      secureTextEntry={secure}
+      autoCapitalize="none"
+      testID={testID}
+      style={{ backgroundColor: '#1E293B', color: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#334155' }}
+    />
+  </View>
+);
 
 export default EmisoraClient;

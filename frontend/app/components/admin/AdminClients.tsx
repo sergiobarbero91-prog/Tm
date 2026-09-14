@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { RideHistoryList } from './RideHistoryList';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -60,6 +61,7 @@ export const AdminClients: React.FC = () => {
   const [editing, setEditing] = useState<Client | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editForm, setEditForm] = useState({ phone: '', first_name: '', last_name: '', email: '', new_password: '' });
+  const [editTab, setEditTab] = useState<'data' | 'history'>('data');
 
   const authHeaders = useCallback(async () => {
     const tk = await AsyncStorage.getItem('token');
@@ -110,6 +112,7 @@ export const AdminClients: React.FC = () => {
 
   const openEdit = (c: Client) => {
     setEditing(c);
+    setEditTab('data');
     setEditForm({
       phone: c.phone,
       first_name: c.first_name,
@@ -287,6 +290,37 @@ export const AdminClients: React.FC = () => {
                 <Ionicons name="close" size={22} color="#94A3B8" />
               </TouchableOpacity>
             </View>
+
+            {/* Tabs */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+              <TouchableOpacity
+                onPress={() => setEditTab('data')}
+                testID="admin-client-tab-data"
+                style={{
+                  flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                  backgroundColor: editTab === 'data' ? '#3B82F6' : '#1E293B',
+                  borderWidth: 1, borderColor: editTab === 'data' ? '#3B82F6' : '#334155',
+                }}
+              >
+                <Text style={{ color: editTab === 'data' ? '#FFF' : '#94A3B8', fontWeight: '800', fontSize: 12 }}>Datos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setEditTab('history')}
+                testID="admin-client-tab-history"
+                style={{
+                  flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                  backgroundColor: editTab === 'history' ? '#3B82F6' : '#1E293B',
+                  borderWidth: 1, borderColor: editTab === 'history' ? '#3B82F6' : '#334155',
+                }}
+              >
+                <Text style={{ color: editTab === 'history' ? '#FFF' : '#94A3B8', fontWeight: '800', fontSize: 12 }}>Historial</Text>
+              </TouchableOpacity>
+            </View>
+
+            {editing && editTab === 'history' ? (
+              <RideHistoryList endpoint={`admin/clients/${editing.id}/rides`} perspective="client" />
+            ) : (
+            <>
             <ScrollView style={{ maxHeight: 480 }}>
               <FormField label="Telefono" value={editForm.phone} onChange={v => setEditForm({ ...editForm, phone: v })} testID="admin-client-edit-phone" />
               <FormField label="Nombre" value={editForm.first_name} onChange={v => setEditForm({ ...editForm, first_name: v })} testID="admin-client-edit-first-name" />
@@ -302,6 +336,8 @@ export const AdminClients: React.FC = () => {
             >
               {editBusy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>}
             </TouchableOpacity>
+            </>
+            )}
           </View>
         </View>
       </Modal>
