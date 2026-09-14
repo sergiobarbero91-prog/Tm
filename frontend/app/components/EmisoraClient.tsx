@@ -187,6 +187,11 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   );
   const driverRatings = useUserRatings(driverIds, CLIENT_TOKEN_KEY);
 
+  // Fetch the CLIENT's own rating to show in their profile modal.
+  const myIds = React.useMemo(() => (client?.id ? [client.id] : []), [client?.id]);
+  const myRatingsMap = useUserRatings(myIds, CLIENT_TOKEN_KEY);
+  const myRating = client?.id ? myRatingsMap[client.id] : undefined;
+
   const handleAuthenticate = async () => {
     setAuthError(null);
     if (!qrToken) {
@@ -819,7 +824,10 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         <View style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
           <View style={{ width: '100%', maxWidth: 460, backgroundColor: '#0F172A', borderRadius: 14, padding: 18, borderWidth: 1, borderColor: '#334155' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800' }}>Mi perfil</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800' }}>Mi perfil</Text>
+                <RatingBadge rating={myRating} testID="emisora-client-my-rating" />
+              </View>
               <TouchableOpacity onPress={() => setProfileOpen(false)} testID="emisora-profile-close">
                 <Ionicons name="close" size={22} color="#94A3B8" />
               </TouchableOpacity>

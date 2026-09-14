@@ -42,6 +42,7 @@ import { AdminClients } from './components/admin/AdminClients';
 import { AdminUserEditModal } from './components/admin/AdminUserEditModal';
 import { ReportThread } from './components/ReportThread';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
+import { RatingBadge, useUserRatings } from './components/RatingBadge';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -1386,6 +1387,11 @@ function TransportMeter() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Own rating for the settings profile card ("Mi Perfil")
+  const myRatingIds = useMemo(() => (currentUser?.id ? [currentUser.id] : []), [currentUser?.id]);
+  const myRatings = useUserRatings(myRatingIds, 'token');
+  const myRating = currentUser?.id ? myRatings[currentUser.id] : undefined;
   
   // Connection status
   const [isOnline, setIsOnline] = useState(true);
@@ -17658,6 +17664,9 @@ function TransportMeter() {
                     <Text style={styles.profileButtonLicense}>
                       {currentUser?.license_number ? `Licencia: ${currentUser.license_number}` : 'Completar perfil'}
                     </Text>
+                    <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                      <RatingBadge rating={myRating} testID="settings-my-rating" />
+                    </View>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={22} color="#64748B" />
@@ -19521,6 +19530,9 @@ function TransportMeter() {
                 <Ionicons name="person-circle" size={60} color="#6366F1" />
                 <Text style={styles.profileModalTitle}>{currentUser?.full_name || 'Mi Perfil'}</Text>
                 <Text style={styles.profileModalSubtitle}>@{currentUser?.username}</Text>
+                <View style={{ marginTop: 8 }}>
+                  <RatingBadge rating={myRating} testID="profile-modal-my-rating" />
+                </View>
               </View>
               
               {/* Profile Info (Read-Only) */}

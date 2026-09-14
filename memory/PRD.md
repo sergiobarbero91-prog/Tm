@@ -908,6 +908,8 @@ de recuperación de contraseña.
 - Integrado en:
   - `EmisoraDriverSection`: al lado del nombre del cliente en cada tarjeta (ofertas, reservadas, en curso).
   - `EmisoraClient`: al lado del nombre del taxista en cada tarjeta de "Mis servicios" cuando el ride esta aceptado o en curso.
+  - `index.tsx` Settings > "Mi Perfil" y modal `Profile View`: el taxista ve su propia valoracion media junto a su nombre y licencia.
+  - `EmisoraClient` modal "Mi perfil": el cliente ve su propia valoracion junto al titulo.
 - Estilo del badge: pill con color por tramo (verde >=4.5, ambar >=3.5, rojo <3.5) y placeholder gris "Sin valoraciones" cuando el usuario aun no acumula rating.
 - Tests `test_rating_summary_averages_last_ratings` y `test_rating_summary_requires_auth` (6/6 pasan en total).
 
