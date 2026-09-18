@@ -1379,3 +1379,123 @@ async def rating_summary(body: RatingSummaryBody, _who: dict = Depends(get_curre
             out[uid] = {"avg": None, "count": 0}
     return out
 
+
+# ────────────────────────── Address autocomplete ──────────────────────
+# Clients often struggle to type an address that geocodes correctly, which
+# then breaks the fare estimator. We proxy Photon (Nominatim-based, no key
+# needed) biased to Madrid so both drivers and clients see the same live
+# suggestions while they type, plus reverse-geocode of GPS coords.
+# ─────────────────────────────────────────────────────────────────────
+import aiohttp  # noqa: E402
+
+_MADRID_LAT = 40.4168
+_MADRID_LON = -3.7038
+
+
+class AddressSearchBody(BaseModel):
+    query: str = Field(..., min_length=2, max_length=120)
+
+
+@router.post("/address-suggestions")
+async def address_suggestions(body: AddressSearchBody, _who: dict = Depends(get_current_any)):
+    """Return up to 6 Madrid-biased address suggestions for the given query.
+
+    Uses the free Photon API (OpenStreetMap). Formats each result as a single
+    line ("Calle Alcala 43, Madrid") ready to drop into the origin/destination
+    input. Fails silently with an empty list — the client can still type the
+    address by hand.
+    """
+    q = body.query.strip()
+    if not q:
+        return {"suggestions": []}
+    # Bias to Madrid via lat/lon (Photon needs the raw query untouched — adding
+    # ", Madrid" to the string filters out most street matches).
+
+    suggestions: list[dict] = []
+    try:
+        async with aiohttp.ClientSession() as session:
+            params = {
+                "q": q,
+                "limit": 8,
+                "lat": _MADRID_LAT,
+                "lon": _MADRID_LON,
+            }
+            async with session.get(
+                "https://photon.komoot.io/api/", params=params, timeout=aiohttp.ClientTimeout(total=3)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for feature in (data.get("features") or [])[:8]:
+                        props = feature.get("properties", {}) or {}
+                        geom = feature.get("geometry", {}) or {}
+                        coords = geom.get("coordinates") or []
+                        if len(coords) < 2:
+                            continue
+                        lon, lat = coords[0], coords[1]
+                        parts: list[str] = []
+                        street = props.get("street") or props.get("name")
+                        if street:
+                            if props.get("housenumber"):
+                                street = f"{street} {props['housenumber']}"
+                            parts.append(street)
+                        city = props.get("city") or props.get("locality") or props.get("county")
+                        if city and city.lower() not in (street or "").lower():
+                            parts.append(city)
+                        if not parts:
+                            continue
+                        suggestions.append({
+                            "address": ", ".join(parts),
+                            "lat": lat,
+                            "lon": lon,
+                        })
+    except Exception:  # pragma: no cover — network best-effort
+        return {"suggestions": []}
+    # Deduplicate by address string preserving order
+    seen: set[str] = set()
+    deduped = []
+    for s in suggestions:
+        if s["address"] in seen:
+            continue
+        seen.add(s["address"])
+        deduped.append(s)
+        if len(deduped) >= 6:
+            break
+    return {"suggestions": deduped}
+
+
+@router.get("/reverse-geocode")
+async def reverse_geocode_public(lat: float, lon: float, _who: dict = Depends(get_current_any)):
+    """Reverse-geocode a coordinate pair into a Madrid-formatted address.
+
+    Called by the client after granting GPS permission so we can suggest their
+    current location as a pickup point.
+    """
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas fuera de rango")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://photon.komoot.io/reverse",
+                params={"lat": lat, "lon": lon},
+                timeout=aiohttp.ClientTimeout(total=3),
+            ) as resp:
+                if resp.status != 200:
+                    return {"address": None}
+                data = await resp.json()
+                feats = data.get("features") or []
+                if not feats:
+                    return {"address": None}
+                props = feats[0].get("properties") or {}
+                parts: list[str] = []
+                street = props.get("street") or props.get("name")
+                if street:
+                    if props.get("housenumber"):
+                        street = f"{street} {props['housenumber']}"
+                    parts.append(street)
+                city = props.get("city") or props.get("locality") or props.get("county")
+                if city and city.lower() not in (street or "").lower():
+                    parts.append(city)
+                return {"address": ", ".join(parts) if parts else None}
+    except Exception:
+        return {"address": None}
+

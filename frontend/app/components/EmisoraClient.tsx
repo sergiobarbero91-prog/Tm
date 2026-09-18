@@ -23,6 +23,7 @@ import { calculateEstimatedFare, type FareResult } from '../utils/fareEstimator'
 import { DateTimePicker } from './DateTimePicker';
 import { RideHistoryPanel } from './RideHistoryPanel';
 import { RatingBadge, useUserRatings } from './RatingBadge';
+import { AddressAutocomplete } from './AddressAutocomplete';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -658,21 +659,38 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           )}
 
           <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Recogida</Text>
-          <TextInput
-            style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 10 }}
-            placeholder="Dirección de recogida"
-            placeholderTextColor="#475569"
+          <AddressAutocomplete
             value={origin}
-            onChangeText={setOrigin}
+            onChange={setOrigin}
+            placeholder="Dirección de recogida"
+            tokenKey={CLIENT_TOKEN_KEY}
             testID="emisora-origin-input"
+            onUseLocation={async () => {
+              if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !navigator.geolocation) {
+                notify('Tu navegador no soporta geolocalización');
+                return null;
+              }
+              try {
+                const coords: { lat: number; lon: number } = await new Promise((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(
+                    pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    err => reject(err),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+                  );
+                });
+                return coords;
+              } catch (e: any) {
+                notify(e?.message || 'No se pudo obtener la ubicación');
+                return null;
+              }
+            }}
           />
           <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Destino</Text>
-          <TextInput
-            style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#F1F5F9', borderWidth: 1, borderColor: '#334155', marginBottom: 10 }}
-            placeholder="A dónde vas"
-            placeholderTextColor="#475569"
+          <AddressAutocomplete
             value={destination}
-            onChangeText={setDestination}
+            onChange={setDestination}
+            placeholder="A dónde vas"
+            tokenKey={CLIENT_TOKEN_KEY}
             testID="emisora-destination-input"
           />
           <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Pasajeros</Text>

@@ -921,3 +921,10 @@ de recuperación de contraseña.
 - Nuevo endpoint `POST /api/events/daily-summary/delete-line` body `{"line_index": N}` para borrar UN solo bullet sin editar todo el texto. Colapsa lineas vacias huerfanas y persiste como edicion manual.
 - Frontend: botones "Editar" y "Restaurar IA" en la cabecera del card "Resumen del Dia (IA)" (solo visibles con `canDeleteMessages()`), badge "EDITADO · <user>" cuando aplica y modal con `TextInput` multilinea para modificar el texto (min 10 caracteres, max 20000). Ademas cada bullet renderizado tiene un icono papelera al lado (solo staff) que dispara el delete puntual.
 - Tests `tests/test_daily_summary_manual_edit.py` (6/6 pasan): auth PUT/DELETE, PUT persiste, GET devuelve editada, delete por indice quita solo esa linea, indice fuera de rango => 400, validacion longitud minima.
+
+### ✅ Autocompletado de direcciones + GPS (Feb 2026)
+- Nuevo backend `POST /api/rides/address-suggestions` (auth driver o cliente) proxeado a Photon (OpenStreetMap) con bias a Madrid via `lat/lon`. Devuelve hasta 6 sugerencias formateadas "Calle X 43, Madrid". Fallback silencioso a lista vacia si Photon no responde.
+- Nuevo backend `GET /api/rides/reverse-geocode?lat=&lon=` para convertir coordenadas GPS en direccion legible.
+- Nuevo componente `AddressAutocomplete.tsx` con debounce 300 ms, dropdown flotante y boton opcional "Usar mi ubicación" que dispara `navigator.geolocation` + reverse-geocode.
+- Integrado en `EmisoraClient` (recogida y destino, recogida con boton de ubicacion) y en el formulario "Nueva Reserva" del taxista en `index.tsx` (ambos campos).
+- Tests `tests/test_address_suggestions.py` (5/5): auth, resultados Madrid, validacion longitud, reverse OK, coordenadas invalidas.

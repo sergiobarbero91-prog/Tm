@@ -44,6 +44,7 @@ import { ReportThread } from './components/ReportThread';
 import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { RatingBadge, useUserRatings } from './components/RatingBadge';
 import { DateTimePicker } from './components/DateTimePicker';
+import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -13433,20 +13434,20 @@ function TransportMeter() {
                   onChangeTime={v => setNewReservation(p => ({ ...p, time: v }))}
                 />
                 <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Recogida</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155', marginBottom: 8 }}
-                  placeholder="Dirección de recogida"
-                  placeholderTextColor="#475569"
+                <AddressAutocomplete
                   value={newReservation.pickup_address}
-                  onChangeText={t => setNewReservation(p => ({...p, pickup_address: t}))}
+                  onChange={t => setNewReservation(p => ({ ...p, pickup_address: t }))}
+                  placeholder="Dirección de recogida"
+                  tokenKey="token"
+                  testID="new-reservation-pickup"
                 />
                 <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Destino</Text>
-                <TextInput
-                  style={{ backgroundColor: '#0F172A', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#334155', marginBottom: 8 }}
-                  placeholder="Dirección de destino"
-                  placeholderTextColor="#475569"
+                <AddressAutocomplete
                   value={newReservation.destination}
-                  onChangeText={t => setNewReservation(p => ({...p, destination: t}))}
+                  onChange={t => setNewReservation(p => ({ ...p, destination: t }))}
+                  placeholder="Dirección de destino"
+                  tokenKey="token"
+                  testID="new-reservation-destination"
                 />
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                   <View style={{ flex: 1 }}>
