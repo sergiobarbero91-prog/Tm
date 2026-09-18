@@ -951,3 +951,8 @@ de recuperación de contraseña.
 - Frontend `AddressAutocomplete`: nuevo callback `onPick` para emitir `{address, lat, lon}` (y tambien al aceptar "Usar mi ubicacion"). `EmisoraClient` guarda las coords elegidas y las envia en el POST del servicio; se resetean si el usuario reedita el texto.
 - Frontend `EmisoraDriverSection`: pide una posicion GPS al taxista (silent, cache 60s) y la pasa como query a `driver/offers`. Cada tarjeta muestra un pill `navigate 850 m` / `3.2 km` cuando hay distancia calculada.
 - Tests nuevos `tests/test_offers_distance.py` (2/2 pasan): sort por distancia y fallback sin GPS.
+
+### ✅ Ruta al cliente Google Maps / Waze (Feb 2026)
+- `EmisoraDriverSection`: cada tarjeta de servicio (offer, assigned y active) muestra dos botones "Google Maps" y "Waze" que abren la app o el navegador con la ruta hasta el pickup del cliente. Prefiere coords `origin_lat/origin_lon` cuando existen (deep-link exacto); si no, cae a la direccion como texto.
+- Helpers `googleMapsUrl` (`maps/dir/?api=1&destination=...&travelmode=driving`) y `wazeUrl` (`waze.com/ul?ll=...&navigate=yes` o `q=...`).
+- `openExternalUrl` abre en nueva pestana en web y usa Linking en native.

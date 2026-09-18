@@ -47,6 +47,8 @@ type Ride = {
   accepted_by_driver_phone: string | null;
   created_at: string;
   distance_km?: number | null;
+  origin_lat?: number | null;
+  origin_lon?: number | null;
 };
 
 const openTel = (phone: string | null | undefined) => {
@@ -64,6 +66,35 @@ const openTel = (phone: string | null | undefined) => {
       // ignore
     }
   }
+};
+
+const openExternalUrl = (url: string) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Linking = require('react-native').Linking;
+    Linking.openURL(url);
+  } catch {
+    /* ignore */
+  }
+};
+
+const googleMapsUrl = (r: { origin: string; origin_lat?: number | null; origin_lon?: number | null }): string => {
+  const dest =
+    r.origin_lat != null && r.origin_lon != null
+      ? `${r.origin_lat},${r.origin_lon}`
+      : r.origin;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+};
+
+const wazeUrl = (r: { origin: string; origin_lat?: number | null; origin_lon?: number | null }): string => {
+  if (r.origin_lat != null && r.origin_lon != null) {
+    return `https://waze.com/ul?ll=${r.origin_lat},${r.origin_lon}&navigate=yes`;
+  }
+  return `https://waze.com/ul?q=${encodeURIComponent(r.origin)}&navigate=yes`;
 };
 
 type QrInfo = {
@@ -348,6 +379,26 @@ export const EmisoraDriverSection: React.FC = () => {
             </TouchableOpacity>
           </View>
         ) : null}
+
+        {/* Route to client — open Google Maps or Waze with pickup coords */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+          <TouchableOpacity
+            onPress={() => openExternalUrl(googleMapsUrl(r))}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#3B82F6' }}
+            testID={`emisora-driver-gmaps-${r.id}`}
+          >
+            <Ionicons name="map" size={14} color="#3B82F6" />
+            <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12 }}>Google Maps</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => openExternalUrl(wazeUrl(r))}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#8B5CF6' }}
+            testID={`emisora-driver-waze-${r.id}`}
+          >
+            <Ionicons name="navigate-circle" size={14} color="#8B5CF6" />
+            <Text style={{ color: '#8B5CF6', fontWeight: '800', fontSize: 12 }}>Waze</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
           {variant !== 'active' && (
