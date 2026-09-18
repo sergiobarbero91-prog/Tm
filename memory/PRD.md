@@ -934,3 +934,8 @@ de recuperación de contraseña.
 - Cliente (`EmisoraClient`): detecta transicion de un viaje a `completed` en el polling de `rides/mine` (skip primer refresh para no ambush con historial) y abre el prompt automaticamente.
 - Taxista (`EmisoraDriverSection`): al pulsar "Finalizar" el prompt se abre inmediatamente con los datos del cliente.
 - IDs de viaje ya calificados o descartados se persisten en AsyncStorage (`rated_or_dismissed_rides`, bounded a 200) para no re-mostrar el prompt al mismo usuario. Reutiliza `POST /api/rides/rides/{id}/rate`.
+
+### ✅ Ventana exclusiva del taxista asociado: 6h → 12h (Feb 2026)
+- `routers/rides.py`: la reserva de un cliente asociado a un taxista permanece `dispatch_scope="assigned"` (visible SOLO para ese taxista) hasta 12 horas antes del servicio en lugar de 6.
+- `_promote_scheduled_rides_near_deadline` promociona a `open` a partir del corte de 12 h.
+- Tests `test_scheduled_ride_beyond_12h_is_assigned_to_qr_associated_driver` y `test_scheduled_ride_within_12h_falls_into_open_offers` reflejan el nuevo umbral. Todo el resto de tests de rides sigue en verde.

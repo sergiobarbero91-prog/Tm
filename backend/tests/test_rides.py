@@ -160,12 +160,12 @@ def test_client_can_register_and_create_asap_ride():
     assert body["dispatch_scope"] == "open"
 
 
-def test_scheduled_ride_beyond_6h_is_assigned_to_qr_associated_driver():
+def test_scheduled_ride_beyond_12h_is_assigned_to_qr_associated_driver():
     dt = _driver_login()
     ct = _client_login("+34600999002", "Reserv", "Via QR", driver_token=dt)
     driver_id = requests.get(f"{API}/rides/client/me", headers={"Authorization": f"Bearer {ct}"}).json()["associated_driver_id"]
 
-    when = (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat()
+    when = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
     r = requests.post(
         f"{API}/rides/rides",
         json={"origin": "Sol", "destination": "Barajas T1", "ride_type": "scheduled", "scheduled_at": when},
@@ -178,7 +178,7 @@ def test_scheduled_ride_beyond_6h_is_assigned_to_qr_associated_driver():
     assert body["associated_driver_id"] == driver_id
 
 
-def test_scheduled_ride_within_6h_falls_into_open_offers():
+def test_scheduled_ride_within_12h_falls_into_open_offers():
     dt = _driver_login()
     ct = _client_login("+34600999003", "Reserv", "Cerca", driver_token=dt)
     when = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()

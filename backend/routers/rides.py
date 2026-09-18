@@ -9,7 +9,7 @@ Introduces a "cliente" role separate from the existing driver/owner accounts:
   through that QR are "associated" with the driver.
 - Dispatcher rules:
     * ASAP → immediately open to all online drivers.
-    * Scheduled → offered exclusively to the associated driver until 6 hours
+    * Scheduled → offered exclusively to the associated driver until 12 hours
       before service; then it falls into the open offers pool.
 
 This module lives under /api/rides.
@@ -833,12 +833,12 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
 
     # Dispatch scope:
     #   ASAP → always open to everyone
-    #   Scheduled + associated_driver + >6h before service → exclusive
-    #   Scheduled + no associated driver (or <6h) → open
+    #   Scheduled + associated_driver + >12h before service → exclusive
+    #   Scheduled + no associated driver (or <12h) → open
     dispatch_scope = "open"
     if body.ride_type == "scheduled" and associated_driver_id and sched:
         hours_until = (sched - now).total_seconds() / 3600.0
-        if hours_until > 6:
+        if hours_until > 12:
             dispatch_scope = "assigned"
 
     doc = {
@@ -941,10 +941,10 @@ async def cancel_ride(ride_id: str, current: dict = Depends(get_current_client_r
 
 # ────────────────────────── Ride endpoints (driver) ────────────────────
 async def _promote_scheduled_rides_near_deadline():
-    """Move any 'assigned' scheduled ride whose service time is within 6h to 'open'.
+    """Move any 'assigned' scheduled ride whose service time is within 12h to 'open'.
     Called opportunistically on every driver list query."""
     now = datetime.now(timezone.utc)
-    cutoff = now + timedelta(hours=6)
+    cutoff = now + timedelta(hours=12)
     await rides_collection.update_many(
         {
             "status": "pending",
@@ -976,7 +976,7 @@ async def _blocked_counterpart_ids(viewer_id: str) -> list:
 
 @router.get("/driver/assigned", response_model=List[RideResponse])
 async def driver_list_assigned(current: dict = Depends(get_current_user_required)):
-    """Rides that are currently reserved for this driver (before the 6h cutoff)."""
+    """Rides that are currently reserved for this driver (before the 12h cutoff)."""
     await _promote_scheduled_rides_near_deadline()
     blocked_client_ids = await _blocked_counterpart_ids(current["id"])
     q: dict = {
@@ -1079,7 +1079,7 @@ async def driver_complete_ride(ride_id: str, current: dict = Depends(get_current
 
 @router.post("/rides/{ride_id}/reject", response_model=RideResponse)
 async def driver_reject_assigned(ride_id: str, current: dict = Depends(get_current_user_required)):
-    """Assigned driver can push a ride to the open pool without waiting for the 6h cutoff."""
+    """Assigned driver can push a ride to the open pool without waiting for the 12h cutoff."""
     doc = await rides_collection.find_one({"id": ride_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Servicio no encontrado")
