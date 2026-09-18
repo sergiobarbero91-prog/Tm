@@ -1154,6 +1154,61 @@ async def edit_daily_summary(
     return {"success": True, **(doc or {})}
 
 
+class DailySummaryDeleteLineBody(BaseModel):
+    line_index: int = Field(..., ge=0, le=999)
+
+
+@router.post("/daily-summary/delete-line")
+async def delete_daily_summary_line(
+    body: DailySummaryDeleteLineBody,
+    staff=Depends(get_moderator_or_admin_user),
+):
+    """Delete a SINGLE line from today's summary by its 0-based index.
+
+    Handy for staff when only one bullet needs to go (e.g. an event cancelled
+    at the last minute) without touching the rest of the text. Marks the
+    record as `manually_edited=true` so the change survives the next
+    auto-regen slot.
+    """
+    cached = await _load_cached()
+    if not cached or not cached.get("summary"):
+        raise HTTPException(status_code=404, detail="No hay resumen que editar")
+
+    lines = cached["summary"].split("\n")
+    if body.line_index >= len(lines):
+        raise HTTPException(status_code=400, detail="Indice fuera de rango")
+
+    removed = lines.pop(body.line_index)
+    # Collapse a stray empty line if the deletion left two consecutive blanks
+    # right where the bullet used to live.
+    if (
+        0 < body.line_index < len(lines)
+        and not lines[body.line_index - 1].strip()
+        and not lines[body.line_index].strip()
+    ):
+        lines.pop(body.line_index)
+
+    new_summary = "\n".join(lines).strip()
+    slot = _cache_slot_madrid()
+    now_iso = datetime.now(MADRID_TZ).isoformat()
+    editor_label = staff.get("username") or staff.get("full_name") or "staff"
+    await daily_summaries_collection.update_one(
+        {"cache_slot": slot},
+        {
+            "$set": {
+                "summary": new_summary,
+                "manually_edited": True,
+                "edited_by": editor_label,
+                "edited_at": now_iso,
+                "cache_slot": slot,
+            },
+        },
+        upsert=True,
+    )
+    doc = await daily_summaries_collection.find_one({"cache_slot": slot}, {"_id": 0})
+    return {"success": True, "removed_line": removed, **(doc or {})}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Public homepage endpoint
 # ─────────────────────────────────────────────────────────────────────────────

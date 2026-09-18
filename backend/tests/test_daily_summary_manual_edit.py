@@ -47,3 +47,54 @@ def test_short_summary_is_rejected():
         timeout=10,
     )
     assert r.status_code == 422
+
+
+def test_delete_single_line_by_index():
+    tk = _admin_token()
+    seed = "[GRANDES EVENTOS]\n- Concierto IFEMA cancelado\n- Real Madrid Bernabeu 21:00\n\n[TEATROS]\n- Gran Via lleno"
+    requests.put(
+        f"{API}/events/daily-summary",
+        json={"summary": seed},
+        headers={"Authorization": f"Bearer {tk}"},
+        timeout=10,
+    ).raise_for_status()
+
+    r = requests.post(
+        f"{API}/events/daily-summary/delete-line",
+        json={"line_index": 1},
+        headers={"Authorization": f"Bearer {tk}"},
+        timeout=10,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["removed_line"] == "- Concierto IFEMA cancelado"
+    assert "IFEMA" not in body["summary"]
+    assert "Real Madrid" in body["summary"]
+    assert body["manually_edited"] is True
+
+
+def test_delete_line_out_of_range():
+    tk = _admin_token()
+    seed = "[GRANDES EVENTOS]\n- Solo linea"
+    requests.put(
+        f"{API}/events/daily-summary",
+        json={"summary": seed},
+        headers={"Authorization": f"Bearer {tk}"},
+        timeout=10,
+    ).raise_for_status()
+    r = requests.post(
+        f"{API}/events/daily-summary/delete-line",
+        json={"line_index": 99},
+        headers={"Authorization": f"Bearer {tk}"},
+        timeout=10,
+    )
+    assert r.status_code == 400
+
+
+def test_delete_line_requires_auth():
+    r = requests.post(
+        f"{API}/events/daily-summary/delete-line",
+        json={"line_index": 0},
+        timeout=10,
+    )
+    assert r.status_code == 401

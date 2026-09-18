@@ -918,5 +918,6 @@ de recuperación de contraseña.
 - Nuevo endpoint `PUT /api/events/daily-summary` protegido por `get_moderator_or_admin_user` que sobrescribe el texto del resumen del dia y marca el registro con `manually_edited=true`, `edited_by` y `edited_at`.
 - `_load_cached` preferiere el doc `manually_edited` mas reciente del dia (Madrid) para que la edicion sobreviva al siguiente slot de 4 h.
 - `POST /api/events/daily-summary/regenerate` reabierto a moderadores; limpia el flag `manually_edited` al pedir un refresco IA.
-- Frontend: botones "Editar" y "Restaurar IA" en la cabecera del card "Resumen del Dia (IA)" (solo visibles con `canDeleteMessages()`), badge "EDITADO · <user>" cuando aplica y modal con `TextInput` multilinea para modificar el texto (min 10 caracteres, max 20000).
-- Tests `tests/test_daily_summary_manual_edit.py` (3/3 pasan): auth 401, PUT persiste y GET devuelve la version editada, validacion de longitud minima.
+- Nuevo endpoint `POST /api/events/daily-summary/delete-line` body `{"line_index": N}` para borrar UN solo bullet sin editar todo el texto. Colapsa lineas vacias huerfanas y persiste como edicion manual.
+- Frontend: botones "Editar" y "Restaurar IA" en la cabecera del card "Resumen del Dia (IA)" (solo visibles con `canDeleteMessages()`), badge "EDITADO · <user>" cuando aplica y modal con `TextInput` multilinea para modificar el texto (min 10 caracteres, max 20000). Ademas cada bullet renderizado tiene un icono papelera al lado (solo staff) que dispara el delete puntual.
+- Tests `tests/test_daily_summary_manual_edit.py` (6/6 pasan): auth PUT/DELETE, PUT persiste, GET devuelve editada, delete por indice quita solo esa linea, indice fuera de rango => 400, validacion longitud minima.

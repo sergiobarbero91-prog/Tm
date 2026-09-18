@@ -4938,6 +4938,28 @@ function TransportMeter() {
     }
   };
 
+  // Delete a single bullet line from the summary (staff shortcut)
+  const deleteAiSummaryLine = async (lineIndex: number) => {
+    setAiSummaryLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const r = await axios.post(
+        `${API_BASE}/api/events/daily-summary/delete-line`,
+        { line_index: lineIndex },
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 },
+      );
+      if (r.data.success) {
+        setAiEventsSummary(r.data.summary);
+        setAiSummaryManuallyEdited(true);
+        setAiSummaryEditedBy(r.data.edited_by || null);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.detail || 'No se pudo borrar la linea');
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  };
+
   // Create new event
   const createEvent = async () => {
     if (!newEventLocation.trim() || !newEventDescription.trim() || !newEventTime.trim()) {
@@ -13841,19 +13863,37 @@ function TransportMeter() {
                         }
                         // Body line — split on **bold** segments
                         const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                        const isBullet = trimmed.startsWith('-') || trimmed.startsWith('•');
+                        const showDelete = canDeleteMessages() && isBullet;
                         return (
-                          <Text key={idx} style={{ color: '#CBD5E1', fontSize: 13, lineHeight: 20 }}>
-                            {parts.map((p, i) => {
-                              if (p.startsWith('**') && p.endsWith('**')) {
-                                return (
-                                  <Text key={i} style={{ color: '#FDE68A', fontWeight: '800' }}>
-                                    {p.slice(2, -2)}
-                                  </Text>
-                                );
-                              }
-                              return p;
-                            })}
-                          </Text>
+                          <View
+                            key={idx}
+                            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}
+                          >
+                            <Text style={{ color: '#CBD5E1', fontSize: 13, lineHeight: 20, flex: 1 }}>
+                              {parts.map((p, i) => {
+                                if (p.startsWith('**') && p.endsWith('**')) {
+                                  return (
+                                    <Text key={i} style={{ color: '#FDE68A', fontWeight: '800' }}>
+                                      {p.slice(2, -2)}
+                                    </Text>
+                                  );
+                                }
+                                return p;
+                              })}
+                            </Text>
+                            {showDelete && (
+                              <TouchableOpacity
+                                testID={`ai-summary-delete-line-${idx}`}
+                                onPress={() => deleteAiSummaryLine(idx)}
+                                disabled={aiSummaryLoading}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={{ paddingHorizontal: 4, paddingVertical: 2, opacity: aiSummaryLoading ? 0.4 : 1 }}
+                              >
+                                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         );
                       })}
                     </View>
