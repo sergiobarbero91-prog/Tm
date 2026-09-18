@@ -24,6 +24,8 @@ type Props = {
   tokenKey: string;
   /** When set, a "Usar mi ubicación" button appears above the input. */
   onUseLocation?: () => Promise<{ lat: number; lon: number } | null>;
+  /** Fires when the user picks a suggestion or accepts a reverse-geocoded location. */
+  onPick?: (suggestion: { address: string; lat: number; lon: number }) => void;
   testID?: string;
 };
 
@@ -33,6 +35,7 @@ export const AddressAutocomplete: React.FC<Props> = ({
   placeholder,
   tokenKey,
   onUseLocation,
+  onPick,
   testID,
 }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -85,6 +88,7 @@ export const AddressAutocomplete: React.FC<Props> = ({
   const pick = (s: Suggestion) => {
     skipNextRef.current = true;
     onChange(s.address);
+    onPick?.(s);
     setSuggestions([]);
     setOpen(false);
   };
@@ -106,6 +110,7 @@ export const AddressAutocomplete: React.FC<Props> = ({
       if (addr) {
         skipNextRef.current = true;
         onChange(addr);
+        onPick?.({ address: addr, lat: coords.lat, lon: coords.lon });
         setSuggestions([]);
       }
     } catch {

@@ -96,6 +96,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   // Ride creation state
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [rideType, setRideType] = useState<'asap' | 'scheduled'>('asap');
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
@@ -321,6 +322,10 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         ride_type: rideType,
         passengers: parseInt(passengers, 10) || 1,
       };
+      if (originCoords) {
+        body.origin_lat = originCoords.lat;
+        body.origin_lon = originCoords.lon;
+      }
       if (rideType === 'scheduled') {
         // Compose ISO in local time; backend interprets as UTC (naive → utc)
         const iso = new Date(`${schedDate}T${schedTime}:00`).toISOString();
@@ -329,6 +334,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       await axios.post(`${API_BASE}/api/rides/rides`, body, { headers: await authHeaders() });
       setOrigin('');
       setDestination('');
+      setOriginCoords(null);
       setSchedDate('');
       setSchedTime('');
       setPassengers('1');
@@ -690,7 +696,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 4 }}>Recogida</Text>
           <AddressAutocomplete
             value={origin}
-            onChange={setOrigin}
+            onChange={v => {
+              setOrigin(v);
+              // Typing invalidates any previously-picked coordinates so we
+              // don't attach stale coords to the ride.
+              if (originCoords) setOriginCoords(null);
+            }}
+            onPick={s => setOriginCoords({ lat: s.lat, lon: s.lon })}
             placeholder="Dirección de recogida"
             tokenKey={CLIENT_TOKEN_KEY}
             testID="emisora-origin-input"

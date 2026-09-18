@@ -46,6 +46,7 @@ type Ride = {
   accepted_by_driver_name: string | null;
   accepted_by_driver_phone: string | null;
   created_at: string;
+  distance_km?: number | null;
 };
 
 const openTel = (phone: string | null | undefined) => {
@@ -150,13 +151,40 @@ export const EmisoraDriverSection: React.FC = () => {
     }
   };
 
+  // Also keep the ride type + destination + a distance hint so drivers can
+  // triage quickly.
+  const driverPosRef = useRef<{ lat: number; lon: number } | null>(null);
+
+  // Ask the browser for the driver's location once on mount and refresh it
+  // opportunistically. Failure is silent — offers just fall back to the
+  // default chronological order.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    const grab = () => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          driverPosRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        },
+        () => { /* silent */ },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+      );
+    };
+    grab();
+    const t = setInterval(grab, 60000);
+    return () => clearInterval(t);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const headers = await authHeaders();
+      const pos = driverPosRef.current;
       const [aRes, oRes, actRes] = await Promise.all([
         axios.get(`${API_BASE}/api/rides/driver/assigned`, { headers }),
-        axios.get(`${API_BASE}/api/rides/driver/offers`, { headers }),
+        axios.get(`${API_BASE}/api/rides/driver/offers`, {
+          headers,
+          params: pos ? { lat: pos.lat, lon: pos.lon } : undefined,
+        }),
         axios.get(`${API_BASE}/api/rides/driver/active`, { headers }),
       ]);
       const nextAssigned: Ride[] = aRes.data || [];
@@ -271,6 +299,17 @@ export const EmisoraDriverSection: React.FC = () => {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {isAsap && <Ionicons name="flash" size={14} color="#F59E0B" />}
             <Text style={{ color: isAsap ? '#F59E0B' : '#94A3B8', fontWeight: '800', fontSize: 12 }}>{when}</Text>
+            {typeof r.distance_km === 'number' && (
+              <View
+                testID={`emisora-driver-distance-${r.id}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#10B981' }}
+              >
+                <Ionicons name="navigate" size={10} color="#10B981" />
+                <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>
+                  {r.distance_km < 1 ? `${Math.round(r.distance_km * 1000)} m` : `${r.distance_km.toFixed(1)} km`}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={{ color: '#94A3B8', fontSize: 11 }}>{r.passengers} pax</Text>
         </View>

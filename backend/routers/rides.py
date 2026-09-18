@@ -762,6 +762,8 @@ class RideCreateBody(BaseModel):
     scheduled_at: Optional[datetime] = None  # required if ride_type == "scheduled"
     notes: Optional[str] = None
     passengers: Optional[int] = 1
+    origin_lat: Optional[float] = None
+    origin_lon: Optional[float] = None
 
     @validator("ride_type")
     def _rt(cls, v: str) -> str:  # noqa: N805
@@ -788,9 +790,12 @@ class RideResponse(BaseModel):
     passengers: int
     created_at: datetime
     accepted_by_driver_phone: Optional[str] = None
+    origin_lat: Optional[float] = None
+    origin_lon: Optional[float] = None
+    distance_km: Optional[float] = None  # populated when driver queries with GPS
 
 
-def _ride_to_response(doc: dict) -> RideResponse:
+def _ride_to_response(doc: dict, distance_km: Optional[float] = None) -> RideResponse:
     return RideResponse(
         id=doc["id"],
         origin=doc["origin"],
@@ -809,6 +814,9 @@ def _ride_to_response(doc: dict) -> RideResponse:
         notes=doc.get("notes"),
         passengers=doc.get("passengers", 1),
         created_at=doc["created_at"],
+        origin_lat=doc.get("origin_lat"),
+        origin_lon=doc.get("origin_lon"),
+        distance_km=distance_km,
     )
 
 
@@ -859,6 +867,8 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
         "passengers": max(1, min(int(body.passengers or 1), 8)),
         "created_at": now,
         "updated_at": now,
+        "origin_lat": body.origin_lat,
+        "origin_lon": body.origin_lon,
     }
     await rides_collection.insert_one(doc)
 
@@ -990,16 +1000,62 @@ async def driver_list_assigned(current: dict = Depends(get_current_user_required
     return [_ride_to_response(d) async for d in cursor]
 
 
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in km between two lat/lon points."""
+    from math import radians, sin, cos, asin, sqrt
+    r = 6371.0
+    lat1r, lon1r, lat2r, lon2r = map(radians, (lat1, lon1, lat2, lon2))
+    dlat = lat2r - lat1r
+    dlon = lon2r - lon1r
+    h = sin(dlat / 2) ** 2 + cos(lat1r) * cos(lat2r) * sin(dlon / 2) ** 2
+    return 2 * r * asin(sqrt(h))
+
+
 @router.get("/driver/offers", response_model=List[RideResponse])
-async def driver_list_offers(current: dict = Depends(get_current_user_required)):
-    """Open-market rides available to any online driver."""
+async def driver_list_offers(
+    current: dict = Depends(get_current_user_required),
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+):
+    """Open-market rides available to any online driver.
+
+    If the driver sends their current position (`?lat=&lon=`), ASAP rides are
+    returned ordered by ASCENDING distance to the client's pickup point
+    (falling back to `created_at` when a ride is missing pickup coordinates).
+    Scheduled rides keep their chronological ordering.
+    """
     await _promote_scheduled_rides_near_deadline()
     blocked_client_ids = await _blocked_counterpart_ids(current["id"])
     q: dict = {"status": "pending", "dispatch_scope": "open"}
     if blocked_client_ids:
         q["client_id"] = {"$nin": blocked_client_ids}
-    cursor = rides_collection.find(q).sort("created_at", -1).limit(50)
-    return [_ride_to_response(d) async for d in cursor]
+    cursor = rides_collection.find(q).sort("created_at", -1).limit(100)
+    docs = [d async for d in cursor]
+
+    driver_has_pos = lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180
+
+    def distance_for(doc: dict) -> Optional[float]:
+        olat, olon = doc.get("origin_lat"), doc.get("origin_lon")
+        if not driver_has_pos or olat is None or olon is None:
+            return None
+        return round(_haversine_km(lat, lon, olat, olon), 2)  # type: ignore[arg-type]
+
+    asap = [d for d in docs if d.get("ride_type") == "asap"]
+    scheduled = [d for d in docs if d.get("ride_type") != "asap"]
+
+    if driver_has_pos:
+        # Rides with a known pickup come first ordered by distance; rides
+        # without coordinates go last preserving created_at order.
+        with_coords = [d for d in asap if d.get("origin_lat") is not None and d.get("origin_lon") is not None]
+        without_coords = [d for d in asap if d not in with_coords]
+        with_coords.sort(key=lambda d: distance_for(d) or 9999.0)
+        asap = with_coords + without_coords
+
+    scheduled.sort(key=lambda d: d.get("scheduled_at") or datetime.max.replace(tzinfo=timezone.utc))
+
+    out = [_ride_to_response(d, distance_for(d)) for d in asap[:50]]
+    out += [_ride_to_response(d, distance_for(d)) for d in scheduled[:50]]
+    return out
 
 
 @router.get("/driver/active", response_model=List[RideResponse])

@@ -944,3 +944,10 @@ de recuperación de contraseña.
 - `routers/daily_summary.py` prompt actualizado: nueva vinieta especifica para **Caja Magica** (Camino de Perales s/n) con recordatorio de comprobar `cajamagica.esmadrid.com` y `madrid-open.com` antes de incluir eventos; se anade como sede a la lista de conciertos grandes y como punto caliente para el taxi.
 - `FALLBACK_QUERIES` amplia con "Caja Magica Madrid eventos hoy conciertos", "Mutua Madrid Open cajamagica horario partidos hoy" y "cajamagica.esmadrid.com programación" para forzar grounding sobre el recinto.
 - Las queries del prompt tambien incluyen `Caja Mágica evento <hoy>` y `Mutua Madrid Open cajamagica <hoy>` como fuentes oficiales preferidas.
+
+### ✅ ASAP ordenados por distancia al cliente (Feb 2026)
+- `RideCreateBody`/`RideResponse` amplian con `origin_lat` y `origin_lon`; `create_ride` los persiste cuando el cliente los envia.
+- `GET /api/rides/driver/offers?lat=&lon=` calcula distancia Haversine desde la posicion del taxista al pickup del cliente y ordena las ASAP ascendente (las que carezcan de coords quedan al final por `created_at`). Las scheduled mantienen su orden cronologico. Cada respuesta incluye `distance_km`.
+- Frontend `AddressAutocomplete`: nuevo callback `onPick` para emitir `{address, lat, lon}` (y tambien al aceptar "Usar mi ubicacion"). `EmisoraClient` guarda las coords elegidas y las envia en el POST del servicio; se resetean si el usuario reedita el texto.
+- Frontend `EmisoraDriverSection`: pide una posicion GPS al taxista (silent, cache 60s) y la pasa como query a `driver/offers`. Cada tarjeta muestra un pill `navigate 850 m` / `3.2 km` cuando hay distancia calculada.
+- Tests nuevos `tests/test_offers_distance.py` (2/2 pasan): sort por distancia y fallback sin GPS.
