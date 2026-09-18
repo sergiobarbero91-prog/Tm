@@ -24,6 +24,7 @@ import { DateTimePicker } from './DateTimePicker';
 import { RideHistoryPanel } from './RideHistoryPanel';
 import { RatingBadge, useUserRatings } from './RatingBadge';
 import { AddressAutocomplete } from './AddressAutocomplete';
+import { RatePrompt, loadPromptedRides } from './RatePrompt';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const CLIENT_TOKEN_KEY = 'emisora_client_token';
@@ -104,6 +105,17 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [rides, setRides] = useState<Ride[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Post-ride rating prompt
+  const [ratePromptRide, setRatePromptRide] = useState<Ride | null>(null);
+  const promptedRidesRef = React.useRef<Set<string>>(new Set());
+  const prevRideStatusRef = React.useRef<Map<string, string>>(new Map());
+  const ratePromptFirstLoadRef = React.useRef(true);
+  React.useEffect(() => {
+    loadPromptedRides().then(s => {
+      promptedRidesRef.current = s;
+    });
+  }, []);
+
   // Estimated fare (recomputed on-demand by pressing "Ver precio")
   const [fareEstimate, setFareEstimate] = useState<FareResult | null>(null);
   const [fareLoading, setFareLoading] = useState(false);
@@ -155,13 +167,30 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     setRefreshing(true);
     try {
       const r = await axios.get(`${API_BASE}/api/rides/rides/mine`, { headers: await authHeaders() });
-      setRides(r.data || []);
+      const nextRides: Ride[] = r.data || [];
+      // Detect rides that JUST completed and were not yet prompted for rating.
+      // Skip the very first refresh so we don't ambush the user with historical rides.
+      if (!ratePromptFirstLoadRef.current && !ratePromptRide) {
+        const prev = prevRideStatusRef.current;
+        const justCompleted = nextRides.find(nr => {
+          if (nr.status !== 'completed') return false;
+          if (promptedRidesRef.current.has(nr.id)) return false;
+          const prevStatus = prev.get(nr.id);
+          return prevStatus && prevStatus !== 'completed';
+        });
+        if (justCompleted) setRatePromptRide(justCompleted);
+      }
+      const nextMap = new Map<string, string>();
+      nextRides.forEach(nr => nextMap.set(nr.id, nr.status));
+      prevRideStatusRef.current = nextMap;
+      ratePromptFirstLoadRef.current = false;
+      setRides(nextRides);
     } catch (e) {
       // token might have expired
     } finally {
       setRefreshing(false);
     }
-  }, [client, authHeaders]);
+  }, [client, authHeaders, ratePromptRide]);
 
   const refreshFrequentAddresses = useCallback(async () => {
     if (!client) return;
@@ -836,6 +865,21 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           </View>
         </View>
       </Modal>
+
+      {/* Post-ride rating prompt */}
+      <RatePrompt
+        visible={!!ratePromptRide}
+        rideId={ratePromptRide?.id || null}
+        counterpartLabel={ratePromptRide?.accepted_by_driver_name || 'tu taxista'}
+        tokenKey={CLIENT_TOKEN_KEY}
+        onClose={rated => {
+          if (ratePromptRide) {
+            promptedRidesRef.current.add(ratePromptRide.id);
+          }
+          setRatePromptRide(null);
+          if (rated) refreshRides();
+        }}
+      />
 
       {/* Client profile edit modal */}
       <Modal visible={profileOpen} transparent animationType="fade" onRequestClose={() => setProfileOpen(false)}>

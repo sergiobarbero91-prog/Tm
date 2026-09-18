@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { RideHistoryPanel } from './RideHistoryPanel';
 import { RatingBadge, useUserRatings } from './RatingBadge';
+import { RatePrompt, loadPromptedRides } from './RatePrompt';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -113,6 +114,15 @@ export const EmisoraDriverSection: React.FC = () => {
   const [offers, setOffers] = useState<Ride[]>([]);
   const [active, setActive] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Post-ride rating prompt state (fires after driver taps "Finalizar")
+  const [ratePromptRide, setRatePromptRide] = useState<Ride | null>(null);
+  const promptedRidesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    loadPromptedRides().then(s => {
+      promptedRidesRef.current = s;
+    });
+  }, []);
 
   // Track previously known ride ids so we can ping only when new ones arrive.
   const seenAssignedIds = useRef<Set<string>>(new Set());
@@ -221,8 +231,12 @@ export const EmisoraDriverSection: React.FC = () => {
   };
   const complete = async (id: string) => {
     try {
-      await axios.post(`${API_BASE}/api/rides/rides/${id}/complete`, {}, { headers: await authHeaders() });
+      const r = await axios.post(`${API_BASE}/api/rides/rides/${id}/complete`, {}, { headers: await authHeaders() });
+      const ride = r.data as Ride;
       await refresh();
+      if (ride && !promptedRidesRef.current.has(ride.id)) {
+        setRatePromptRide(ride);
+      }
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo completar');
     }
@@ -408,6 +422,21 @@ export const EmisoraDriverSection: React.FC = () => {
         <Text style={{ color: '#64748B', fontStyle: 'italic', fontSize: 12 }}>Sin ofertas ahora mismo.</Text>
       )}
       {offers.map(r => <RideCard key={r.id} r={r} variant="offer" />)}
+
+      {/* Post-ride rating prompt */}
+      <RatePrompt
+        visible={!!ratePromptRide}
+        rideId={ratePromptRide?.id || null}
+        counterpartLabel={ratePromptRide?.client_name || 'el cliente'}
+        tokenKey="token"
+        onClose={rated => {
+          if (ratePromptRide) {
+            promptedRidesRef.current.add(ratePromptRide.id);
+          }
+          setRatePromptRide(null);
+          if (rated) refresh();
+        }}
+      />
 
       {/* QR modal */}
       <Modal visible={qrModalOpen} transparent animationType="fade" onRequestClose={() => setQrModalOpen(false)}>

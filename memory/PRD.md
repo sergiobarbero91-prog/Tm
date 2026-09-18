@@ -928,3 +928,9 @@ de recuperación de contraseña.
 - Nuevo componente `AddressAutocomplete.tsx` con debounce 300 ms, dropdown flotante y boton opcional "Usar mi ubicación" que dispara `navigator.geolocation` + reverse-geocode.
 - Integrado en `EmisoraClient` (recogida y destino, recogida con boton de ubicacion) y en el formulario "Nueva Reserva" del taxista en `index.tsx` (ambos campos).
 - Tests `tests/test_address_suggestions.py` (5/5): auth, resultados Madrid, validacion longitud, reverse OK, coordenadas invalidas.
+
+### ✅ Popup de valoracion post-viaje (Feb 2026)
+- Nuevo componente `RatePrompt.tsx` (modal 5 estrellas + comentario opcional + botones "Enviar" y "Ahora no") reutilizable por cliente y taxista.
+- Cliente (`EmisoraClient`): detecta transicion de un viaje a `completed` en el polling de `rides/mine` (skip primer refresh para no ambush con historial) y abre el prompt automaticamente.
+- Taxista (`EmisoraDriverSection`): al pulsar "Finalizar" el prompt se abre inmediatamente con los datos del cliente.
+- IDs de viaje ya calificados o descartados se persisten en AsyncStorage (`rated_or_dismissed_rides`, bounded a 200) para no re-mostrar el prompt al mismo usuario. Reutiliza `POST /api/rides/rides/{id}/rate`.
