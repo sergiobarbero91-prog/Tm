@@ -913,3 +913,10 @@ de recuperación de contraseña.
 - Estilo del badge: pill con color por tramo (verde >=4.5, ambar >=3.5, rojo <3.5) y placeholder gris "Sin valoraciones" cuando el usuario aun no acumula rating.
 - Tests `test_rating_summary_averages_last_ratings` y `test_rating_summary_requires_auth` (6/6 pasan en total).
 
+
+### ✅ Edicion manual del resumen IA (Feb 2026)
+- Nuevo endpoint `PUT /api/events/daily-summary` protegido por `get_moderator_or_admin_user` que sobrescribe el texto del resumen del dia y marca el registro con `manually_edited=true`, `edited_by` y `edited_at`.
+- `_load_cached` preferiere el doc `manually_edited` mas reciente del dia (Madrid) para que la edicion sobreviva al siguiente slot de 4 h.
+- `POST /api/events/daily-summary/regenerate` reabierto a moderadores; limpia el flag `manually_edited` al pedir un refresco IA.
+- Frontend: botones "Editar" y "Restaurar IA" en la cabecera del card "Resumen del Dia (IA)" (solo visibles con `canDeleteMessages()`), badge "EDITADO · <user>" cuando aplica y modal con `TextInput` multilinea para modificar el texto (min 10 caracteres, max 20000).
+- Tests `tests/test_daily_summary_manual_edit.py` (3/3 pasan): auth 401, PUT persiste y GET devuelve la version editada, validacion de longitud minima.

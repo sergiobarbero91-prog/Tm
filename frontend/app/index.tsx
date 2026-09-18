@@ -1292,6 +1292,11 @@ function TransportMeter() {
   const [aiEventsSummary, setAiEventsSummary] = useState<string | null>(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
   const [aiSummaryExpanded, setAiSummaryExpanded] = useState(true);
+  const [aiSummaryEditOpen, setAiSummaryEditOpen] = useState(false);
+  const [aiSummaryEditText, setAiSummaryEditText] = useState('');
+  const [aiSummaryEditBusy, setAiSummaryEditBusy] = useState(false);
+  const [aiSummaryManuallyEdited, setAiSummaryManuallyEdited] = useState(false);
+  const [aiSummaryEditedBy, setAiSummaryEditedBy] = useState<string | null>(null);
 
   // Admin Panel states
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
@@ -4873,6 +4878,8 @@ function TransportMeter() {
       });
       if (response.data.success) {
         setAiEventsSummary(response.data.summary);
+        setAiSummaryManuallyEdited(!!response.data.manually_edited);
+        setAiSummaryEditedBy(response.data.edited_by || null);
       }
     } catch (error) {
       console.error('Error fetching AI events summary:', error);
@@ -4881,6 +4888,55 @@ function TransportMeter() {
       setAiSummaryLoading(false);
     }
   }, []);
+
+  // Save manual edit (admin or moderator)
+  const saveAiSummaryEdit = async () => {
+    if (aiSummaryEditText.trim().length < 10) {
+      Alert.alert('Error', 'El resumen debe tener al menos 10 caracteres');
+      return;
+    }
+    setAiSummaryEditBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const r = await axios.put(
+        `${API_BASE}/api/events/daily-summary`,
+        { summary: aiSummaryEditText },
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 },
+      );
+      if (r.data.success) {
+        setAiEventsSummary(r.data.summary);
+        setAiSummaryManuallyEdited(!!r.data.manually_edited);
+        setAiSummaryEditedBy(r.data.edited_by || null);
+        setAiSummaryEditOpen(false);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.detail || 'No se pudo guardar el resumen');
+    } finally {
+      setAiSummaryEditBusy(false);
+    }
+  };
+
+  // Ask the AI to regenerate the summary (clears manual override)
+  const regenerateAiSummary = async () => {
+    setAiSummaryLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const r = await axios.post(
+        `${API_BASE}/api/events/daily-summary/regenerate`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 60000 },
+      );
+      if (r.data.success) {
+        setAiEventsSummary(r.data.summary);
+        setAiSummaryManuallyEdited(false);
+        setAiSummaryEditedBy(null);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.detail || 'No se pudo regenerar el resumen');
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  };
 
   // Create new event
   const createEvent = async () => {
@@ -13711,6 +13767,16 @@ function TransportMeter() {
                   <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginLeft: 10 }}>
                     Resumen del Día (IA)
                   </Text>
+                  {aiSummaryManuallyEdited && (
+                    <View
+                      testID="ai-summary-edited-badge"
+                      style={{ marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F59E0B' }}
+                    >
+                      <Text style={{ color: '#0F172A', fontSize: 9, fontWeight: '800' }}>
+                        EDITADO{aiSummaryEditedBy ? ` · ${aiSummaryEditedBy}` : ''}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Ionicons 
                   name={aiSummaryExpanded ? "chevron-up" : "chevron-down"} 
@@ -13718,6 +13784,34 @@ function TransportMeter() {
                   color="#6366F1" 
                 />
               </TouchableOpacity>
+
+              {/* Staff-only controls: edit manually + regenerate via AI */}
+              {canDeleteMessages() && aiSummaryExpanded && (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TouchableOpacity
+                    testID="ai-summary-edit-btn"
+                    onPress={() => {
+                      setAiSummaryEditText(aiEventsSummary || '');
+                      setAiSummaryEditOpen(true);
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#F59E0B' }}
+                  >
+                    <Ionicons name="create-outline" size={14} color="#F59E0B" />
+                    <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>Editar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="ai-summary-regenerate-btn"
+                    onPress={regenerateAiSummary}
+                    disabled={aiSummaryLoading}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#6366F1', opacity: aiSummaryLoading ? 0.5 : 1 }}
+                  >
+                    <Ionicons name="refresh" size={14} color="#6366F1" />
+                    <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '700' }}>
+                      {aiSummaryManuallyEdited ? 'Restaurar IA' : 'Regenerar'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               
               {aiSummaryExpanded && (
                 <View style={{ marginTop: 12 }}>
@@ -21144,6 +21238,72 @@ function TransportMeter() {
       )}
 
       {/* Add Event Modal */}
+      {/* AI daily summary edit modal (admin/moderator only) */}
+      {aiSummaryEditOpen && (
+        <View style={styles.modalOverlay}>
+          <View
+            style={{
+              width: '92%', maxWidth: 720, maxHeight: '88%',
+              backgroundColor: '#0F172A', borderRadius: 16, padding: 18,
+              borderWidth: 1, borderColor: '#334155',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="create" size={22} color="#F59E0B" />
+                <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800' }}>
+                  Editar Resumen del Día
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAiSummaryEditOpen(false)}
+                testID="ai-summary-edit-close"
+              >
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 8 }}>
+              Elimina eventos cancelados o añade avisos. Respeta las cabeceras entre corchetes
+              (ej. [GRANDES EVENTOS]) y las líneas que empiezan con guión.
+            </Text>
+            <TextInput
+              testID="ai-summary-edit-textarea"
+              value={aiSummaryEditText}
+              onChangeText={setAiSummaryEditText}
+              multiline
+              textAlignVertical="top"
+              style={{
+                backgroundColor: '#020617', color: '#F1F5F9',
+                borderWidth: 1, borderColor: '#334155', borderRadius: 10,
+                padding: 12, fontSize: 13, lineHeight: 20,
+                minHeight: 320, maxHeight: 420,
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <TouchableOpacity
+                onPress={() => setAiSummaryEditOpen(false)}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#334155' }}
+                testID="ai-summary-edit-cancel"
+              >
+                <Text style={{ color: '#94A3B8', fontWeight: '700' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={saveAiSummaryEdit}
+                disabled={aiSummaryEditBusy}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: '#F59E0B', opacity: aiSummaryEditBusy ? 0.6 : 1 }}
+                testID="ai-summary-edit-save"
+              >
+                {aiSummaryEditBusy ? (
+                  <ActivityIndicator color="#0F172A" />
+                ) : (
+                  <Text style={{ color: '#0F172A', fontWeight: '800' }}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {showAddEventModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.addEventModal}>

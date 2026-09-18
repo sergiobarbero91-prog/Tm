@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 import pytz
 from fastapi import APIRouter, Depends, HTTPException
 
-from shared import daily_summaries_collection, get_admin_user, logger
+from shared import daily_summaries_collection, get_moderator_or_admin_user, logger
 
 router = APIRouter(prefix="/events", tags=["Daily Summary"])
 
@@ -1025,8 +1025,25 @@ async def _generate_summary() -> Dict[str, Any]:
 
 async def _load_cached() -> Optional[Dict[str, Any]]:
     """Load the summary generated in the CURRENT 4-hour slot (so it self-
-    refreshes at 00, 04, 08, 12, 16 and 20 h Madrid time)."""
+    refreshes at 00, 04, 08, 12, 16 and 20 h Madrid time).
+
+    If a staff member manually edited a summary earlier TODAY (Madrid date),
+    prefer that edited doc over the AI-generated one so their fix survives
+    the next 4h regeneration. `POST /daily-summary/regenerate` explicitly
+    clears the flag when they want the AI to take over again.
+    """
     slot = _cache_slot_madrid()
+    today_prefix = slot.split("T")[0]  # "YYYY-MM-DD"
+
+    # Prefer a manually-edited doc from today, whichever slot it belongs to.
+    manual = await daily_summaries_collection.find_one(
+        {"manually_edited": True, "cache_slot": {"$regex": f"^{today_prefix}T"}},
+        {"_id": 0},
+        sort=[("edited_at", -1)],
+    )
+    if manual and manual.get("summary"):
+        return manual
+
     doc = await daily_summaries_collection.find_one(
         {"cache_slot": slot}, {"_id": 0}
     )
@@ -1070,8 +1087,12 @@ async def get_daily_summary(force_refresh: bool = False):
 
 
 @router.post("/daily-summary/regenerate")
-async def regenerate_daily_summary(_admin=Depends(get_admin_user)):
-    """Force regeneration of today's summary. Admin only."""
+async def regenerate_daily_summary(_staff=Depends(get_moderator_or_admin_user)):
+    """Force regeneration of today's summary via AI. Admin or moderator.
+
+    Clears any prior `manually_edited` flag so the AI output is the source of
+    truth again until the next manual edit.
+    """
     try:
         summary = await _generate_summary()
     except HTTPException:
@@ -1080,8 +1101,57 @@ async def regenerate_daily_summary(_admin=Depends(get_admin_user)):
         logger.exception("[daily-summary] regeneration failed")
         raise HTTPException(status_code=502, detail=f"Error regenerando resumen: {e}")
 
+    summary["manually_edited"] = False
+    summary.pop("edited_by", None)
+    summary.pop("edited_at", None)
     await _persist(summary)
     return {"success": True, **summary}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Manual edition — admin/moderator override
+# ─────────────────────────────────────────────────────────────────────────────
+# When a real-world event changes at the last minute (e.g. a concert at IFEMA
+# is cancelled), the AI-generated summary cannot know. Staff needs a hatch to
+# fix it manually. We store the edited text in the SAME slot document and mark
+# it as `manually_edited=true` so it survives the next 4-hour cache window.
+# ─────────────────────────────────────────────────────────────────────────────
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class DailySummaryEditBody(BaseModel):
+    summary: str = Field(..., min_length=10, max_length=20000)
+
+
+@router.put("/daily-summary")
+async def edit_daily_summary(
+    body: DailySummaryEditBody,
+    staff=Depends(get_moderator_or_admin_user),
+):
+    """Overwrite the current daily summary text (admin OR moderator).
+
+    Marks the record as `manually_edited=true` so the automatic 4h regen loop
+    does NOT overwrite the staff edit. To go back to fully-AI, call
+    `POST /daily-summary/regenerate` — that resets the flag.
+    """
+    slot = _cache_slot_madrid()
+    now_iso = datetime.now(MADRID_TZ).isoformat()
+    editor_label = staff.get("username") or staff.get("full_name") or "staff"
+    await daily_summaries_collection.update_one(
+        {"cache_slot": slot},
+        {
+            "$set": {
+                "summary": body.summary.strip(),
+                "manually_edited": True,
+                "edited_by": editor_label,
+                "edited_at": now_iso,
+                "cache_slot": slot,
+            },
+        },
+        upsert=True,
+    )
+    doc = await daily_summaries_collection.find_one({"cache_slot": slot}, {"_id": 0})
+    return {"success": True, **(doc or {})}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
