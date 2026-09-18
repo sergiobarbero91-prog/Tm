@@ -956,3 +956,13 @@ de recuperación de contraseña.
 - `EmisoraDriverSection`: cada tarjeta de servicio (offer, assigned y active) muestra dos botones "Google Maps" y "Waze" que abren la app o el navegador con la ruta hasta el pickup del cliente. Prefiere coords `origin_lat/origin_lon` cuando existen (deep-link exacto); si no, cae a la direccion como texto.
 - Helpers `googleMapsUrl` (`maps/dir/?api=1&destination=...&travelmode=driving`) y `wazeUrl` (`waze.com/ul?ll=...&navigate=yes` o `q=...`).
 - `openExternalUrl` abre en nueva pestana en web y usa Linking en native.
+
+### ✅ Puntos de Interes (POI) — nueva pestana (Feb 2026)
+- Backend nuevo router `routers/pois.py` con 2 colecciones: `poi_types` (6 tipos integrados: hospital_er, pharmacy_24, fuel_24, nightlife, tobacco_24, nightclub) y `pois` (sitios). Seeder idempotente al arranque carga dataset curado de Madrid (~30 sitios reales: hospitales, farmacias, gasolineras, estancos y discotecas) con `is_seed=true`. Ocio nocturno es `manual_only`.
+- Endpoints (todos bajo `/api/pois`):
+  - `GET /nearby?lat&lon` — mas cercano por tipo con distancia Haversine.
+  - `GET /types` / `POST /types` (admin+mod, no borra builtin) / `DELETE /types/{id}`.
+  - `GET /` / `POST /` (admin+mod) / `PUT /{id}` / `DELETE /{id}`.
+  - Al agregar un sitio manual, el ranking simplemente coge el mas cercano — un manual bien colocado prevalece sobre el seed.
+- Frontend: nuevo componente `PoiPanel.tsx` y nueva pestana "Puntos de Interés" en el dropdown (icono `location`) justo debajo de "Calle". Cada tarjeta muestra icono, distancia, nombre, direccion y botones Google Maps / Waze. Admin/mod ven boton "Gestionar" que abre un modal con selector de tipos (chips), creacion de tipos custom y creacion/eliminacion de sitios usando `AddressAutocomplete` para direccion.
+- Tests `tests/test_pois.py` (5/5 pasan): seed types, nearby, sitio manual gana al seed, no se puede borrar tipo builtin, auth requerida.

@@ -45,6 +45,7 @@ import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { RatingBadge, useUserRatings } from './components/RatingBadge';
 import { DateTimePicker } from './components/DateTimePicker';
 import { AddressAutocomplete } from './components/AddressAutocomplete';
+import { PoiPanel } from './components/PoiPanel';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -419,7 +420,7 @@ function TransportMeter() {
     );
   };
 
-  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'buses' | 'street' | 'reservations' | 'events' | 'fares' | 'gestion' | 'social' | 'moderation' | 'admin'>('street');
+  const [activeTab, setActiveTab] = useState<'trains' | 'flights' | 'buses' | 'street' | 'pois' | 'reservations' | 'events' | 'fares' | 'gestion' | 'social' | 'moderation' | 'admin'>('street');
   const [trainData, setTrainData] = useState<TrainComparison | null>(null);
   const [flightData, setFlightData] = useState<FlightComparison | null>(null);
   const [busData, setBusData] = useState<any>(null);
@@ -1736,6 +1737,7 @@ function TransportMeter() {
       flights: 'Aviones',
       buses: 'Autobuses',
       street: 'Calle',
+      pois: 'Puntos de Interés',
       reservations: 'Reservas',
       events: 'Eventos',
       fares: 'Tarifas',
@@ -1748,6 +1750,7 @@ function TransportMeter() {
       flights: 'airplane',
       buses: 'bus',
       street: 'car',
+      pois: 'location',
       events: 'calendar',
       fares: 'calculator',
       social: 'people',
@@ -7814,6 +7817,8 @@ function TransportMeter() {
         ]);
       } else if (activeTab === 'reservations') {
         await fetchReservationsData();
+      } else if (activeTab === 'pois') {
+        // PoiPanel fetches its own data; nothing to do here.
       } else if (activeTab === 'events') {
         await Promise.all([
           fetchEventsData(),
@@ -12932,6 +12937,23 @@ function TransportMeter() {
               <Text style={[styles.dropdownMenuItemText, activeTab === 'street' && styles.dropdownMenuItemTextActive]}>Calle</Text>
               {activeTab === 'street' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
             </TouchableOpacity>
+
+            {/* Puntos de Interés Tab */}
+            <TouchableOpacity
+              style={[styles.dropdownMenuItem, activeTab === 'pois' && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                if (activeTab !== 'pois') {
+                  setLoading(true);
+                  setActiveTab('pois');
+                }
+                setShowPageDropdown(false);
+              }}
+              testID="menu-pois"
+            >
+              <Ionicons name="location" size={20} color={activeTab === 'pois' ? '#6366F1' : '#94A3B8'} />
+              <Text style={[styles.dropdownMenuItemText, activeTab === 'pois' && styles.dropdownMenuItemTextActive]}>Puntos de Interés</Text>
+              {activeTab === 'pois' && <Ionicons name="checkmark" size={20} color="#6366F1" />}
+            </TouchableOpacity>
             
             {/* Reservations Tab */}
             <TouchableOpacity
@@ -13770,6 +13792,8 @@ function TransportMeter() {
               </View>
             )}
           </View>
+        ) : activeTab === 'pois' ? (
+          <PoiPanel isStaff={currentUser?.role === 'admin' || currentUser?.role === 'moderator'} />
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
             {/* AI Daily Summary */}

@@ -71,6 +71,7 @@ from routers import emergency as emergency_router
 from routers import checkin as checkin_router
 from routers import status as status_router
 from routers import geocoding as geocoding_router
+from routers import pois as pois_router
 from routers import station_alerts as station_alerts_router
 from routers import buses as buses_router
 from routers import reservations as reservations_router
@@ -4032,6 +4033,7 @@ api_router.include_router(emergency_router.router)
 api_router.include_router(checkin_router.router)
 api_router.include_router(status_router.router)
 api_router.include_router(geocoding_router.router)
+api_router.include_router(pois_router.router)
 api_router.include_router(analytics_router.router)
 api_router.include_router(station_alerts_router.router)
 api_router.include_router(buses_router.router)
@@ -4283,6 +4285,11 @@ async def refresh_cache_periodically():
 async def startup_db_client():
     """Create default admin user and preload cache on startup."""
     await create_default_admin()
+    try:
+        await pois_router.seed_pois_if_empty()
+        logger.info("POI catalogue seeded (or already present)")
+    except Exception as e:
+        logger.warning(f"POI seed failed: {e}")
     
     # Create indexes for faster queries
     logger.info("Setting up database indexes...")
