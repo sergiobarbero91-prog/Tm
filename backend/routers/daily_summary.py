@@ -51,6 +51,9 @@ FALLBACK_QUERIES = [
     "previsión meteorológica Madrid mañana AEMET",
     "manifestaciones Madrid hoy delegación gobierno",
     "partido fútbol Madrid hoy hora estadio",
+    "Caja Magica Madrid eventos hoy conciertos",
+    "Mutua Madrid Open cajamagica horario partidos hoy",
+    "cajamagica.esmadrid.com programación",
 ]
 
 
@@ -373,8 +376,10 @@ def _build_prompt() -> str:
         f"   - GRANDES EVENTOS: 'Madrid eventos {today}', 'Madrid conciertos "
         f"{today}', 'Real Madrid partido {today}', 'Atlético partido {today}', "
         f"'Las Ventas corrida {today}', 'IFEMA feria hoy', 'Plaza Mayor "
-        f"actividad {today}', calendarios oficiales del Ayuntamiento y "
-        "esmadrid.es.\n"
+        f"actividad {today}', 'Caja Mágica evento {today}', 'Mutua Madrid Open "
+        f"cajamagica {today}', calendarios oficiales del Ayuntamiento "
+        "(esmadrid.es y cajamagica.esmadrid.com), Mutua Madrid Open "
+        "(madrid-open.com) y ticketing (entradas.com, livenation.es).\n"
         "   - TEATROS Y OCIO: cartelera teatros centro (Compac, Reina "
         "Victoria, Bellas Artes, Príncipe Gran Vía, La Latina), Cines Verdi, "
         "Cineteca, exposiciones Reina Sofía/Prado/Thyssen abiertas hoy.\n"
@@ -401,7 +406,13 @@ def _build_prompt() -> str:
         "   • Partidos Real Madrid / Atlético / Rayo (Bernabéu, Metropolitano, "
         "Vallecas) — SÓLO si LaLiga/UEFA lo confirma para hoy.\n"
         "   • Conciertos grandes (WiZink Center, Palacio Vistalegre, Movistar "
-        "Arena, Riviera).\n"
+        "Arena, Riviera, **Caja Mágica**).\n"
+        "   • **Caja Mágica** (Camino de Perales s/n, San Fermín): sede del "
+        "Mutua Madrid Open (finales abril–primeras semanas de mayo) y de "
+        "conciertos de gran aforo (Estadio 3, pista central y La Box). "
+        "Comprueba SIEMPRE la programación en cajamagica.esmadrid.com y en "
+        "madrid-open.com antes de incluir un evento — es un punto caliente "
+        "para el taxi por su lejanía al centro y limitada oferta de metro.\n"
         "   • Fiestas patronales activas HOY (San Isidro, Dos de Mayo, "
         "Veranos de la Villa, Navidad, Carnaval).\n"
         "   • Conciertos al aire libre (Plaza Mayor, Pradera San Isidro, "
@@ -417,8 +428,8 @@ def _build_prompt() -> str:
         "1. Usa **negrita** (doble asterisco) para lugares, horas y nombres.\n"
         "2. Sé conciso: 4-7 bullets por sección, frases cortas.\n"
         "3. Prioriza puntos calientes para taxis: estadios, teatros centro, "
-        "Atocha/Chamartín, T1/T2/T3/T4/T4S Barajas, IFEMA, Pradera, Plaza "
-        "Mayor.\n"
+        "Atocha/Chamartín, T1/T2/T3/T4/T4S Barajas, IFEMA, **Caja Mágica**, "
+        "Pradera, Plaza Mayor.\n"
         "4. No repitas el mismo evento en dos secciones distintas.\n"
         "5. PRECISIÓN HORARIA: NUNCA inventes horas. Si tienes el evento pero "
         "no la hora exacta confirmada por fuente oficial (esmadrid, ifema, "

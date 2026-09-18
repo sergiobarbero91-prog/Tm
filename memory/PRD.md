@@ -939,3 +939,8 @@ de recuperación de contraseña.
 - `routers/rides.py`: la reserva de un cliente asociado a un taxista permanece `dispatch_scope="assigned"` (visible SOLO para ese taxista) hasta 12 horas antes del servicio en lugar de 6.
 - `_promote_scheduled_rides_near_deadline` promociona a `open` a partir del corte de 12 h.
 - Tests `test_scheduled_ride_beyond_12h_is_assigned_to_qr_associated_driver` y `test_scheduled_ride_within_12h_falls_into_open_offers` reflejan el nuevo umbral. Todo el resto de tests de rides sigue en verde.
+
+### ✅ Fuente segura Caja Magica en el resumen IA (Feb 2026)
+- `routers/daily_summary.py` prompt actualizado: nueva vinieta especifica para **Caja Magica** (Camino de Perales s/n) con recordatorio de comprobar `cajamagica.esmadrid.com` y `madrid-open.com` antes de incluir eventos; se anade como sede a la lista de conciertos grandes y como punto caliente para el taxi.
+- `FALLBACK_QUERIES` amplia con "Caja Magica Madrid eventos hoy conciertos", "Mutua Madrid Open cajamagica horario partidos hoy" y "cajamagica.esmadrid.com programación" para forzar grounding sobre el recinto.
+- Las queries del prompt tambien incluyen `Caja Mágica evento <hoy>` y `Mutua Madrid Open cajamagica <hoy>` como fuentes oficiales preferidas.
