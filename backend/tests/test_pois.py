@@ -33,11 +33,11 @@ def test_nearby_returns_closest_per_type():
     assert isinstance(entries, list) and len(entries) >= 6
     for e in entries:
         assert "type" in e and "closest" in e
-        if e["type"]["key"] == "nightlife":
-            # Manual-only category — closest may be None.
+        # Only the auto-seeded built-in types are expected to always have a
+        # closest match; manual-only and admin-created custom types may be empty.
+        if e["type"]["manual_only"] or not e["type"]["builtin"]:
             continue
-        # Rest should have at least one seed.
-        assert e["closest"] is not None
+        assert e["closest"] is not None, f"{e['type']['key']} sin sitio cercano"
         assert 0 <= e["closest"]["distance_km"] < 500
 
 

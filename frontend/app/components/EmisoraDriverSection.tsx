@@ -90,12 +90,18 @@ const googleMapsUrl = (r: { origin: string; origin_lat?: number | null; origin_l
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
 };
 
+const googleMapsToDestUrl = (r: { destination: string }): string =>
+  `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.destination)}&travelmode=driving`;
+
 const wazeUrl = (r: { origin: string; origin_lat?: number | null; origin_lon?: number | null }): string => {
   if (r.origin_lat != null && r.origin_lon != null) {
     return `https://waze.com/ul?ll=${r.origin_lat},${r.origin_lon}&navigate=yes`;
   }
   return `https://waze.com/ul?q=${encodeURIComponent(r.origin)}&navigate=yes`;
 };
+
+const wazeToDestUrl = (r: { destination: string }): string =>
+  `https://waze.com/ul?q=${encodeURIComponent(r.destination)}&navigate=yes`;
 
 type QrInfo = {
   token: string;
@@ -399,6 +405,33 @@ export const EmisoraDriverSection: React.FC = () => {
             <Text style={{ color: '#8B5CF6', fontWeight: '800', fontSize: 12 }}>Waze</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Route to DESTINATION — only for in-progress rides */}
+        {r.status === 'in_progress' && (
+          <>
+            <Text style={{ color: '#64748B', fontSize: 10, marginTop: 8, textAlign: 'center' }}>
+              Ir al destino
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={() => openExternalUrl(googleMapsToDestUrl(r))}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#10B981' }}
+                testID={`emisora-driver-gmaps-dest-${r.id}`}
+              >
+                <Ionicons name="flag" size={14} color="#10B981" />
+                <Text style={{ color: '#10B981', fontWeight: '800', fontSize: 12 }}>Maps destino</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => openExternalUrl(wazeToDestUrl(r))}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#F59E0B' }}
+                testID={`emisora-driver-waze-dest-${r.id}`}
+              >
+                <Ionicons name="flag-outline" size={14} color="#F59E0B" />
+                <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 12 }}>Waze destino</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
           {variant !== 'active' && (

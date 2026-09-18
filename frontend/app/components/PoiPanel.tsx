@@ -68,6 +68,7 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
   const [activeTypeKey, setActiveTypeKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [addSiteMode, setAddSiteMode] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const [addTypeMode, setAddTypeMode] = useState(false);
   const [siteForm, setSiteForm] = useState({ name: '', address: '', lat: '', lon: '', notes: '' });
   const [typeForm, setTypeForm] = useState({ key: '', label: '', icon: 'location', manual_only: false });
@@ -142,17 +143,39 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     }
     setBusy(true);
     try {
-      const r = await axios.post(`${API_BASE}/api/pois`, {
-        type_key: activeTypeKey, name: siteForm.name, address: siteForm.address || null,
-        lat, lon, notes: siteForm.notes || null,
-      }, { headers: await authHeaders() });
-      setPois([r.data, ...pois]);
+      if (editingSiteId) {
+        const r = await axios.put(`${API_BASE}/api/pois/${editingSiteId}`, {
+          name: siteForm.name, address: siteForm.address || null,
+          lat, lon, notes: siteForm.notes || null,
+        }, { headers: await authHeaders() });
+        setPois(pois.map(p => (p.id === editingSiteId ? r.data : p)));
+      } else {
+        const r = await axios.post(`${API_BASE}/api/pois`, {
+          type_key: activeTypeKey, name: siteForm.name, address: siteForm.address || null,
+          lat, lon, notes: siteForm.notes || null,
+        }, { headers: await authHeaders() });
+        setPois([r.data, ...pois]);
+      }
       setSiteForm({ name: '', address: '', lat: '', lon: '', notes: '' });
       setAddSiteMode(false);
+      setEditingSiteId(null);
       refreshNearby();
     } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.detail || 'No se pudo crear el sitio');
+      Alert.alert('Error', e?.response?.data?.detail || 'No se pudo guardar el sitio');
     } finally { setBusy(false); }
+  };
+
+  const startEditSite = (p: Poi) => {
+    setEditingSiteId(p.id);
+    setActiveTypeKey(p.type_key);
+    setSiteForm({
+      name: p.name,
+      address: p.address || '',
+      lat: String(p.lat),
+      lon: String(p.lon),
+      notes: p.notes || '',
+    });
+    setAddSiteMode(true);
   };
 
   const deleteSite = async (id: string) => {
@@ -332,7 +355,9 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
             {/* Add site form */}
             {addSiteMode && (
               <View style={{ backgroundColor: '#020617', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#334155' }}>
-                <Text style={{ color: '#10B981', fontWeight: '800', marginBottom: 6, fontSize: 12 }}>Añadir sitio</Text>
+                <Text style={{ color: '#10B981', fontWeight: '800', marginBottom: 6, fontSize: 12 }}>
+                  {editingSiteId ? 'Editar sitio' : 'Añadir sitio'}
+                </Text>
                 <TextInput value={siteForm.name} onChangeText={v => setSiteForm({ ...siteForm, name: v })} placeholder="Nombre" placeholderTextColor="#475569" testID="poi-site-name" style={{ backgroundColor: '#0F172A', color: '#F1F5F9', padding: 8, borderRadius: 6, marginBottom: 6, fontSize: 12 }} />
                 <AddressAutocomplete
                   value={siteForm.address}
@@ -348,11 +373,13 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                 </View>
                 <TextInput value={siteForm.notes} onChangeText={v => setSiteForm({ ...siteForm, notes: v })} placeholder="Notas (opcional)" placeholderTextColor="#475569" style={{ backgroundColor: '#0F172A', color: '#F1F5F9', padding: 8, borderRadius: 6, marginBottom: 6, fontSize: 12 }} />
                 <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <TouchableOpacity onPress={() => setAddSiteMode(false)} style={{ flex: 1, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#334155', alignItems: 'center' }}>
+                  <TouchableOpacity onPress={() => { setAddSiteMode(false); setEditingSiteId(null); setSiteForm({ name: '', address: '', lat: '', lon: '', notes: '' }); }} style={{ flex: 1, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#334155', alignItems: 'center' }}>
                     <Text style={{ color: '#94A3B8', fontWeight: '700', fontSize: 12 }}>Cancelar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={submitSite} disabled={busy} testID="poi-site-submit" style={{ flex: 1, padding: 8, borderRadius: 6, backgroundColor: '#10B981', alignItems: 'center', opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 12 }}>Guardar sitio</Text>
+                    <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 12 }}>
+                      {editingSiteId ? 'Actualizar sitio' : 'Guardar sitio'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -374,6 +401,9 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                       {p.lat.toFixed(4)}, {p.lon.toFixed(4)} · {p.is_seed ? 'seed' : 'manual'}
                     </Text>
                   </View>
+                  <TouchableOpacity onPress={() => startEditSite(p)} testID={`poi-edit-${p.id}`} style={{ padding: 6 }}>
+                    <Ionicons name="create-outline" size={16} color="#F59E0B" />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => deleteSite(p.id)} testID={`poi-delete-${p.id}`} style={{ padding: 6 }}>
                     <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   </TouchableOpacity>

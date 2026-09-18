@@ -966,3 +966,7 @@ de recuperación de contraseña.
   - Al agregar un sitio manual, el ranking simplemente coge el mas cercano — un manual bien colocado prevalece sobre el seed.
 - Frontend: nuevo componente `PoiPanel.tsx` y nueva pestana "Puntos de Interés" en el dropdown (icono `location`) justo debajo de "Calle". Cada tarjeta muestra icono, distancia, nombre, direccion y botones Google Maps / Waze. Admin/mod ven boton "Gestionar" que abre un modal con selector de tipos (chips), creacion de tipos custom y creacion/eliminacion de sitios usando `AddressAutocomplete` para direccion.
 - Tests `tests/test_pois.py` (5/5 pasan): seed types, nearby, sitio manual gana al seed, no se puede borrar tipo builtin, auth requerida.
+
+### ✅ Editar POI + Ruta al destino en curso (Feb 2026)
+- `PoiPanel`: cada fila muestra ahora dos iconos (lapiz + papelera). El lapiz precarga el formulario en modo edicion; reutiliza el PUT `/api/pois/{id}` existente. El titulo del form pasa a "Editar sitio" y el CTA a "Actualizar sitio".
+- `EmisoraDriverSection`: cuando `ride.status === 'in_progress'` la tarjeta muestra una segunda fila "Ir al destino" con botones `Maps destino` y `Waze destino` que usan la direccion del destino (usa `q=` porque el destino no tiene coords guardadas).
