@@ -1,0 +1,21 @@
+{
+  "summary": "Backend-only testing for POI seed density expansion + preferred_navigator profile field. Created /app/backend/tests/test_poi_seed_and_navigator.py against the external preview URL. 9/9 tests pass covering: pharmacy_24 seed >=15 (got expanded set), tobacco_24 seed >=8, /pois/nearby returns closest per built-in non-manual type with pharmacy & tobacco <1km from Puerta del Sol, PUT /auth/profile accepts preferred_navigator waze/google_maps and persists (verified via GET /auth/me), invalid value returns 400, POI create+update flow still works, delete builtin type returns 400, driver offers still ordered by distance.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_poi_seed_and_navigator.py",
+    "/app/test_reports/pytest/poi_nav_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Numerous Pydantic V1 @validator decorators in rides.py should be migrated to V2 @field_validator (non-blocking, deprecation warnings)",
+    "server.py still uses @app.on_event startup/shutdown (deprecated) - migrate to lifespan handlers"
+  ],
+  "updated_files": ["/app/backend/tests/test_poi_seed_and_navigator.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "admin/admin via POST /api/auth/login",
+  "seed_data_creation": "Test creates one TEST_Farmacia_* POI and deletes it after use; no residual data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Frontend testing was skipped per E1's request (role picker + login not seeded in preview). All backend endpoints for POI + preferred_navigator are verified working. When frontend is testable, verify PoiPanel & EmisoraDriverSection render only ONE navigation button based on user profile preferred_navigator."
+}

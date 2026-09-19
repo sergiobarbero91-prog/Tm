@@ -970,3 +970,10 @@ de recuperación de contraseña.
 ### ✅ Editar POI + Ruta al destino en curso (Feb 2026)
 - `PoiPanel`: cada fila muestra ahora dos iconos (lapiz + papelera). El lapiz precarga el formulario en modo edicion; reutiliza el PUT `/api/pois/{id}` existente. El titulo del form pasa a "Editar sitio" y el CTA a "Actualizar sitio".
 - `EmisoraDriverSection`: cuando `ride.status === 'in_progress'` la tarjeta muestra una segunda fila "Ir al destino" con botones `Maps destino` y `Waze destino` que usan la direccion del destino (usa `q=` porque el destino no tiene coords guardadas).
+
+### ✅ Fix bugs POI + preferencia de navegador (Feb 2026)
+- `routers/pois.py`: seed ampliado a 19 farmacias 24h y 11 estancos 24h en Madrid. `seed_pois_if_empty` ahora es incremental (agrega sitios nuevos en cada arranque sin duplicar los existentes).
+- `shared.py` + `routers/auth.py`: nuevo campo `preferred_navigator` ('google_maps' | 'waze') en `UserProfileUpdate` y `UserResponse`. Validacion 400 ante otros valores. Se refleja en login/me/refresh/register.
+- Frontend `PoiPanel` y `EmisoraDriverSection` aceptan prop `preferredNavigator` y muestran un UNICO boton "Navegar con Google Maps"/"Navegar con Waze"/"Navegar al cliente"/"Navegar al destino" segun preferencia. GPS con `enableHighAccuracy: true, timeout: 15000, maximumAge: 30000` para mejor precision.
+- Modal de perfil (`index.tsx`): nuevo selector "App de navegacion preferida" con Google Maps vs Waze; guardado via PUT /auth/profile.
+- Tests backend: 9/9 pasan por testing_agent externo (`/app/backend/tests/test_poi_seed_and_navigator.py`).
