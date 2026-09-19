@@ -977,3 +977,13 @@ de recuperación de contraseña.
 - Frontend `PoiPanel` y `EmisoraDriverSection` aceptan prop `preferredNavigator` y muestran un UNICO boton "Navegar con Google Maps"/"Navegar con Waze"/"Navegar al cliente"/"Navegar al destino" segun preferencia. GPS con `enableHighAccuracy: true, timeout: 15000, maximumAge: 30000` para mejor precision.
 - Modal de perfil (`index.tsx`): nuevo selector "App de navegacion preferida" con Google Maps vs Waze; guardado via PUT /auth/profile.
 - Tests backend: 9/9 pasan por testing_agent externo (`/app/backend/tests/test_poi_seed_and_navigator.py`).
+
+### ✅ Panel admin: actividad y horas de uso (Feb 2026)
+- Nuevo `routers/activity.py` con coleccion `activity_heartbeats` (indice compuesto unico `(user_id, kind, bucket_minute)` + TTL 90 dias). Middleware `ActivityHeartbeatMiddleware` decodifica el JWT tras cada respuesta y hace upsert de un doc por minuto.
+- Endpoints admin:
+  - `GET /api/admin/activity/stats` — activos y horas por periodo (hoy, semana, mes) para users y clients, mas breakdown por role.
+  - `GET /api/admin/activity/user/{id}` — periodos + last_seen + rides_count (detecta user vs client).
+  - `GET /api/admin/activity/user/{id}/rides` — historial de rides listable.
+- Frontend admin dashboard: nueva seccion "Actividad y horas de uso" con 3 filas HOY/SEMANA/MES mostrando activos y horas para taxistas y clientes.
+- Nuevo componente `AdminActivityBlock.tsx` reutilizado en `AdminUserEditModal` (pestana Historial) y `AdminClients` para mostrar tiempo de uso + `ultima actividad` + boton expandible "Historial de servicios" que revela `RideHistoryList`.
+- Tests `tests/test_admin_activity.py` (5/5 pasan): auth, structure, user endpoint, rides lookup, 404 unknown.

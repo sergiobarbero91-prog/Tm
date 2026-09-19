@@ -72,6 +72,7 @@ from routers import checkin as checkin_router
 from routers import status as status_router
 from routers import geocoding as geocoding_router
 from routers import pois as pois_router
+from routers import activity as activity_router
 from routers import station_alerts as station_alerts_router
 from routers import buses as buses_router
 from routers import reservations as reservations_router
@@ -4034,6 +4035,7 @@ api_router.include_router(checkin_router.router)
 api_router.include_router(status_router.router)
 api_router.include_router(geocoding_router.router)
 api_router.include_router(pois_router.router)
+api_router.include_router(activity_router.router)
 api_router.include_router(analytics_router.router)
 api_router.include_router(station_alerts_router.router)
 api_router.include_router(buses_router.router)
@@ -4060,6 +4062,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # GZIP compression middleware for faster responses
 from starlette.middleware.gzip import GZipMiddleware
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
+
+# Activity heartbeats (records one bucket-minute per authenticated request)
+app.add_middleware(activity_router.ActivityHeartbeatMiddleware)
 
 # CORS configuration - use environment variable for production domains.
 # NOTE: the wildcard origin ("*") + allow_credentials=True combination is
@@ -4290,6 +4295,11 @@ async def startup_db_client():
         logger.info("POI catalogue seeded (or already present)")
     except Exception as e:
         logger.warning(f"POI seed failed: {e}")
+    try:
+        await activity_router.ensure_indexes()
+        logger.info("Activity heartbeats indexes ready")
+    except Exception as e:
+        logger.warning(f"Activity index setup failed: {e}")
     
     # Create indexes for faster queries
     logger.info("Setting up database indexes...")

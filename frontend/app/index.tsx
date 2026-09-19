@@ -1317,6 +1317,7 @@ function TransportMeter() {
   const [adminSearchResults, setAdminSearchResults] = useState<User[]>([]);
   const [adminSearching, setAdminSearching] = useState(false);
   const [adminStats, setAdminStats] = useState<{total_users: number; active_last_month: number; online_now: number} | null>(null);
+  const [adminActivityStats, setAdminActivityStats] = useState<any | null>(null);
   const [showUsersList, setShowUsersList] = useState(false);
   const [showClientsPanel, setShowClientsPanel] = useState(false);
   
@@ -5073,10 +5074,12 @@ function TransportMeter() {
     
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/api/admin/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAdminStats(response.data);
+      const [statsRes, actRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/api/admin/activity/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      setAdminStats(statsRes.data);
+      setAdminActivityStats(actRes.data);
     } catch (error: any) {
       console.error('Error fetching admin stats:', error);
     }
@@ -16859,6 +16862,43 @@ function TransportMeter() {
                 <Text style={styles.adminStatLabel}>En línea</Text>
               </View>
             </View>
+
+            {/* Activity Heartbeat Stats */}
+            {adminActivityStats && (
+              <View style={{ marginTop: 12 }} testID="admin-activity-stats">
+                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', marginBottom: 6 }}>
+                  Actividad y horas de uso
+                </Text>
+                {['day', 'week', 'month'].map(period => {
+                  const cfg: any = {
+                    day:   { label: 'HOY',    color: '#F59E0B', icon: 'today' },
+                    week:  { label: 'SEMANA', color: '#6366F1', icon: 'calendar-outline' },
+                    month: { label: 'MES',    color: '#10B981', icon: 'calendar' },
+                  }[period];
+                  const p = adminActivityStats.periods?.[period] || { users: {}, clients: {} };
+                  return (
+                    <View key={period} style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                      <View style={{ flex: 0.6, backgroundColor: `${cfg.color}15`, borderRadius: 8, padding: 8, alignItems: 'center', borderWidth: 1, borderColor: `${cfg.color}44` }}>
+                        <Ionicons name={cfg.icon} size={14} color={cfg.color} />
+                        <Text style={{ color: cfg.color, fontWeight: '800', fontSize: 10, marginTop: 2 }}>{cfg.label}</Text>
+                      </View>
+                      <View style={{ flex: 1, backgroundColor: '#1E293B', borderRadius: 8, padding: 8 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 10 }}>Taxistas</Text>
+                        <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 14 }}>
+                          {p.users?.active_users || 0} · {(p.users?.total_hours || 0).toFixed(1)} h
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, backgroundColor: '#1E293B', borderRadius: 8, padding: 8 }}>
+                        <Text style={{ color: '#94A3B8', fontSize: 10 }}>Clientes</Text>
+                        <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 14 }}>
+                          {p.clients?.active_users || 0} · {(p.clients?.total_hours || 0).toFixed(1)} h
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Search Bar */}
             <View style={styles.adminSearchContainer}>

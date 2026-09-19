@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { RideHistoryList } from './RideHistoryList';
+import { AdminActivityBlock } from './AdminActivityBlock';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -318,7 +319,7 @@ export const AdminClients: React.FC = () => {
             </View>
 
             {editing && editTab === 'history' ? (
-              <RideHistoryList endpoint={`admin/clients/${editing.id}/rides`} perspective="client" />
+              <AdminActivityBlock userId={editing.id} ridesKind="client" />
             ) : (
             <>
             <ScrollView style={{ maxHeight: 480 }}>

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { RideHistoryList } from './RideHistoryList';
+import { AdminActivityBlock } from './AdminActivityBlock';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -178,7 +179,9 @@ export const AdminUserEditModal: React.FC<Props> = ({ visible, user, onClose, on
           </View>
 
           {tab === 'history' ? (
-            <RideHistoryList endpoint={`admin/users/${user.id}/rides`} perspective="driver" />
+            <>
+              <AdminActivityBlock userId={user.id} ridesKind="driver" />
+            </>
           ) : (
           <>
           <ScrollView style={{ maxHeight: 520 }}>
