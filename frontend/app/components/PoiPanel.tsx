@@ -55,7 +55,10 @@ const googleMapsUrl = (p: Poi) =>
 
 const wazeUrl = (p: Poi) => `https://waze.com/ul?ll=${p.lat},${p.lon}&navigate=yes`;
 
-export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
+const navUrl = (p: Poi, nav: 'google_maps' | 'waze') =>
+  nav === 'waze' ? wazeUrl(p) : googleMapsUrl(p);
+
+export const PoiPanel: React.FC<{ isStaff: boolean; preferredNavigator?: 'google_maps' | 'waze' }> = ({ isStaff, preferredNavigator = 'google_maps' }) => {
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(null);
   const [entries, setEntries] = useState<NearbyEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +90,7 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     navigator.geolocation.getCurrentPosition(
       p => setPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
       err => { setLocError(err?.message || 'No se pudo obtener la ubicación'); setLoading(false); },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
     );
   }, []);
 
@@ -264,13 +267,15 @@ export const PoiPanel: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                 <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>{e.closest.address}</Text>
               )}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity onPress={() => openExternalUrl(googleMapsUrl(e.closest as Poi))} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#3B82F6' }} testID={`poi-gmaps-${e.type.key}`}>
-                  <Ionicons name="map" size={14} color="#3B82F6" />
-                  <Text style={{ color: '#3B82F6', fontWeight: '700', fontSize: 12 }}>Google Maps</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => openExternalUrl(wazeUrl(e.closest as Poi))} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#8B5CF6' }} testID={`poi-waze-${e.type.key}`}>
-                  <Ionicons name="navigate-circle" size={14} color="#8B5CF6" />
-                  <Text style={{ color: '#8B5CF6', fontWeight: '700', fontSize: 12 }}>Waze</Text>
+                <TouchableOpacity
+                  onPress={() => openExternalUrl(navUrl(e.closest as Poi, preferredNavigator))}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, backgroundColor: '#0F172A', borderWidth: 1, borderColor: preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6' }}
+                  testID={`poi-nav-${e.type.key}`}
+                >
+                  <Ionicons name={preferredNavigator === 'waze' ? 'navigate-circle' : 'map'} size={14} color={preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6'} />
+                  <Text style={{ color: preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6', fontWeight: '800', fontSize: 12 }}>
+                    Navegar con {preferredNavigator === 'waze' ? 'Waze' : 'Google Maps'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </>

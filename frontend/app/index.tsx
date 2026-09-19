@@ -358,6 +358,7 @@ interface User {
   phone: string | null;
   role: string;
   preferred_shift: string;
+  preferred_navigator?: 'google_maps' | 'waze';
 }
 
 interface CheckInStatus {
@@ -1578,6 +1579,7 @@ function TransportMeter() {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profilePreferredShift, setProfilePreferredShift] = useState<'all' | 'day' | 'night'>('all');
+  const [profilePreferredNavigator, setProfilePreferredNavigator] = useState<'google_maps' | 'waze'>('google_maps');
   const [profileLoading, setProfileLoading] = useState(false);
   
   // Password change states
@@ -2756,6 +2758,7 @@ function TransportMeter() {
       setProfilePhone(currentUser.phone || '');
       setProfileEmail((currentUser as any).email || '');
       setProfilePreferredShift((currentUser.preferred_shift as 'all' | 'day' | 'night') || 'all');
+      setProfilePreferredNavigator((currentUser.preferred_navigator as 'google_maps' | 'waze') || 'google_maps');
       setShowEditProfileModal(true);
     }
   };
@@ -2780,7 +2783,8 @@ function TransportMeter() {
         license_number: profileLicenseNumber,
         phone: profilePhone || null,
         email: profileEmail.trim().toLowerCase() || null,
-        preferred_shift: profilePreferredShift
+        preferred_shift: profilePreferredShift,
+        preferred_navigator: profilePreferredNavigator
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -13437,7 +13441,7 @@ function TransportMeter() {
             </TouchableOpacity>
 
             {/* Emisora (Uber-like) section — QR clientes + servicios en vivo */}
-            <EmisoraDriverSection />
+            <EmisoraDriverSection preferredNavigator={(currentUser?.preferred_navigator as any) || 'google_maps'} />
 
             {/* Create reservation form */}
             {showCreateReservation && (
@@ -13793,7 +13797,10 @@ function TransportMeter() {
             )}
           </View>
         ) : activeTab === 'pois' ? (
-          <PoiPanel isStaff={currentUser?.role === 'admin' || currentUser?.role === 'moderator'} />
+          <PoiPanel
+            isStaff={currentUser?.role === 'admin' || currentUser?.role === 'moderator'}
+            preferredNavigator={(currentUser?.preferred_navigator as any) || 'google_maps'}
+          />
         ) : activeTab === 'events' ? (
           <View style={styles.eventsContainer}>
             {/* AI Daily Summary */}
@@ -19911,6 +19918,7 @@ function TransportMeter() {
                     setProfilePhone(currentUser?.phone || '');
                     setProfileEmail(((currentUser as any)?.email) || '');
                     setProfilePreferredShift((currentUser?.preferred_shift as 'all' | 'day' | 'night') || 'all');
+                    setProfilePreferredNavigator((currentUser?.preferred_navigator as 'google_maps' | 'waze') || 'google_maps');
                     setShowEditProfileModal(true);
                   }}
                 >
@@ -20067,6 +20075,40 @@ function TransportMeter() {
                         styles.profileShiftOptionText,
                         profilePreferredShift === 'night' && styles.profileShiftOptionTextActive
                       ]}>Noche</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.profileInputGroup}>
+                  <Text style={styles.profileInputLabel}>App de navegación preferida</Text>
+                  <View style={styles.profileShiftSelector}>
+                    <TouchableOpacity
+                      style={[
+                        styles.profileShiftOption,
+                        profilePreferredNavigator === 'google_maps' && styles.profileShiftOptionActiveAll
+                      ]}
+                      onPress={() => setProfilePreferredNavigator('google_maps')}
+                      testID="profile-nav-gmaps"
+                    >
+                      <Ionicons name="map" size={20} color={profilePreferredNavigator === 'google_maps' ? '#FFFFFF' : '#3B82F6'} />
+                      <Text style={[
+                        styles.profileShiftOptionText,
+                        profilePreferredNavigator === 'google_maps' && styles.profileShiftOptionTextActive
+                      ]}>Google Maps</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.profileShiftOption,
+                        profilePreferredNavigator === 'waze' && styles.profileShiftOptionActiveNight
+                      ]}
+                      onPress={() => setProfilePreferredNavigator('waze')}
+                      testID="profile-nav-waze"
+                    >
+                      <Ionicons name="navigate-circle" size={20} color={profilePreferredNavigator === 'waze' ? '#FFFFFF' : '#8B5CF6'} />
+                      <Text style={[
+                        styles.profileShiftOptionText,
+                        profilePreferredNavigator === 'waze' && styles.profileShiftOptionTextActive
+                      ]}>Waze</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

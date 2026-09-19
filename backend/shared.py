@@ -142,6 +142,7 @@ class UserProfileUpdate(BaseModel):
     phone: Optional[str] = None
     preferred_shift: Optional[str] = None
     email: Optional[str] = None
+    preferred_navigator: Optional[str] = None  # 'google_maps' | 'waze'
 
 class PasswordChange(BaseModel):
     current_password: Optional[str] = None
@@ -160,6 +161,7 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     role: str
     preferred_shift: Optional[str] = "all"
+    preferred_navigator: Optional[str] = "google_maps"
     created_at: datetime
 
 class TokenResponse(BaseModel):

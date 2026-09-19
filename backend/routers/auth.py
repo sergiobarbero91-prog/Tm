@@ -74,6 +74,7 @@ async def login(request: Request, login_data: UserLogin):
             email=user.get("email"),
             role=user.get("role", "user"),
             preferred_shift=user.get("preferred_shift", "all"),
+            preferred_navigator=user.get("preferred_navigator", "google_maps"),
             created_at=user["created_at"]
         )
     )
@@ -111,6 +112,7 @@ async def get_me(current_user: dict = Depends(get_current_user_required)):
         email=current_user.get("email"),
         role=current_user.get("role", "user"),
         preferred_shift=current_user.get("preferred_shift", "all"),
+        preferred_navigator=current_user.get("preferred_navigator", "google_maps"),
         created_at=current_user["created_at"]
     )
 
@@ -157,6 +159,14 @@ async def update_profile(
             )
         update_fields["preferred_shift"] = profile_data.preferred_shift
 
+    if profile_data.preferred_navigator is not None:
+        if profile_data.preferred_navigator not in ("google_maps", "waze"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Navegador preferido inválido (google_maps o waze)"
+            )
+        update_fields["preferred_navigator"] = profile_data.preferred_navigator
+
     if profile_data.email is not None:
         email_norm = profile_data.email.strip().lower()
         # Simple validation — enough to catch obvious typos before hitting SMTP
@@ -197,6 +207,7 @@ async def update_profile(
         email=updated_user.get("email"),
         role=updated_user.get("role", "user"),
         preferred_shift=updated_user.get("preferred_shift", "all"),
+        preferred_navigator=updated_user.get("preferred_navigator", "google_maps"),
         created_at=updated_user["created_at"]
     )
 
@@ -267,6 +278,7 @@ async def refresh_token(current_user: dict = Depends(get_current_user_required))
             email=current_user.get("email"),
             role=current_user.get("role", "user"),
             preferred_shift=current_user.get("preferred_shift", "all"),
+            preferred_navigator=current_user.get("preferred_navigator", "google_maps"),
             created_at=current_user["created_at"]
         )
     )
@@ -460,6 +472,7 @@ async def register_with_invitation(request: Request, register_data: RegisterWith
             email=new_user.get("email"),
             role=new_user["role"],
             preferred_shift=new_user["preferred_shift"],
+            preferred_navigator=new_user.get("preferred_navigator", "google_maps"),
             created_at=new_user["created_at"]
         )
     )

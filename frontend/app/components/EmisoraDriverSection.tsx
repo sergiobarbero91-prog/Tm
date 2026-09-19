@@ -103,6 +103,15 @@ const wazeUrl = (r: { origin: string; origin_lat?: number | null; origin_lon?: n
 const wazeToDestUrl = (r: { destination: string }): string =>
   `https://waze.com/ul?q=${encodeURIComponent(r.destination)}&navigate=yes`;
 
+// Pick the deep-link matching the driver's saved navigator preference.
+const navUrlForPickup = (
+  r: { origin: string; origin_lat?: number | null; origin_lon?: number | null },
+  nav: 'google_maps' | 'waze',
+) => (nav === 'waze' ? wazeUrl(r) : googleMapsUrl(r));
+
+const navUrlForDest = (r: { destination: string }, nav: 'google_maps' | 'waze') =>
+  nav === 'waze' ? wazeToDestUrl(r) : googleMapsToDestUrl(r);
+
 type QrInfo = {
   token: string;
   url: string;
@@ -142,7 +151,7 @@ const playPing = () => {
   }
 };
 
-export const EmisoraDriverSection: React.FC = () => {
+export const EmisoraDriverSection: React.FC<{ preferredNavigator?: 'google_maps' | 'waze' }> = ({ preferredNavigator = 'google_maps' }) => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qr, setQr] = useState<QrInfo | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
@@ -203,7 +212,7 @@ export const EmisoraDriverSection: React.FC = () => {
           driverPosRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         },
         () => { /* silent */ },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
       );
     };
     grab();
@@ -386,51 +395,34 @@ export const EmisoraDriverSection: React.FC = () => {
           </View>
         ) : null}
 
-        {/* Route to client — open Google Maps or Waze with pickup coords */}
+        {/* Route to client — respect the driver's preferred navigator */}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
           <TouchableOpacity
-            onPress={() => openExternalUrl(googleMapsUrl(r))}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#3B82F6' }}
-            testID={`emisora-driver-gmaps-${r.id}`}
+            onPress={() => openExternalUrl(navUrlForPickup(r, preferredNavigator))}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6' }}
+            testID={`emisora-driver-nav-${r.id}`}
           >
-            <Ionicons name="map" size={14} color="#3B82F6" />
-            <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12 }}>Google Maps</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => openExternalUrl(wazeUrl(r))}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#8B5CF6' }}
-            testID={`emisora-driver-waze-${r.id}`}
-          >
-            <Ionicons name="navigate-circle" size={14} color="#8B5CF6" />
-            <Text style={{ color: '#8B5CF6', fontWeight: '800', fontSize: 12 }}>Waze</Text>
+            <Ionicons name={preferredNavigator === 'waze' ? 'navigate-circle' : 'map'} size={14} color={preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6'} />
+            <Text style={{ color: preferredNavigator === 'waze' ? '#8B5CF6' : '#3B82F6', fontWeight: '800', fontSize: 12 }}>
+              Navegar al cliente
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Route to DESTINATION — only for in-progress rides */}
         {r.status === 'in_progress' && (
-          <>
-            <Text style={{ color: '#64748B', fontSize: 10, marginTop: 8, textAlign: 'center' }}>
-              Ir al destino
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-              <TouchableOpacity
-                onPress={() => openExternalUrl(googleMapsToDestUrl(r))}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#10B981' }}
-                testID={`emisora-driver-gmaps-dest-${r.id}`}
-              >
-                <Ionicons name="flag" size={14} color="#10B981" />
-                <Text style={{ color: '#10B981', fontWeight: '800', fontSize: 12 }}>Maps destino</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => openExternalUrl(wazeToDestUrl(r))}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#F59E0B' }}
-                testID={`emisora-driver-waze-dest-${r.id}`}
-              >
-                <Ionicons name="flag-outline" size={14} color="#F59E0B" />
-                <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 12 }}>Waze destino</Text>
-              </TouchableOpacity>
-            </View>
-          </>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <TouchableOpacity
+              onPress={() => openExternalUrl(navUrlForDest(r, preferredNavigator))}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#10B981' }}
+              testID={`emisora-driver-nav-dest-${r.id}`}
+            >
+              <Ionicons name="flag" size={14} color="#10B981" />
+              <Text style={{ color: '#10B981', fontWeight: '800', fontSize: 12 }}>
+                Navegar al destino
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>

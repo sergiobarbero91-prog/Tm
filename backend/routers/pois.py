@@ -68,6 +68,19 @@ SEED_POIS: dict = {
         {"name": "Farmacia Real de Palacio", "address": "C. Mayor, 59", "lat": 40.4157, "lon": -3.7106},
         {"name": "Farmacia Calle Toledo 46", "address": "C. de Toledo, 46", "lat": 40.4109, "lon": -3.7098},
         {"name": "Farmacia Cea Bermúdez 72", "address": "C. de Cea Bermúdez, 72", "lat": 40.4407, "lon": -3.7136},
+        {"name": "Farmacia Puerta del Sol 14", "address": "Puerta del Sol, 14", "lat": 40.4173, "lon": -3.7047},
+        {"name": "Farmacia Gran Vía 43", "address": "Gran Vía, 43", "lat": 40.4207, "lon": -3.7052},
+        {"name": "Farmacia Serrano 90", "address": "C. de Serrano, 90", "lat": 40.4344, "lon": -3.6864},
+        {"name": "Farmacia Alberto Aguilera 62", "address": "C. de Alberto Aguilera, 62", "lat": 40.4326, "lon": -3.7126},
+        {"name": "Farmacia Menéndez Pelayo 105", "address": "C. de Menéndez Pelayo, 105", "lat": 40.4123, "lon": -3.6772},
+        {"name": "Farmacia Recoletos 27", "address": "C. de Recoletos, 27", "lat": 40.4227, "lon": -3.6901},
+        {"name": "Farmacia Bravo Murillo 205", "address": "C. de Bravo Murillo, 205", "lat": 40.4623, "lon": -3.7003},
+        {"name": "Farmacia Príncipe de Vergara 135", "address": "C. Príncipe de Vergara, 135", "lat": 40.4443, "lon": -3.6789},
+        {"name": "Farmacia López de Hoyos 78", "address": "C. de López de Hoyos, 78", "lat": 40.4447, "lon": -3.6767},
+        {"name": "Farmacia Doctor Esquerdo 137", "address": "C. del Dr. Esquerdo, 137", "lat": 40.4166, "lon": -3.6707},
+        {"name": "Farmacia Fuencarral 116", "address": "C. de Fuencarral, 116", "lat": 40.4306, "lon": -3.7020},
+        {"name": "Farmacia Alcalá 138", "address": "C. de Alcalá, 138", "lat": 40.4266, "lon": -3.6813},
+        {"name": "Farmacia Rey Francisco 15", "address": "C. de Rey Francisco, 15", "lat": 40.4297, "lon": -3.7175},
     ],
     "fuel_24": [
         {"name": "Repsol Castellana 89", "address": "P.º de la Castellana, 89", "lat": 40.4437, "lon": -3.6907},
@@ -80,7 +93,15 @@ SEED_POIS: dict = {
     "tobacco_24": [
         {"name": "Estanco 24h Puerta del Sol", "address": "Puerta del Sol, 4", "lat": 40.4168, "lon": -3.7033},
         {"name": "Estanco Aeropuerto Barajas T4", "address": "Aeropuerto T4 llegadas", "lat": 40.4936, "lon": -3.5668},
+        {"name": "Estanco Aeropuerto Barajas T1", "address": "Aeropuerto T1 llegadas", "lat": 40.4779, "lon": -3.5729},
         {"name": "Estanco Estación de Atocha", "address": "Estación Puerta de Atocha", "lat": 40.4067, "lon": -3.6906},
+        {"name": "Estanco Estación de Chamartín", "address": "Estación de Chamartín", "lat": 40.4726, "lon": -3.6828},
+        {"name": "Estanco Gran Vía 30", "address": "Gran Vía, 30", "lat": 40.4198, "lon": -3.7038},
+        {"name": "Estanco Príncipe de Vergara 92", "address": "C. Príncipe de Vergara, 92", "lat": 40.4363, "lon": -3.6785},
+        {"name": "Estanco Alcalá 210", "address": "C. de Alcalá, 210", "lat": 40.4312, "lon": -3.6626},
+        {"name": "Estanco Bravo Murillo 154", "address": "C. de Bravo Murillo, 154", "lat": 40.4553, "lon": -3.7028},
+        {"name": "Estanco Serrano 55", "address": "C. de Serrano, 55", "lat": 40.4270, "lon": -3.6885},
+        {"name": "Estanco Fuencarral 74", "address": "C. de Fuencarral, 74", "lat": 40.4266, "lon": -3.7020},
     ],
     "nightclub": [
         {"name": "Kapital", "address": "C. de Atocha, 125", "lat": 40.4083, "lon": -3.6928},
@@ -123,11 +144,17 @@ async def seed_pois_if_empty() -> None:
             upsert=True,
         )
     for type_key, entries in SEED_POIS.items():
-        existing = await pois_collection.count_documents({"type_key": type_key, "is_seed": True})
-        if existing > 0:
-            continue
-        docs = [
-            {
+        for e in entries:
+            # Incremental seed: skip if a document (seed or manual) already
+            # exists with the exact same name for this type — that way adding
+            # entries to SEED_POIS ships them on the next boot without
+            # duplicating what admins already keep.
+            exists = await pois_collection.find_one(
+                {"type_key": type_key, "name": e["name"]}
+            )
+            if exists:
+                continue
+            await pois_collection.insert_one({
                 "id": str(uuid.uuid4()),
                 "type_key": type_key,
                 "name": e["name"],
@@ -139,11 +166,7 @@ async def seed_pois_if_empty() -> None:
                 "created_by": "seed",
                 "created_at": now,
                 "updated_at": now,
-            }
-            for e in entries
-        ]
-        if docs:
-            await pois_collection.insert_many(docs)
+            })
 
 
 # ─────────────────────── Response helpers ───────────────────────
