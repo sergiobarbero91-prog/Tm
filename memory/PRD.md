@@ -25,6 +25,17 @@ The on-disk code in /app matches https://github.com/sergiobarbero91-prog/Tm (sin
 Only the items below have been added on top of that baseline.
 
 
+
+### ✅ Taxitronic ticket scan pipeline — fail-safe OCR (Feb 2026)
+- Nuevo módulo `/app/backend/ticket_ocr/` (modular, motor OCR intercambiable).
+- Nuevo endpoint `POST /api/tickets/taxitronic/scan` (auth required).
+- Flujo: validación imagen → detección + deskew → 4 variantes (gray/CLAHE/adaptive/Otsu) → OCR posicional (Tesseract) → reconstrucción de líneas → extracción de campos → normalización EU→ISO/Decimal → validación matemática (`Carreras + Suplementos = Total`, y su versión P) → 2ª lectura por región en campos que fallen → puntuación de confianza multi-señal → status `accepted` / `needs_confirmation` / `rejected`.
+- Nunca guarda silenciosamente: si el OCR duda, devuelve `needs_confirmation`.
+- 36 tests pasando (`backend/tests/test_taxitronic_ocr.py`).
+- Dep de sistema añadida: paquetes APT `tesseract-ocr` + `tesseract-ocr-spa`.
+- Pendiente: confirmar unidades exactas de `Dist. *` y `Tiempo *` en el modelo concreto del taxímetro antes de habilitar `distance_validated` / `time_validated`.
+
+
 ### ✅ OCR Journal — 100% precisión en ticket de prueba (Feb 2026)
 - `/app/backend/routers/journal.py` — pipeline OCR reingenierizado:
   - **Binarización por fila**: `_preprocess_for_ocr` devuelve además una `gray_clahe` (grayscale con CLAHE, sin Otsu global) que se usa en `_ocr_number_only` para binarizar SOLO el crop de cada fila con Otsu local. Evita el sesgo global que engordaba trazos y confundía 5/3 en filas de tinta apagada.

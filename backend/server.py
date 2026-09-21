@@ -89,6 +89,7 @@ from routers import social as social_router
 from routers import release_notes as release_notes_router
 from routers import whatsapp as whatsapp_router
 from routers import rides as rides_router
+from routers import tickets as tickets_router
 
 # Import Renfe GTFS module for fallback train data
 from renfe_gtfs import get_arrivals_from_renfe, ensure_gtfs_loaded
@@ -4041,6 +4042,7 @@ api_router.include_router(station_alerts_router.router)
 api_router.include_router(buses_router.router)
 api_router.include_router(reservations_router.router)
 api_router.include_router(journal_router.router)
+api_router.include_router(tickets_router.router)
 api_router.include_router(owner_router.router)
 api_router.include_router(radio_router.router)
 api_router.include_router(games_router.router)
