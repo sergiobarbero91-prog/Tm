@@ -52,6 +52,11 @@ async def scan_taxitronic(
         description="Override OCR engine: 'tesseract' | 'paddleocr'. "
                     "Defaults to TICKET_OCR_ENGINE env var, else 'tesseract'.",
     ),
+    debug: bool = Query(
+        default=False,
+        description="Include base64-encoded debug snapshots of every "
+                    "preprocess variant and the detected row ROIs.",
+    ),
     _user: dict = Depends(get_current_user_required),
 ):
     """Run the fail-safe OCR pipeline against a Taxitronic partials photo.
@@ -83,7 +88,7 @@ async def scan_taxitronic(
     try:
         selected_engine = build_engine(engine)
         result = await run_in_threadpool(
-            scan_taxitronic_ticket, data, mime, selected_engine,
+            scan_taxitronic_ticket, data, mime, selected_engine, debug,
         )
     except Exception:
         logger.exception("taxitronic scan failed unexpectedly")

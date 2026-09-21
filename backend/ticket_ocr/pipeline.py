@@ -23,6 +23,7 @@ from .ocr_engine import (
 from .parser import ParsedField, extract_fields
 from .preprocess import PreprocessResult, crop_region, preprocess
 from .region_ocr import structural_pass
+from .row_ocr import RowRoi, _detect_rows, _match_label_to_field_key, _read_value_roi
 from .validators import validate_format, validate_math
 
 # Below this raw OCR confidence, we refuse to display the value at all —
@@ -34,13 +35,18 @@ logger = logging.getLogger(__name__)
 
 # ─────────────────────── Public entry ───────────────────────
 def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
-                           engine: Optional[OcrEngine] = None) -> ScanResult:
+                           engine: Optional[OcrEngine] = None,
+                           debug: bool = False) -> ScanResult:
     """Full pipeline. Returns a `ScanResult`. Never raises.
 
     When `engine` is None we honour the `TICKET_OCR_ENGINE` env variable
     (see `ocr_engine.build_engine`). If the primary engine returns no
     tokens (e.g. paddleocr not installed on this host), we transparently
     retry with Tesseract so the endpoint stays useful.
+
+    When `debug=True`, `result.debug["snapshots"]` is populated with
+    base64-encoded images of the deskewed ticket, each preprocess variant
+    and the detected row bands with their label/value ROIs highlighted.
     """
     primary = engine or build_engine()
 
@@ -79,8 +85,11 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
             merged[key] = chosen
             consensus_flags[key] = has_consensus
 
-    if not merged:
-        return _reject("no_fields_recognised", warnings=warnings)
+    # NOTE: we DO NOT bail out here even if `merged` is empty. On some
+    # photos the multi-variant grid returns zero because a single PSM
+    # can't cluster the rows correctly. The row-based pass below can
+    # still recover the fields geometrically. Only if BOTH strategies
+    # come back empty at the end do we return `rejected`.
 
     # 5. Format validation ----------------------------------------------------
     format_ok: dict[str, bool] = {}
@@ -107,6 +116,27 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
                     consensus_flags.setdefault(key, False)
         except Exception:  # noqa: BLE001
             logger.exception("structural_pass failed — continuing with base result")
+
+    # 5c. ROW-BASED GEOMETRIC PASS ─────────────────────────────────────────
+    # Detect rows via y-projection, split each into label/value ROIs and
+    # OCR each value ROI in isolation with field-type-specific whitelists +
+    # multi-variant consensus. This is the "geometry first" strategy the
+    # user asked for: it never invents a value — a field with weak
+    # evidence stays `needs_confirmation` and the merged result is kept
+    # only when row_ocr can safely improve on it.
+    matched_rows: dict[str, RowRoi] = {}
+    if structural_gray is not None:
+        try:
+            merged, matched_rows = _row_based_pass(
+                structural_gray, merged, consensus_flags, format_ok, warnings,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("row_based_pass failed — continuing")
+
+    # After ALL extraction strategies have run, decide if anything is worth
+    # returning. Only rejecting here means we give geometry a chance too.
+    if not merged:
+        return _reject("no_fields_recognised", warnings=warnings)
 
     # 6. Math validation ------------------------------------------------------
     validation = validate_math(merged)
@@ -164,8 +194,17 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
             "blur_score": pre.blur_score,
             "variants_used": list(pre.variants.keys()),
             "words_total": len(all_words),
+            "row_matched_fields": sorted(matched_rows.keys()),
         },
     )
+    if debug:
+        try:
+            from .debug import build_snapshots
+            result.debug["snapshots"] = build_snapshots(
+                pre.original_bgr, pre.variants, matched_rows,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("debug snapshots failed")
     _fill_public_sections(result, merged)
     return result
 
@@ -209,6 +248,116 @@ def _consensus_for(key: str, per_variant: dict[str, dict[str, ParsedField]]
     winner_pool = [c for c in candidates if value_key(c) == winner_value]
     winner_pool.sort(key=lambda c: c.ocr_confidence, reverse=True)
     return winner_pool[0], winner_count >= 2
+
+
+# ─────────────────────── Row-based geometric pass ───────────────────────
+# Confidence at which row_ocr is allowed to REPLACE an existing field
+# accepted by the multi-variant pass. Below this we only use row_ocr to
+# fill in missing fields or to add a consensus/needs_confirmation flag.
+_ROW_STRONG_ACCEPT = 0.70
+
+
+def _row_based_pass(gray, merged: dict[str, ParsedField],
+                    consensus_flags: dict[str, bool],
+                    format_ok: dict[str, bool],
+                    warnings: list[str]
+                    ) -> tuple[dict[str, ParsedField], dict[str, "RowRoi"]]:
+    """Run row_ocr and fuse its readings with the existing merged dict.
+
+    Fusion rules (fail-safe, never invents data):
+      * ROW ACCEPTED and there is NO existing field         → add it.
+      * ROW ACCEPTED and matches the existing field         → mark consensus.
+      * ROW ACCEPTED and disagrees with existing field      →
+          - if row_ocr confidence >= 0.70 AND >= existing OCR conf ⇒ replace
+            and record `row_ocr_overrode:<key>` in warnings for the audit
+            trail. Otherwise ⇒ demote the existing field's format_valid to
+            False (we're not sure any more) and note the disagreement.
+      * ROW NEEDS_CONFIRMATION and existing field is missing → add it as
+        best-effort with `format_valid=False` to force UI review.
+      * ROW REJECTED                                        → ignore.
+    """
+    rows = _detect_rows(gray)
+    matched: dict[str, "RowRoi"] = {}
+    for r in rows:
+        key = _match_label_to_field_key(r.label_text)
+        if key and key not in matched:
+            matched[key] = r
+    if not matched:
+        return merged, matched
+
+    updated = dict(merged)
+    for key, roi in matched.items():
+        reading = _read_value_roi(gray, roi, key)
+        if reading.status == "rejected":
+            continue
+        prev = updated.get(key)
+        # Convert row_ocr FieldReading → ParsedField shape for merging.
+        row_field = ParsedField(
+            key=key,
+            raw_text=reading.raw_text,
+            normalised=reading.value,
+            ocr_confidence=max(0.0, min(1.0, reading.confidence)),
+            format_valid=(reading.status == "accepted"
+                          and reading.value is not None),
+            bbox=(roi.value_bbox[0], roi.value_bbox[1],
+                  roi.value_bbox[2], roi.value_bbox[3]),
+            variant="row_ocr",
+            notes=list(reading.notes) + [f"row_ocr:{reading.status}"],
+        )
+        if prev is None:
+            # No previous read — take the row reading. If it's only
+            # `needs_confirmation` we still store it but flag it so the
+            # `_decide_status` step demands review.
+            updated[key] = row_field
+            consensus_flags[key] = False
+            format_ok[key] = row_field.format_valid
+            if reading.status == "needs_confirmation":
+                warnings.append(f"row_ocr_added_uncertain:{key}")
+            else:
+                warnings.append(f"row_ocr_added:{key}")
+            continue
+
+        # There is a previous reading. Do they agree?
+        prev_value_key = _value_key_of(prev)
+        new_value_key = _value_key_of(row_field)
+        if prev_value_key == new_value_key and prev_value_key != "":
+            # AGREEMENT — strong signal, boost consensus + keep the more
+            # confident text.
+            consensus_flags[key] = True
+            prev.notes.append("row_ocr_agreed")
+            if row_field.ocr_confidence > prev.ocr_confidence:
+                prev.ocr_confidence = row_field.ocr_confidence
+            continue
+
+        # DISAGREEMENT — the risky path. Only replace if row_ocr is
+        # strongly confident AND has stricter format guarantees.
+        row_strong = (reading.status == "accepted"
+                      and row_field.ocr_confidence >= _ROW_STRONG_ACCEPT
+                      and row_field.format_valid)
+        prev_weak = (not prev.format_valid) or (prev.ocr_confidence < 0.55)
+        if row_strong and (prev_weak or row_field.ocr_confidence >= prev.ocr_confidence):
+            warnings.append(
+                f"row_ocr_overrode:{key}:{prev.normalised}->{row_field.normalised}"
+            )
+            row_field.notes.append("row_ocr_replaced_multivariant")
+            updated[key] = row_field
+            format_ok[key] = row_field.format_valid
+            consensus_flags[key] = False
+        else:
+            # Not confident enough to override — demote to needs_confirmation.
+            warnings.append(f"row_ocr_disagrees:{key}")
+            prev.notes.append(
+                f"row_ocr_alt:{row_field.normalised}({row_field.ocr_confidence:.2f})"
+            )
+            format_ok[key] = False
+            consensus_flags[key] = False
+    return updated, matched
+
+
+def _value_key_of(f: ParsedField) -> str:
+    if f.normalised is None:
+        return f"raw:{(f.raw_text or '').strip()}"
+    return f"{f.normalised!r}"
 
 
 def _second_pass_numeric(merged: dict[str, ParsedField], keys: list[str],

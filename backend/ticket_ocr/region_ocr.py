@@ -28,9 +28,7 @@ We do NOT replace the multi-variant pass; we augment it:
 from __future__ import annotations
 
 import logging
-import re
 import unicodedata
-from decimal import Decimal
 from typing import Optional
 
 import cv2

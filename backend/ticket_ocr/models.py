@@ -1,7 +1,6 @@
 """Pydantic models for the scan pipeline."""
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict

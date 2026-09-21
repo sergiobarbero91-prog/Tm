@@ -26,6 +26,72 @@ Only the items below have been added on top of that baseline.
 
 
 
+### ✅ Taxitronic OCR — Pase geométrico por filas + modo debug (Feb 2026)
+Continuación de la reingeniería fail-safe: se cablea el pase geométrico
+`ticket_ocr/row_ocr.py` (ya escrito) al orquestador principal y se añaden
+snapshots de debug + tests de regresión + estructura de dataset.
+
+- `ticket_ocr/pipeline.py`: nuevo paso **5c — ROW-BASED GEOMETRIC PASS**
+  tras el structural pass:
+  1. Detecta filas por proyección Y y separa cada fila en label/value ROI
+     por el hueco X más ancho (fallback 60/40).
+  2. Empareja cada label con su clave interna (`_match_label_to_field_key`).
+  3. Corre 4 variantes × 3 PSMs por ROI de valor con whitelist por tipo
+     (fecha, decimal, entero) y hace consenso por conteo.
+  4. **Fusión conservadora** con `_row_based_pass`:
+     - Si el multi-variant pass NO tenía el campo → lo añade (con
+       `needs_confirmation` si la evidencia es débil).
+     - Si coincide → marca `consensus=True` y sube el ocr_conf.
+     - Si difiere y row_ocr tiene confianza ≥0.70 y format_valid →
+       reemplaza y registra `row_ocr_overrode:<key>` en warnings.
+     - Si difiere pero row_ocr no es lo bastante fuerte → **degrada el
+       campo a `needs_confirmation`** (no borra el valor, pero pone
+       `format_valid=False` para forzar revisión).
+  5. Ya NO se rechaza el ticket porque el multi-variant no encuentre
+     nada: row_ocr recibe otra oportunidad antes de dar rejected.
+
+- `ticket_ocr/debug.py` NUEVO: `build_snapshots()` genera base64 JPEG
+  de `original`, cada variante, un `rows` con overlay de bounding boxes
+  (label ROI azul, value ROI verde, etiqueta del campo en rojo) y `rois`
+  por campo detectado. Downscale a ≤1200 px + JPEG q=65 → payload < 2 MB.
+
+- `POST /api/tickets/taxitronic/scan?debug=1` — nueva query param que
+  activa los snapshots. Off por defecto (payload normal ~5 KB).
+
+- `debug.row_matched_fields` incluido siempre en la respuesta para que el
+  frontend pueda mostrar qué campos vinieron por vía geométrica.
+
+- **Tests** `backend/tests/test_row_ocr.py` NUEVO (32 tests):
+  * Unit tests para `_num_norm`, `_canonicalize` (rechaza inventar
+    separador decimal, valida fechas/horas imposibles).
+  * `_widest_zero_run`, `_bands_from_projection`, label matching.
+  * Detección de filas sobre imágenes sintéticas.
+  * Invariante FAIL-SAFE: si row_ocr marca `status=accepted`, el valor
+    debe ser correcto — si no puede, `needs_confirmation`.
+  * Caso crítico "09218 vs 5606" (licencia vs num_servicios adyacentes).
+  * Fusión con pipeline: agreement marca consensus, disagreement no
+    destruye el valor bueno.
+  * Modo debug: `?debug=1` devuelve snapshots data-URI; off por defecto no.
+  * `test_impossible_math_never_accepted`: ticket con Total incorrecto
+    NUNCA sale `accepted`.
+
+- **Estructura dataset ground-truth** en
+  `backend/tests/fixtures/dataset/{images,ground_truth}/` con
+  `README.md` explicando formato JSON, métricas (accuracy /
+  false_acceptance / needs_confirmation / coverage) y política de
+  anonimización antes de commitear fotos.
+
+- **Resultado en synthetic ticket**: 13/13 campos extraídos, `total_matches=True`,
+  overall_confidence=0.89, 4 campos marcados `needs_confirmation` por
+  disagreement entre pases (comportamiento correcto — pide revisión).
+
+- **Total tests**: 76/76 pasan (`test_taxitronic_ocr.py` 44 + `test_row_ocr.py` 32).
+
+- **Endpoint verificado end-to-end** con curl real vía preview URL:
+  admin login → POST /api/tickets/taxitronic/scan?debug=1 → 200 OK con
+  snapshots y 13 fields.
+
+
 ### ✅ Taxitronic ticket scan pipeline — fail-safe OCR + UI wiring (Feb 2026)
 - Backend módulo `/app/backend/ticket_ocr/` (modular, motor OCR intercambiable).
 - Endpoints:
