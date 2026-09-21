@@ -316,6 +316,58 @@ POSITIONAL_LABELS = [
 ]
 
 
+def _ticket_ocr_source(image_bytes: bytes) -> Dict[str, Any]:
+    """Run the modern `ticket_ocr` pipeline and map its output into the
+    schema this file uses (`carreras_eur`, `dist_total_km`, `tiempo_on`, …).
+
+    Only fields whose confidence gate passed reach the response — that's
+    precisely what stops the "OCR invents extra digits" scenario: shady
+    reads get dropped, not shown as valid.
+    """
+    try:
+        from ticket_ocr import scan_taxitronic_ticket
+    except Exception:  # pragma: no cover — module always present in this repo
+        return {}
+    try:
+        res = scan_taxitronic_ticket(image_bytes, "image/jpeg")
+    except Exception:
+        logger.exception("[journal-ocr] ticket_ocr scan failed")
+        return {}
+
+    def _val(key: str):
+        ev = res.fields.get(key) if res and res.fields else None
+        return ev.value if ev is not None else None
+
+    out: Dict[str, Any] = {}
+    # Ticket meta
+    fecha_val = _val("fecha")
+    if isinstance(fecha_val, dict):
+        if fecha_val.get("date"):
+            out["fecha"] = fecha_val["date"]
+        if fecha_val.get("time"):
+            out["hora"] = fecha_val["time"]
+    # Numeric mappings — key on the right is what journal.py expects.
+    mapping = {
+        "num_servicios":     "num_servicios",
+        "carreras":          "carreras_eur",
+        "dist_total":        "dist_total_km",
+        "dist_ocupado":      "dist_ocupado_km",
+        "dist_libre":        "dist_libre_km",
+        "tiempo_ocupado":    "tiempo_ocupado",
+        "tiempo_on":         "tiempo_on",
+    }
+    for k_src, k_dst in mapping.items():
+        v = _val(k_src)
+        if v is None:
+            continue
+        try:
+            out[k_dst] = float(v) if k_dst.endswith("_km") or k_dst == "carreras_eur" else int(v)
+        except (TypeError, ValueError):
+            out[k_dst] = v
+    return out
+
+
+
 def _ocr_values_positional(pil_bw, pil_adp=None, pil_gray=None) -> Dict[str, Any]:
     """OCR posicional: usa image_to_data para localizar etiquetas y hacer
     una segunda pasada de OCR sobre la región a la derecha de cada etiqueta,
@@ -1206,6 +1258,21 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         logger.exception("[journal-ocr] positional OCR failed")
         parsed_pos = {}
 
+    # ── Cuarta pasada: ticket_ocr structural pipeline ──
+    # Fuente extra basada en el nuevo `ticket_ocr` que aplica structural pass
+    # (localiza cada etiqueta y re-OCR-ea solo el valor con whitelist numérico)
+    # + confidence gating (< 0.40 se descarta). Es notablemente más fiable en
+    # fotos ruidosas y tiende a NO inventar dígitos extras.
+    try:
+        parsed_struct = _ticket_ocr_source(image_bytes)
+        logger.info(f"[journal-ocr] ticket_ocr structural → {parsed_struct}")
+    except Exception:
+        logger.exception("[journal-ocr] ticket_ocr structural failed — ignoring")
+        parsed_struct = {}
+
+    # Score de la fuente estructural = número de campos válidos.
+    score_struct = len([k for k, v in parsed_struct.items() if v is not None])
+
     # Score = número de campos válidos en totales_taximetro (para desempatar)
     score_4 = len(parsed_4.get("totales_taximetro") or {})
     score_6 = len(parsed_6.get("totales_taximetro") or {})
@@ -1264,6 +1331,9 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         ("psm6",     parsed_6,     score_6),
         ("psm4_adp", parsed_4_adp, score_4a),
         ("psm6_adp", parsed_6_adp, score_6a),
+        # New: ticket_ocr structural pipeline. Equal weight — its values
+        # win only via genuine agreement, not via arbitrary bias.
+        ("struct",   {**parsed_struct, "totales_taximetro": {}}, score_struct),
     ]
 
     def _pick(key: str) -> Any:
@@ -1289,6 +1359,18 @@ def _ocr_parcial_sync(image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
 
         if not candidates:
             return vp  # todo None → devuelve el posicional (aunque sea None)
+
+        # Tie-breaker by consensus: if ≥3 sources (out of 5) agree on the
+        # same value, that value wins outright — this catches the case
+        # where a single hallucinated source outranks the majority.
+        from collections import Counter
+        votes = Counter(str(c[0]) for c in candidates if not c[1])   # only non-corrupt
+        if votes:
+            top_val, top_n = votes.most_common(1)[0]
+            if top_n >= 3:
+                for v, c, _s, _hd in candidates:
+                    if str(v) == top_val:
+                        return v
 
         # Preferir: no-corrupto > tiene decimal > mayor score
         candidates.sort(key=lambda t: (not t[1], t[3], t[2]), reverse=True)

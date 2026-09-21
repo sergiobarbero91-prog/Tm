@@ -16050,8 +16050,8 @@ function TransportMeter() {
                           ['dist_total_km', 'Dist. total (km)'],
                           ['dist_ocupado_km', 'Dist. ocupado (km)'],
                           ['dist_libre_km', 'Dist. libre (km)'],
-                          ['tiempo_ocupado', 'Tiempo ocupado (HH:MM)'],
-                          ['tiempo_on', 'Tiempo ON (HH:MM)'],
+                          ['tiempo_ocupado', 'Tiempo ocupado (minutos totales)'],
+                          ['tiempo_on', 'Tiempo ON (minutos totales)'],
                         ].map(([k, label]) => {
                           // Fecha se muestra en formato español DD/MM/YYYY aunque
                           // el backend la almacena en ISO (YYYY-MM-DD). Convertimos
@@ -16067,9 +16067,20 @@ function TransportMeter() {
                             if (y.length === 2) y = '20' + y;
                             return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
                           };
+                          // Tiempo * viene en minutos totales — mostramos equivalencia
+                          // Xh Ym como ayuda visual para el usuario.
+                          const minsToHuman = (v: string) => {
+                            const n = parseInt((v || '').replace(/[^\d]/g, ''), 10);
+                            if (!Number.isFinite(n) || n <= 0) return null;
+                            const h = Math.floor(n / 60);
+                            const m = n % 60;
+                            return h < 24 ? `≈ ${h}h ${m}m` : `≈ ${Math.floor(h / 24)}d ${h % 24}h ${m}m`;
+                          };
                           const displayValue = k === 'fecha'
                             ? isoToEs(ocrEditDraft[k] || '')
                             : (ocrEditDraft[k] || '');
+                          const isTime = k === 'tiempo_ocupado' || k === 'tiempo_on';
+                          const humanTime = isTime ? minsToHuman(displayValue) : null;
                           return (
                           <View key={k} style={{ marginBottom: 10 }}>
                             <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
@@ -16081,9 +16092,13 @@ function TransportMeter() {
                               }))}
                               placeholder={k === 'fecha' ? 'DD/MM/YYYY' : '—'}
                               placeholderTextColor="#475569"
+                              keyboardType={isTime || k === 'num_servicios' ? 'numeric' : 'default'}
                               style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14 }}
                               data-testid={`ocr-edit-input-${k}`}
                             />
+                            {humanTime && (
+                              <Text style={{ color: '#10B981', fontSize: 10, marginTop: 2, fontWeight: '600' }}>{humanTime}</Text>
+                            )}
                           </View>
                           );
                         })}
