@@ -168,6 +168,30 @@ certbot certonly --standalone -d tu-dominio.es -d www.tu-dominio.es
 docker-compose up -d
 ```
 
+#### Paso 9: (Opcional) Activar PaddleOCR para el escaneo Taxitronic
+
+Por defecto ya funciona con **Tesseract** (incluido en la imagen). Si quieres mayor precisión en fotos difíciles de tickets Taxitronic, activa PaddleOCR:
+
+```bash
+# Instalar paddlepaddle + paddleocr dentro del contenedor backend
+docker compose exec backend bash scripts/enable-paddleocr.sh
+
+# Activar el motor en el .env del backend
+echo "TICKET_OCR_ENGINE=paddleocr" >> backend/.env
+
+# Reiniciar solo el backend
+docker compose restart backend
+```
+
+Los modelos (~1.5 GB) se persisten en el volumen `paddle_models` — no hay que reinstalar en cada redeploy. Si PaddleOCR fallara por cualquier motivo, el pipeline hace fallback transparente a Tesseract.
+
+#### Paso 10: Verificar el endpoint Taxitronic
+
+```bash
+# Debe devolver "Method Not Allowed" (existe, solo acepta POST)
+curl -s https://tu-dominio.es/api/tickets/taxitronic/scan
+```
+
 ---
 
 ## 5. Mantenimiento

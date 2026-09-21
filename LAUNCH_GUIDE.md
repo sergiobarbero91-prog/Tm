@@ -25,6 +25,32 @@ Para configurar un dominio propio, necesitarás:
    ALLOWED_ORIGINS=https://taxiapp.es,https://www.taxiapp.es
    ```
 
+
+### 2.b OCR Taxitronic — motor opcional PaddleOCR
+
+Por defecto el escaneo de tickets Taxitronic usa Tesseract (ya viene en el Dockerfile del backend). Es fiable y no requiere configuración extra.
+
+**Opcional — activar PaddleOCR** para mayor precisión en fotos difíciles (solo servidores x86_64):
+
+```bash
+# Dentro del contenedor backend, una sola vez:
+docker compose exec backend bash scripts/enable-paddleocr.sh
+
+# Luego añade al backend/.env:
+TICKET_OCR_ENGINE=paddleocr
+
+# Y reinicia:
+docker compose restart backend
+```
+
+El script descarga los modelos, calienta la instancia y aborta automáticamente si detecta ARM64 (donde los wheels son inestables). Si algo falla en runtime el pipeline hace fallback transparente a Tesseract — no rompe el flujo.
+
+Endpoints Taxitronic disponibles tras despliegue:
+- `POST /api/tickets/taxitronic/scan` — envía foto multipart, recibe evidencia por campo
+- `POST /api/tickets/taxitronic/confirm` — persiste lectura revisada
+- `GET  /api/tickets/taxitronic` — lista lecturas del usuario
+
+
 ### 3. Backup de MongoDB ✅ CONFIGURADO
 
 **Scripts disponibles en `/app/scripts/`:**

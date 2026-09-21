@@ -32,6 +32,11 @@ services:
       - taximeter-network
     expose:
       - "8001"
+    volumes:
+      # Persist journal photos and Taxitronic ticket uploads
+      - backend_uploads:/app/uploads
+      # Persist PaddleOCR models (only used if TICKET_OCR_ENGINE=paddleocr)
+      - paddle_models:/root/.paddlex
 
   # Frontend Expo Web
   frontend:
@@ -82,6 +87,8 @@ services:
 volumes:
   mongodb_data:
   certbot_webroot:
+  backend_uploads:
+  paddle_models:
 
 networks:
   taximeter-network:
