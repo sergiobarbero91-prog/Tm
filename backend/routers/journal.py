@@ -238,14 +238,28 @@ def _preprocess_for_ocr(image_bytes: bytes):
     )
     hough_angle = None
     if lines is not None and len(lines) >= 5:
+        # HoughLinesP puede devolver shape (N,1,4) o (N,4) según version/OpenCV.
+        # Normalizamos a (N,4) para que el unpack `x1,y1,x2,y2` no reviente.
+        try:
+            arr = np.asarray(lines)
+            if arr.ndim == 3 and arr.shape[1] == 1 and arr.shape[2] == 4:
+                pts = arr.reshape(-1, 4)
+            elif arr.ndim == 2 and arr.shape[1] == 4:
+                pts = arr
+            else:
+                pts = None
+        except Exception:  # pragma: no cover
+            pts = None
         angles = []
-        for x1, y1, x2, y2 in lines[:, 0]:
-            if x2 == x1:
-                continue
-            a = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-            # Sólo líneas cercanas a horizontales (±15°)
-            if -15 < a < 15:
-                angles.append(a)
+        if pts is not None:
+            for row in pts:
+                x1, y1, x2, y2 = int(row[0]), int(row[1]), int(row[2]), int(row[3])
+                if x2 == x1:
+                    continue
+                a = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+                # Sólo líneas cercanas a horizontales (±15°)
+                if -15 < a < 15:
+                    angles.append(a)
         if len(angles) >= 5:
             hough_angle = float(np.median(angles))
 
