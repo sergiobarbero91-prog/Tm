@@ -14759,22 +14759,43 @@ function TransportMeter() {
                               <Text style={{ color: '#94A3B8', fontSize: 11, marginBottom: 6, textAlign: 'center' }}>
                                 ¿Foto de un parcial Taxitronic? Escaneo con validación matemática:
                               </Text>
-                              {/* @ts-ignore — native HTML file input on web */}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                data-testid="taxitronic-scan-file"
-                                onChange={(e: any) => {
-                                  const f = e.target.files?.[0];
+                              {/* Camera capture with guide — same modal used by the journal flow */}
+                              <TouchableOpacity
+                                onPress={async () => {
+                                  const f = await ocrCaptureWithGuide();
                                   if (!f) return;
                                   setTaxitronicPhoto(f);
                                   setTaxitronicOpen(true);
-                                  e.target.value = ''; // allow re-selecting the same file later
                                 }}
-                                style={{ color: '#94A3B8', fontSize: 12 }}
-                              />
-                              <Text style={{ color: '#64748B', fontSize: 10, marginTop: 4, textAlign: 'center', maxWidth: 320 }}>
-                                Pipeline OCR local + validación de importes. Nunca guarda un dato dudoso sin tu confirmación.
+                                style={{ backgroundColor: '#6366F1', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                                data-testid="taxitronic-scan-camera"
+                              >
+                                <Ionicons name="camera" size={18} color="#FFFFFF" />
+                                <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Escanear parcial con cámara</Text>
+                              </TouchableOpacity>
+                              <Text style={{ color: '#64748B', fontSize: 10, marginTop: 6, textAlign: 'center', maxWidth: 340 }}>
+                                Encaja el ticket completo dentro del recuadro (incluye Total y bloque P).
+                              </Text>
+                              {/* File input fallback — for desktop or when camera is denied */}
+                              <View style={{ marginTop: 8, alignItems: 'center' }}>
+                                <Text style={{ color: '#64748B', fontSize: 10, marginBottom: 3 }}>o sube una foto guardada:</Text>
+                                {/* @ts-ignore — native HTML file input on web */}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  data-testid="taxitronic-scan-file"
+                                  onChange={(e: any) => {
+                                    const f = e.target.files?.[0];
+                                    if (!f) return;
+                                    setTaxitronicPhoto(f);
+                                    setTaxitronicOpen(true);
+                                    e.target.value = '';
+                                  }}
+                                  style={{ color: '#94A3B8', fontSize: 11 }}
+                                />
+                              </View>
+                              <Text style={{ color: '#64748B', fontSize: 10, marginTop: 6, textAlign: 'center', maxWidth: 320, fontStyle: 'italic' }}>
+                                Pipeline OCR local + validación matemática. Nunca guarda un dato dudoso sin tu confirmación.
                               </Text>
                             </View>
                           )}

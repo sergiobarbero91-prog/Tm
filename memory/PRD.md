@@ -32,13 +32,20 @@ Only the items below have been added on top of that baseline.
   - `POST /api/tickets/taxitronic/scan` (auth). Query param opcional `engine=tesseract|paddleocr`.
   - `POST /api/tickets/taxitronic/confirm` — persiste lectura revisada en `taxitronic_readings`.
   - `GET /api/tickets/taxitronic` — lista de lecturas del usuario.
-- Flujo: validación → deskew → 4 variantes → OCR posicional → líneas → parseo → normalización EU→ISO/Decimal → validación matemática → 2ª lectura por región → puntuación multi-señal → `accepted` / `needs_confirmation` / `rejected`. Nunca guarda silenciosamente.
-- Motor OCR intercambiable: `TesseractEngine` (por defecto) + `PaddleOcrEngine` (opt-in, lazy-load, fallback transparente a Tesseract si el módulo no está instalado). Configurable con env `TICKET_OCR_ENGINE` o query `?engine=`.
-- Frontend: componente `frontend/app/components/TaxitronicScanModal.tsx` — modal de revisión con banner de estado, chips de formato/consenso/math, barras de confianza por campo, edición inline y guard de math-mismatch con checkbox de acknowledge.
-- Cableado en `frontend/app/index.tsx` (tab Gestión): nuevo input `[data-testid=taxitronic-scan-file]` bajo el fallback existente.
-- 43 tests pasando (`backend/tests/test_taxitronic_ocr.py`).
-- Dep sistema APT: `tesseract-ocr` + `tesseract-ocr-spa`.
-- Deps Python opcionales: `paddlepaddle` + `paddleocr` (solo si se activa `TICKET_OCR_ENGINE=paddleocr`).
+- Flujo mejorado (Feb-Iter-2):
+  1. Validación imagen → autorotación por OSD → deskew perspectiva → 4 variantes.
+  2. OCR multi-variante posicional (Tesseract) → líneas → parseo → normalización EU→ISO/Decimal.
+  3. **Structural pass**: `ticket_ocr/region_ocr.py` localiza cada etiqueta y re-OCR-ea solo la franja del valor con upscaling + Otsu local + PSM 7 + whitelist numérico. Recupera campos que el pase inicial pierde o lee mal.
+  4. Validación matemática (Carreras+Sup=Total y su P) → 2ª lectura por región en campos con math fail.
+  5. **Confidence gating duro (0.40)**: campos con OCR muy bajo se ocultan y aparecen como "no detectado" para forzar entrada manual.
+  6. Puntuación multi-señal → `accepted` / `needs_confirmation` / `rejected`. Nunca guarda silenciosamente.
+- Motor OCR intercambiable: `TesseractEngine` (por defecto) + `PaddleOcrEngine` (opt-in, lazy-load, fallback transparente). Env `TICKET_OCR_ENGINE` o query `?engine=`.
+- Script deploy: `/app/scripts/enable-paddleocr.sh` — instala paddle+paddleocr en el VPS (aborta en ARM64).
+- Frontend: `TaxitronicScanModal.tsx` — banners estado/math, chips formato/consenso/math, barras confianza, edición inline, guard de math-mismatch con checkbox.
+- Cableado tab Gestión: botón **Escanear parcial con cámara** (reutiliza `ocrCaptureWithGuide` con overlay dashed) + input file fallback.
+- 44 tests pasando (`backend/tests/test_taxitronic_ocr.py`).
+- Deps sistema: APT `tesseract-ocr` + `tesseract-ocr-spa`.
+- Deps Python opcionales: `paddlepaddle` + `paddleocr` (activar con `TICKET_OCR_ENGINE=paddleocr`).
 - Pendiente: confirmar unidades de `Dist. *` y `Tiempo *` en el modelo concreto del taxímetro antes de habilitar `distance_validated` / `time_validated`.
 
 

@@ -67,6 +67,9 @@ def preprocess(image_bytes: bytes, mime_type: str) -> PreprocessResult:
     detected = _detect_and_deskew_ticket(bgr)
     ticket_bgr = detected if detected is not None else bgr
 
+    # Fix rotation (upside-down / sideways) using Tesseract OSD.
+    ticket_bgr = _auto_rotate(ticket_bgr)
+
     gray = cv2.cvtColor(ticket_bgr, cv2.COLOR_BGR2GRAY)
     blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     if blur_score < MIN_BLUR_SCORE:
@@ -112,6 +115,32 @@ def _decode(image_bytes: bytes) -> np.ndarray:
 
 
 # ─────────────────────── Ticket detection / deskew ───────────────────────
+def _auto_rotate(bgr: np.ndarray) -> np.ndarray:
+    """Detect 90°/180°/270° rotations via Tesseract OSD and fix them.
+
+    OSD (Orientation and Script Detection) reads global text orientation.
+    We only trust it when confidence is decent — a low-confidence guess on
+    a blurry photo would rotate the image the wrong way and make things
+    worse. Falls back to the input silently on any error.
+    """
+    try:
+        import pytesseract
+        osd = pytesseract.image_to_osd(bgr, output_type=pytesseract.Output.DICT)
+        angle = int(osd.get("rotate", 0))
+        confidence = float(osd.get("orientation_conf", 0.0))
+        if confidence < 2.0 or angle == 0:
+            return bgr
+        rot_map = {
+            90:  cv2.ROTATE_90_COUNTERCLOCKWISE,
+            180: cv2.ROTATE_180,
+            270: cv2.ROTATE_90_CLOCKWISE,
+        }
+        return cv2.rotate(bgr, rot_map[angle]) if angle in rot_map else bgr
+    except Exception as e:  # noqa: BLE001 - never let OSD kill a scan
+        logger.debug("auto-rotate skipped: %s", e)
+        return bgr
+
+
 def _detect_and_deskew_ticket(bgr: np.ndarray) -> Optional[np.ndarray]:
     """Find the largest bright quadrilateral and warp it to a rectangle.
 

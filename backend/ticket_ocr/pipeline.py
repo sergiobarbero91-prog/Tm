@@ -22,7 +22,12 @@ from .ocr_engine import (
 )
 from .parser import ParsedField, extract_fields
 from .preprocess import PreprocessResult, crop_region, preprocess
+from .region_ocr import structural_pass
 from .validators import validate_format, validate_math
+
+# Below this raw OCR confidence, we refuse to display the value at all —
+# a plausible-looking-but-wrong number is more dangerous than "not detected".
+HARD_MIN_OCR_CONFIDENCE = 0.40
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +89,25 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
         format_ok[key] = ok and field.format_valid
         field.notes.extend(notes)
 
+    # 5b. Structural pass: for missing or low-confidence fields, locate the
+    # label anchor and re-OCR only the value strip. Dramatic win on noisy
+    # photos where the multi-variant grid missed a row.
+    structural_gray = pre.variants.get("clahe")
+    if structural_gray is None:
+        structural_gray = pre.variants.get("gray")
+    if structural_gray is not None:
+        try:
+            merged = structural_pass(primary, structural_gray, merged)
+            # Re-run format validation for anything the structural pass added.
+            for key, field in merged.items():
+                if key not in format_ok:
+                    ok, notes = validate_format(field)
+                    format_ok[key] = ok and field.format_valid
+                    field.notes.extend(notes)
+                    consensus_flags.setdefault(key, False)
+        except Exception:  # noqa: BLE001
+            logger.exception("structural_pass failed — continuing with base result")
+
     # 6. Math validation ------------------------------------------------------
     validation = validate_math(merged)
 
@@ -104,6 +128,12 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
     # 8. Build evidence + confidence -----------------------------------------
     evidences: dict[str, FieldEvidence] = {}
     for key, field in merged.items():
+        # Confidence gating: if the OCR is dangerously low we hide the value
+        # entirely so the driver has to type it in — a wrong-looking-right
+        # value is worse than "not detected".
+        if field.ocr_confidence < HARD_MIN_OCR_CONFIDENCE:
+            warnings.append(f"field_dropped_low_ocr:{key}:{field.ocr_confidence:.2f}")
+            continue
         validation_valid = _field_math_valid(key, validation)
         ev = FieldEvidence(
             value=_serialisable(field.normalised),

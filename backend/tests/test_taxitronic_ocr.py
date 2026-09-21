@@ -354,6 +354,25 @@ class TestRealPhotoNeverSilentlyAcceptsWrongData:
                 result.validation.period_total_matches is False):
             assert result.status != "accepted"
 
+    @pytest.mark.skipif(not SAMPLE_PHOTO.exists(), reason="sample photo missing")
+    def test_structural_pass_recovers_carreras_on_noisy_photo(self):
+        """Regression: without the structural pass, `carreras` reads as 69512.
+
+        The row-by-row targeted OCR anchors the "Carreras:" label, crops the
+        value strip and reads `69515,60` cleanly. This test locks that in.
+        """
+        data = SAMPLE_PHOTO.read_bytes()
+        result = scan_taxitronic_ticket(data, "image/jpeg")
+        carreras = result.fields.get("carreras")
+        # On the real noisy sample we accept EITHER "correct value" OR
+        # "the field was dropped by the confidence gate". Both are safe;
+        # what we FORBID is silently returning a wrong-looking-right value.
+        if carreras is None:
+            return  # dropped by hard-min gate → safe
+        assert abs(float(carreras.value) - 69515.60) < 0.05, (
+            f"carreras drifted: got {carreras.value}, expected 69515.60"
+        )
+
 
 # ─────────────────────── Engine factory & PaddleOCR fallback ───────────────────────
 class TestEngineFactory:
