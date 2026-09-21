@@ -15740,8 +15740,12 @@ function TransportMeter() {
                 <AdBanner position="inline" />
 
                 {/* === Camera capture modal with visual guide === */}
-                <Modal visible={ocrCameraModal !== null} transparent animationType="fade" onRequestClose={ocrCameraCancel}>
-                  <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }}>
+                {/* Camera modal — conditionally mounted so its portal always sits
+                    ON TOP of any other Modal already open (fixes the "camera
+                    behind end-shift dialog" bug on React Native Web). */}
+                {ocrCameraModal !== null && (
+                <Modal visible transparent animationType="fade" onRequestClose={ocrCameraCancel}>
+                  <View style={{ flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center', zIndex: 9999, elevation: 9999 }}>
                     {/* Header instruction */}
                     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: 16, backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 10 }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>
@@ -15850,6 +15854,7 @@ function TransportMeter() {
                     </View>
                   </View>
                 </Modal>
+                )}
 
                 {/* === Taxitronic fail-safe scan modal === */}
                 <TaxitronicScanModal
@@ -16038,7 +16043,7 @@ function TransportMeter() {
                           Revisa los valores extraídos de la foto. Corrige lo que la IA no leyó bien y pulsa <Text style={{ color: '#10B981', fontWeight: '700' }}>Confirmar</Text> para guardar. Los campos vacíos se guardarán como no detectados.
                         </Text>
                         {[
-                          ['fecha', 'Fecha (YYYY-MM-DD)'],
+                          ['fecha', 'Fecha (DD/MM/YYYY)'],
                           ['hora', 'Hora (HH:MM)'],
                           ['num_servicios', 'Nº servicios'],
                           ['carreras_eur', 'Carreras / Facturación (€)'],
@@ -16047,19 +16052,41 @@ function TransportMeter() {
                           ['dist_libre_km', 'Dist. libre (km)'],
                           ['tiempo_ocupado', 'Tiempo ocupado (HH:MM)'],
                           ['tiempo_on', 'Tiempo ON (HH:MM)'],
-                        ].map(([k, label]) => (
+                        ].map(([k, label]) => {
+                          // Fecha se muestra en formato español DD/MM/YYYY aunque
+                          // el backend la almacena en ISO (YYYY-MM-DD). Convertimos
+                          // en ambos sentidos para que el usuario nunca vea ISO.
+                          const isoToEs = (v: string) => {
+                            const m = v?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                            return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
+                          };
+                          const esToIso = (v: string) => {
+                            const m = v?.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+                            if (!m) return v;
+                            let y = m[3];
+                            if (y.length === 2) y = '20' + y;
+                            return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+                          };
+                          const displayValue = k === 'fecha'
+                            ? isoToEs(ocrEditDraft[k] || '')
+                            : (ocrEditDraft[k] || '');
+                          return (
                           <View key={k} style={{ marginBottom: 10 }}>
                             <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
                             <TextInput
-                              value={ocrEditDraft[k] || ''}
-                              onChangeText={(v) => setOcrEditDraft((d) => ({ ...d, [k]: v }))}
-                              placeholder="—"
+                              value={displayValue}
+                              onChangeText={(v) => setOcrEditDraft((d) => ({
+                                ...d,
+                                [k]: k === 'fecha' ? esToIso(v) : v,
+                              }))}
+                              placeholder={k === 'fecha' ? 'DD/MM/YYYY' : '—'}
                               placeholderTextColor="#475569"
                               style={{ backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 14 }}
                               data-testid={`ocr-edit-input-${k}`}
                             />
                           </View>
-                        ))}
+                          );
+                        })}
                         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                           <TouchableOpacity
                             onPress={() => { setOcrShowEditModal(null); setOcrEditDraft({}); }}

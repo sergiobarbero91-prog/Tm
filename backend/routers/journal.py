@@ -1100,6 +1100,16 @@ def _parse_ticket_text(raw: str) -> Dict[str, Any]:
         if m.group(4):
             out["hora"] = f"{int(m.group(4)):02d}:{m.group(5)}"
 
+    # ── Fallback hora: cuando la OCR mete un salto de línea entre FECHA y la
+    # hora, el regex anterior no la captura. Buscamos aparte cualquier
+    # "HH:MM" plausible dentro de las primeras 6 líneas del ticket.
+    if "hora" not in out:
+        head = "\n".join(text.splitlines()[:6])
+        # Aceptamos separadores :, ; o . y horas 00-23, minutos 00-59.
+        m_h = re.search(r"\b([01]?\d|2[0-3])[:;.]([0-5]\d)\b", head)
+        if m_h:
+            out["hora"] = f"{int(m_h.group(1)):02d}:{m_h.group(2)}"
+
     # ── Separar líneas de la sección "P " (para descartarlas del acumulado).
     #    Una línea es de la sección P si contiene "P <etiqueta_conocida>"
     #    en cualquier parte (tolerante a ruido OCR al inicio de la línea).
