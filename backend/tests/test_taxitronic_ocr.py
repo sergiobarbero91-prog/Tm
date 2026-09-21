@@ -17,7 +17,7 @@ import pytest
 from PIL import Image, ImageDraw, ImageFont
 
 from ticket_ocr import scan_taxitronic_ticket
-from ticket_ocr.ocr_engine import OcrWord, TesseractEngine
+from ticket_ocr.ocr_engine import OcrWord, PaddleOcrEngine, TesseractEngine, build_engine
 from ticket_ocr.parser import (
     _normalise_number_string,
     extract_fields,
@@ -353,3 +353,68 @@ class TestRealPhotoNeverSilentlyAcceptsWrongData:
         if (result.validation.total_matches is False or
                 result.validation.period_total_matches is False):
             assert result.status != "accepted"
+
+
+# ─────────────────────── Engine factory & PaddleOCR fallback ───────────────────────
+class TestEngineFactory:
+    def test_default_is_tesseract(self, monkeypatch):
+        monkeypatch.delenv("TICKET_OCR_ENGINE", raising=False)
+        eng = build_engine()
+        assert isinstance(eng, TesseractEngine)
+
+    def test_explicit_tesseract(self):
+        assert isinstance(build_engine("tesseract"), TesseractEngine)
+
+    def test_paddleocr_lazy_instance(self):
+        eng = build_engine("paddleocr")
+        # We never touch the paddle SDK until `.read()` is called.
+        assert isinstance(eng, PaddleOcrEngine)
+        assert eng.name == "paddleocr"
+
+    def test_env_var_selects_paddle(self, monkeypatch):
+        monkeypatch.setenv("TICKET_OCR_ENGINE", "paddleocr")
+        assert isinstance(build_engine(), PaddleOcrEngine)
+
+    def test_unknown_engine_falls_back_to_tesseract(self, monkeypatch):
+        monkeypatch.setenv("TICKET_OCR_ENGINE", "invented-ocr")
+        assert isinstance(build_engine(), TesseractEngine)
+
+
+class TestPaddleUnavailableFallback:
+    """If paddleocr is not installed, PaddleOcrEngine.read must return []
+    and the pipeline must transparently retry with Tesseract."""
+
+    def test_read_returns_empty_when_module_missing(self, monkeypatch):
+        # Force the lazy import to fail even if the module happens to be
+        # installed in the runner's venv.
+        import builtins
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name.startswith("paddleocr"):
+                raise ImportError("simulated missing paddleocr")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        eng = PaddleOcrEngine()
+        # Any image — we should never reach inference.
+        blank = np.full((100, 100, 3), 255, dtype=np.uint8)
+        assert eng.read(blank) == []
+
+    def test_pipeline_with_paddle_missing_still_works(self, monkeypatch):
+        """End-to-end: primary=paddle (unavailable) → tesseract fallback runs."""
+        import builtins
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name.startswith("paddleocr"):
+                raise ImportError("simulated missing paddleocr")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        data = _render_synthetic_ticket()
+        result = scan_taxitronic_ticket(data, "image/png", engine=PaddleOcrEngine())
+        # Fallback path — must have run tesseract instead.
+        assert result.status in {"accepted", "needs_confirmation"}
+        assert result.debug["engine"] == "tesseract"
+        assert any("primary_engine_returned_no_text" in w for w in result.warnings)

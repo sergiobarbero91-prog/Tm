@@ -16,7 +16,10 @@ from typing import Any, Optional
 from .confidence import field_confidence, overall_confidence
 from .constants import LOW_OCR_CONFIDENCE, REQUIRED_FIELDS
 from .models import FieldEvidence, ScanResult, ValidationResult
-from .ocr_engine import OcrEngine, TesseractEngine, read_all_variants, read_region_numeric
+from .ocr_engine import (
+    OcrEngine, TesseractEngine, build_engine,
+    read_all_variants, read_region_numeric,
+)
 from .parser import ParsedField, extract_fields
 from .preprocess import PreprocessResult, crop_region, preprocess
 from .validators import validate_format, validate_math
@@ -27,8 +30,14 @@ logger = logging.getLogger(__name__)
 # ─────────────────────── Public entry ───────────────────────
 def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
                            engine: Optional[OcrEngine] = None) -> ScanResult:
-    """Full pipeline. Returns a `ScanResult`. Never raises."""
-    engine = engine or TesseractEngine()
+    """Full pipeline. Returns a `ScanResult`. Never raises.
+
+    When `engine` is None we honour the `TICKET_OCR_ENGINE` env variable
+    (see `ocr_engine.build_engine`). If the primary engine returns no
+    tokens (e.g. paddleocr not installed on this host), we transparently
+    retry with Tesseract so the endpoint stays useful.
+    """
+    primary = engine or build_engine()
 
     # 1. Preprocess -----------------------------------------------------------
     pre = preprocess(image_bytes, mime_type)
@@ -38,8 +47,16 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
     warnings = list(pre.warnings)
 
     # 2. Multi-variant OCR ---------------------------------------------------
-    per_variant_words = read_all_variants(engine, pre.variants)
+    per_variant_words = read_all_variants(primary, pre.variants)
     all_words = [w for words in per_variant_words.values() for w in words]
+    used_engine = primary.name
+    if not all_words and not isinstance(primary, TesseractEngine):
+        # Fallback: never let a missing optional engine kill the request.
+        warnings.append(f"primary_engine_returned_no_text:{primary.name}_falling_back_to_tesseract")
+        fallback = TesseractEngine()
+        per_variant_words = read_all_variants(fallback, pre.variants)
+        all_words = [w for words in per_variant_words.values() for w in words]
+        used_engine = fallback.name
     if not all_words:
         return _reject("no_text_detected", warnings=warnings)
 
@@ -72,10 +89,10 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
 
     # 7. Second-pass re-read on failing money fields --------------------------
     if validation.total_matches is False:
-        _second_pass_numeric(merged, ["carreras", "suplementos", "total"], pre, engine, warnings)
+        _second_pass_numeric(merged, ["carreras", "suplementos", "total"], pre, primary, warnings)
         validation = validate_math(merged)
     if validation.period_total_matches is False:
-        _second_pass_numeric(merged, ["p_carreras", "p_suplementos", "p_total"], pre, engine, warnings)
+        _second_pass_numeric(merged, ["p_carreras", "p_suplementos", "p_total"], pre, primary, warnings)
         validation = validate_math(merged)
 
     # Refresh format flags after second pass.
@@ -113,7 +130,7 @@ def scan_taxitronic_ticket(image_bytes: bytes, mime_type: str,
         validation=validation,
         warnings=warnings,
         debug={
-            "engine": engine.name,
+            "engine": used_engine,
             "blur_score": pre.blur_score,
             "variants_used": list(pre.variants.keys()),
             "words_total": len(all_words),

@@ -8,6 +8,7 @@ vision-LLM) only needs to fulfil the same contract.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
@@ -84,6 +85,123 @@ class TesseractEngine:
             words.append(OcrWord(text=text, confidence=conf_norm,
                                  bbox=(x, y, w, h), line_key=line_key))
         return words
+
+
+# ─────────────────────── PaddleOCR implementation (opt-in) ───────────────────────
+class PaddleOcrEngine:
+    """Alternative engine using PaddleOCR PP-OCRv4/v6 models.
+
+    Rationale: on hi-res, well-framed photos PaddleOCR usually beats
+    Tesseract on rotated / low-contrast tickets. It is however:
+      * heavy (~1.5 GB models, paddlepaddle wheel ~250 MB);
+      * x86_64 only in practice (ARM64 wheels segfault today).
+
+    So we make it OPT-IN: enable by setting `TICKET_OCR_ENGINE=paddleocr`
+    or by passing an instance explicitly to the pipeline. If import fails
+    or inference raises, the engine returns [] and the pipeline transparently
+    falls back to whatever variant Tesseract produced (see `pipeline.py`).
+
+    Contract identical to `TesseractEngine.read`, so the pipeline is
+    agnostic to which engine is active.
+    """
+
+    name = "paddleocr"
+
+    def __init__(self, lang: str = "es", use_textline_orientation: bool = True):
+        self._lang = lang
+        self._use_textline_orientation = use_textline_orientation
+        self._ocr = None  # lazy-init
+
+    def _get(self):
+        if self._ocr is not None:
+            return self._ocr
+        try:
+            from paddleocr import PaddleOCR  # type: ignore
+        except ImportError as e:
+            logger.warning("paddleocr not installed: %s. `pip install paddlepaddle paddleocr`.", e)
+            return None
+        try:
+            self._ocr = PaddleOCR(
+                lang=self._lang,
+                use_textline_orientation=self._use_textline_orientation,
+            )
+            return self._ocr
+        except Exception as e:  # noqa: BLE001
+            logger.warning("paddleocr init failed: %s", e)
+            return None
+
+    def read(self, image: np.ndarray, *, lang: str = "es",
+             psm: int = 6, numeric_only: bool = False) -> list[OcrWord]:
+        # `psm` / `lang` / `numeric_only` are Tesseract-specific and are
+        # accepted here only to honour the interface. Paddle is language-
+        # agnostic per instance; `numeric_only` is best-effort post-filter.
+        ocr = self._get()
+        if ocr is None:
+            return []
+        # Paddle expects 3-channel; convert if we receive a grayscale.
+        if image.ndim == 2:
+            bgr = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            bgr = image
+        try:
+            results = ocr.predict(bgr)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("paddleocr predict failed: %s", e)
+            return []
+
+        words: list[OcrWord] = []
+        # PaddleOCR 3.x returns a list of OCRResult objects each with a
+        # `json` dict containing rec_texts / rec_scores / rec_polys.
+        for r in (results or []):
+            data = getattr(r, "json", None)
+            if isinstance(data, dict):
+                data = data.get("res", data)
+            if not isinstance(data, dict):
+                continue
+            texts = data.get("rec_texts") or []
+            scores = data.get("rec_scores") or []
+            polys = data.get("rec_polys") or data.get("dt_polys") or []
+            for i, text in enumerate(texts):
+                text = (text or "").strip()
+                if not text:
+                    continue
+                if numeric_only and not any(ch.isdigit() for ch in text):
+                    continue
+                conf = float(scores[i]) if i < len(scores) else 0.5
+                bbox = _poly_to_bbox(polys[i]) if i < len(polys) else (0, 0, 0, 0)
+                # We fabricate a line_key from the y-band so the parser can
+                # cluster tokens. Bucket size = 20 px is a good default.
+                line_key = f"paddle:{bbox[1] // 20}"
+                words.append(OcrWord(text=text, confidence=conf,
+                                     bbox=bbox, line_key=line_key))
+        return words
+
+
+def _poly_to_bbox(poly) -> tuple[int, int, int, int]:
+    """Convert a Paddle 4-point polygon into an (x, y, w, h) rectangle."""
+    try:
+        pts = np.asarray(poly).reshape(-1, 2)
+        x0 = int(pts[:, 0].min()); y0 = int(pts[:, 1].min())
+        x1 = int(pts[:, 0].max()); y1 = int(pts[:, 1].max())
+        return (x0, y0, x1 - x0, y1 - y0)
+    except Exception:  # noqa: BLE001
+        return (0, 0, 0, 0)
+
+
+# ─────────────────────── Engine factory ───────────────────────
+def build_engine(name: Optional[str] = None) -> OcrEngine:
+    """Return an OcrEngine instance based on `name` or `TICKET_OCR_ENGINE`.
+
+    Values supported: `tesseract` (default), `paddleocr`. Unknown values
+    fall back to Tesseract with a warning — we never want an obscure env
+    misconfiguration to break scanning silently.
+    """
+    chosen = (name or os.environ.get("TICKET_OCR_ENGINE") or "tesseract").lower()
+    if chosen == "paddleocr":
+        return PaddleOcrEngine()
+    if chosen != "tesseract":
+        logger.warning("Unknown TICKET_OCR_ENGINE=%s, falling back to tesseract.", chosen)
+    return TesseractEngine()
 
 
 # ─────────────────────── Multi-variant reader (helper) ───────────────────────

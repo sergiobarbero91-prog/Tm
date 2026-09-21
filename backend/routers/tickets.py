@@ -1,33 +1,57 @@
 """Router for taximeter ticket OCR endpoints.
 
-Currently exposes:
-    POST /api/tickets/taxitronic/scan   — scan a Taxitronic partials ticket
+Exposes:
+    POST /api/tickets/taxitronic/scan     — read a Taxitronic partials photo
+    POST /api/tickets/taxitronic/confirm  — persist a reviewed reading
+    GET  /api/tickets/taxitronic          — list the caller's readings
 
-The endpoint is intentionally stateless: it does NOT persist the reading
-(the pipeline is fail-safe and the caller must review `needs_confirmation`
-results before writing to the journal). Persistence is handled by the
-existing journal router, which can be wired to consume this pipeline in a
-follow-up step.
+The scan endpoint is intentionally stateless: it only extracts + validates
+and returns evidence. Persistence happens only after the caller has
+reviewed any `needs_confirmation` fields and calls `/confirm`.
 """
 from __future__ import annotations
 
 import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 
-from shared import get_current_user_required
+from shared import db, get_current_user_required
 from ticket_ocr import scan_taxitronic_ticket
 from ticket_ocr.constants import ALLOWED_MIME_TYPES, MAX_UPLOAD_BYTES
+from ticket_ocr.ocr_engine import build_engine
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tickets", tags=["Tickets OCR"])
 
 
+class ConfirmedReading(BaseModel):
+    """Payload written by the review UI after the driver validates a scan."""
+    status: str = Field(..., description="accepted | needs_confirmation")
+    ticket: dict[str, Any] = Field(default_factory=dict)
+    totals: dict[str, Any] = Field(default_factory=dict)
+    distance: dict[str, Any] = Field(default_factory=dict)
+    time: dict[str, Any] = Field(default_factory=dict)
+    deleted: Optional[int] = None
+    period: dict[str, Any] = Field(default_factory=dict)
+    overall_confidence: float = 0.0
+    user_edited_fields: list[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+
 @router.post("/taxitronic/scan")
 async def scan_taxitronic(
     photo: UploadFile = File(...),
+    engine: Optional[str] = Query(
+        default=None,
+        description="Override OCR engine: 'tesseract' | 'paddleocr'. "
+                    "Defaults to TICKET_OCR_ENGINE env var, else 'tesseract'.",
+    ),
     _user: dict = Depends(get_current_user_required),
 ):
     """Run the fail-safe OCR pipeline against a Taxitronic partials photo.
@@ -57,10 +81,71 @@ async def scan_taxitronic(
 
     # ── Run pipeline in a threadpool (OCR + OpenCV are CPU-bound) ─────────
     try:
-        result = await run_in_threadpool(scan_taxitronic_ticket, data, mime)
+        selected_engine = build_engine(engine)
+        result = await run_in_threadpool(
+            scan_taxitronic_ticket, data, mime, selected_engine,
+        )
     except Exception:
         logger.exception("taxitronic scan failed unexpectedly")
         raise HTTPException(status_code=500, detail="ocr_pipeline_error")
 
     # Pydantic v2 → dict, dropping big binary blobs (we never put them in).
     return result.model_dump()
+
+
+@router.post("/taxitronic/confirm")
+async def confirm_taxitronic(
+    payload: ConfirmedReading = Body(...),
+    user: dict = Depends(get_current_user_required),
+):
+    """Persist a reviewed Taxitronic reading in `taxitronic_readings`.
+
+    The frontend calls this after the driver has reviewed the evidence
+    returned by `/scan` and either accepted the raw values or corrected
+    the flagged ones. We store *what the driver confirmed*, not the raw
+    OCR output — the audit trail is the `user_edited_fields` list.
+    """
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": payload.status,
+        "ticket": payload.ticket,
+        "totals": payload.totals,
+        "distance": payload.distance,
+        "time": payload.time,
+        "deleted": payload.deleted,
+        "period": payload.period,
+        "overall_confidence": payload.overall_confidence,
+        "user_edited_fields": payload.user_edited_fields,
+        "notes": payload.notes,
+    }
+    try:
+        await db.taxitronic_readings.insert_one(doc)
+    except Exception:
+        logger.exception("failed to persist taxitronic reading")
+        raise HTTPException(status_code=500, detail="persistence_error")
+    return {"id": doc["_id"], "created_at": doc["created_at"]}
+
+
+@router.get("/taxitronic")
+async def list_taxitronic_readings(
+    limit: int = 50,
+    user: dict = Depends(get_current_user_required),
+):
+    """List the caller's most recent Taxitronic readings."""
+    limit = max(1, min(limit, 200))
+    cursor = (
+        db.taxitronic_readings
+        .find({"user_id": user["id"]}, {"_id": 1, "created_at": 1,
+                                        "status": 1, "ticket": 1,
+                                        "totals": 1, "period": 1,
+                                        "overall_confidence": 1})
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+    docs = []
+    async for doc in cursor:
+        doc["id"] = doc.pop("_id")
+        docs.append(doc)
+    return docs

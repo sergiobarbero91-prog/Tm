@@ -46,6 +46,7 @@ import { RatingBadge, useUserRatings } from './components/RatingBadge';
 import { DateTimePicker } from './components/DateTimePicker';
 import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { PoiPanel } from './components/PoiPanel';
+import { TaxitronicScanModal } from './components/TaxitronicScanModal';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -503,6 +504,10 @@ function TransportMeter() {
   const [ocrEditDraft, setOcrEditDraft] = useState<Record<string, string>>({});
   // Which "Totales taxímetro" panels are expanded (values: 'start' or 'end')
   const [ocrExpandTotals, setOcrExpandTotals] = useState<Set<string>>(new Set());
+  // Taxitronic fail-safe OCR scan modal — driven by a File and orthogonal to
+  // the legacy /api/journal/* start/end flow.
+  const [taxitronicPhoto, setTaxitronicPhoto] = useState<File | null>(null);
+  const [taxitronicOpen, setTaxitronicOpen] = useState(false);
 
   // Camera capture modal with visual guide frame ("encaja el ticket en el recuadro")
   const [ocrCameraModal, setOcrCameraModal] = useState<null | {
@@ -14748,6 +14753,31 @@ function TransportMeter() {
                               />
                             </View>
                           )}
+                          {/* Fail-safe Taxitronic scan — orthogonal to the /api/journal flow */}
+                          {Platform.OS === 'web' && (
+                            <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(148,163,184,0.15)', alignItems: 'center' }}>
+                              <Text style={{ color: '#94A3B8', fontSize: 11, marginBottom: 6, textAlign: 'center' }}>
+                                ¿Foto de un parcial Taxitronic? Escaneo con validación matemática:
+                              </Text>
+                              {/* @ts-ignore — native HTML file input on web */}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                data-testid="taxitronic-scan-file"
+                                onChange={(e: any) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  setTaxitronicPhoto(f);
+                                  setTaxitronicOpen(true);
+                                  e.target.value = ''; // allow re-selecting the same file later
+                                }}
+                                style={{ color: '#94A3B8', fontSize: 12 }}
+                              />
+                              <Text style={{ color: '#64748B', fontSize: 10, marginTop: 4, textAlign: 'center', maxWidth: 320 }}>
+                                Pipeline OCR local + validación de importes. Nunca guarda un dato dudoso sin tu confirmación.
+                              </Text>
+                            </View>
+                          )}
                         </View>
                       )}
 
@@ -15799,6 +15829,15 @@ function TransportMeter() {
                     </View>
                   </View>
                 </Modal>
+
+                {/* === Taxitronic fail-safe scan modal === */}
+                <TaxitronicScanModal
+                  visible={taxitronicOpen}
+                  photoFile={taxitronicPhoto}
+                  onClose={() => { setTaxitronicOpen(false); setTaxitronicPhoto(null); }}
+                  onSaved={() => { /* future: refresh a "Parciales escaneados" list */ }}
+                  authHeaders={ocrAuthHeaders}
+                />
 
                 {/* === Fuel modal === */}
                 <Modal visible={ocrShowFuelModal} transparent animationType="fade" onRequestClose={() => setOcrShowFuelModal(false)}>
