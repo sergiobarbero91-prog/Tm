@@ -22,6 +22,7 @@ from dateutil import parser as date_parser
 import json
 import pytz
 from flight_classifier import is_private_flight, flight_weight
+from adif_siv import fetch_siv_station, get_siv_info
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -250,6 +251,13 @@ class TrainArrival(BaseModel):
     platform: Optional[str] = None
     status: Optional[str] = None
     delay_minutes: Optional[int] = None  # Minutos de retraso
+    operator: Optional[str] = None  # Renfe / Iryo / Ouigo (SIV)
+
+class StationAlert(BaseModel):
+    id: str = ""
+    level: str = "info"
+    header: str = ""
+    text: str = ""
 
 class PeakHourInfo(BaseModel):
     start_hour: str
@@ -271,6 +279,11 @@ class StationData(BaseModel):
     score_60min: Optional[float] = None  # Weighted score for 60min window
     past_30min: Optional[int] = None     # Arrivals in past 15 min (half of 30)
     past_60min: Optional[int] = None     # Arrivals in past 30 min (half of 60)
+    # Adif SIV station panels
+    source: Optional[str] = None             # "siv" when data comes from Adif station panels
+    data_time: Optional[str] = None          # Timestamp of the SIV snapshot
+    cancelled_count: int = 0                 # Cancelled arrivals (last 30 min onwards)
+    alerts: List[StationAlert] = []          # Station notices (strikes, incidents...)
 
 class FlightArrival(BaseModel):
     time: str  # Hora real de llegada
@@ -1064,8 +1077,14 @@ async def fetch_train_arrivals_combined(station_id: str) -> List[Dict]:
         List of arrival dicts from combined sources
     """
     station_name = "Chamartín" if station_id == "17000" else "Atocha"
-    
-    # First try ADIF API
+
+    # Primary: Adif station panels (SIV) - all operators, real delays, cancellations. Never mixed.
+    siv = await fetch_siv_station(station_id)
+    if siv and siv["arrivals"]:
+        logger.info(f"[{station_name}] Using Adif SIV panels ({len(siv['arrivals'])} trains)")
+        return siv["arrivals"]
+
+    # Fallback: ADIF web API
     logger.info(f"[{station_name}] Fetching from ADIF API...")
     adif_arrivals = await fetch_adif_arrivals_api(station_id)
     
@@ -2133,6 +2152,15 @@ async def get_train_comparison(
         past_60min=chamartin_score_60["past_count"]
     )
     
+    if not custom_time_window:
+        for data in (atocha_data, chamartin_data):
+            info = get_siv_info(data.station_id)
+            if info:
+                data.source = "siv"
+                data.data_time = info.get("data_time")
+                data.cancelled_count = info.get("cancelled", 0)
+                data.alerts = [StationAlert(**a) for a in info.get("alerts", [])]
+
     message = None
     if custom_time_window:
         if is_future_window:
@@ -4216,6 +4244,26 @@ async def get_cached_hottest_street(minutes: int = 60):
         return None
 
 
+async def refresh_trains_siv_periodically():
+    """Refresh train cache from Adif SIV panels every 5 minutes (cheap, no ban risk)."""
+    while True:
+        try:
+            data = dict(arrival_cache["trains"]["data"] or {"atocha": [], "chamartin": []})
+            updated = False
+            for key in ("atocha", "chamartin"):
+                siv = await fetch_siv_station(STATION_IDS[key])
+                if siv and siv["arrivals"]:
+                    data[key] = siv["arrivals"]
+                    updated = True
+            if updated:
+                arrival_cache["trains"]["data"] = data
+                arrival_cache["trains"]["timestamp"] = datetime.now()
+                arrival_cache["trains"]["last_successful"] = datetime.now()
+        except Exception as e:
+            logger.error(f"[SIV] Background refresh error: {e}")
+        await asyncio.sleep(300)
+
+
 # Background task for cache refresh
 async def refresh_cache_periodically():
     """Background task to refresh cache every 30 seconds."""
@@ -4525,6 +4573,7 @@ async def startup_db_client():
     
     # Start background refresh task
     asyncio.create_task(refresh_cache_periodically())
+    asyncio.create_task(refresh_trains_siv_periodically())
     logger.info("Background cache refresh task started")
     
     # Start WhatsApp hourly update task

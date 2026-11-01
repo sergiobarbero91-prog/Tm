@@ -47,6 +47,7 @@ import { DateTimePicker } from './components/DateTimePicker';
 import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { PoiPanel } from './components/PoiPanel';
 import { TaxitronicScanModal } from './components/TaxitronicScanModal';
+import { StationSivInfo, type StationAlert } from './components/StationSivInfo';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -180,6 +181,10 @@ interface StationData {
   score_60min?: number;
   past_30min?: number;  // Arrivals in past 15 min (half of 30)
   past_60min?: number;  // Arrivals in past 30 min (half of 60)
+  source?: string | null;  // 'siv' = Adif station panels
+  data_time?: string | null;
+  cancelled_count?: number;
+  alerts?: StationAlert[];
 }
 
 interface TrainComparison {
@@ -9184,6 +9189,13 @@ function TransportMeter() {
             <Ionicons name="analytics" size={14} color="#6366F1" />
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
+          <StationSivInfo
+            stationKey={stationKey}
+            source={station.source}
+            dataTime={station.data_time}
+            cancelledCount={station.cancelled_count}
+            alerts={station.alerts}
+          />
         </View>
         
         {/* Alert buttons */}
