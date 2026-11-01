@@ -51,8 +51,8 @@ def render_business_card(driver_name: str, url: str, code: str, phone: Optional[
     img = Image.open(TEMPLATE).convert("RGB")
     d = ImageDraw.Draw(img)
 
-    # Driver name with soft shadow (replaces "admin")
-    name = (driver_name or "Taxista").strip()
+    # Driver first name only, with soft shadow (replaces "admin")
+    name = ((driver_name or "").split() or ["Taxista"])[0]
     f = _fit(d, name, "Poppins-ExtraBoldItalic.ttf", NAME_BOX[2] - NAME_BOX[0], NAME_BOX[3] - NAME_BOX[1], 150)
     cx, cy = _center(NAME_BOX)
     shadow = Image.new("L", img.size, 0)

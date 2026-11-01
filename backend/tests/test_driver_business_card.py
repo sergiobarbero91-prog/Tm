@@ -87,3 +87,8 @@ def test_format_phone():
     assert format_phone("+34611000999") == "611 000 999"
     assert format_phone("600000000") == "600 000 000"
     assert format_phone(None) is None
+
+
+def test_card_uses_first_name_only():
+    from business_card import render_business_card
+    assert render_business_card("   ", "https://x/?cliente_qr=a", "000000")[:8] == b"\x89PNG\r\n\x1a\n"
