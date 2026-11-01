@@ -48,6 +48,7 @@ import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { PoiPanel } from './components/PoiPanel';
 import { TaxitronicScanModal } from './components/TaxitronicScanModal';
 import { StationSivInfo, type StationAlert } from './components/StationSivInfo';
+import { relaySivStations, staleSivStations } from './components/sivRelay';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -7814,7 +7815,18 @@ function TransportMeter() {
         });
         
         setTrainData(response.data);
-        
+
+        // Adif blocks our server (403): let this device read the station panels and relay them
+        if (!isHistorical) {
+          const stale = staleSivStations(response.data);
+          if (stale.length) {
+            relaySivStations(API_BASE, stale).then(async ok => {
+              if (!ok) return;
+              const fresh = await axios.get<TrainComparison>(`${API_BASE}/api/trains`, { params: { shift } });
+              setTrainData(fresh.data);
+            }).catch(() => {});
+          }
+        }
         // Log status
         const atochaCount = response.data.atocha?.arrivals?.length || 0;
         const chamartinCount = response.data.chamartin?.arrivals?.length || 0;

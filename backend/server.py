@@ -11,7 +11,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import Any, List, Optional, Dict
 import uuid
 from datetime import datetime, timedelta
 import aiohttp
@@ -22,7 +22,7 @@ from dateutil import parser as date_parser
 import json
 import pytz
 from flight_classifier import is_private_flight, flight_weight
-from adif_siv import fetch_siv_station, get_siv_info
+from adif_siv import fetch_siv_station, get_siv_info, ingest_relayed_payload
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -1079,7 +1079,7 @@ async def fetch_train_arrivals_combined(station_id: str) -> List[Dict]:
     station_name = "Chamartín" if station_id == "17000" else "Atocha"
 
     # Primary: Adif station panels (SIV) - all operators, real delays, cancellations. Never mixed.
-    siv = await fetch_siv_station(station_id)
+    siv = await fetch_siv_station(station_id) or get_siv_info(station_id, max_age_minutes=15)
     if siv and siv["arrivals"]:
         logger.info(f"[{station_name}] Using Adif SIV panels ({len(siv['arrivals'])} trains)")
         return siv["arrivals"]
@@ -1953,6 +1953,34 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
 @api_router.get("/")
 async def root():
     return {"message": "TransportMeter API - Frecuencia de Trenes y Aviones en Madrid"}
+
+class SivSnapshotIn(BaseModel):
+    station_id: str
+    payload: Dict[str, Any]
+
+
+@api_router.post("/trains/siv-snapshot")
+async def receive_siv_snapshot(body: SivSnapshotIn, current_user: dict = Depends(get_current_user_required)):
+    """Adif panel snapshot read by a driver's device (Adif blocks datacenter IPs)."""
+    key = {v: k for k, v in STATION_IDS.items()}.get(body.station_id)
+    if not key:
+        raise HTTPException(status_code=400, detail="Estación no válida")
+    if len(body.payload.get("trains") or []) > 400:
+        raise HTTPException(status_code=413, detail="Snapshot demasiado grande")
+    result = ingest_relayed_payload(body.station_id, body.payload)
+    if not result:
+        return {"accepted": False}
+    if result["arrivals"]:
+        data = dict(arrival_cache["trains"]["data"] or {"atocha": [], "chamartin": []})
+        data[key] = result["arrivals"]
+        now = datetime.now()
+        arrival_cache["trains"].update({"data": data, "timestamp": now, "last_successful": now})
+        await trains_cache_collection.update_one(
+            {"_id": "current"}, {"$set": {**data, "timestamp": now, "last_successful": now}}, upsert=True
+        )
+    logger.info(f"[SIV] Relayed by {current_user.get('username')} for {key}")
+    return {"accepted": True, "arrivals": len(result["arrivals"]), "alerts": len(result["alerts"])}
+
 
 @api_router.get("/trains", response_model=TrainComparisonResponse)
 async def get_train_comparison(

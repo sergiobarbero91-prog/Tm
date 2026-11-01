@@ -30,6 +30,7 @@ _last: Dict[str, Dict] = {}
 async def read_siv_payload(code: str) -> Dict:
     """Join the station topic and return the first fresh station snapshot."""
     topics = [f"dnv3-gravita-{code}", f"PRO-ECM-{code}"]
+    raise RuntimeError("server rejected WebSocket connection: HTTP 403 (SIMULATED)")
 
     async def _read() -> Dict:
         async with websockets.connect(
@@ -170,14 +171,42 @@ async def fetch_siv_station(station_id: str) -> Optional[Dict]:
             break
         except Exception as e:
             logger.warning(f"[SIV] Station {station_id} attempt {attempt + 1} failed: {type(e).__name__} {e}")
+            if "403" in str(e):
+                break  # Adif blocks this server's IP: phones relay the panels instead
     if payload is None:
         return None
+    return _store(station_id, payload)
+
+
+def _store(station_id: str, payload: Dict) -> Dict:
     prev = (_last.get(station_id) or {}).get("arrivals")
     result = parse_siv_payload(payload, prev)
+    result["station_id"] = station_id
     _last[station_id] = result
     logger.info(f"[SIV] Station {station_id}: {len(result['arrivals'])} arrivals, "
                 f"{result['cancelled']} cancelled, {len(result['alerts'])} alerts")
     return result
+
+
+def ingest_relayed_payload(station_id: str, payload: Dict) -> Optional[Dict]:
+    """Snapshot read by a driver's phone. Accepted only if it is fresh and newer than what we have."""
+    data_time = (payload.get("station_settings") or {}).get("data_time")
+    if not data_time:
+        return None
+    try:
+        dt = datetime.fromisoformat(data_time)
+    except ValueError:
+        return None
+    if (datetime.now(pytz.utc) - dt).total_seconds() > SIV_MAX_DATA_AGE_S:
+        return None
+    last = _last.get(station_id) or {}
+    if last.get("data_time"):
+        try:
+            if datetime.fromisoformat(last["data_time"]) >= dt:
+                return None
+        except ValueError:
+            pass
+    return _store(station_id, payload)
 
 
 def get_siv_info(station_id: str, max_age_minutes: int = 20) -> Optional[Dict]:
