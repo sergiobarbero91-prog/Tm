@@ -10292,6 +10292,12 @@ function TransportMeter() {
             <Ionicons name="analytics" size={14} color="#6366F1" />
             <Text style={styles.scoreText}>Score: {score.toFixed(1)}</Text>
           </View>
+          {!!stationData.source_label && (
+            <View testID={`bus-source-${stationKey}`} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, marginRight: 6, backgroundColor: stationData.source === 'avanza_live' ? '#10B981' : '#64748B' }} />
+              <Text style={{ color: '#94A3B8', fontSize: 11 }}>{stationData.source_label}</Text>
+            </View>
+          )}
         </View>
         
         {/* Alert buttons */}
@@ -10334,11 +10340,22 @@ function TransportMeter() {
                   <Text style={styles.trainType}>{arrival.bus_company}</Text>
                 </View>
                 <Text style={styles.originText} numberOfLines={1}>
-                  {arrival.origin}
+                  {arrival.origin}{arrival.platform ? ` · Dársena ${arrival.platform}` : ''}
                 </Text>
               </View>
-              <View style={styles.platformBadge}>
-                <Text style={styles.platformText}>
+              <View
+                testID={`bus-status-${stationKey}-${index}`}
+                style={[
+                  styles.platformBadge,
+                  arrival.status === 'En dársena' && { backgroundColor: '#10B98133' },
+                  arrival.status === 'Retrasado' && { backgroundColor: '#EF444422' },
+                ]}
+              >
+                <Text style={[
+                  styles.platformText,
+                  arrival.status === 'En dársena' && { color: '#10B981' },
+                  arrival.status === 'Retrasado' && { color: '#EF4444' },
+                ]}>
                   {arrival.status || 'Prog.'}
                 </Text>
               </View>

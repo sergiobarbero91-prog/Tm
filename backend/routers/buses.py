@@ -2,12 +2,16 @@
 Bus arrivals router - Avenida de América (ALSA) and Estación Sur (Avanza)
 Web scraping with schedule-based fallback.
 """
+import asyncio
+
 from fastapi import APIRouter
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 import pytz
 import logging
 import re
+
+from bus_sources import fetch_estacion_sur_live, avamerica_arrivals, get_alsa_schedule
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/buses", tags=["buses"])
@@ -21,9 +25,17 @@ CHECKMYBUS_URL = "https://www.checkmybus.es/parada-de-autobus/madrid-intercambia
 # Cache
 _bus_cache = {
     "avenida_america": {"data": None, "timestamp": None},
-    "estacion_sur": {"data": None, "timestamp": None},
+    "estacion_sur": {"data": None, "timestamp": None, "source": None},
 }
 CACHE_TTL_MINUTES = 10
+LIVE_CACHE_TTL_SECONDS = 120
+
+SOURCE_LABELS = {
+    "avanza_live": "En directo · panel de Estación Sur (Avanza)",
+    "alsa_gtfs": "Horarios programados de Alsa (sin retrasos)",
+    "scraping": "Web de la estación",
+    "fallback": "Horarios aproximados",
+}
 
 # =============================================================================
 # WEB SCRAPING
@@ -283,116 +295,77 @@ def filter_upcoming(arrivals: List[Dict]) -> List[Dict]:
 # API ENDPOINT
 # =============================================================================
 
+async def _estacion_sur(now: datetime) -> tuple:
+    cache = _bus_cache["estacion_sur"]
+    if cache["data"] and cache["timestamp"] and (now - cache["timestamp"]).total_seconds() < LIVE_CACHE_TTL_SECONDS:
+        return cache["data"], cache["source"]
+    arrivals, source = await fetch_estacion_sur_live(), "avanza_live"
+    if not arrivals:
+        arrivals, source = await scrape_estacion_sur(), "scraping"
+    if arrivals:
+        _bus_cache["estacion_sur"] = {"data": arrivals, "timestamp": now, "source": source}
+        return arrivals, source
+    return generate_fallback_arrivals(AVANZA_SCHEDULE), "fallback"
+
+
+async def _avenida_america(now: datetime) -> tuple:
+    schedule = get_alsa_schedule()
+    if schedule:
+        arrivals = avamerica_arrivals(schedule, now)
+        if arrivals:
+            return arrivals, "alsa_gtfs"
+    cache = _bus_cache["avenida_america"]
+    if cache["data"] and cache["timestamp"] and (now - cache["timestamp"]).total_seconds() < CACHE_TTL_MINUTES * 60:
+        return cache["data"], "scraping"
+    arrivals = await scrape_avenida_america()
+    if arrivals:
+        _bus_cache["avenida_america"] = {"data": arrivals, "timestamp": now}
+        return arrivals, "scraping"
+    return generate_fallback_arrivals(ALSA_SCHEDULE), "fallback"
+
+
+def _station_payload(key: str, name: str, arrivals: List[Dict], source: str) -> Dict:
+    display = filter_upcoming(arrivals)
+    if not display and source in ("scraping",):
+        arrivals = generate_fallback_arrivals(ALSA_SCHEDULE if key == "avenida_america" else AVANZA_SCHEDULE)
+        display, source = filter_upcoming(arrivals), "fallback"
+    c30, p30 = filter_and_count_arrivals(arrivals, 30)
+    c60, p60 = filter_and_count_arrivals(arrivals, 60)
+    return {
+        "station_id": key,
+        "station_name": name,
+        "arrivals": display,
+        "total_next_30min": c30,
+        "total_next_60min": c60,
+        "score_30min": calculate_score(c30, p30),
+        "score_60min": calculate_score(c60, p60),
+        "past_30min": p30,
+        "past_60min": p60,
+        "source": source,
+        "source_label": SOURCE_LABELS[source],
+    }
+
+
 @router.get("")
 async def get_bus_comparison():
-    """Get bus arrivals comparison between Av. América and Estación Sur."""
+    """Bus arrivals: Estación Sur live (Avanza API) and Av. América scheduled (Alsa GTFS)."""
     now = datetime.now(MADRID_TZ)
-    data_source = "scraping"
+    (aa_arrivals, aa_source), (es_arrivals, es_source) = await asyncio.gather(_avenida_america(now), _estacion_sur(now))
+    aa = _station_payload("avenida_america", "Av. América (ALSA)", aa_arrivals, aa_source)
+    es = _station_payload("estacion_sur", "Estación Sur (Avanza)", es_arrivals, es_source)
 
-    # Check cache
-    aa_arrivals = None
-    es_arrivals = None
-
-    aa_cache = _bus_cache["avenida_america"]
-    es_cache = _bus_cache["estacion_sur"]
-
-    if aa_cache["data"] and aa_cache["timestamp"] and (now - aa_cache["timestamp"]).total_seconds() < CACHE_TTL_MINUTES * 60:
-        aa_arrivals = aa_cache["data"]
-    if es_cache["data"] and es_cache["timestamp"] and (now - es_cache["timestamp"]).total_seconds() < CACHE_TTL_MINUTES * 60:
-        es_arrivals = es_cache["data"]
-
-    # Scrape if not cached
-    if aa_arrivals is None:
-        aa_arrivals = await scrape_avenida_america()
-        if aa_arrivals:
-            _bus_cache["avenida_america"] = {"data": aa_arrivals, "timestamp": now}
-        else:
-            aa_arrivals = generate_fallback_arrivals(ALSA_SCHEDULE)
-            data_source = "horarios programados (fallback)"
-
-    if es_arrivals is None:
-        es_arrivals = await scrape_estacion_sur()
-        if es_arrivals:
-            _bus_cache["estacion_sur"] = {"data": es_arrivals, "timestamp": now}
-        else:
-            es_arrivals = generate_fallback_arrivals(AVANZA_SCHEDULE)
-            if data_source == "scraping":
-                data_source = "mixto (Estación Sur fallback)"
-
-    # Calculate counts and scores
-    aa_count_30, aa_past_30 = filter_and_count_arrivals(aa_arrivals, 30)
-    aa_count_60, aa_past_60 = filter_and_count_arrivals(aa_arrivals, 60)
-    es_count_30, es_past_30 = filter_and_count_arrivals(es_arrivals, 30)
-    es_count_60, es_past_60 = filter_and_count_arrivals(es_arrivals, 60)
-
-    aa_score_30 = calculate_score(aa_count_30, aa_past_30)
-    aa_score_60 = calculate_score(aa_count_60, aa_past_60)
-    es_score_30 = calculate_score(es_count_30, es_past_30)
-    es_score_60 = calculate_score(es_count_60, es_past_60)
-
-    winner_30 = "avenida_america" if aa_score_30 >= es_score_30 else "estacion_sur"
-    winner_60 = "avenida_america" if aa_score_60 >= es_score_60 else "estacion_sur"
-
-    aa_display = filter_upcoming(aa_arrivals)
-    es_display = filter_upcoming(es_arrivals)
-
-    # If scraping returned data but filter emptied it, use static schedule fallback
-    if not aa_display:
-        aa_arrivals = generate_fallback_arrivals(ALSA_SCHEDULE)
-        aa_display = filter_upcoming(aa_arrivals)
-        # Recalculate counts with fallback data
-        aa_count_30, aa_past_30 = filter_and_count_arrivals(aa_arrivals, 30)
-        aa_count_60, aa_past_60 = filter_and_count_arrivals(aa_arrivals, 60)
-        aa_score_30 = calculate_score(aa_count_30, aa_past_30)
-        aa_score_60 = calculate_score(aa_count_60, aa_past_60)
-        if "fallback" not in data_source:
-            data_source = "mixto (Av. América fallback)"
-
-    if not es_display:
-        es_arrivals = generate_fallback_arrivals(AVANZA_SCHEDULE)
-        es_display = filter_upcoming(es_arrivals)
-        es_count_30, es_past_30 = filter_and_count_arrivals(es_arrivals, 30)
-        es_count_60, es_past_60 = filter_and_count_arrivals(es_arrivals, 60)
-        es_score_30 = calculate_score(es_count_30, es_past_30)
-        es_score_60 = calculate_score(es_count_60, es_past_60)
-        if "fallback" not in data_source:
-            data_source = "mixto (Estación Sur fallback)"
-        elif "Av. América" in data_source:
-            data_source = "horarios programados (fallback completo)"
-
-    winner_30 = "avenida_america" if aa_score_30 >= es_score_30 else "estacion_sur"
-    winner_60 = "avenida_america" if aa_score_60 >= es_score_60 else "estacion_sur"
+    winner_30 = "avenida_america" if aa["score_30min"] >= es["score_30min"] else "estacion_sur"
+    winner_60 = "avenida_america" if aa["score_60min"] >= es["score_60min"] else "estacion_sur"
+    for st in (aa, es):
+        st["is_winner_30min"] = st["station_id"] == winner_30
+        st["is_winner_60min"] = st["station_id"] == winner_60
 
     return {
-        "avenida_america": {
-            "station_id": "avenida_america",
-            "station_name": "Av. América (ALSA)",
-            "arrivals": aa_display,
-            "total_next_30min": aa_count_30,
-            "total_next_60min": aa_count_60,
-            "is_winner_30min": winner_30 == "avenida_america",
-            "is_winner_60min": winner_60 == "avenida_america",
-            "score_30min": aa_score_30,
-            "score_60min": aa_score_60,
-            "past_30min": aa_past_30,
-            "past_60min": aa_past_60,
-        },
-        "estacion_sur": {
-            "station_id": "estacion_sur",
-            "station_name": "Estación Sur (Avanza)",
-            "arrivals": es_display,
-            "total_next_30min": es_count_30,
-            "total_next_60min": es_count_60,
-            "is_winner_30min": winner_30 == "estacion_sur",
-            "is_winner_60min": winner_60 == "estacion_sur",
-            "score_30min": es_score_30,
-            "score_60min": es_score_60,
-            "past_30min": es_past_30,
-            "past_60min": es_past_60,
-        },
+        "avenida_america": aa,
+        "estacion_sur": es,
         "winner_30min": winner_30,
         "winner_60min": winner_60,
         "last_update": now.isoformat(),
-        "data_source": data_source,
-        "message": f"Datos: {data_source}. Caché: {CACHE_TTL_MINUTES} min."
+        "data_source": f"Av. América: {aa['source_label']} · Estación Sur: {es['source_label']}",
+        "message": None,
     }

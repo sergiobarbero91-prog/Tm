@@ -4579,6 +4579,8 @@ async def startup_db_client():
     # Start background refresh task
     asyncio.create_task(refresh_cache_periodically())
     asyncio.create_task(refresh_trains_siv_periodically())
+    from bus_sources import alsa_schedule_refresh_loop
+    asyncio.create_task(alsa_schedule_refresh_loop())
     logger.info("Background cache refresh task started")
     
     # Start WhatsApp hourly update task
