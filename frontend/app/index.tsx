@@ -10340,8 +10340,13 @@ function TransportMeter() {
                   <Text style={styles.trainType}>{arrival.bus_company}</Text>
                 </View>
                 <Text style={styles.originText} numberOfLines={1}>
-                  {arrival.origin}{arrival.platform ? ` · Dársena ${arrival.platform}` : ''}
+                  {arrival.origin}
                 </Text>
+                {!!arrival.platform && (
+                  <Text testID={`bus-darsena-${stationKey}-${index}`} style={{ color: '#F59E0B', fontSize: 11, fontWeight: '700', marginTop: 1 }}>
+                    Dársena {arrival.platform}
+                  </Text>
+                )}
               </View>
               <View
                 testID={`bus-status-${stationKey}-${index}`}
@@ -17987,7 +17992,7 @@ function TransportMeter() {
       {/* Footer Info */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Datos basados en horarios de ADIF y AENA
+          Datos de AENA, paneles de Adif, Avanza (Estación Sur) y horarios de Alsa
         </Text>
       </View>
 

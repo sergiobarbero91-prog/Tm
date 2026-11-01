@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the bus data integration: Avanza live feed for Estación Sur and the Alsa GTFS schedule for Av. América. Tested at 22:28 CET on Sun 1 Nov 2026. Backend: GET /api/buses returns avenida_america with source=alsa_gtfs, the correct label, 10 arrivals, all ALSA/Programado and all long-distance (the 91 GTFS trips come from 15 origins, none of them Alcalá, Guadalajara or Torrejón). It returns estacion_sur with source=avanza_live, the correct label, 33 arrivals from real companies (ALSA, MONBUS, AVANZA, FLIXBUS, AISA, BBC BUS, BUSBAM, SOCIBUS, INTERB...), statuses limited to En dársena/Retrasado/Programado, and a dársena number on every 'En dársena' row. Scores and winner flags are consistent, with exactly one winner per window. 27/27 pytest passed (new test_buses_api.py with 3 tests, test_bus_sources.py with 2, plus test_adif_siv.py and test_flight_classifier.py). Frontend at 390px: admin login, then Autobuses tab. bus-source-avenida_america shows the Alsa label with a grey dot; bus-source-estacion_sur shows the live label with a green dot (#10B981). Status badges are green for En dársena, red for Retrasado and indigo for Programado. Rows show ' · Dársena N'. Trenes and Aviones tabs still render, and the public PublicBusArrivals widget on the login screen shows both stations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/buses (estacion_sur)", "issue": "filter_upcoming only shows arrivals from now-5min onward, using the scheduled time. A RETRASADO bus whose scheduled time is more than 5 min ago (it has not arrived yet) disappears from the list. filter_and_count_arrivals also counts it as 'past' rather than upcoming. Suggest keeping Retrasado rows visible and counting them as upcoming until they become SITUADO or leave the feed."},
+      {"endpoint": "/api/buses (estacion_sur)", "issue": "Some Avanza origins read oddly after _title(): 'Manga, La' and 'Oliva, Playa' come from the source's inverted article format, and 'Santiago Composte' is truncated by the source. Cosmetic: could normalise 'X, La' to 'La X'."},
+      {"endpoint": "/api/buses", "issue": "filter_and_count_arrivals and filter_upcoming rebuild datetimes from 'time' (HH:MM) even though every new item already has an ISO 'at'. This works now but is fragile around midnight and DST; prefer 'at' when it is present."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Autobuses tab (mobile 390px)", "issues": ["Because originText uses numberOfLines=1, the ' · Dársena N' suffix is cut off next to the status badge (e.g. 'Granada · Dárs…'), so the most useful new information is hidden on phones. Show the dársena on its own line or as a small badge."]},
+      {"screen": "PublicBusArrivals widget", "issues": ["bus_company column is fixed at width 55. Longer names such as 'ALS GPY', 'BBC BUS' or 'FLIXBUS' are tight there and may wrap. No testIDs in this component."]},
+      {"screen": "Footer", "issues": ["Footer still says 'Datos basados en horarios de ADIF y AENA'; it could mention Avanza/Alsa on the bus tab."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_buses_api.py", "/app/backend/tests/test_bus_sources.py", "/app/test_reports/pytest/pytest_buses.xml"],
+  "action_items": [
+    "Optional: on mobile, show the dársena separately from the truncated origin text",
+    "Optional: keep Retrasado Estación Sur arrivals visible and counted as upcoming after their scheduled time passes",
+    "Optional: use the ISO 'at' field for windowing/counting"
+  ],
+  "critical_code_review_comments": [
+    "bus_sources.py is clean. The GTFS reduction filters correctly by distance (>=70 km), drop_off_type and first stop, and handles after-midnight times (offset) and calendar exceptions.",
+    "ensure_alsa_schedule writes the JSON with blocking Path.write_text inside async code. The file is small, so this is acceptable.",
+    "avamerica_arrivals checks service days -2..+1. That is fine, but -2 is only needed for trips with offset >= 2, which the 8h window makes unlikely.",
+    "routers/buses.py: if the GTFS schedule returns no arrivals in the window (e.g. late night), Av. América falls back to the CheckMyBus scraper and then to static schedules. The static fallback includes Guadalajara/Alcalá, which contradicts the long-distance-only intent."
+  ],
+  "updated_files": ["/app/backend/tests/test_buses_api.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: click 'Soy taxista', fill placeholders 'Nombre de usuario'/'Contraseña' (admin/admin), then click data-testid=login-button. Bus tab: click text 'Calle' (the dropdown), then 'Autobuses'. testIDs: bus-source-<station>, bus-status-<station>-<i>. The public widget 'Estaciones de autobuses' appears on the login screen after clicking 'Soy taxista'. test_buses_api.py hits the live endpoint; the AA test skips if the GTFS window is empty."
+}

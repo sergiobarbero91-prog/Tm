@@ -39,6 +39,13 @@ def _title(s: str) -> str:
     return re.sub(r" (De|Del|La|Las|Los|El|Y) ", lambda m: m.group(0).lower(), s)
 
 
+def _origin_name(raw: str) -> str:
+    """'MANGA, LA' -> 'La Manga' (Avanza writes the article after a comma)."""
+    name = _title(raw)
+    m = re.match(r"^(.+), (La|El|Los|Las|L'|Playa)$", name)
+    return f"{m.group(2)} {m.group(1)}" if m else name
+
+
 # ─── Estación Sur (live) ─────────────────────────────────────────────────────
 
 def parse_avanza(data: Dict, now: Optional[datetime] = None) -> List[Dict]:
@@ -57,7 +64,7 @@ def parse_avanza(data: Dict, now: Optional[datetime] = None) -> List[Dict]:
         out.append({
             "time": at.strftime("%H:%M"),
             "scheduled_time": at.strftime("%H:%M"),
-            "origin": _title(origin) if origin and origin != "-" else "Origen sin indicar",
+            "origin": _origin_name(origin) if origin and origin != "-" else "Origen sin indicar",
             "bus_company": (x.get("empresa") or "").strip() or "BUS",
             "line": (x.get("empresa") or "").strip(),
             "platform": x.get("darsena") or x.get("darsenaprevista"),

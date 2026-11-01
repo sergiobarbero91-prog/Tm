@@ -245,6 +245,16 @@ def generate_fallback_arrivals(schedule: list) -> List[Dict]:
 # HELPER FUNCTIONS
 # =============================================================================
 
+def _arrival_dt(a: Dict, now: datetime) -> datetime:
+    """Arrival datetime: ISO 'at' when present (delayed buses stay 'now' until they arrive)."""
+    if a.get("at"):
+        dt = datetime.fromisoformat(a["at"])
+        return max(dt, now) if a.get("status") == "Retrasado" else dt
+    h, m = map(int, a["time"].split(":"))
+    dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    return dt + timedelta(days=1) if dt < now - timedelta(hours=2) else dt
+
+
 def filter_and_count_arrivals(arrivals: List[Dict], minutes: int) -> tuple:
     """Filter arrivals within the next N minutes and count them."""
     now = datetime.now(MADRID_TZ)
@@ -256,10 +266,7 @@ def filter_and_count_arrivals(arrivals: List[Dict], minutes: int) -> tuple:
 
     for a in arrivals:
         try:
-            h, m = map(int, a["time"].split(":"))
-            arr_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
-            if arr_dt < now - timedelta(hours=2):
-                arr_dt += timedelta(days=1)
+            arr_dt = _arrival_dt(a, now)
             if now <= arr_dt <= cutoff:
                 future_count += 1
             elif past_cutoff <= arr_dt < now:
@@ -280,10 +287,13 @@ def filter_upcoming(arrivals: List[Dict]) -> List[Dict]:
     result = []
     for a in arrivals:
         try:
-            h, m = map(int, a["time"].split(":"))
-            arr_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
-            if arr_dt < now - timedelta(hours=1):
-                arr_dt += timedelta(days=1)
+            if a.get("at"):
+                arr_dt = _arrival_dt(a, now)
+            else:
+                h, m = map(int, a["time"].split(":"))
+                arr_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+                if arr_dt < now - timedelta(hours=1):
+                    arr_dt += timedelta(days=1)
             if now - timedelta(minutes=5) <= arr_dt <= now + timedelta(hours=3):
                 result.append(a)
         except Exception:

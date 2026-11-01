@@ -53,3 +53,15 @@ def test_alsa_schedule_long_distance_and_after_midnight():
     res = avamerica_arrivals(sched, NOW)
     assert [(a["time"], a["origin"]) for a in res] == [("22:45", "Bilbao"), ("00:10", "Nerja")]
     assert all(a["status"] == "Programado" and a["source"] == "alsa_gtfs" for a in res)
+
+
+
+def test_avanza_origin_article_and_delayed_bus_stays_upcoming():
+    from datetime import timedelta
+    from routers.buses import filter_and_count_arrivals, filter_upcoming
+    data = {"status": "ok", "data": [{"fx": "01/11/26", "hora": "21:40", "empresa": "ALSA", "parada": "MANGA, LA", "cc": "RETRASADO"}]}
+    bus = parse_avanza(data, NOW)[0]
+    assert bus["origin"] == "La Manga"
+    late = [{**bus, "at": (datetime.now(MADRID_TZ) - timedelta(minutes=20)).isoformat()}]
+    assert filter_upcoming(late)
+    assert filter_and_count_arrivals(late, 30)[0] == 1
