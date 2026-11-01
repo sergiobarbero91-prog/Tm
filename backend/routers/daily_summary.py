@@ -26,6 +26,7 @@ import pytz
 from fastapi import APIRouter, Depends, HTTPException
 
 from shared import daily_summaries_collection, get_moderator_or_admin_user, logger
+from flight_classifier import flight_weight
 
 router = APIRouter(prefix="/events", tags=["Daily Summary"])
 
@@ -83,6 +84,12 @@ TERMINAL_GROUPS: Dict[str, List[str]] = {
     "T2-T3": ["T2", "T3"],
     "T4-T4S": ["T4", "T4S"],
 }
+
+
+def _weighted_count(flights: List[Dict[str, Any]]):
+    """Flight count where private flights weigh 0.25; int when whole."""
+    total = sum(flight_weight(f) for f in flights)
+    return int(total) if float(total).is_integer() else round(total, 2)
 
 
 def _time_str_to_minutes(t: str) -> Optional[int]:
@@ -146,7 +153,8 @@ async def _compute_airport_peaks() -> Dict[str, List[Dict[str, Any]]]:
         return {"morning": [], "evening": []}
 
     def _score(flight: Dict[str, Any]) -> float:
-        return LARGE_FLIGHT_WEIGHT if flight.get("is_large") else NORMAL_FLIGHT_WEIGHT
+        base = LARGE_FLIGHT_WEIGHT if flight.get("is_large") else NORMAL_FLIGHT_WEIGHT
+        return base * flight_weight(flight)
 
     def _is_in_shift(minute: int, shift: str) -> bool:
         h = (minute // 60) % 24
@@ -219,8 +227,8 @@ async def _compute_airport_peaks() -> Dict[str, List[Dict[str, Any]]]:
                     "peak_time_min": peak_min,
                     "peak_time": _bin_label(peak_min),
                     "leave_time": _bin_label(leave_min),
-                    "flights": len(flights),
-                    "large": sum(1 for f in flights if f.get("is_large")),
+                    "flights": _weighted_count(flights),
+                    "large": _weighted_count([f for f in flights if f.get("is_large")]),
                     "score": round(total_score, 1),
                 })
 

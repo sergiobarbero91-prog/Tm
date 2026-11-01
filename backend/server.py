@@ -21,6 +21,7 @@ import asyncio
 from dateutil import parser as date_parser
 import json
 import pytz
+from flight_classifier import is_private_flight, flight_weight
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -284,27 +285,28 @@ class FlightArrival(BaseModel):
     belt: Optional[str] = None  # Cinta de equipaje
     aircraft: Optional[str] = None  # Tipo de aeronave
     is_large: Optional[bool] = False  # Wide-body (>250 pax)
+    is_private: Optional[bool] = False  # Private / business aviation (weight 0.25)
 
 class TerminalData(BaseModel):
     terminal: str
     arrivals: List[FlightArrival]
-    total_next_30min: int  # Próximos (En tierra, En vuelo, En hora, Retrasado)
-    total_next_60min: int
+    total_next_30min: float  # Próximos (En tierra, En vuelo, En hora, Retrasado)
+    total_next_60min: float
     is_winner_30min: bool = False
     is_winner_60min: bool = False
-    delivering_30min: Optional[int] = 0  # Entregando equipaje
-    delivering_60min: Optional[int] = 0
+    delivering_30min: Optional[float] = 0  # Entregando equipaje
+    delivering_60min: Optional[float] = 0
     # Weighted score fields
     score_30min: Optional[float] = None  # Weighted score for 30min window
     score_60min: Optional[float] = None  # Weighted score for 60min window
-    past_30min: Optional[int] = None     # Finalizados
-    past_60min: Optional[int] = None
+    past_30min: Optional[float] = None     # Finalizados
+    past_60min: Optional[float] = None
     # Next half hour AFTER the selected window (early-warning lookahead)
-    next_after_30min: Optional[int] = 0  # Flights arriving in [+30, +60] from now
-    next_after_60min: Optional[int] = 0  # Flights arriving in [+60, +90] from now
+    next_after_30min: Optional[float] = 0  # Flights arriving in [+30, +60] from now
+    next_after_60min: Optional[float] = 0  # Flights arriving in [+60, +90] from now
     # Wide-body / Large aircraft counters
-    large_30min: Optional[int] = 0       # Wide-body flights in 30min window
-    large_60min: Optional[int] = 0       # Wide-body flights in 60min window
+    large_30min: Optional[float] = 0       # Wide-body flights in 30min window
+    large_60min: Optional[float] = 0       # Wide-body flights in 60min window
     # Saturation / demand prediction (0-100)
     saturation_30min: Optional[int] = 0  # Predicted demand level 0-100 for 30min window
     saturation_60min: Optional[int] = 0  # Predicted demand level 0-100 for 60min window
@@ -1247,7 +1249,7 @@ def calculate_instant_demand(arrivals: List[Dict]) -> dict:
         if is_large_aircraft(arr.get("aircraft")):
             base *= 1.5
 
-        points += base
+        points += base * flight_weight(arr)
 
     pct = round(points * 10.0, 1)  # can exceed 100
 
@@ -1420,6 +1422,10 @@ async def fetch_aena_arrivals() -> Dict[str, List[Dict]]:
                                 "belt": belt,
                                 "aircraft": aircraft,
                                 "is_large": is_large_aircraft(aircraft),
+                                "is_private": is_private_flight(
+                                    flight_number, airline, aircraft,
+                                    flight.get("oaciCompania") or flight.get("compania"),
+                                ),
                             })
                         except Exception as e:
                             logger.debug(f"Error parsing AENA flight: {e}")
@@ -1577,6 +1583,7 @@ async def fetch_aena_arrivals_fallback() -> Dict[str, List[Dict]]:
                                         "origin": origin, "flight_number": flight_number,
                                         "airline": airline, "terminal": terminal, "gate": "-",
                                         "status": status, "delay_minutes": delay_minutes,
+                                        "is_private": is_private_flight(flight_number, airline),
                                     })
                             except Exception as e:
                                 continue
@@ -1610,7 +1617,7 @@ def count_arrivals_in_window(arrivals: List[Dict], minutes: int) -> int:
             time_diff = (arrival_time - now).total_seconds() / 60
             
             if 0 <= time_diff <= minutes:
-                count += 1
+                count += flight_weight(arrival)
         except Exception:
             pass
     
@@ -1640,7 +1647,7 @@ def count_arrivals_in_past_window(arrivals: List[Dict], minutes_start: int, minu
             
             # Check if arrival is within the past window
             if minutes_end <= time_diff <= minutes_start:
-                count += 1
+                count += flight_weight(arrival)
         except Exception:
             pass
     
@@ -1682,7 +1689,7 @@ def count_arrivals_in_time_range(arrivals: List[Dict], start_time: datetime, end
             
             # Check if arrival is within the time range
             if start_madrid <= arrival_time <= end_madrid:
-                count += 1
+                count += flight_weight(arrival)
         except Exception:
             pass
     
@@ -1904,7 +1911,7 @@ def count_arrivals_extended(arrivals: List[Dict], minutes: int) -> tuple:
             time_diff = (arrival_time - now).total_seconds() / 60
             
             if 0 <= time_diff <= minutes:
-                count += 1
+                count += flight_weight(arrival)
         except Exception:
             pass
     
@@ -2265,6 +2272,12 @@ async def get_flight_comparison(
             except Exception as e:
                 logger.error(f"[Flights] Error merging finalized flights: {e}")
     
+    # Classify flights (history records may predate the is_private field)
+    for term_arrivals in all_arrivals.values():
+        for a in term_arrivals:
+            if "is_private" not in a:
+                a["is_private"] = is_private_flight(a.get("flight_number"), a.get("airline"), a.get("aircraft"))
+
     terminal_data = {}
     max_score_30 = 0.0
     max_score_60 = 0.0
@@ -2297,9 +2310,9 @@ async def get_flight_comparison(
         large_60 = 0
         
         if custom_time_window:
-            upcoming_count = sum(1 for a in arrivals if a.get("status", "") in upcoming_statuses)
-            delivering_count = sum(1 for a in arrivals if a.get("status", "") in delivering_statuses)
-            past_count = sum(1 for a in arrivals if a.get("status", "") in past_statuses)
+            upcoming_count = sum(flight_weight(a) for a in arrivals if a.get("status", "") in upcoming_statuses)
+            delivering_count = sum(flight_weight(a) for a in arrivals if a.get("status", "") in delivering_statuses)
+            past_count = sum(flight_weight(a) for a in arrivals if a.get("status", "") in past_statuses)
             count_30 = upcoming_count
             count_60 = upcoming_count
             delivering_30 = delivering_count
@@ -2307,7 +2320,7 @@ async def get_flight_comparison(
             past_30 = past_count
             past_60 = past_count
             # Large aircraft in the window (any non-cancelled flight that's wide-body)
-            large_30 = sum(1 for a in arrivals if a.get("is_large"))
+            large_30 = sum(flight_weight(a) for a in arrivals if a.get("is_large"))
             large_60 = large_30
             # Lookahead not meaningful for custom historical windows
             next_after_30 = 0
@@ -2328,6 +2341,7 @@ async def get_flight_comparison(
             now_local = datetime.now(MADRID_TZ)
             for a in all_relevant:
                 status = a.get("status", "")
+                w = flight_weight(a)
                 
                 # Calculate time difference for all flights
                 try:
@@ -2351,19 +2365,19 @@ async def get_flight_comparison(
                 if a.get("is_large"):
                     if status in upcoming_statuses:
                         if -60 <= diff_mins <= 30:
-                            large_30 += 1
+                            large_30 += w
                         if -60 <= diff_mins <= 60:
-                            large_60 += 1
+                            large_60 += w
                     elif status in delivering_statuses or status in past_statuses:
                         # Currently delivering or recently finalized wide-body
-                        large_30 += 1
-                        large_60 += 1
+                        large_30 += w
+                        large_60 += w
                 
                 if status in delivering_statuses:
                     # Count ALL flights currently in 'Entregando equipaje' status
                     # (real-time snapshot - they're delivering bags right now)
-                    delivering_30 += 1
-                    delivering_60 += 1
+                    delivering_30 += w
+                    delivering_60 += w
                 elif status in past_statuses:
                     # Use finalized_at timestamp (when flight disappeared from feed)
                     # past_30: finalized in last 15 min (half of 30)
@@ -2378,28 +2392,28 @@ async def get_flight_comparison(
                                 finalized_at = pytz.utc.localize(finalized_at)
                             mins_since_final = (now_local - finalized_at).total_seconds() / 60
                             if 0 <= mins_since_final <= 15:
-                                past_30 += 1
+                                past_30 += w
                             if 0 <= mins_since_final <= 30:
-                                past_60 += 1
+                                past_60 += w
                             continue
                         except Exception:
                             pass
                     # Fallback: use scheduled time diff
                     if -15 <= diff_mins <= 0:
-                        past_30 += 1
+                        past_30 += w
                     if -30 <= diff_mins <= 0:
-                        past_60 += 1
+                        past_60 += w
                 elif status in upcoming_statuses:
                     # Count upcoming flights arriving within the time window
                     if -60 <= diff_mins <= 30:
-                        upcoming_30 += 1
+                        upcoming_30 += w
                     if -60 <= diff_mins <= 60:
-                        upcoming_60 += 1
+                        upcoming_60 += w
                     # Next half hour AFTER the window (lookahead)
                     if 30 < diff_mins <= 60:
-                        next_after_30 += 1
+                        next_after_30 += w
                     if 60 < diff_mins <= 90:
-                        next_after_60 += 1
+                        next_after_60 += w
             
             count_30 = upcoming_30
             count_60 = upcoming_60
@@ -2522,6 +2536,7 @@ async def upsert_tracked_flights(arrivals_by_terminal: Dict[str, List[Dict]]):
                         "delay_minutes": a.get("delay_minutes"),
                         "belt": a.get("belt"),
                         "aircraft": a.get("aircraft"),
+                        "is_private": bool(a.get("is_private")),
                     },
                     "$setOnInsert": {
                         "first_seen_at": now,
@@ -2570,6 +2585,9 @@ async def get_recently_finalized_flights(within_minutes: int = 60) -> List[Dict]
                 "belt": doc.get("belt"),
                 "aircraft": doc.get("aircraft"),
                 "is_large": is_large_aircraft(doc.get("aircraft")),
+                "is_private": doc.get("is_private") or is_private_flight(
+                    doc.get("flight_number"), doc.get("airline"), doc.get("aircraft")
+                ),
                 "finalized_at": doc.get("last_seen_at"),
             })
         return result
@@ -3717,7 +3735,7 @@ async def get_street_work_data(
             future_count = count_arrivals_in_window(filtered_flights, minutes)
             # Also count landed flights as contributing to current demand
             landed_statuses = ["en tierra", "entregando equipaje", "finalizado"]
-            landed_count = sum(1 for f in terminal_flights if f.get("status", "").lower() in landed_statuses)
+            landed_count = sum(flight_weight(f) for f in terminal_flights if f.get("status", "").lower() in landed_statuses)
             future_count += landed_count
         
         flight_arrivals_data[grouped]["prev"] += prev_count

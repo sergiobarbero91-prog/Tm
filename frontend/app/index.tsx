@@ -205,7 +205,12 @@ interface FlightArrival {
   belt?: string | null;  // Cinta de equipaje
   aircraft?: string | null;  // Tipo de aeronave
   is_large?: boolean;  // Wide-body (>250 pax)
+  is_private?: boolean;  // Private / business aviation (counts 0.25)
 }
+
+// Weighted flight counts can be fractional (private flights = 0.25)
+const formatFlightCount = (n: number) =>
+  Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100).replace('.', ',');
 
 interface TerminalData {
   terminal: string;
@@ -9169,7 +9174,7 @@ function TransportMeter() {
             </Text>
             <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
-              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+              {formatFlightCount(futureArrivals)}<Text style={styles.arrivalSuffix}>P</Text>
             </Text>
           </View>
           <Text style={styles.arrivalLabel}>
@@ -9401,6 +9406,7 @@ function TransportMeter() {
     // Sort filtered arrivals by time
     filteredArrivals.sort((a, b) => a.time.localeCompare(b.time));
     
+    const privateCount = filteredArrivals.filter(a => a.is_private).length;
     const futureArrivals = timeWindow === 30 ? total30min : total60min;
     const deliveringArrivals = timeWindow === 30 ? delivering30min : delivering60min;
     const pastArrivals = timeWindow === 30 ? past30min : past60min;
@@ -9546,24 +9552,32 @@ function TransportMeter() {
         <View style={styles.arrivalCount}>
           <View style={styles.arrivalScoreRow}>
             <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
-              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+              {formatFlightCount(futureArrivals)}<Text style={styles.arrivalSuffix}>P</Text>
             </Text>
             <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#F59E0B' }]}>
-              {deliveringArrivals}<Text style={styles.arrivalSuffix}>E</Text>
+              {formatFlightCount(deliveringArrivals)}<Text style={styles.arrivalSuffix}>E</Text>
             </Text>
             <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#94A3B8' }]}>
-              {pastArrivals}<Text style={styles.arrivalSuffix}>F</Text>
+              {formatFlightCount(pastArrivals)}<Text style={styles.arrivalSuffix}>F</Text>
             </Text>
             <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#A78BFA' }]}>
-              {nextAfterArrivals}<Text style={styles.arrivalSuffix}>S</Text>
+              {formatFlightCount(nextAfterArrivals)}<Text style={styles.arrivalSuffix}>S</Text>
             </Text>
           </View>
           <Text style={styles.arrivalLabel}>
             Próximos / Equipaje / Finalizados / Siguientes ({timeWindow}min + 30min)
           </Text>
+          {privateCount > 0 && (
+            <Text
+              style={[styles.arrivalLabel, { color: '#94A3B8', marginTop: 2 }]}
+              data-testid={`private-flights-note-${group.name}`}
+            >
+              {privateCount} {privateCount === 1 ? 'vuelo privado' : 'vuelos privados'} (cuentan 0,25)
+            </Text>
+          )}
           {largeArrivals > 0 && (
             <View
               style={{
@@ -9582,7 +9596,7 @@ function TransportMeter() {
             >
               <Ionicons name="airplane" size={13} color="#F59E0B" />
               <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 12, marginLeft: 4 }}>
-                {largeArrivals} {largeArrivals === 1 ? 'GRANDE' : 'GRANDES'}
+                {formatFlightCount(largeArrivals)} {largeArrivals === 1 ? 'GRANDE' : 'GRANDES'}
               </Text>
             </View>
           )}
@@ -9787,6 +9801,7 @@ function TransportMeter() {
             const statusColor = statusColors[flight.status || ''] || { bg: '#3B82F622', text: '#3B82F6' };
             const statusLabel = flight.status === 'Entregando equipaje' ? 'Equipaje' : (flight.status || 'En hora');
             const isLarge = flight.is_large === true;
+            const isPrivate = flight.is_private === true;
             
             return (
               <View
@@ -9798,8 +9813,13 @@ function TransportMeter() {
                     borderLeftColor: '#F59E0B',
                     backgroundColor: '#F59E0B11',
                   },
+                  isPrivate && {
+                    opacity: 0.55,
+                    borderLeftWidth: 4,
+                    borderLeftColor: '#64748B',
+                  },
                 ]}
-                data-testid={isLarge ? `flight-large-${flight.flight_number}` : undefined}
+                data-testid={isPrivate ? `flight-private-${flight.flight_number}` : isLarge ? `flight-large-${flight.flight_number}` : undefined}
               >
                 <View style={styles.arrivalTime}>
                   <Text style={[
@@ -9831,6 +9851,21 @@ function TransportMeter() {
                       }}>
                         <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
                           GRANDE{flight.aircraft ? ` · ${flight.aircraft}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {isPrivate && (
+                      <View
+                        style={{
+                          backgroundColor: '#475569',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                        }}
+                        data-testid={`flight-private-badge-${flight.flight_number}`}
+                      >
+                        <Text style={{ color: '#E2E8F0', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
+                          PRIVADO
                         </Text>
                       </View>
                     )}
@@ -10235,7 +10270,7 @@ function TransportMeter() {
             </Text>
             <Text style={styles.arrivalDivider}> - </Text>
             <Text style={[styles.arrivalNumberSmall, { color: '#10B981' }]}>
-              {futureArrivals}<Text style={styles.arrivalSuffix}>P</Text>
+              {formatFlightCount(futureArrivals)}<Text style={styles.arrivalSuffix}>P</Text>
             </Text>
           </View>
           <Text style={styles.arrivalLabel}>
