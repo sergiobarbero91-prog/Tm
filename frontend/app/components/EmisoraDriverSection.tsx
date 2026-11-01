@@ -618,7 +618,7 @@ export const EmisoraDriverSection: React.FC<{ preferredNavigator?: 'google_maps'
                     {qrBusy ? 'Generando…' : 'Descargar tarjeta de visita'}
                   </Text>
                 </TouchableOpacity>
-                <Text style={{ color: '#64748B', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+                <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
                   El QR y el código son fijos: puedes imprimirlos en tus tarjetas.
                 </Text>
                 <Text style={{ color: '#64748B', fontSize: 10, marginTop: 12, textAlign: 'center' }} selectable>{qr.url}</Text>

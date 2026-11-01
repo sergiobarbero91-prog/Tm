@@ -23,3 +23,9 @@
 - routers/buses.py: ES live (2 min cache) → old scrape → static; AA GTFS → CheckMyBus → static. Each station returns source + source_label. Delayed buses stay as upcoming until they arrive (uses ISO 'at').
 - Frontend: source line (green dot if live), "Dársena N" line, coloured status badges; footer mentions the new sources.
 - Tests: tests/test_bus_sources.py (3), tests/test_buses_api.py (3); iteration_27 100%.
+
+## 🪪 Emisora: QR y código fijos + tarjeta de visita (Jun 2026)
+- The 6-digit code never rotates now (no more 24h auto-rotation). The POST /api/rides/driver/qr/rotate endpoint and the "Generar nuevo código" button are removed (user's choice). The code is generated with secrets.randbelow. Existing drivers keep their current code.
+- New GET /api/rides/driver/qr/card.png (auth): an 85x55 mm @300dpi PNG with the name, phone, licence, QR (FRONTEND_PUBLIC_URL/?cliente_qr=token), code and site. Built by `backend/business_card.py` (qrcode + Pillow, fonts bundled in backend/assets/fonts/Liberation).
+- Frontend: a "Descargar tarjeta de visita" button in the QR modal (web download tarjeta-taxi.png).
+- Tests: test_rides.py updated, test_driver_business_card.py; iteration_28 100%.

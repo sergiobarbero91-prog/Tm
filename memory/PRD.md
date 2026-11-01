@@ -436,6 +436,7 @@ Pressure points based on STATUS + minutes since landing:
 - Commercial vs private flights with 0.25 weighting — see CHANGELOG.md
 - Trains from the Adif SIV panels (primary source) + station alerts and cancelled trains — see CHANGELOG.md
 - Buses: Avanza live API (Estación Sur) + official Alsa GTFS (Av. América) — see CHANGELOG.md
+- Emisora: fixed QR + code and a downloadable business card — see CHANGELOG.md
 
 ## P1 / Upcoming
 - WhatsApp Puppeteer session auto-recovery (currently manual `rm -rf .wwebjs_auth`)

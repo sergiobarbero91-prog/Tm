@@ -1,0 +1,27 @@
+{
+  "summary": "Tested the fixed driver QR/code and the downloadable business card in the Emisora section, backend and frontend. Everything passed. Backend: 22/22 pytest tests passed (new test_driver_business_card.py 5, test_rides.py, test_password_reset.py). POST /api/rides/driver/qr returns the same token and code on repeated calls. /qr/rotate returns 404/405. card.png returns 200 image/png, 1004x650, with Content-Disposition tarjeta-taxi.png, and is 401/403 without auth. OpenCV decoded the QR as https://www.asdelvolante.es/?cliente_qr=<token>, which matches the API url. Visual check: the card shows the name 'Admin Total', 'Tel. +34611000999', the code '6 3 7 5 7 6' and the site name. Client authentication with the fixed code returns 200, a wrong code returns 400, and the code stays the same after use. Frontend (mobile 390x844): logged in via 'Soy taxista' as admin/admin, then Reservas -> QR clientes. The modal shows code 637576, the rotate button and the 'Generar nuevo código' text are absent, the 'Descargar tarjeta de visita' button triggers a download named tarjeta-taxi.png (37109 bytes, valid PNG), the hint 'El QR y el código son fijos' is visible, and closing and reopening the modal shows the same code.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "QR modal", "issues": ["Hint text and URL use #64748B on #0F172A (contrast about 3.7:1, 10-11px font). Consider #94A3B8 for readability."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_driver_business_card.py", "/app/backend/tests/test_rides.py", "/app/backend/tests/test_password_reset.py", "/app/test_reports/pytest/pytest_iter28.xml"],
+  "action_items": [
+    "Update /app/memory/test_credentials.md: it still documents 'POST /api/rides/driver/qr/rotate', which was removed.",
+    "Optional: improve contrast of the hint text in the QR modal."
+  ],
+  "critical_code_review_comments": [
+    "The fixed 6-digit code is now printed on cards, so anyone holding a card can register as that driver's client. This is by design, but there is no rate limiting on /client/authenticate.",
+    "card.png returns 500 if FRONTEND_PUBLIC_URL is unset. Acceptable, and it is set in .env.",
+    "The native (non-web) download path only shows a notify message. Acceptable for now."
+  ],
+  "updated_files": ["/app/backend/tests/test_driver_business_card.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created TEST_Card client records via /client/authenticate with random +3469 phones",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The app opens on a role chooser: click 'Soy taxista', then log in with placeholders 'Nombre de usuario'/'Contraseña' and testID login-button. Open the page dropdown with [id^=page-selector-] and choose 'Reservas'. Admin's fixed code is 637576, token sEa4nen4Fy8-wQ."
+}
