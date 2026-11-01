@@ -47,7 +47,7 @@ def test_card_png(token):
     assert r.headers["content-type"].startswith("image/png")
     assert "tarjeta-taxi.png" in r.headers.get("content-disposition", "")
     img = Image.open(io.BytesIO(r.content))
-    assert img.size == (1004, 650)
+    assert img.size == (1536, 1024)
     # Decode QR if pyzbar/opencv available
     try:
         import cv2
@@ -80,3 +80,10 @@ def test_client_auth_with_fixed_code(token):
     # code still fixed after client usage
     q2 = requests.post(f"{API}/rides/driver/qr", headers=_h(token), timeout=10).json()
     assert q2["verification_code"] == q["verification_code"]
+
+
+def test_format_phone():
+    from business_card import format_phone
+    assert format_phone("+34611000999") == "611 000 999"
+    assert format_phone("600000000") == "600 000 000"
+    assert format_phone(None) is None

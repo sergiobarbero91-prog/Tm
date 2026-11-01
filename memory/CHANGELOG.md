@@ -36,3 +36,7 @@
 - Backend: POST /api/trains/siv-snapshot (auth, valid station, ≤400 trains). ingest_relayed_payload only accepts a fresh data_time (≤5 min, ≤60 s in the future) that is newer than the stored one. It updates arrival_cache + trains_cache and persists to the `siv_state` collection (restored at startup).
 - fetch_train_arrivals_combined uses the relayed snapshot (≤15 min old) before the legacy fallback. On a 403 the server does not retry.
 - Tests: test_siv_relay.py (8), test_adif_siv.py (5). iteration_29: 100% with a simulated 403.
+
+## 🪪 Business card with the user's design (Jun 2026)
+- Template `backend/assets/card/template.png` (1536x1024) is the user's design with the word "admin" removed (OpenCV inpaint). Fonts are Poppins ExtraBoldItalic/ExtraBold/Bold (OFL) in backend/assets/fonts.
+- `business_card.py` draws, in fixed regions: the driver's name (shadow, auto-fit), the QR (decodes correctly), the 6-digit code, and the phone (+34 stripped, "611 000 999"; "Pide tu taxi en la app" if there is no phone). The web address and icons are part of the template.
