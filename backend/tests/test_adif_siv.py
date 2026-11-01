@@ -68,3 +68,15 @@ def test_alerts_filtered_to_long_distance():
     ]
     res = parse_siv_payload(_payload([], alerts), now=NOW)
     assert [a["id"] for a in res["alerts"]] == ["a"]
+
+
+def test_relayed_payload_rejects_future_and_stale_timestamps():
+    from datetime import timedelta
+    import pytz
+    from adif_siv import ingest_relayed_payload
+    def snap(dt):
+        return {**_payload([]), "station_settings": {"code": "60000", "data_time": dt.isoformat()}}
+    now = datetime.now(pytz.utc)
+    assert ingest_relayed_payload("60000", snap(now + timedelta(hours=3))) is None
+    assert ingest_relayed_payload("60000", snap(now - timedelta(minutes=10))) is None
+    assert ingest_relayed_payload("60000", snap(now - timedelta(seconds=5))) is not None

@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the SIV relay that runs from the driver's device while the server-side Adif connection was forced to fail with a simulated 403. Before the relay, GET /api/trains returned source=null and alerts=[] for both stations, as expected. After logging in (admin/admin) and opening Trenes, the browser opened wss://info.adif.es/InfoStation and POSTed /api/trains/siv-snapshot for 60000 and then 17000 (200 each, within ~4s), then fetched /api/trains again. siv-info-atocha/chamartin were shown. Atocha had 2 alerts ('Convocatoria de huelga en Ouigo' and 'Circulación interrumpida en la línea de alta velocidad Madrid-Andalucía', which expands to show the full text). Chamartín had 1 alert. siv-source-* read 'Fuente: paneles de la estación de Adif · HH:MM'. A curl afterwards gave source='siv', real data_time, alerts present, and operators Renfe/Iryo/Ouigo at both stations. Reopening the tab while the server copy was fresh sent no POST. When only one station was stale, only that station was posted (17000). Historical time-range queries sent only GETs with start/end_time and no relay; this is a real check because historical responses always have source=null and would count as stale without the isHistorical guard. When the relayed copy was older than 4 minutes, the next tab load relayed again and recovered on its own. Backend tests: 8 new tests in test_siv_relay.py, all pass (401 without auth, 400 for an invalid station, 422 for a missing payload, 413 for more than 400 trains, accepted:false for missing, invalid or stale (>5 min) data_time, and a duplicate post accepted then rejected). The cercanías-only alert filter works. Together with test_trains_siv_api.py: 14 passed, 1 skipped.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/trains/siv-snapshot (adif_siv.ingest_relayed_payload)", "issue": "Found in code review, not run against the server. A data_time in the future passes the freshness check because (now - dt) is negative, so it is never more than 300. The snapshot is then stored as _last, and every real relay with an earlier data_time is rejected until that future time passes. One device with a wrong clock, or one malicious authenticated user, can freeze station data and alerts for hours. Fix: reject a dt more than about 60s after the current time."},
+      {"endpoint": "adif_siv._last (in-memory state)", "issue": "SIV info (alerts, cancelled count, data_time) is kept only in process memory. After any backend restart or reload, GET /api/trains returns source=null and alerts=[] until a driver opens the Trenes tab again. This was seen during testing: hot-reload at 22:13:05 wiped Chamartín's SIV info. If production runs several uvicorn workers, a relay received by one worker is invisible to GETs served by another. Consider saving the latest parsed snapshot per station in Mongo."},
+      {"endpoint": "POST /api/trains/siv-snapshot", "issue": "Trust model: any logged-in user can post arbitrary alerts and arrivals, and they are shown to everyone. There is no per-user rate limit and no sanity check on the payload. Acceptable for an MVP, but worth a rate limit and logging."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Trenes tab entry", "issue": "Opening the tab sends GET /api/trains?shift=all twice at the same moment (fetchData runs twice). The relay is not duplicated because of the inFlight guard, but the second GET is wasted.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_siv_relay.py", "/app/backend/tests/test_trains_siv_api.py", "/app/test_reports/pytest/pytest_siv_relay.xml"],
+  "action_items": [
+    "Reject relayed snapshots whose data_time is more than about 60s after the current time (adif_siv.ingest_relayed_payload)",
+    "Optional: save the latest SIV parse per station in Mongo so alerts and source survive restarts and multiple workers",
+    "Optional: remove the duplicate GET /api/trains when the Trenes tab is opened",
+    "Remember to revert the simulated 403 line in adif_siv.read_siv_payload (line 33)"
+  ],
+  "critical_code_review_comments": [
+    "ingest_relayed_payload: no upper bound on data_time (future-date lockout, described above)",
+    "A snapshot with 0 arrivals but newer data_time replaces _last (alerts and arrivals) but leaves the arrival cache alone. GET then reports source='siv' with alerts and cancelled count from that snapshot, mixed with arrivals from an older snapshot. Edge case only.",
+    "Adif data_time has 7 fractional digits ('...57.3736507Z'). Python 3.11 fromisoformat and Chrome parse it. If an older Safari returns NaN in new Date(), staleSivStations treats the copy as fresh (NaN > x is false), so that device never relays. Harmless, but parsing the string more strictly would be more robust."
+  ],
+  "updated_files": ["/app/backend/tests/test_siv_relay.py"],
+  "success_rate": {"backend": "100% (8/8 relay tests + 6/6 existing SIV tests, 1 skip)", "frontend": "100% (relay POST, alerts UI, source text, fresh-copy no-POST, partial stale, historical no-relay, auto-recovery)"},
+  "seed_data_creation": "test_duplicate_rejected posts one fake Atocha snapshot (no trains, data_time = now-5s). It was replaced automatically by a real browser relay about 4 minutes later. The current state holds real Adif data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use RN Web tabs: the 'Calle' dropdown, then 'Trenes'. Log in with 'Soy taxista', placeholder inputs 'Nombre de usuario'/'Contraseña' and data-testid=login-button. The time range is under Ajustes > 'Ahora' > 'HH:00 - HH:00' options. Creating files in /app/backend triggers uvicorn hot-reload, which wipes the in-memory SIV state (_last). The relay only fires when the server copy is older than 4 min or source!='siv'."
+}

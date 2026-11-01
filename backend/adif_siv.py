@@ -30,7 +30,6 @@ _last: Dict[str, Dict] = {}
 async def read_siv_payload(code: str) -> Dict:
     """Join the station topic and return the first fresh station snapshot."""
     topics = [f"dnv3-gravita-{code}", f"PRO-ECM-{code}"]
-    raise RuntimeError("server rejected WebSocket connection: HTTP 403 (SIMULATED)")
 
     async def _read() -> Dict:
         async with websockets.connect(
@@ -197,7 +196,8 @@ def ingest_relayed_payload(station_id: str, payload: Dict) -> Optional[Dict]:
         dt = datetime.fromisoformat(data_time)
     except ValueError:
         return None
-    if (datetime.now(pytz.utc) - dt).total_seconds() > SIV_MAX_DATA_AGE_S:
+    age_s = (datetime.now(pytz.utc) - dt).total_seconds()
+    if age_s > SIV_MAX_DATA_AGE_S or age_s < -60:
         return None
     last = _last.get(station_id) or {}
     if last.get("data_time"):
@@ -216,3 +216,10 @@ def get_siv_info(station_id: str, max_age_minutes: int = 20) -> Optional[Dict]:
         return None
     age = datetime.now(MADRID_TZ) - datetime.fromisoformat(last["fetched_at"])
     return last if age <= timedelta(minutes=max_age_minutes) else None
+
+
+def restore_state(docs: List[Dict]) -> None:
+    """Reload persisted snapshots after a restart (keeps alerts visible until the next relay)."""
+    for d in docs:
+        if d.get("result"):
+            _last[d["_id"]] = d["result"]

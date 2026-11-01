@@ -22,7 +22,7 @@ from dateutil import parser as date_parser
 import json
 import pytz
 from flight_classifier import is_private_flight, flight_weight
-from adif_siv import fetch_siv_station, get_siv_info, ingest_relayed_payload
+from adif_siv import fetch_siv_station, get_siv_info, ingest_relayed_payload, restore_state
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -148,6 +148,7 @@ queue_status_collection = db['queue_status']  # People waiting at stations/termi
 active_checkins_collection = db['active_checkins']  # Persistent active check-ins
 emergency_alerts_collection = db['emergency_alerts']  # Emergency SOS alerts
 hottest_street_cache_collection = db['hottest_street_cache']  # Persistent hottest street cache
+siv_state_collection = db['siv_state']  # Last Adif panel snapshot per station
 trains_cache_collection = db['trains_cache']  # Persistent train cache to survive restarts
 events_collection = db['events']  # User-created events
 chat_messages_collection = db['chat_messages']  # Chat messages for all channels
@@ -1970,6 +1971,7 @@ async def receive_siv_snapshot(body: SivSnapshotIn, current_user: dict = Depends
     result = ingest_relayed_payload(body.station_id, body.payload)
     if not result:
         return {"accepted": False}
+    await siv_state_collection.replace_one({"_id": body.station_id}, {"result": result}, upsert=True)
     if result["arrivals"]:
         data = dict(arrival_cache["trains"]["data"] or {"atocha": [], "chamartin": []})
         data[key] = result["arrivals"]
@@ -4280,6 +4282,8 @@ async def refresh_trains_siv_periodically():
             updated = False
             for key in ("atocha", "chamartin"):
                 siv = await fetch_siv_station(STATION_IDS[key])
+                if siv:
+                    await siv_state_collection.replace_one({"_id": STATION_IDS[key]}, {"result": siv}, upsert=True)
                 if siv and siv["arrivals"]:
                     data[key] = siv["arrivals"]
                     updated = True
@@ -4606,6 +4610,7 @@ async def startup_db_client():
     
     # Start background refresh task
     asyncio.create_task(refresh_cache_periodically())
+    restore_state(await siv_state_collection.find({}).to_list(10))
     asyncio.create_task(refresh_trains_siv_periodically())
     from bus_sources import alsa_schedule_refresh_loop
     asyncio.create_task(alsa_schedule_refresh_loop())

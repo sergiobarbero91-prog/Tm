@@ -29,3 +29,10 @@
 - New GET /api/rides/driver/qr/card.png (auth): an 85x55 mm @300dpi PNG with the name, phone, licence, QR (FRONTEND_PUBLIC_URL/?cliente_qr=token), code and site. Built by `backend/business_card.py` (qrcode + Pillow, fonts bundled in backend/assets/fonts/Liberation).
 - Frontend: a "Descargar tarjeta de visita" button in the QR modal (web download tarjeta-taxi.png).
 - Tests: test_rides.py updated, test_driver_business_card.py; iteration_28 100%.
+
+## 📱 SIV relay from the driver's phone (Jun 2026)
+- In production (Clouding VPS) Adif answers HTTP 403 to the server WebSocket. Confirmed in the logs.
+- `frontend/app/components/sivRelay.ts`: the device opens wss://info.adif.es/InfoStation, keeps only the L/R destination/intermediate trains, alerts and origin names (slim payload), and POSTs to /api/trains/siv-snapshot. It only runs when the server copy is missing or older than 4 min, never for historical queries, and is guarded by inFlight.
+- Backend: POST /api/trains/siv-snapshot (auth, valid station, ≤400 trains). ingest_relayed_payload only accepts a fresh data_time (≤5 min, ≤60 s in the future) that is newer than the stored one. It updates arrival_cache + trains_cache and persists to the `siv_state` collection (restored at startup).
+- fetch_train_arrivals_combined uses the relayed snapshot (≤15 min old) before the legacy fallback. On a 403 the server does not retry.
+- Tests: test_siv_relay.py (8), test_adif_siv.py (5). iteration_29: 100% with a simulated 403.
