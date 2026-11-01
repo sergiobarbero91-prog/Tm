@@ -1,0 +1,37 @@
+{
+  "summary": "Tested the Adif SIV train source (backend and frontend). Live /api/trains returns source='siv', data_time, cancelled_count and alerts for Atocha and Chamartín. Arrivals are media/larga distancia only and include Renfe, Iryo and Ouigo. Each arrival's time equals scheduled_time plus delay_minutes, status strings are correct, and next/past 30/60 counts match the list. The custom past window query works and returns no SIV fields. UI (390x844, admin/admin): Trenes tab shows siv-info-*, the siv-source-* line 'Fuente: paneles de la estación de Adif · 22:13', and siv-alert-* rows that expand on tap (Ouigo strike notice, Madrid-Andalucía AV line suspended). No trains are cancelled right now, so the cancelled pill was not rendered and not checked live. Found and fixed one HIGH frontend bug: a stray '0' on on-time trains. Flights tab still works.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/trains (startup)", "issue": "After every backend (re)start, the train cache is loaded from the MongoDB copy trains_cache/current. That copy holds old legacy data: Cercanías 'C' trains, delay_minutes/operator null. It is served with source=null for ~10-15 s until the first SIV refresh finishes. Reproduced: after a hot reload, Chamartín returned 19 'C' trains in the next 30 min. Cause: refresh_trains_siv_periodically never writes to trains_cache_collection; only the 15-min refresh_cache_periodically does."},
+      {"endpoint": "/api/trains", "issue": "source='siv' (plus alerts/cancelled) is set whenever get_siv_info() has a snapshot from the last 20 min. It does not check whether the cached arrivals came from SIV. If SIV returns 0 arrivals (e.g. at night), fetch_train_arrivals_combined falls back to legacy but _last is still set, so legacy arrivals get labelled as SIV. This is the 'never mix' rule being broken in the labels."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "index.tsx renderStationCard arrival row (lines ~9253 and ~9262)", "issue": "FIXED by testing agent. `{arrival.delay_minutes && arrival.delay_minutes > 0 && ...}` printed a literal '0' twice on every on-time train (SIV sends delay_minutes=0). Seen on web as '22:51 | 0 | AVANT | 0'. On native this throws 'Text strings must be rendered within <Text>'. Changed to `!!(...)`.", "selector": "arrival rows in Trenes tab", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Trenes tab", "issues": ["The real-time arrival filter uses the device's local timezone (new Date().setHours), not Europe/Madrid. Pre-existing issue: devices outside Madrid's timezone show the wrong window, e.g. only the past trains."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_trains_siv_api.py", "/app/backend/tests/test_adif_siv.py", "/app/backend/tests/test_flight_classifier.py", "/app/test_reports/pytest/pytest_results_iter26.xml"],
+  "action_items": [
+    "Persist the SIV refresh result to trains_cache_collection, or run the SIV fetch before serving after startup, so the old legacy Mongo cache (with Cercanías) is never served under the SIV design",
+    "Only set source='siv' when the cached arrivals actually came from SIV (e.g. tag the cache with its source), not just when a recent SIV snapshot exists",
+    "Optional: compute the real-time train filter in Europe/Madrid time instead of device local time"
+  ],
+  "critical_code_review_comments": [
+    "server.py has 4663 lines and index.tsx has ~22800 lines. Both are far over the 700-line guideline",
+    "refresh_cache_periodically also calls fetch_train_arrivals_combined, which opens SIV WebSockets. Together with refresh_trains_siv_periodically, that means two SIV fetch loops; acceptable but redundant",
+    "parse_siv_payload counts cancelled trains but does not list them; fine for the current UI"
+  ],
+  "updated_files": ["/app/frontend/app/index.tsx", "/app/backend/tests/test_trains_siv_api.py"],
+  "success_rate": {"backend": "100% (29/29 pytest, after SIV cache warm-up; 4 live tests failed during the startup window because the Mongo legacy cache was served)", "frontend": "95% (1 bug found and fixed)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login flow: click 'Soy taxista' (role chooser), then fill inputs with placeholder 'Nombre de usuario'/'Contraseña' and click data-testid=login-button. Switch tab via the dropdown: click text 'Calle', then 'Trenes' or 'Aviones'. Use a Playwright context with timezone_id='Europe/Madrid' or the train list filter shifts. Creating files under /app/backend triggers a backend hot reload, which for ~15 s serves the legacy Mongo train cache (source=null); wait before running test_trains_siv_api.py.",
+  "rca of the issue": "Stray '0': JSX `&&` short-circuit returns the number 0 when delay_minutes===0, and React renders it. Legacy sources sent null, so this only showed up once SIV started sending real zeros. Mitigation: coerce the condition to boolean with `!!(...)`."
+}

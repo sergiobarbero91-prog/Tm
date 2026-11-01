@@ -2153,9 +2153,9 @@ async def get_train_comparison(
     )
     
     if not custom_time_window:
-        for data in (atocha_data, chamartin_data):
+        for data, raw in ((atocha_data, atocha_arrivals_raw), (chamartin_data, chamartin_arrivals_raw)):
             info = get_siv_info(data.station_id)
-            if info:
+            if info and any(a.get("source") == "SIV" for a in raw):
                 data.source = "siv"
                 data.data_time = info.get("data_time")
                 data.cancelled_count = info.get("cancelled", 0)
@@ -4259,6 +4259,11 @@ async def refresh_trains_siv_periodically():
                 arrival_cache["trains"]["data"] = data
                 arrival_cache["trains"]["timestamp"] = datetime.now()
                 arrival_cache["trains"]["last_successful"] = datetime.now()
+                await trains_cache_collection.update_one(
+                    {"_id": "current"},
+                    {"$set": {**data, "timestamp": datetime.now(), "last_successful": datetime.now()}},
+                    upsert=True,
+                )
         except Exception as e:
             logger.error(f"[SIV] Background refresh error: {e}")
         await asyncio.sleep(300)

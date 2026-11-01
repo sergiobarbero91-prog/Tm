@@ -9250,7 +9250,7 @@ function TransportMeter() {
                 ]}>
                   {arrival.time}
                 </Text>
-                {arrival.delay_minutes && arrival.delay_minutes > 0 && arrival.scheduled_time && (
+                {!!(arrival.delay_minutes && arrival.delay_minutes > 0 && arrival.scheduled_time) && (
                   <Text style={styles.scheduledTimeText}>
                     ({arrival.scheduled_time})
                   </Text>
@@ -9259,7 +9259,7 @@ function TransportMeter() {
               <View style={styles.arrivalInfo}>
                 <View style={styles.trainTypeRow}>
                   <Text style={styles.trainType}>{arrival.train_type}</Text>
-                  {arrival.delay_minutes && arrival.delay_minutes > 0 && (
+                  {!!(arrival.delay_minutes && arrival.delay_minutes > 0) && (
                     <View style={styles.delayBadge}>
                       <Text style={styles.delayText}>+{arrival.delay_minutes} min</Text>
                     </View>
