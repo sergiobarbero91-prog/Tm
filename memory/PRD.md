@@ -432,6 +432,9 @@ Pressure points based on STATUS + minutes since landing:
 - Add `GEMINI_API_KEY` to production `.env`
 - Renew SSL once with the standalone command, then auto-renewal kicks in.
 
+## P0 Done (Jun 2026)
+- Commercial vs private flights with 0.25 weighting — see CHANGELOG.md
+
 ## P1 / Upcoming
 - WhatsApp Puppeteer session auto-recovery (currently manual `rm -rf .wwebjs_auth`)
 - Force Disconnect button for WhatsApp bot in admin UI

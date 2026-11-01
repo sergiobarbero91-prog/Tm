@@ -9573,7 +9573,7 @@ function TransportMeter() {
           {privateCount > 0 && (
             <Text
               style={[styles.arrivalLabel, { color: '#94A3B8', marginTop: 2 }]}
-              data-testid={`private-flights-note-${group.name}`}
+              testID={`private-flights-note-${group.name}`}
             >
               {privateCount} {privateCount === 1 ? 'vuelo privado' : 'vuelos privados'} (cuentan 0,25)
             </Text>
@@ -9819,7 +9819,7 @@ function TransportMeter() {
                     borderLeftColor: '#64748B',
                   },
                 ]}
-                data-testid={isPrivate ? `flight-private-${flight.flight_number}` : isLarge ? `flight-large-${flight.flight_number}` : undefined}
+                testID={isPrivate ? `flight-private-${flight.flight_number}` : isLarge ? `flight-large-${flight.flight_number}` : undefined}
               >
                 <View style={styles.arrivalTime}>
                   <Text style={[
@@ -9862,7 +9862,7 @@ function TransportMeter() {
                           paddingVertical: 2,
                           borderRadius: 4,
                         }}
-                        data-testid={`flight-private-badge-${flight.flight_number}`}
+                        testID={`flight-private-badge-${flight.flight_number}`}
                       >
                         <Text style={{ color: '#E2E8F0', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>
                           PRIVADO

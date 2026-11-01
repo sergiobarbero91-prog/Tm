@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="16" skipped="0" tests="54" time="63.625" timestamp="2026-11-01T20:55:50.311561+00:00" hostname="agent-env-df920cdb-683e-448e-8b96-d6d16cf4bc96"><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[IB0618]" time="0.001" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[I21574]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[IB0422S]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[FR2016]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[3O123]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[U21234]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[UX1234]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[RYR123]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_commercial_flight_numbers[7736]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[ECMKV]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[EC-NUY]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[D-IABC]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[N123AB]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[GLXJT]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_registration_flight_numbers[9H-VJA]" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_business_aircraft_and_operator" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_weight" time="0.000" /><testcase classname="tests.test_flight_classifier" name="test_instant_demand_weighting" time="0.000" /><testcase classname="tests.test_flights_private_api" name="test_every_arrival_has_is_private_bool" time="0.579" /><testcase classname="tests.test_flights_private_api" name="test_commercial_flights_not_private" time="0.000" /><testcase classname="tests.test_flights_private_api" name="test_ecmkv_in_t4_private" time="0.000" /><testcase classname="tests.test_flights_private_api" name="test_t4_past_counts_fractional" time="0.000" /><testcase classname="tests.test_flights_private_api" name="test_counts_numeric_and_extra_fields" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_terminals_present" time="0.418" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_instant_demand_fields_present" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_instant_demand_value_types_and_ranges" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestInstantDemand" name="test_original_score_fields_preserved" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_basic_fields" time="0.125" /><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_four_sections_present" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_bold_markers_present" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestDailySummary" name="test_has_sources_and_queries" time="0.000" /><testcase classname="tests.test_instant_demand_and_summary.TestRegenerateAuth" name="test_no_auth_unauthorized" time="0.142" /><testcase classname="tests.test_instant_demand_and_summary.TestRegenerateAuth" name="test_with_admin_token_ok" time="60.724"><failure message="AssertionError: regen failed: 502 &lt;!DOCTYPE html&gt;&#10;  &lt;!--[if lt IE 7]&gt; &lt;html class=&quot;no-js ie6 oldie&quot; lang=&quot;en-US&quot;&gt; &lt;![endif]--&gt;&#10;  &lt;!--[if IE 7]&gt;    &lt;html class=&quot;no-js ie7 oldie&quot; lang=&quot;en-US&quot;&gt; &lt;![endif]--&gt;&#10;  &lt;!--[if IE 8]&gt;    &lt;html class=&quot;no-&#10;assert 502 == 200&#10; +  where 502 = &lt;Response [502]&gt;.status_code">self = &lt;tests.test_instant_demand_and_summary.TestRegenerateAuth object at 0xfab2feb75e10&gt;
+admin_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkYWJiNTcyYi02YWRlLTQwZmMtYWMyOC01YmMyOWI4ZDY2ODYiLCJleHAiOjE3OTM2NTI5NTJ9.qhDnfd9CgdTtk2n7Ft1Qzt1fU0weX2ZkS2C3AFtVy54'
+
+    def test_with_admin_token_ok(self, admin_token):
+        r = requests.post(f"{BASE_URL}/api/events/daily-summary/regenerate",
+                          headers={"Authorization": f"Bearer {admin_token}"},
+                          timeout=LONG_TIMEOUT)
+&gt;       assert r.status_code == 200, f"regen failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: regen failed: 502 &lt;!DOCTYPE html&gt;
+E         &lt;!--[if lt IE 7]&gt; &lt;html class="no-js ie6 oldie" lang="en-US"&gt; &lt;![endif]--&gt;
+E         &lt;!--[if IE 7]&gt;    &lt;html class="no-js ie7 oldie" lang="en-US"&gt; &lt;![endif]--&gt;
+E         &lt;!--[if IE 8]&gt;    &lt;html class="no-
+E       assert 502 == 200
+E        +  where 502 = &lt;Response [502]&gt;.status_code
+
+tests/test_instant_demand_and_summary.py:105: AssertionError</failure></testcase><testcase classname="tests.test_instant_demand_and_summary.TestTrainsRegression" name="test_trains_endpoint" time="0.392" /><testcase classname="tests.test_terminal_demand.TestTerminalDemandBuckets" name="test_endpoint_ok" time="0.655" /><testcase classname="tests.test_terminal_demand.TestTerminalDemandBuckets" name="test_buckets_present_and_int" time="0.000"><failure message="AssertionError: T1 missing field proximos&#10;assert 'proximos' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}">self = &lt;tests.test_terminal_demand.TestTerminalDemandBuckets object at 0xfab2feb84790&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_buckets_present_and_int(self, flights_payload):
+        for t in TERMINALS:
+            term = flights_payload[t]
+            for field in ("proximos", "equipaje", "finalizado", "siguientes", "grande"):
+&gt;               assert field in term, f"{t} missing field {field}"
+E               AssertionError: T1 missing field proximos
+E               assert 'proximos' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}
+
+tests/test_terminal_demand.py:40: AssertionError</failure></testcase><testcase classname="tests.test_terminal_demand.TestTerminalDemandBuckets" name="test_demand_pct_and_level" time="0.000"><failure message="AssertionError: assert 'demand_pct' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}">self = &lt;tests.test_terminal_demand.TestTerminalDemandBuckets object at 0xfab2feb84ed0&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_demand_pct_and_level(self, flights_payload):
+        for t in TERMINALS:
+            term = flights_payload[t]
+&gt;           assert "demand_pct" in term
+E           AssertionError: assert 'demand_pct' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}
+
+tests/test_terminal_demand.py:47: AssertionError</failure></testcase><testcase classname="tests.test_terminal_demand.TestTerminalDemandBuckets" name="test_demand_level_matches_pct" time="0.000"><failure message="KeyError: 'demand_pct'">self = &lt;tests.test_terminal_demand.TestTerminalDemandBuckets object at 0xfab2feb85650&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_demand_level_matches_pct(self, flights_payload):
+        for t in TERMINALS:
+            term = flights_payload[t]
+&gt;           pct = term["demand_pct"]
+                  ^^^^^^^^^^^^^^^^^^
+E           KeyError: 'demand_pct'
+
+tests/test_terminal_demand.py:56: KeyError</failure></testcase><testcase classname="tests.test_terminal_demand.TestTerminalDemandBuckets" name="test_grande_le_total_tagged" time="0.000"><failure message="KeyError: 'proximos'">self = &lt;tests.test_terminal_demand.TestTerminalDemandBuckets object at 0xfab2feb74450&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_grande_le_total_tagged(self, flights_payload):
+        """grande counts long-haul flights that are also inside a P/E/F/S bucket."""
+        for t in TERMINALS:
+            term = flights_payload[t]
+&gt;           total_tagged = term["proximos"] + term["equipaje"] + term["finalizado"] + term["siguientes"]
+                           ^^^^^^^^^^^^^^^^
+E           KeyError: 'proximos'
+
+tests/test_terminal_demand.py:72: KeyError</failure></testcase><testcase classname="tests.test_terminal_demand.TestArrivalStatusTag" name="test_arrivals_have_optional_status_tag" time="0.000" /><testcase classname="tests.test_terminal_demand.TestArrivalStatusTag" name="test_arrivals_have_optional_is_large" time="0.000" /><testcase classname="tests.test_terminal_demand.TestArrivalStatusTag" name="test_status_tag_counts_consistent" time="0.000"><failure message="KeyError: 'proximos'">self = &lt;tests.test_terminal_demand.TestArrivalStatusTag object at 0xfab2feb86150&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_status_tag_counts_consistent(self, flights_payload):
+        """Counts of tagged arrivals (in returned subset) should be ≤ aggregate buckets.
+        Aggregates are computed over the FULL raw_arrivals list while terminal.arrivals
+        is the trimmed display list, so the trimmed list cannot exceed the aggregates."""
+        for t in TERMINALS:
+            term = flights_payload[t]
+            arrivals = term.get("arrivals", [])
+            counts = {"proximo": 0, "siguiente": 0, "equipaje": 0, "finalizado": 0}
+            for a in arrivals:
+                tag = a.get("status_tag")
+                if tag in counts:
+                    counts[tag] += 1
+&gt;           assert counts["proximo"] &lt;= term["proximos"], f"{t}: arrivals proximo={counts['proximo']} &gt; agg {term['proximos']}"
+                                        ^^^^^^^^^^^^^^^^
+E           KeyError: 'proximos'
+
+tests/test_terminal_demand.py:109: KeyError</failure></testcase><testcase classname="tests.test_terminal_demand.TestBackwardCompatibility" name="test_old_fields_present" time="0.000"><failure message="assert False&#10; +  where False = isinstance(2.0, int)">self = &lt;tests.test_terminal_demand.TestBackwardCompatibility object at 0xfab2feb86610&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_old_fields_present(self, flights_payload):
+        for t in TERMINALS:
+            term = flights_payload[t]
+            assert "total_next_30min" in term
+&gt;           assert isinstance(term["total_next_30min"], int)
+E           assert False
+E            +  where False = isinstance(2.0, int)
+
+tests/test_terminal_demand.py:122: AssertionError</failure></testcase><testcase classname="tests.test_terminal_demand.TestBackwardCompatibility" name="test_instant_pressure_still_returned" time="0.000"><failure message="AssertionError: assert 'instant_pressure_pct' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}">self = &lt;tests.test_terminal_demand.TestBackwardCompatibility object at 0xfab2feb86990&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_instant_pressure_still_returned(self, flights_payload):
+        """The pre-existing instant pressure feature must remain intact."""
+        for t in TERMINALS:
+            term = flights_payload[t]
+&gt;           assert "instant_pressure_pct" in term
+E           AssertionError: assert 'instant_pressure_pct' in {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft': 'A320'...'delay_minutes': 0, ...}, ...], 'delivering_30min': 1.0, 'delivering_60min': 1.0, 'instant_demand_level': 'green', ...}
+
+tests/test_terminal_demand.py:131: AssertionError</failure></testcase><testcase classname="tests.test_terminal_demand.TestBackwardCompatibility" name="test_demand_pct_equals_instant_pressure_pct" time="0.000"><failure message="KeyError: 'instant_pressure_pct'">self = &lt;tests.test_terminal_demand.TestBackwardCompatibility object at 0xfab2feb86f10&gt;
+flights_payload = {'T1': {'arrivals': [{'aircraft': 'B38M', 'airline': 'Ryanair', 'belt': 'I104', 'delay_minutes': 0, ...}, {'aircraft':...nutes': -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}
+
+    def test_demand_pct_equals_instant_pressure_pct(self, flights_payload):
+        """Per server.py:2144, demand_pct mirrors instant_pressure_pct."""
+        for t in TERMINALS:
+            term = flights_payload[t]
+&gt;           if term["instant_pressure_pct"] is not None:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'instant_pressure_pct'
+
+tests/test_terminal_demand.py:139: KeyError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureSchema" name="test_terminals_present" time="0.292" /><testcase classname="tests.test_instant_pressure.TestInstantPressureSchema" name="test_pct_is_int" time="0.000"><failure message="AssertionError: T1 missing instant_pressure_pct&#10;assert None is not None">self = &lt;tests.test_instant_pressure.TestInstantPressureSchema object at 0xfab2feb8d950&gt;
+flights_realtime = {'is_night_time': False, 'last_update': '2026-11-01T21:56:53.574232+01:00', 'message': None, 'terminals': {'T1': {'arr...: -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}, ...}
+
+    def test_pct_is_int(self, flights_realtime):
+        for t, td in flights_realtime["terminals"].items():
+            pct = td.get("instant_pressure_pct")
+&gt;           assert pct is not None, f"{t} missing instant_pressure_pct"
+E           AssertionError: T1 missing instant_pressure_pct
+E           assert None is not None
+
+tests/test_instant_pressure.py:67: AssertionError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureSchema" name="test_level_valid" time="0.000"><failure message="AssertionError: T1 invalid level None&#10;assert None in {'critical', 'green', 'red', 'yellow'}">self = &lt;tests.test_instant_pressure.TestInstantPressureSchema object at 0xfab2feb8dfd0&gt;
+flights_realtime = {'is_night_time': False, 'last_update': '2026-11-01T21:56:53.574232+01:00', 'message': None, 'terminals': {'T1': {'arr...: -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}, ...}
+
+    def test_level_valid(self, flights_realtime):
+        for t, td in flights_realtime["terminals"].items():
+            lvl = td.get("instant_pressure_level")
+&gt;           assert lvl in VALID_LEVELS, f"{t} invalid level {lvl}"
+E           AssertionError: T1 invalid level None
+E           assert None in {'critical', 'green', 'red', 'yellow'}
+
+tests/test_instant_pressure.py:74: AssertionError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureSchema" name="test_trend_valid" time="0.000"><failure message="AssertionError: T1 invalid trend None&#10;assert None in {'down', 'flat', 'up'}">self = &lt;tests.test_instant_pressure.TestInstantPressureSchema object at 0xfab2feb8e690&gt;
+flights_realtime = {'is_night_time': False, 'last_update': '2026-11-01T21:56:53.574232+01:00', 'message': None, 'terminals': {'T1': {'arr...: -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}, ...}
+
+    def test_trend_valid(self, flights_realtime):
+        for t, td in flights_realtime["terminals"].items():
+            tr = td.get("instant_pressure_trend")
+&gt;           assert tr in VALID_TRENDS, f"{t} invalid trend {tr}"
+E           AssertionError: T1 invalid trend None
+E           assert None in {'down', 'flat', 'up'}
+
+tests/test_instant_pressure.py:79: AssertionError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureSchema" name="test_breakdown_keys" time="0.000"><failure message="AssertionError: T1 breakdown missing or not dict&#10;assert False&#10; +  where False = isinstance(None, dict)">self = &lt;tests.test_instant_pressure.TestInstantPressureSchema object at 0xfab2feb8ed10&gt;
+flights_realtime = {'is_night_time': False, 'last_update': '2026-11-01T21:56:53.574232+01:00', 'message': None, 'terminals': {'T1': {'arr...: -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}, ...}
+
+    def test_breakdown_keys(self, flights_realtime):
+        for t, td in flights_realtime["terminals"].items():
+            bk = td.get("instant_pressure_breakdown")
+&gt;           assert isinstance(bk, dict), f"{t} breakdown missing or not dict"
+E           AssertionError: T1 breakdown missing or not dict
+E           assert False
+E            +  where False = isinstance(None, dict)
+
+tests/test_instant_pressure.py:84: AssertionError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureLevelMapping" name="test_level_matches_pct" time="0.000"><failure message="KeyError: 'instant_pressure_pct'">self = &lt;tests.test_instant_pressure.TestInstantPressureLevelMapping object at 0xfab2feb864d0&gt;
+flights_realtime = {'is_night_time': False, 'last_update': '2026-11-01T21:56:53.574232+01:00', 'message': None, 'terminals': {'T1': {'arr...: -60, ...}, ...], 'delivering_30min': 4.0, 'delivering_60min': 4.0, 'instant_demand_level': 'yellow', ...}, ...}, ...}
+
+    def test_level_matches_pct(self, flights_realtime):
+        for t, td in flights_realtime["terminals"].items():
+&gt;           pct = td["instant_pressure_pct"]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'instant_pressure_pct'
+
+tests/test_instant_pressure.py:97: KeyError</failure></testcase><testcase classname="tests.test_instant_pressure.TestInstantPressureCustomWindow" name="test_custom_window_no_instant_pressure" time="0.155" /><testcase classname="tests.test_instant_pressure.TestPressureCalculationUnit" name="test_sample_calculation" time="0.000"><failure message="ModuleNotFoundError: No module named 'backend'">self = &lt;tests.test_instant_pressure.TestPressureCalculationUnit object at 0xfab2feb8f910&gt;
+
+    def test_sample_calculation(self):
+        # 1 flight EN TIERRA (3min)=0.2, 1 entregando&lt;15 (10min)=0.4,
+        # 1 entregando&gt;15 (20min)=0.8, 1 finalizado_0_15 (35min)=1.0,
+        # 1 finalizado_16_30 (55min)=0.3, 1 long-haul entregando&gt;15 (20min from JFK)=0.8*1.5=1.2
+        # Total = 3.9, pct = 39 -&gt; green
+        arrivals = [
+            (3, "Sevilla"),
+            (10, "Paris"),
+            (20, "Roma"),
+            (35, "Lisboa"),
+            (55, "Berlin"),
+            (20, "New York JFK"),
+        ]
+&gt;       result, pressure_level = self._call(arrivals)
+                                 ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_instant_pressure.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;tests.test_instant_pressure.TestPressureCalculationUnit object at 0xfab2feb8f910&gt;
+arrivals = [(3, 'Sevilla'), (10, 'Paris'), (20, 'Roma'), (35, 'Lisboa'), (55, 'Berlin'), (20, 'New York JFK')]
+
+    def _call(self, arrivals):
+        from datetime import datetime
+        import pytz
+&gt;       from backend.server import calculate_instant_pressure, pressure_level
+E       ModuleNotFoundError: No module named 'backend'
+
+tests/test_instant_pressure.py:121: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_instant_pressure.TestPressureCalculationUnit" name="test_level_thresholds" time="0.000"><failure message="ModuleNotFoundError: No module named 'backend'">self = &lt;tests.test_instant_pressure.TestPressureCalculationUnit object at 0xfab2feb8fc50&gt;
+
+    def test_level_thresholds(self):
+&gt;       from backend.server import pressure_level
+E       ModuleNotFoundError: No module named 'backend'
+
+tests/test_instant_pressure.py:160: ModuleNotFoundError</failure></testcase></testsuite></testsuites>

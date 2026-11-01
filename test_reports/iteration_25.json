@@ -1,0 +1,28 @@
+{
+  "summary": "Tested the private vs commercial flight feature end to end. test_flight_classifier.py: 18/18 pass. New regression test test_flights_private_api.py: 5/5 pass against the public URL. GET /api/flights returns a boolean is_private on every arrival; commercial flights (IB/FR/UX/I2...) are false; the injected ECMKV flight is in T4 with is_private=true; T4 past_30min and past_60min are both 0.25; every count field is a float; saturation and instant_demand are still present; no 500s. UI (mobile 390x844, admin/admin, dropdown -> Aviones): T4-T4S card shows '0,25F', note 'private-flights-note-T4-T4S' reads '1 vuelo privado (cuentan 0,25)', row flight-private-ECMKV has opacity 0.55 and a 4px grey (#64748B) left border, badge flight-private-badge-ECMKV reads 'PRIVADO'. The other counters are integers (5P 1E 0F 0S...). The Trenes tab still renders normally (1A - 5P).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "tests/test_terminal_demand.py, tests/test_instant_pressure.py", "issue": "16 old tests fail because they expect fields (proximos, instant_pressure, demand_pct...) that none of the last 8 versions of server.py contain. Not caused by this change; these tests should be deleted or rewritten."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Flights private row/badge/note", "issue": "Used a data-testid prop, which React Native Web drops, so the attributes never reached the DOM. FIXED by tester: changed to testID on all 3 elements.", "selector": "flight-private-ECMKV / flight-private-badge-ECMKV / private-flights-note-T4-T4S", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_flight_classifier.py", "/app/backend/tests/test_flights_private_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "In index.tsx, 79 places still use data-testid= on RN components; React Native Web drops these. Use testID instead.",
+    "Optional: remove or update the old tests test_terminal_demand.py and test_instant_pressure.py"
+  ],
+  "critical_code_review_comments": [
+    "privateCount in renderTerminalCard counts private flights in filteredArrivals (window -60..+timeWindow). It can include a private flight that is outside the window used for the backend counters, so the note may not match the counters exactly. Minor.",
+    "test_flights_private_api.py::test_ecmkv_in_t4_private and test_t4_past_counts_fractional depend on the injected ECMKV doc, which expires about 60 min after injection. Re-insert it before re-running."
+  ],
+  "updated_files": ["/app/frontend/app/index.tsx (data-testid -> testID for 3 private-flight elements)", "/app/backend/tests/test_flights_private_api.py"],
+  "success_rate": {"backend": "100% (feature tests 23/23)", "frontend": "100%"},
+  "seed_data_creation": "Main agent's injected ECMKV doc in flights_tracked (_test_private=true) left in place",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: 'Soy taxista' -> username/password inputs (by placeholder) -> login-button. Page dropdown: click 'Calle' text -> 'Aviones'. Flights load in about 10s. Old tests need REACT_APP_BACKEND_URL exported."
+}
