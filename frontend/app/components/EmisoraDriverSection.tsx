@@ -585,25 +585,42 @@ export const EmisoraDriverSection: React.FC<{ preferredNavigator?: 'google_maps'
                 </View>
                 <TouchableOpacity
                   onPress={async () => {
+                    if (Platform.OS !== 'web') {
+                      notify('Descarga la tarjeta desde la versión web');
+                      return;
+                    }
                     setQrBusy(true);
                     try {
-                      const r = await axios.post(`${API_BASE}/api/rides/driver/qr/rotate`, {}, { headers: await authHeaders() });
-                      const origin = (typeof window !== 'undefined' ? window.location.origin : '');
-                      const finalUrl = r.data.url?.startsWith('http') ? r.data.url : `${origin}${r.data.url}`;
-                      setQr({ ...r.data, url: finalUrl });
+                      const r = await axios.get(`${API_BASE}/api/rides/driver/qr/card.png`, {
+                        headers: await authHeaders(),
+                        responseType: 'blob',
+                      });
+                      const href = URL.createObjectURL(r.data);
+                      const a = document.createElement('a');
+                      a.href = href;
+                      a.download = 'tarjeta-taxi.png';
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      setTimeout(() => URL.revokeObjectURL(href), 1000);
                     } catch (e: any) {
-                      notify(e?.response?.data?.detail || 'No se pudo rotar el código');
+                      notify('No se pudo generar la tarjeta');
                     } finally {
                       setQrBusy(false);
                     }
                   }}
                   disabled={qrBusy}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B' }}
-                  testID="emisora-driver-rotate-code"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#F59E0B' }}
+                  testID="emisora-driver-download-card"
                 >
-                  <Ionicons name="refresh" size={14} color="#F59E0B" />
-                  <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 12 }}>Generar nuevo código</Text>
+                  <Ionicons name="download-outline" size={16} color="#0F172A" />
+                  <Text style={{ color: '#0F172A', fontWeight: '800', fontSize: 13 }}>
+                    {qrBusy ? 'Generando…' : 'Descargar tarjeta de visita'}
+                  </Text>
                 </TouchableOpacity>
+                <Text style={{ color: '#64748B', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
+                  El QR y el código son fijos: puedes imprimirlos en tus tarjetas.
+                </Text>
                 <Text style={{ color: '#64748B', fontSize: 10, marginTop: 12, textAlign: 'center' }} selectable>{qr.url}</Text>
               </>
             ) : (

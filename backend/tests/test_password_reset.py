@@ -79,7 +79,7 @@ def test_client_forgot_password_end_to_end(db):
     # Get a fresh QR to onboard a client (with email) via the /rides API
     login = requests.post(f"{API}/auth/login", json={"username": "admin", "password": "admin"}, timeout=10).json()
     dt = login["access_token"]
-    qr = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+    qr = requests.post(f"{API}/rides/driver/qr", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
 
     email = "client-reset@test.com"
     # Cleanup so this test is repeatable

@@ -16,14 +16,17 @@ This module lives under /api/rides.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import random
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, validator
@@ -49,6 +52,7 @@ from shared import (
     verify_password,
 )
 from email_service import send_email
+from business_card import render_business_card
 
 router = APIRouter(prefix="/rides", tags=["rides"])
 
@@ -659,81 +663,72 @@ class DriverQrResponse(BaseModel):
 
 
 def _gen_code() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _qr_url(token: str) -> str:
+    frontend_base = os.environ.get("FRONTEND_PUBLIC_URL", "").rstrip("/")
+    return f"{frontend_base}/?cliente_qr={token}" if frontend_base else f"/?cliente_qr={token}"
+
+
+async def _get_or_create_driver_qr(current: dict) -> dict:
+    """Fixed QR token + fixed verification code per driver (printable on business cards)."""
+    if current.get("role") not in ("conductor", "propietario", "user", "admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Solo taxistas pueden generar QR")
+    existing = await driver_qrs_collection.find_one({"driver_id": current["id"]})
+    if existing and existing.get("verification_code"):
+        return existing
+    now = datetime.now(timezone.utc)
+    if existing:
+        code = _gen_code()
+        await driver_qrs_collection.update_one(
+            {"driver_id": current["id"]},
+            {"$set": {"verification_code": code, "code_updated_at": now}},
+        )
+        return {**existing, "verification_code": code}
+    doc = {
+        "token": secrets.token_urlsafe(10),
+        "driver_id": current["id"],
+        "driver_username": current.get("username"),
+        "verification_code": _gen_code(),
+        "code_updated_at": now,
+        "created_at": now,
+    }
+    await driver_qrs_collection.insert_one(dict(doc))
+    return doc
 
 
 @router.post("/driver/qr", response_model=DriverQrResponse)
 async def driver_generate_qr(current: dict = Depends(get_current_user_required)):
-    """A driver/owner generates a QR + verification code. The client
-    scans the QR and enters the 6-digit code the taxista tells them
-    to prove they're physically present. Idempotent: reuses existing
-    token but rotates the code if older than 24h."""
-    if current.get("role") not in ("conductor", "propietario", "user", "admin", "moderator"):
-        raise HTTPException(status_code=403, detail="Solo taxistas pueden generar QR")
-
-    now = datetime.now(timezone.utc)
-    existing = await driver_qrs_collection.find_one({"driver_id": current["id"]})
-    if existing:
-        token = existing["token"]
-        code = existing.get("verification_code")
-        code_updated = existing.get("code_updated_at")
-        # Rotate if missing or older than 24h
-        needs_rotation = not code or not code_updated or (
-            isinstance(code_updated, datetime)
-            and (code_updated.tzinfo and code_updated < now - timedelta(hours=24)
-                 or not code_updated.tzinfo and code_updated < now.replace(tzinfo=None) - timedelta(hours=24))
-        )
-        if needs_rotation:
-            code = _gen_code()
-            await driver_qrs_collection.update_one(
-                {"driver_id": current["id"]},
-                {"$set": {"verification_code": code, "code_updated_at": now}},
-            )
-    else:
-        token = secrets.token_urlsafe(10)
-        code = _gen_code()
-        await driver_qrs_collection.insert_one({
-            "token": token,
-            "driver_id": current["id"],
-            "driver_username": current.get("username"),
-            "verification_code": code,
-            "code_updated_at": now,
-            "created_at": now,
-        })
-
-    frontend_base = os.environ.get("FRONTEND_PUBLIC_URL", "").rstrip("/")
+    """Driver's QR + 6-digit code. Both are fixed so they can be printed on business cards."""
+    qr = await _get_or_create_driver_qr(current)
     return DriverQrResponse(
-        token=token,
-        url=f"{frontend_base}/?cliente_qr={token}" if frontend_base else f"/?cliente_qr={token}",
+        token=qr["token"],
+        url=_qr_url(qr["token"]),
         driver_id=current["id"],
         driver_name=current.get("full_name") or current.get("username") or "Taxista",
-        verification_code=code,
+        verification_code=qr["verification_code"],
     )
 
 
-@router.post("/driver/qr/rotate", response_model=DriverQrResponse)
-async def driver_rotate_qr_code(current: dict = Depends(get_current_user_required)):
-    """Force-generate a fresh verification code for the driver's QR."""
-    if current.get("role") not in ("conductor", "propietario", "user", "admin", "moderator"):
-        raise HTTPException(status_code=403, detail="Solo taxistas pueden rotar el código")
-    now = datetime.now(timezone.utc)
-    doc = await driver_qrs_collection.find_one({"driver_id": current["id"]})
-    if not doc:
-        # Delegate to the generator, which will create both token and code
-        return await driver_generate_qr(current)
-    new_code = _gen_code()
-    await driver_qrs_collection.update_one(
-        {"driver_id": current["id"]},
-        {"$set": {"verification_code": new_code, "code_updated_at": now}},
+@router.get("/driver/qr/card.png")
+async def driver_business_card(current: dict = Depends(get_current_user_required)):
+    """Printable business card PNG (85x55 mm, 300 dpi) with the fixed QR and code."""
+    qr = await _get_or_create_driver_qr(current)
+    url = _qr_url(qr["token"])
+    if not url.startswith("http"):
+        raise HTTPException(status_code=500, detail="FRONTEND_PUBLIC_URL no configurada")
+    png = await asyncio.to_thread(
+        render_business_card,
+        current.get("full_name") or current.get("username") or "Taxista",
+        url,
+        qr["verification_code"],
+        current.get("phone"),
+        current.get("license_number"),
+        urlparse(url).netloc,
     )
-    frontend_base = os.environ.get("FRONTEND_PUBLIC_URL", "").rstrip("/")
-    return DriverQrResponse(
-        token=doc["token"],
-        url=f"{frontend_base}/?cliente_qr={doc['token']}" if frontend_base else f"/?cliente_qr={doc['token']}",
-        driver_id=current["id"],
-        driver_name=current.get("full_name") or current.get("username") or "Taxista",
-        verification_code=new_code,
-    )
+    return Response(content=png, media_type="image/png",
+                    headers={"Content-Disposition": 'attachment; filename="tarjeta-taxi.png"'})
 
 
 @router.get("/qr/{token}/info")

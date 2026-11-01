@@ -77,17 +77,26 @@ def test_client_rejected_when_verification_code_is_wrong():
     assert r.status_code == 400
 
 
-def test_driver_qr_rotate_generates_new_code():
+def test_driver_qr_and_code_are_fixed():
     dt = _driver_login()
     q1 = requests.post(f"{API}/rides/driver/qr", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
-    q2 = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
-    assert q1["token"] == q2["token"], "same driver keeps same QR token"
-    assert q1["verification_code"] != q2["verification_code"], "rotating changes the code"
+    q2 = requests.post(f"{API}/rides/driver/qr", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+    assert q1["token"] == q2["token"] and q1["verification_code"] == q2["verification_code"]
+    rot = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10)
+    assert rot.status_code in (404, 405), "rotation endpoint removed"
+
+
+def test_driver_business_card_png():
+    dt = _driver_login()
+    r = requests.get(f"{API}/rides/driver/qr/card.png", headers={"Authorization": f"Bearer {dt}"}, timeout=20)
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert requests.get(f"{API}/rides/driver/qr/card.png", timeout=10).status_code in (401, 403)
 
 
 def test_client_can_set_password_and_log_in_with_it():
     dt = _driver_login()
-    qr = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+    qr = requests.post(f"{API}/rides/driver/qr", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
 
     # 1) Register through code, setting a password on the way
     reg = requests.post(
@@ -124,7 +133,7 @@ def test_client_can_set_password_and_log_in_with_it():
 
 def test_login_fails_when_account_has_no_password():
     dt = _driver_login()
-    qr = requests.post(f"{API}/rides/driver/qr/rotate", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
+    qr = requests.post(f"{API}/rides/driver/qr", headers={"Authorization": f"Bearer {dt}"}, timeout=10).json()
     # Register WITHOUT password
     requests.post(
         f"{API}/rides/client/authenticate",
