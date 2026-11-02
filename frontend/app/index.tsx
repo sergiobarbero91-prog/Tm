@@ -475,10 +475,15 @@ function TransportMeter() {
     cantidadAbs: number;
     percentage: 40 | 45 | 50;
     pagaGasolina: boolean;
+    mode?: 'fijo' | 'variable_diario' | 'variable_mensual' | 'pago_fijo';
+    cuotaDia?: number;
+    cuotaDias?: number;
   } | null>(null);
 
-  // === Gestion — modo de porcentaje (fijo o variable) ===
-  const [gestionMode, setGestionMode] = useState<'fijo' | 'variable_diario' | 'variable_mensual'>('fijo');
+  // === Gestion — modo de cobro (porcentaje fijo, variable o pago fijo tipo alquiler) ===
+  const [gestionMode, setGestionMode] = useState<'fijo' | 'variable_diario' | 'variable_mensual' | 'pago_fijo'>('fijo');
+  const [gestionCuotaDia, setGestionCuotaDia] = useState('125');  // pago fijo: € por día
+  const [gestionCuotaDias, setGestionCuotaDias] = useState('22'); // pago fijo: días que cobra el dueño
   const [gestionT1, setGestionT1] = useState('130');    // tramo 1 upper bound
   const [gestionT2, setGestionT2] = useState('200');    // tramo 2 upper bound
   const [gestionP1, setGestionP1] = useState('40');     // tramo 1 %
@@ -14348,6 +14353,7 @@ function TransportMeter() {
             const cantidadAbs = calc?.cantidadAbs ?? 0;
             const calcPercentage = calc?.percentage ?? gestionPercentage;
             const calcPagaGasolina = calc?.pagaGasolina ?? gestionPagaGasolina;
+            const isPagoFijo = calc?.mode === 'pago_fijo';
             const hasResult = calc !== null && recaudacion > 0;
 
             // Vista Comparativa (solo propietarios) — render alternativo
@@ -15177,9 +15183,10 @@ function TransportMeter() {
                   <Text style={styles.faresSectionTitle}>Modo de cobro</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                     {([
-                      ['fijo', 'Fijo'],
+                      ['fijo', 'Porcentaje fijo'],
                       ['variable_diario', 'Variable diario'],
                       ['variable_mensual', 'Variable mensual'],
+                      ['pago_fijo', 'Pago fijo'],
                     ] as const).map(([m, label]) => (
                       <TouchableOpacity
                         key={m}
@@ -15223,8 +15230,50 @@ function TransportMeter() {
                     </View>
                   )}
 
+                  {/* MODO PAGO FIJO (alquiler): importe por día × días */}
+                  {gestionMode === 'pago_fijo' && (() => {
+                    const dia = parseFloat((gestionCuotaDia || '0').replace(',', '.')) || 0;
+                    const dias = parseFloat((gestionCuotaDias || '0').replace(',', '.')) || 0;
+                    const inputStyle = { flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 16, fontWeight: '700' as const, textAlign: 'center' as const };
+                    return (
+                      <View testID="gestion-pago-fijo">
+                        <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 }}>
+                          Lo que cobra el dueño de la licencia (como un alquiler)
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                          <TextInput
+                            value={gestionCuotaDia}
+                            onChangeText={setGestionCuotaDia}
+                            keyboardType="decimal-pad"
+                            placeholder="125"
+                            placeholderTextColor="#475569"
+                            style={inputStyle}
+                            testID="gestion-cuota-dia"
+                          />
+                          <Text style={{ color: '#94A3B8', fontSize: 13 }}>€/día ×</Text>
+                          <TextInput
+                            value={gestionCuotaDias}
+                            onChangeText={setGestionCuotaDias}
+                            keyboardType="number-pad"
+                            placeholder="22"
+                            placeholderTextColor="#475569"
+                            style={inputStyle}
+                            testID="gestion-cuota-dias"
+                          />
+                          <Text style={{ color: '#94A3B8', fontSize: 13 }}>días</Text>
+                        </View>
+                        <Text testID="gestion-cuota-total" style={{ color: '#10B981', fontSize: 15, fontWeight: '800', marginTop: 10 }}>
+                          Total para el dueño: {(dia * dias).toFixed(2)} €
+                        </Text>
+                        <Text style={{ color: '#64748B', fontSize: 11, fontStyle: 'italic', marginTop: 4 }}>
+                          Se resta el importe completo aunque trabajes más o menos días. Tu beneficio = facturación − pago fijo − gasolina (solo si la pagas tú).
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
                   {/* MODO VARIABLE: tramos */}
-                  {gestionMode !== 'fijo' && (
+                  {(gestionMode === 'variable_diario' || gestionMode === 'variable_mensual') && (
                     <View>
                       <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 }}>
                         Tramos {gestionMode === 'variable_diario' ? '(se aplica al total de CADA DÍA)' : '(se aplica al total facturado del PERIODO)'}
@@ -15523,6 +15572,32 @@ function TransportMeter() {
                     // Compute miPorcentaje + effectivePct depending on mode
                     let miPct = 0;
                     let effectivePct: number = gestionPercentage;
+                    const cuotaDia = parseFloat((gestionCuotaDia || '0').replace(',', '.')) || 0;
+                    const cuotaDias = parseFloat((gestionCuotaDias || '0').replace(',', '.')) || 0;
+                    if (gestionMode === 'pago_fijo') {
+                      // Alquiler: el dueño cobra siempre cuota × días; el resto es del conductor
+                      const cuota = cuotaDia * cuotaDias;
+                      const beneficio = rec - cuota - (gestionPagaGasolina ? gas : 0);
+                      let saldo = cuota - tar - apl;
+                      if (!gestionPagaGasolina) saldo -= gas;
+                      setGestionCalc({
+                        recaudacion: rec,
+                        tarjeta: tar,
+                        aplicacion: apl,
+                        gasolina: gas,
+                        miPorcentaje: beneficio,
+                        parteJefe: cuota,
+                        resultado: saldo,
+                        aFavorDelConductor: saldo < 0,
+                        cantidadAbs: Math.abs(saldo),
+                        percentage: gestionPercentage,
+                        pagaGasolina: gestionPagaGasolina,
+                        mode: 'pago_fijo',
+                        cuotaDia,
+                        cuotaDias,
+                      });
+                      return;
+                    }
                     if (gestionMode === 'fijo') {
                       miPct = rec * (gestionPercentage / 100);
                       effectivePct = gestionPercentage;
@@ -15561,6 +15636,7 @@ function TransportMeter() {
                       cantidadAbs: Math.abs(res),
                       percentage: Math.round(effectivePct) as any,
                       pagaGasolina: gestionPagaGasolina,
+                      mode: gestionMode,
                     });
                   }}
                   data-testid="gestion-calculate-button"
@@ -15581,15 +15657,17 @@ function TransportMeter() {
                   ) : (
                     <>
                       <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>Tu parte ({calcPercentage}%):</Text>
-                        <Text style={[styles.faresInfoValue, { color: '#10B981' }]}>
+                        <Text style={styles.faresInfoLabel}>{isPagoFijo ? 'Tu beneficio:' : `Tu parte (${calcPercentage}%):`}</Text>
+                        <Text testID="gestion-tu-parte" style={[styles.faresInfoValue, { color: miPorcentaje < 0 ? '#EF4444' : '#10B981' }]}>
                           {miPorcentaje.toFixed(2)} €
                         </Text>
                       </View>
                       <View style={[styles.faresInfoRow]}>
-                        <Text style={styles.faresInfoLabel}>Parte del jefe (bruto):</Text>
-                        <Text style={styles.faresInfoValue}>
-                          {(recaudacion - miPorcentaje).toFixed(2)} €
+                        <Text style={styles.faresInfoLabel}>
+                          {isPagoFijo ? `Pago fijo al dueño (${calc?.cuotaDia ?? 0} € × ${calc?.cuotaDias ?? 0} días):` : 'Parte del jefe (bruto):'}
+                        </Text>
+                        <Text testID="gestion-parte-jefe" style={styles.faresInfoValue}>
+                          {(isPagoFijo ? (calc?.parteJefe ?? 0) : recaudacion - miPorcentaje).toFixed(2)} €
                         </Text>
                       </View>
                       <View style={[styles.faresInfoRow]}>
@@ -15610,7 +15688,7 @@ function TransportMeter() {
                         <View style={[styles.faresInfoRow]}>
                           <Text style={styles.faresInfoLabel}>Gasolina (la pagas tú):</Text>
                           <Text style={[styles.faresInfoValue, { color: '#94A3B8', fontStyle: 'italic' }]}>
-                            no se descuenta
+                            {isPagoFijo ? `${gasolina.toFixed(2)} € (restada de tu beneficio)` : 'no se descuenta'}
                           </Text>
                         </View>
                       )}
@@ -15679,8 +15757,12 @@ function TransportMeter() {
                       const filename = `cuentas_${summaryStart}_${summaryEnd}`;
                       const resultColor = aFavorDelConductor ? '#10B981' : '#EF4444';
                       const resultText = aFavorDelConductor ? 'A favor del conductor' : 'A favor del dueño';
-                      const modeLabel = gestionMode === 'fijo' ? `Fijo ${calcPercentage}%` : (gestionMode === 'variable_diario' ? 'Variable diario' : 'Variable mensual');
-                      const bracketStr = gestionMode === 'fijo'
+                      const modeLabel = isPagoFijo
+                        ? 'Pago fijo (alquiler)'
+                        : gestionMode === 'fijo' ? `Porcentaje fijo ${calcPercentage}%` : (gestionMode === 'variable_diario' ? 'Variable diario' : 'Variable mensual');
+                      const bracketStr = isPagoFijo
+                        ? `${calc?.cuotaDia ?? 0} € × ${calc?.cuotaDias ?? 0} días = ${(calc?.parteJefe ?? 0).toFixed(2)} €`
+                        : gestionMode === 'fijo'
                         ? `${calcPercentage}%`
                         : `0–${gestionT1}€ → ${gestionP1}% · ${gestionT1}–${gestionT2}€ → ${gestionP2}% · &gt;${gestionT2}€ → ${gestionP3}%`;
                       const totalsRows = useSum ? `
@@ -15738,7 +15820,7 @@ function TransportMeter() {
   <h2>Configuración</h2>
   <table>
     <tr><td class="label">Modo</td><td class="value">${modeLabel}</td></tr>
-    <tr><td class="label">Tramos</td><td class="value" style="font-size:12px">${bracketStr}</td></tr>
+    <tr><td class="label">${isPagoFijo ? 'Pago fijo' : 'Tramos'}</td><td class="value" style="font-size:12px">${bracketStr}</td></tr>
     <tr><td class="label">¿Pagas tú la gasolina?</td><td class="value">${calcPagaGasolina ? 'Sí' : 'No'}</td></tr>
   </table>
   <h2>Datos del ${useSum ? 'periodo' : 'turno'}</h2>
@@ -15747,12 +15829,12 @@ function TransportMeter() {
   </table>
   <h2>Desglose</h2>
   <table>
-    <tr><td class="label">Tu parte (${calcPercentage}%)</td><td class="value green">${miPorcentaje.toFixed(2)} €</td></tr>
-    <tr><td class="label">Parte del jefe (bruto)</td><td class="value">${(recaudacion - miPorcentaje).toFixed(2)} €</td></tr>
+    <tr><td class="label">${isPagoFijo ? 'Tu beneficio' : `Tu parte (${calcPercentage}%)`}</td><td class="value green">${miPorcentaje.toFixed(2)} €</td></tr>
+    <tr><td class="label">${isPagoFijo ? 'Pago fijo al dueño' : 'Parte del jefe (bruto)'}</td><td class="value">${(isPagoFijo ? (calc?.parteJefe ?? 0) : recaudacion - miPorcentaje).toFixed(2)} €</td></tr>
     <tr><td class="label">− Tarjeta</td><td class="value">${tarjeta.toFixed(2)} €</td></tr>
     <tr><td class="label">− Aplicación</td><td class="value">${aplicacion.toFixed(2)} €</td></tr>
     ${calcPagaGasolina
-      ? '<tr><td class="label">Gasolina (la pagas tú)</td><td class="value muted">no se descuenta</td></tr>'
+      ? `<tr><td class="label">Gasolina (la pagas tú)</td><td class="value muted">${isPagoFijo ? `${gasolina.toFixed(2)} € restada de tu beneficio` : 'no se descuenta'}</td></tr>`
       : `<tr><td class="label">− Gasolina (la paga el jefe)</td><td class="value">${gasolina.toFixed(2)} €</td></tr>`
     }
   </table>
