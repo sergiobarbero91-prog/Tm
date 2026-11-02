@@ -44,3 +44,8 @@
 ## 💶 Gestión: Porcentaje fijo + Pago fijo (alquiler) (Jun 2026)
 - "Fijo" was renamed "Porcentaje fijo". New mode pago_fijo: € per day × days (editable, default 125×22). The owner always gets the full amount, whatever the days worked.
 - Driver benefit = billing − fixed payment − petrol (only if the driver pays it). Settlement = fixed payment − card − app − petrol (if the owner pays it). The breakdown and the PDF are adapted. Mode buttons are a 2x2 grid. iteration_30 100%.
+
+## 🚫 Trenes cancelados en desplegable (Jun 2026)
+- parse_siv_payload returns cancelled_trains (scheduled_time, day_label 'mañana', origin, train_type, train_number, operator) within -30 min..+12 h. Cancelled trains are no longer carried over as 'Llegado'. /api/trains exposes StationData.cancelled_trains.
+- StationSivInfo: the 'N trenes cancelados' row expands/collapses like the alerts. iteration_31 100%.
+- Known (pre-existing): on 390 px the header with the user menu overflows by ~19 px.

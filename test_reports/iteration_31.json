@@ -1,0 +1,26 @@
+{
+  "summary": "Tested the cancelled-trains dropdown and the cancelled_trains API field. Backend: GET /api/trains?shift=all returns source='siv' for both stations. Atocha has cancelled_count=1 (ALVIA 00610, 23:22, Pamplona/Iruña, Renfe). Chamartín has cancelled_count=4 (OUIGO 06944/06535/06553/06563, Ouigo). The list length equals the count, every field is present, sched_iso is not exposed, the list is sorted by time, and day_label is ''. New unit tests cover 'mañana' for next-day trains, sorting, the 30 min / 12 h window, removal of cercanías and of coupled train halves, and cancelled trains being kept out of arrivals. 16/16 passed, including the existing SIV tests. Frontend at 390px, logged in as admin: siv-cancelled-atocha ('1 tren cancelado') and siv-cancelled-chamartin ('4 trenes cancelados') are collapsed by default (0 rows). Tapping opens 1 and 4 siv-cancelled-train-<st>-<i> rows (time struck through, type+number, origin · operator), and tapping again closes them (0 rows). The Adif alert dropdown still expands. The SIV block fits inside the inner card (Atocha 68-322, Chamartín 74-316, inside 53-337). The page scrollWidth is 409px, but that comes from the header admin user menu, not from this feature.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header (mobile 390px)", "issues": ["Unrelated to this feature: the header row with the 'admin' user menu and chevron extends to right=409px, causing horizontal overflow (document scrollWidth 409 > 390). The chevron is clipped."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cancelled_trains.py", "/app/test_reports/pytest/pytest_cancelled_trains.xml"],
+  "action_items": [
+    "Optional: fix the header overflow at 390px (admin user menu goes past the viewport by about 19px)"
+  ],
+  "critical_code_review_comments": [
+    "The whole CancelledList is one TouchableOpacity, so tapping any train row also collapses the list. Acceptable, but only the header row could toggle.",
+    "Snapshots restored from Mongo (restore_state) that were saved before this change have no 'cancelled_trains', so the API could return cancelled_count>0 with an empty list until the next relay. The dropdown would then open with no rows. Consider showing 'Sin detalle' when trains is empty, or rebuilding the list from the count. Found in code review, not seen live.",
+    "The day_label test is sched.date() > now.date(). Correct for the 12 h window."
+  ],
+  "updated_files": ["/app/backend/tests/test_cancelled_trains.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login: 'Soy taxista', then placeholders 'Nombre de usuario'/'Contraseña', then data-testid=login-button. Navigation: the 'Calle' dropdown, then 'Trenes'. At test time no live cancelled train had day_label 'mañana' (all were the same day); that case is covered only by the unit test."
+}
