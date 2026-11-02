@@ -1,0 +1,33 @@
+{
+  "summary": "Tested the scroll-jump fix on the Eventos tab (frontend only). Logged in as admin/admin, opened Eventos, waited for the AI summary and agenda-section to load, set the main ScrollView scrollTop to 800, then sampled every 5 s for 75 s. I confirmed 2 auto-refresh cycles in the network log (events?shift=all + events/daily-summary?force_refresh=false at about 30 s and 60 s). On desktop 1920x1080, scrollTop stayed at exactly 800 and scrollHeight stayed at 2455 at every sample, and agenda-section height stayed at 677. On mobile 390x844, scrollTop stayed at exactly 800 and scrollHeight at 4094. Every top-level block of the events content kept the same height for the whole 75 s: AI summary 2701, ad slot 100, Agenda 756, Añadir Evento 54, community list 251, ad slot 100. Station-alert and emergency polling every 10 s caused no height change. No spinner appears during background refreshes. The Regenerar button (ai-summary-regenerate-btn) still shows its loading state: 'Cargando resumen...' spinner, button opacity 0.5 and disabled. The summary reappears afterwards, but only after about 60 s, when the axios timeout fires. No POST /daily-summary/regenerate was logged by the backend even 2.5 minutes later, so the Gemini regeneration takes longer than the 60 s client timeout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/events/daily-summary/regenerate", "issue": "Gemini regeneration (multi-pass + verify) takes more than 60 s. The frontend axios timeout (60000) fires first, so the spinner ends and the old summary is shown again. The new summary is not shown until a later background refresh. On web, the Alert.alert error is not visible to the user."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Regenerate AI summary", "issue": "Client times out at 60 s before the backend finishes, so the user gets no visible success or error on web", "affected_selectors": ["[data-testid='ai-summary-regenerate-btn']"]}
+    ],
+    "design_issues": [
+      {"screen": "Eventos tab", "issues": ["deleteAiSummaryLine (trash icon per line) and regenerate still swap the whole summary (about 2700 px on mobile) for a roughly 100 px spinner. These are user-initiated, but the page will still jump when a staff user deletes a line while scrolled down. Consider keeping the text and showing a small inline or overlay spinner for delete-line."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/scroll_jump_probe.py"],
+  "action_items": [
+    "Optional: for deleteAiSummaryLine, do not set aiSummaryLoading (or use an overlay spinner) so the content height does not collapse",
+    "Optional: raise the regenerate client timeout (for example to 150 s), or make regeneration async/poll. Also show a web-visible error, because Alert.alert is a no-op on react-native-web"
+  ],
+  "critical_code_review_comments": [
+    "The fetchAiEventsSummary fix is correct. showSpinner = forceRefresh || !aiSummaryLoadedRef.current, the setState is skipped when the text is unchanged, and the error text is only set on the first or forced load",
+    "No code path calls fetchAiEventsSummary(true). The forceRefresh branch is effectively unused, because the button uses regenerateAiSummary"
+  ],
+  "updated_files": ["/app/tests/scroll_jump_probe.py"],
+  "success_rate": {"backend": "N/A", "frontend": "100% for scroll-jump fix"},
+  "seed_data_creation": "None. Regenerar was clicked once (the summary was not manually edited).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: Soy taxista, then placeholder 'Nombre de usuario', then login-button. Open the 'Calle' dropdown and choose 'Eventos'. The main scroller is the largest div with overflowY auto (on web, set scrollTop directly). The community events list was empty ('No hay eventos para hoy'), so height stability with community events present was not tested."
+}
