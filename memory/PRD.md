@@ -24,6 +24,12 @@ Spanish-speaking taxi drivers in Madrid. Tone: professional, tutea, direct.
 The on-disk code in /app matches https://github.com/sergiobarbero91-prog/Tm (single commit `656183e`).
 Only the items below have been added on top of that baseline.
 
+### ✅ Libranzas de licencia + disponibilidad del taxista de confianza (Jun 2026)
+- Banner en Calle: «Puedes trabajar / Hoy libras» + hasta qué hora / próxima libranza, aviso si está fuera de su turno.
+- El cliente ve si su taxista puede hacer el servicio a esa hora; si no puede, elige enviárselo igualmente o mandarlo a todos.
+- Festivos: sincronizados cada semana desde datos.madrid.es y editables por el admin. Detalle en CHANGELOG.md.
+- Backlog: actualizar el banner en cuanto se guarda la licencia en el perfil (ahora se refresca al cambiar de pestaña o cada 60 s).
+
 
 
 ### ✅ Taxitronic OCR — Pase geométrico por filas + modo debug (Feb 2026)

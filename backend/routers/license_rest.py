@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from license_rest import DEFAULT_HOLIDAYS_2026, SHIFT_LABELS, in_shift, license_status
 from shared import db, get_admin_user, get_current_user_required, logger
@@ -94,13 +94,6 @@ class HolidayBody(BaseModel):
     date: str
     name: str
 
-    @validator("date")
-    def _d(cls, v: str) -> str:  # noqa: N805
-        try:
-            return date.fromisoformat(v).isoformat()
-        except ValueError:
-            raise ValueError("Fecha inválida (AAAA-MM-DD)")
-
 
 @router.get("/holidays")
 async def list_holidays(year: int | None = None, _: dict = Depends(get_current_user_required)):
@@ -111,8 +104,12 @@ async def list_holidays(year: int | None = None, _: dict = Depends(get_current_u
 
 @router.post("/holidays")
 async def add_holiday(body: HolidayBody, _: dict = Depends(get_admin_user)):
+    try:
+        day = date.fromisoformat(body.date.strip()).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Fecha inválida (AAAA-MM-DD)")
     await holidays_collection.update_one(
-        {"date": body.date}, {"$set": {"name": body.name.strip(), "source": "manual", "disabled": False}}, upsert=True
+        {"date": day}, {"$set": {"name": body.name.strip(), "source": "manual", "disabled": False}}, upsert=True
     )
     _cache["at"] = 0
     return {"ok": True}

@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -318,23 +319,25 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     ? new Date(`${schedDate}T${schedTime}:00`).toISOString()
     : null;
 
+  const fetchDriverAvail = useCallback(async () => {
+    try {
+      const q = scheduledIso ? `?at=${encodeURIComponent(scheduledIso)}` : '';
+      const r = await axios.get(`${API_BASE}/api/rides/client/driver-availability${q}`, { headers: await authHeaders() });
+      return r.data;
+    } catch {
+      return null;
+    }
+  }, [scheduledIso, authHeaders]);
+
   useEffect(() => {
     if (!preferMyDriver || !client?.associated_driver_id) {
       setDriverAvail(null);
       return;
     }
     let cancelled = false;
-    (async () => {
-      try {
-        const q = scheduledIso ? `?at=${encodeURIComponent(scheduledIso)}` : '';
-        const r = await axios.get(`${API_BASE}/api/rides/client/driver-availability${q}`, { headers: await authHeaders() });
-        if (!cancelled) setDriverAvail(r.data);
-      } catch {
-        if (!cancelled) setDriverAvail(null);
-      }
-    })();
+    fetchDriverAvail().then(d => { if (!cancelled) setDriverAvail(d); });
     return () => { cancelled = true; };
-  }, [preferMyDriver, scheduledIso, client?.associated_driver_id, authHeaders]);
+  }, [preferMyDriver, client?.associated_driver_id, fetchDriverAvail]);
 
   const handleCreateRide = async (choice?: 'trusted' | 'pool') => {
     if (!origin.trim() || !destination.trim()) {
@@ -346,9 +349,14 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       return;
     }
     const wantsTrusted = preferMyDriver && !!client?.associated_driver_id;
-    if (wantsTrusted && !choice && driverAvail?.available === false) {
-      setUnavailOpen(true);
-      return;
+    if (wantsTrusted && !choice) {
+      const avail = driverAvail ?? (await fetchDriverAvail());
+      if (avail) setDriverAvail(avail);
+      if (avail?.available === false) {
+        Keyboard.dismiss();
+        setUnavailOpen(true);
+        return;
+      }
     }
     setUnavailOpen(false);
     const toPool = choice === 'pool';

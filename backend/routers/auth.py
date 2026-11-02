@@ -128,7 +128,9 @@ async def update_profile(
     if profile_data.full_name is not None:
         update_fields["full_name"] = profile_data.full_name
     
-    if profile_data.license_number is not None:
+    if profile_data.license_number is not None and not profile_data.license_number.strip():
+        update_fields["license_number"] = None
+    elif profile_data.license_number is not None:
         # Validate numeric
         if not profile_data.license_number.isdigit():
             raise HTTPException(

@@ -312,7 +312,8 @@ async def client_driver_availability(at: Optional[datetime] = None, current: dic
     st = await driver_availability(driver, when)
     available = None if not st["known"] else bool(st["can_work"] and st["in_shift"])
     if st["known"] and not st["can_work"]:
-        message = f"Tu taxista tiene {st['reason']} a esa hora ({st['label'].lower()})."
+        from license_rest import human_time
+        message = f"Tu taxista tiene {st['reason']} a esa hora (libra hasta {human_time(st['until'], when)})."
     elif st["known"] and not st["in_shift"]:
         message = f"A esa hora tu taxista está fuera de su turno habitual ({st['shift_label']})."
     elif st["known"]:
@@ -887,6 +888,13 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
         hours_until = (sched - now).total_seconds() / 3600.0
         if hours_until > 12 and not body.send_to_pool:
             dispatch_scope = "assigned"
+            if not body.prefer_my_driver:
+                # don't silently reserve for a driver who rests / is off shift at that time
+                from routers.license_rest import driver_availability
+                drv = await users_collection.find_one({"id": associated_driver_id})
+                st = await driver_availability(drv, sched) if drv else None
+                if st and st["known"] and not (st["can_work"] and st["in_shift"]):
+                    dispatch_scope = "open"
 
     # "Pedir a mi taxista de confianza": exclusive for the inviting driver for 30 min, then general pool
     preferred = bool(body.prefer_my_driver and associated_driver_id and not body.send_to_pool)

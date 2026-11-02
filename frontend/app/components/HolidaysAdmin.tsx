@@ -16,6 +16,7 @@ export const HolidaysAdmin: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const year = new Date().getFullYear();
 
   const load = useCallback(async () => {
@@ -49,19 +50,30 @@ export const HolidaysAdmin: React.FC = () => {
     await axios.delete(`${API_BASE}/api/license-rest/holidays/${d}`, { headers: await headers() });
   }, 'Festivo desactivado');
 
+  const restore = (h: Holiday) => run(async () => {
+    await axios.post(`${API_BASE}/api/license-rest/holidays`, { date: h.date, name: h.name }, { headers: await headers() });
+  }, 'Festivo reactivado');
+
   const sync = () => run(async () => {
     await axios.post(`${API_BASE}/api/license-rest/holidays/sync`, {}, { headers: await headers() });
   }, 'Calendario sincronizado con datos.madrid.es');
 
   return (
     <View testID="holidays-admin" style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 14, margin: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <Ionicons name="calendar" size={20} color="#F59E0B" />
-        <Text style={{ color: '#F1F5F9', fontSize: 17, fontWeight: '800', flex: 1 }}>Festivos {year} (libranzas)</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: open ? 6 : 0 }}>
+        <TouchableOpacity testID="holidays-toggle" onPress={() => setOpen(o => !o)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+          <Ionicons name="calendar" size={20} color="#F59E0B" />
+          <Text style={{ color: '#F1F5F9', fontSize: 17, fontWeight: '800', flex: 1 }}>
+            Festivos {year} (libranzas) · {items.filter(h => !h.disabled).length}
+          </Text>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color="#94A3B8" />
+        </TouchableOpacity>
         <TouchableOpacity testID="holidays-sync-btn" onPress={sync} disabled={busy} style={{ padding: 6 }}>
           <Ionicons name="refresh" size={20} color="#60A5FA" />
         </TouchableOpacity>
       </View>
+      {msg && !open && <Text testID="holidays-msg-collapsed" style={{ color: '#FBBF24', marginTop: 6 }}>{msg}</Text>}
+      {open && (<>
       <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 10 }}>
         Se sincronizan cada semana desde el calendario laboral del Ayuntamiento. Puedes añadir o quitar excepciones.
       </Text>
@@ -71,7 +83,11 @@ export const HolidaysAdmin: React.FC = () => {
           <Text style={{ color: '#CBD5E1', flex: 1 }} numberOfLines={1}>
             {h.name}{h.disabled ? ' (desactivado)' : ''}
           </Text>
-          {!h.disabled && (
+          {h.disabled ? (
+            <TouchableOpacity testID={`holiday-restore-${h.date}`} onPress={() => restore(h)} disabled={busy} style={{ padding: 4 }}>
+              <Ionicons name="arrow-undo-outline" size={18} color="#10B981" />
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity testID={`holiday-remove-${h.date}`} onPress={() => remove(h.date)} disabled={busy} style={{ padding: 4 }}>
               <Ionicons name="trash-outline" size={18} color="#EF4444" />
             </TouchableOpacity>
@@ -86,6 +102,7 @@ export const HolidaysAdmin: React.FC = () => {
         </TouchableOpacity>
       </View>
       {msg && <Text testID="holidays-msg" style={{ color: '#FBBF24', marginTop: 8 }}>{msg}</Text>}
+      </>)}
     </View>
   );
 };

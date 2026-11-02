@@ -76,3 +76,11 @@
 - Driver: EmisoraBanner shows the full-screen TrustedRideAlert (countdown, Aceptar / Pasarlo al resto / Decidir luego) and pings on every poll. RideCard shows a '★ Te pide a ti · N min' label.
 - AddressAutocomplete closes its dropdown when the value is cleared.
 - Tests: test_trusted_driver.py (4) + _extended (6). iteration_34.
+
+## 2026-06 — Libranzas de licencia + disponibilidad del taxista de confianza
+- backend/license_rest.py: reglas Madrid (semanal 06→06 por último dígito; fin de semana y festivos 07–20 por paridad; la semanal se mantiene en festivos) + turnos (día 05–17, noche 17–05, todo).
+- routers/license_rest.py: GET /api/license-rest/me (banner), festivos GET/POST/DELETE(desactiva)/sync; colección `holidays`, sincronización semanal desde el CSV de datos.madrid.es (lista 2026 del usuario como semilla).
+- rides: GET /api/rides/client/driver-availability?at=ISO; RideCreateBody.send_to_pool; reservas >12 h sin la opción de confianza ya no se reservan para un taxista que libra o está fuera de turno.
+- Perfil: la licencia puede borrarse (cadena vacía).
+- Front: LicenseRestBanner arriba en la pestaña Calle; HolidaysAdmin plegable en el panel admin (reactivar festivos); EmisoraClient muestra la disponibilidad y un aviso con «Enviar igualmente a mi taxista» / «Enviar a todos los taxistas».
+- Tests: test_license_rest.py (6) + test_license_rest_api.py; iteration_35.

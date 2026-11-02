@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the licence rest feature (Madrid libranzas) end to end. Backend: 21/21 pytest passed (15 new API tests plus the 6 existing unit tests). Covered: /license-rest/me (unknown licence, and three licences compared against the pure rules on the container date Mon 2026-11-02, which is also a holiday); holidays list/add/disable/404/422/non-admin 401-403/sync; the disabled flag surviving a re-sync; client driver-availability (no auth, unknown licence, weekly rest, out of shift, in shift, ISO time with a Z suffix); create_ride with send_to_pool (scheduled >12h and ASAP become open/preferred=false), the default scheduled >12h ride staying assigned, and prefer_my_driver keeping its 30-min window. Frontend (mobile 390x844): the Calle banner shows 'Hoy libras / Libras hasta mañana a las 06:00 (libranza semanal)' at the top of the tab. The Admin HolidaysAdmin add, disable (row greyed, trash icon hidden), invalid-date message and sync all work. In the client Emisora app, the toggle shows the availability text, submitting opens the unavailable modal, 'Enviar a todos' created an open ride and 'Enviar igualmente' created an assigned ride with preferred=true and a 30-min window (checked in the DB).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/auth/profile", "issue": "The driver cannot clear their licence: an empty string fails the isdigit() check and returns 400."},
+      {"endpoint": "POST /api/license-rest/holidays", "issue": "The 422 message reads 'Value error, Fecha inválida (AAAA-MM-DD)' (Pydantic prefix) and the UI shows it as-is. @validator is deprecated in Pydantic v2."},
+      {"endpoint": "GET /api/rides/client/driver-availability", "issue": "The message is built from the driver-facing label, so the client reads 'Tu taxista tiene libranza semanal a esa hora (libras hasta mañana a las 06:00)'. 'libras' should be 'libra'."},
+      {"endpoint": "POST /api/rides/rides", "issue": "A scheduled ride >12h ahead with the trusted-driver toggle off still becomes exclusive (dispatch_scope=assigned) to the associated driver. No availability check or warning is made, even if the driver rests at that time."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmisoraClient unavailable modal", "issue": "The address-suggestion dropdown (it suggested non-Madrid places like 'Solarstraße, Eberstalzell') stays open behind the modal.", "selector": "[data-testid='emisora-unavailable-modal']", "priority": "LOW"},
+      {"component": "EmisoraClient submit", "issue": "If the client submits before the availability fetch finishes (driverAvail is null), no modal appears and the ride goes straight to the trusted driver.", "selector": "[data-testid='emisora-create-ride-btn']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin panel", "issues": ["HolidaysAdmin (14+ rows) sits above the admin stats and pushes them far down; consider making it collapsible.", "A disabled holiday can only be re-enabled by re-adding the same date; there is no re-enable button."]},
+      {"screen": "Calle banner", "issues": ["The banner only refreshes every 60s, so a licence just saved in the profile is not reflected immediately."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_license_rest_api.py", "/app/backend/tests/test_license_rest.py", "/app/test_reports/pytest/pytest_license_rest.xml"],
+  "action_items": [
+    "Fix the client-facing availability message wording ('libra hasta ...' instead of 'libras hasta ...').",
+    "Decide whether scheduled >12h rides (auto-exclusive to the associated driver) should also check availability and warn the client.",
+    "Strip the 'Value error, ' prefix from validation messages in HolidaysAdmin, or raise HTTPException 400.",
+    "Optional: allow clearing the licence, close address suggestions before opening the modal, make HolidaysAdmin collapsible."
+  ],
+  "critical_code_review_comments": [
+    "EmisoraClient scheduledIso uses the device's local timezone (new Date(`${d}T${t}:00`)); this is fine for Madrid users but wrong if the device timezone differs.",
+    "rides.py line 913: 'associated_driver_id if dispatch_scope == \"assigned\" else associated_driver_id' has identical branches (dead conditional).",
+    "sync_madrid_calendar overwrites source/name of manually added dates that are also in the CSV (harmless)."
+  ],
+  "updated_files": ["/app/backend/tests/test_license_rest_api.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Client +34600999401 (TEST_Lic) and the ui_setup_trusted sessions (+34600999501/502). TEST rides were cancelled or deleted and TEST holidays removed. Admin was restored (license_number unset, preferred_shift=day).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The container clock is Mon 2026-11-02 (a holiday, 'Traslado de Todos los Santos'). test_license_rest_api.py sets the admin licence via the profile/DB and restores it in a module fixture; it computes expected values with the pure license_status() so it is date-independent. Licence 99998 (ends in 8) rests on Mondays. For the UI: driver login is appRole=driver plus admin/admin; client sessions come from 'python tests/ui_setup_trusted.py sessions > /tmp/sess.json'. The page selector is a dropdown, reached via the text 'Calle' then the 'Admin' menu item. The scheduled-ride UI path (custom date picker) was not exercised in the UI; it was covered via the API 'at' param."
+}
