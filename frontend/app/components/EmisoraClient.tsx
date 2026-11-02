@@ -52,7 +52,13 @@ type Ride = {
   accepted_by_driver_phone: string | null;
   passengers: number;
   created_at: string;
+  preferred?: boolean;
+  exclusive_until?: string | null;
+  preferred_released?: boolean;
 };
+
+const minutesLeft = (iso?: string | null) =>
+  iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 60000)) : 0;
 
 const notify = (msg: string) => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -101,6 +107,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
   const [passengers, setPassengers] = useState('1');
+  const [preferMyDriver, setPreferMyDriver] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const [rides, setRides] = useState<Ride[]>([]);
@@ -321,6 +328,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         destination: destination.trim(),
         ride_type: rideType,
         passengers: parseInt(passengers, 10) || 1,
+        prefer_my_driver: preferMyDriver && !!client?.associated_driver_id,
       };
       if (originCoords) {
         body.origin_lat = originCoords.lat;
@@ -338,9 +346,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       setSchedDate('');
       setSchedTime('');
       setPassengers('1');
+      const askedTrusted = preferMyDriver && !!client?.associated_driver_id;
+      setPreferMyDriver(false);
       await refreshRides();
       await refreshFrequentAddresses();
-      notify('Servicio solicitado correctamente');
+      notify(askedTrusted
+        ? 'Servicio solicitado a tu taxista de confianza. Tiene hasta 30 minutos para aceptarlo; si no, pasará al resto de taxistas.'
+        : 'Servicio solicitado correctamente');
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo crear el servicio');
     } finally {
@@ -745,6 +757,23 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
             testID="emisora-passengers-input"
           />
 
+          {!!client?.associated_driver_id && (
+            <TouchableOpacity
+              onPress={() => setPreferMyDriver(v => !v)}
+              activeOpacity={0.8}
+              testID="emisora-prefer-my-driver"
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: preferMyDriver ? '#F59E0B22' : '#0F172A', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: preferMyDriver ? '#F59E0B' : '#334155', marginBottom: 14 }}
+            >
+              <Ionicons name={preferMyDriver ? 'checkbox' : 'square-outline'} size={20} color={preferMyDriver ? '#F59E0B' : '#94A3B8'} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#F1F5F9', fontWeight: '800' }}>Pedir a mi taxista de confianza</Text>
+                <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                  Solo lo verá tu taxista durante 30 minutos. Si no lo acepta en ese tiempo, pasará al resto de taxistas.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Estimated fare */}
           <TouchableOpacity
             onPress={async () => {
@@ -836,6 +865,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
               </View>
               <Text style={{ color: '#F1F5F9', fontWeight: '700' }}>{r.origin}</Text>
               <Text style={{ color: '#94A3B8', fontSize: 12 }}>→ {r.destination}</Text>
+              {r.preferred && r.status === 'pending' && (
+                <Text testID={`emisora-preferred-status-${r.id}`} style={{ color: r.dispatch_scope === 'assigned' ? '#F59E0B' : '#94A3B8', fontSize: 12, fontWeight: '700', marginTop: 6 }}>
+                  {r.dispatch_scope === 'assigned' && r.exclusive_until
+                    ? `Esperando a tu taxista de confianza · le quedan ${minutesLeft(r.exclusive_until)} min para aceptar`
+                    : 'Tu taxista no pudo aceptarlo: enviado al resto de taxistas'}
+                </Text>
+              )}
               {r.accepted_by_driver_name && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                   <Text style={{ color: '#3B82F6', fontSize: 12 }}>

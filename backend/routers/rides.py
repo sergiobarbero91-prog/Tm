@@ -750,6 +750,9 @@ async def qr_info(token: str):
 
 
 # ─────────────────────────── Ride models ───────────────────────────────
+PREFERRED_WINDOW_MIN = 30
+
+
 class RideCreateBody(BaseModel):
     origin: str
     destination: str
@@ -759,6 +762,7 @@ class RideCreateBody(BaseModel):
     passengers: Optional[int] = 1
     origin_lat: Optional[float] = None
     origin_lon: Optional[float] = None
+    prefer_my_driver: bool = False  # reserve for the inviting driver for PREFERRED_WINDOW_MIN
 
     @validator("ride_type")
     def _rt(cls, v: str) -> str:  # noqa: N805
@@ -788,6 +792,13 @@ class RideResponse(BaseModel):
     origin_lat: Optional[float] = None
     origin_lon: Optional[float] = None
     distance_km: Optional[float] = None  # populated when driver queries with GPS
+    preferred: bool = False  # client asked for their trusted driver
+    exclusive_until: Optional[datetime] = None  # end of the trusted-driver window
+    preferred_released: bool = False  # window ended / driver passed → general pool
+
+
+def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
 
 
 def _ride_to_response(doc: dict, distance_km: Optional[float] = None) -> RideResponse:
@@ -812,6 +823,9 @@ def _ride_to_response(doc: dict, distance_km: Optional[float] = None) -> RideRes
         origin_lat=doc.get("origin_lat"),
         origin_lon=doc.get("origin_lon"),
         distance_km=distance_km,
+        preferred=bool(doc.get("preferred")),
+        exclusive_until=_as_utc(doc.get("exclusive_until")),
+        preferred_released=bool(doc.get("preferred_released")),
     )
 
 
@@ -844,6 +858,15 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
         if hours_until > 12:
             dispatch_scope = "assigned"
 
+    # "Pedir a mi taxista de confianza": exclusive for the inviting driver for 30 min, then general pool
+    preferred = bool(body.prefer_my_driver and associated_driver_id)
+    if body.prefer_my_driver and not associated_driver_id:
+        raise HTTPException(status_code=400, detail="No tienes un taxista de confianza asociado")
+    exclusive_until = None
+    if preferred and dispatch_scope != "assigned":
+        dispatch_scope = "assigned"
+        exclusive_until = now + timedelta(minutes=PREFERRED_WINDOW_MIN)
+
     doc = {
         "id": str(uuid.uuid4()),
         "origin": body.origin.strip(),
@@ -864,6 +887,9 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
         "updated_at": now,
         "origin_lat": body.origin_lat,
         "origin_lon": body.origin_lon,
+        "preferred": preferred,
+        "exclusive_until": exclusive_until,
+        "preferred_released": False,
     }
     await rides_collection.insert_one(doc)
 
@@ -917,6 +943,7 @@ async def client_frequent_addresses(
 
 @router.get("/rides/mine", response_model=List[RideResponse])
 async def client_list_my_rides(current: dict = Depends(get_current_client_required)):
+    await _release_expired_preferred_rides()
     cursor = rides_collection.find({"client_id": current["id"]}).sort("created_at", -1).limit(50)
     return [_ride_to_response(d) async for d in cursor]
 
@@ -945,9 +972,19 @@ async def cancel_ride(ride_id: str, current: dict = Depends(get_current_client_r
 
 
 # ────────────────────────── Ride endpoints (driver) ────────────────────
+async def _release_expired_preferred_rides():
+    """Trusted-driver requests not accepted within the window go to the general pool."""
+    now = datetime.now(timezone.utc)
+    await rides_collection.update_many(
+        {"status": "pending", "dispatch_scope": "assigned", "exclusive_until": {"$ne": None, "$lte": now}},
+        {"$set": {"dispatch_scope": "open", "preferred_released": True, "updated_at": now}},
+    )
+
+
 async def _promote_scheduled_rides_near_deadline():
     """Move any 'assigned' scheduled ride whose service time is within 12h to 'open'.
     Called opportunistically on every driver list query."""
+    await _release_expired_preferred_rides()
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(hours=12)
     await rides_collection.update_many(
@@ -956,6 +993,7 @@ async def _promote_scheduled_rides_near_deadline():
             "dispatch_scope": "assigned",
             "ride_type": "scheduled",
             "scheduled_at": {"$lte": cutoff},
+            "exclusive_until": None,
         },
         {"$set": {"dispatch_scope": "open", "updated_at": now}},
     )
@@ -1140,9 +1178,11 @@ async def driver_reject_assigned(ride_id: str, current: dict = Depends(get_curre
         raise HTTPException(status_code=400, detail=f"El servicio está en estado {doc['status']}")
     await rides_collection.update_one(
         {"id": ride_id},
-        {"$set": {"dispatch_scope": "open", "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"dispatch_scope": "open", "preferred_released": bool(doc.get("preferred")),
+                  "updated_at": datetime.now(timezone.utc)}},
     )
     doc["dispatch_scope"] = "open"
+    doc["preferred_released"] = bool(doc.get("preferred"))
     return _ride_to_response(doc)
 
 

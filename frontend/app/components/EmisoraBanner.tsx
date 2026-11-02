@@ -19,6 +19,7 @@ import { View, Text, TouchableOpacity, Animated, Platform, Easing } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { TrustedRideAlert, type TrustedRide } from './TrustedRideAlert';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -27,6 +28,8 @@ type Ride = {
   ride_type: 'asap' | 'scheduled';
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_scope: 'assigned' | 'open';
+  preferred?: boolean;
+  exclusive_until?: string | null;
 };
 
 const playPing = () => {
@@ -68,6 +71,8 @@ export const EmisoraBanner: React.FC<Props> = ({ onGoToEmisora, isEmisoraOpen = 
   const seenAsapIds = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
   const flash = useRef(new Animated.Value(0)).current;
+  const [trustedRide, setTrustedRide] = useState<TrustedRide | null>(null);
+  const dismissedTrusted = useRef<Set<string>>(new Set());
 
   const authHeaders = useCallback(async () => {
     const tk = await AsyncStorage.getItem('token');
@@ -111,6 +116,12 @@ export const EmisoraBanner: React.FC<Props> = ({ onGoToEmisora, isEmisoraOpen = 
       seenAsapIds.current = new Set(asapOffers.map(r => r.id));
       firstLoad.current = false;
 
+      // Trusted-driver requests: full-screen alert, ping again on every poll while it waits
+      const trusted = assigned.find(r => r.preferred && r.exclusive_until
+        && new Date(r.exclusive_until).getTime() > Date.now() && !dismissedTrusted.current.has(r.id));
+      setTrustedRide((trusted as any) || null);
+      if (trusted) playPing();
+
       setAssignedCount(assigned.length);
       setActiveCount(active.length);
       setAsapCount(asapOffers.length);
@@ -133,6 +144,19 @@ export const EmisoraBanner: React.FC<Props> = ({ onGoToEmisora, isEmisoraOpen = 
   const handleGo = () => {
     setHasNew(false);
     onGoToEmisora();
+  };
+
+  const trustedAction = async (action: 'accept' | 'reject') => {
+    if (!trustedRide) return;
+    try {
+      await axios.post(`${API_BASE}/api/rides/rides/${trustedRide.id}/${action}`, {}, { headers: await authHeaders() });
+      if (action === 'accept') onGoToEmisora();
+    } catch (e: any) {
+      if (typeof window !== 'undefined') window.alert(e?.response?.data?.detail || 'No se pudo completar la acción');
+    }
+    dismissedTrusted.current.add(trustedRide.id);
+    setTrustedRide(null);
+    refresh();
   };
 
   const bgColor = flash.interpolate({
@@ -193,6 +217,14 @@ export const EmisoraBanner: React.FC<Props> = ({ onGoToEmisora, isEmisoraOpen = 
           {hasNew ? '¡Nuevo!' : 'Ver'}
         </Text>
       </TouchableOpacity>
+      {trustedRide && (
+        <TrustedRideAlert
+          ride={trustedRide}
+          onAccept={() => trustedAction('accept')}
+          onRelease={() => trustedAction('reject')}
+          onLater={() => { dismissedTrusted.current.add(trustedRide.id); setTrustedRide(null); }}
+        />
+      )}
     </Animated.View>
   );
 };

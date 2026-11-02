@@ -46,6 +46,8 @@ type Ride = {
   accepted_by_driver_name: string | null;
   accepted_by_driver_phone: string | null;
   created_at: string;
+  preferred?: boolean;
+  exclusive_until?: string | null;
   distance_km?: number | null;
   origin_lat?: number | null;
   origin_lon?: number | null;
@@ -361,6 +363,11 @@ export const EmisoraDriverSection: React.FC<{ preferredNavigator?: 'google_maps'
         </View>
         <Text style={{ color: '#F1F5F9', fontWeight: '700' }}>{r.origin}</Text>
         <Text style={{ color: '#94A3B8', fontSize: 12 }}>→ {r.destination}</Text>
+        {variant === 'assigned' && r.preferred && r.exclusive_until && (
+          <Text testID={`emisora-trusted-label-${r.id}`} style={{ color: '#F59E0B', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
+            ★ Te pide a ti · {Math.max(0, Math.ceil((new Date(r.exclusive_until).getTime() - Date.now()) / 60000))} min para aceptar
+          </Text>
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
           <Text style={{ color: '#60A5FA', fontSize: 12 }}>
             <Ionicons name="person" size={11} /> {r.client_name} · {r.client_phone}
