@@ -52,6 +52,8 @@ def test_delay_cancel_coupled_and_cercanias():
     assert by_num["03192"]["time"] == "22:23" and by_num["03192"]["status"] == "Retraso 6 min"
     assert by_num["08213"]["time"] == "22:08" and by_num["08213"]["status"] == "Adelantado"
     assert res["cancelled"] == 1
+    assert res["cancelled_trains"][0]["train_number"] == "06190" and res["cancelled_trains"][0]["train_type"] == "IRYO"
+    assert res["cancelled_trains"][0]["scheduled_time"] == "22:30"
 
 
 def test_arrived_trains_are_carried_as_llegado():

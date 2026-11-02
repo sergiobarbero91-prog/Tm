@@ -47,7 +47,7 @@ import { DateTimePicker } from './components/DateTimePicker';
 import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { PoiPanel } from './components/PoiPanel';
 import { TaxitronicScanModal } from './components/TaxitronicScanModal';
-import { StationSivInfo, type StationAlert } from './components/StationSivInfo';
+import { StationSivInfo, type StationAlert, type CancelledTrain } from './components/StationSivInfo';
 import { relaySivStations, staleSivStations } from './components/sivRelay';
 import { useRouter } from 'expo-router';
 
@@ -185,6 +185,7 @@ interface StationData {
   source?: string | null;  // 'siv' = Adif station panels
   data_time?: string | null;
   cancelled_count?: number;
+  cancelled_trains?: CancelledTrain[];
   alerts?: StationAlert[];
 }
 
@@ -9212,6 +9213,7 @@ function TransportMeter() {
             dataTime={station.data_time}
             cancelledCount={station.cancelled_count}
             alerts={station.alerts}
+            cancelledTrains={station.cancelled_trains}
           />
         </View>
         

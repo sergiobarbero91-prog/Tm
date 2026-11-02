@@ -260,6 +260,14 @@ class StationAlert(BaseModel):
     header: str = ""
     text: str = ""
 
+class CancelledTrain(BaseModel):
+    scheduled_time: str
+    day_label: str = ""
+    origin: str = ""
+    train_type: str = ""
+    train_number: str = ""
+    operator: str = ""
+
 class PeakHourInfo(BaseModel):
     start_hour: str
     end_hour: str
@@ -285,6 +293,7 @@ class StationData(BaseModel):
     data_time: Optional[str] = None          # Timestamp of the SIV snapshot
     cancelled_count: int = 0                 # Cancelled arrivals (last 30 min onwards)
     alerts: List[StationAlert] = []          # Station notices (strikes, incidents...)
+    cancelled_trains: List[CancelledTrain] = []
 
 class FlightArrival(BaseModel):
     time: str  # Hora real de llegada
@@ -2190,6 +2199,7 @@ async def get_train_comparison(
                 data.data_time = info.get("data_time")
                 data.cancelled_count = info.get("cancelled", 0)
                 data.alerts = [StationAlert(**a) for a in info.get("alerts", [])]
+                data.cancelled_trains = [CancelledTrain(**c) for c in info.get("cancelled_trains", [])]
 
     message = None
     if custom_time_window:

@@ -85,7 +85,7 @@ def parse_siv_payload(data: Dict, prev_arrivals: Optional[List[Dict]] = None, no
 
     arrivals: List[Dict] = []
     seen, skip = set(), set()
-    cancelled = 0
+    cancelled: List[Dict] = []
     for t in data.get("trains") or []:
         if t.get("class_stop") not in ("destination", "intermediate") or t.get("traffic_type") not in ("L", "R"):
             continue
@@ -99,17 +99,26 @@ def parse_siv_payload(data: Dict, prev_arrivals: Optional[List[Dict]] = None, no
             sched = datetime.fromisoformat(t["arrival_time"]).astimezone(MADRID_TZ)
         except ValueError:
             continue
+        product = (ci.get("product") or "").upper()
+        origins = t.get("origins") or [{}]
         if t.get("status") == "cancelled":
-            if sched > now - timedelta(minutes=30):
-                cancelled += 1
+            if now - timedelta(minutes=30) < sched <= now + timedelta(hours=12):
+                seen.add(number)
+                cancelled.append({
+                    "scheduled_time": sched.strftime("%H:%M"),
+                    "day_label": "mañana" if sched.date() > now.date() else "",
+                    "origin": station_name(origins[0].get("code")),
+                    "train_type": PRODUCT_NAMES.get(product, product or "TREN"),
+                    "train_number": number,
+                    "operator": t.get("company") or "",
+                    "sched_iso": sched.isoformat(),
+                })
             continue
         delay = int(t.get("delay_in") or 0)
         est = sched + timedelta(minutes=delay)
         if est < now - timedelta(minutes=60) or est > now + timedelta(hours=12):
             continue
         seen.add(number)
-        product = (ci.get("product") or "").upper()
-        origins = t.get("origins") or [{}]
         arrivals.append({
             "time": est.strftime("%H:%M"),
             "scheduled_time": sched.strftime("%H:%M"),
@@ -137,6 +146,7 @@ def parse_siv_payload(data: Dict, prev_arrivals: Optional[List[Dict]] = None, no
             seen.add(p["train_number"])
 
     arrivals.sort(key=lambda a: a["est_iso"])
+    cancelled.sort(key=lambda a: a["sched_iso"])
 
     alerts = []
     for a in data.get("station_alerts") or []:
@@ -154,7 +164,8 @@ def parse_siv_payload(data: Dict, prev_arrivals: Optional[List[Dict]] = None, no
 
     return {
         "arrivals": arrivals,
-        "cancelled": cancelled,
+        "cancelled": len(cancelled),
+        "cancelled_trains": cancelled,
         "alerts": alerts,
         "data_time": (data.get("station_settings") or {}).get("data_time"),
         "fetched_at": now.isoformat(),

@@ -9,12 +9,22 @@ export interface StationAlert {
   text: string;
 }
 
+export interface CancelledTrain {
+  scheduled_time: string;
+  day_label?: string;
+  origin: string;
+  train_type: string;
+  train_number: string;
+  operator: string;
+}
+
 interface Props {
   stationKey: string;
   source?: string | null;
   dataTime?: string | null;
   cancelledCount?: number;
   alerts?: StationAlert[];
+  cancelledTrains?: CancelledTrain[];
 }
 
 const levelColor = (level: string) =>
@@ -50,20 +60,46 @@ const AlertRow = ({ alert, testID }: { alert: StationAlert; testID: string }) =>
   );
 };
 
-export const StationSivInfo = ({ stationKey, source, dataTime, cancelledCount = 0, alerts = [] }: Props) => {
+const CancelledList = ({ stationKey, count, trains }: { stationKey: string; count: number; trains: CancelledTrain[] }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <TouchableOpacity
+      testID={`siv-cancelled-${stationKey}`}
+      onPress={() => setOpen(o => !o)}
+      activeOpacity={0.8}
+      style={{ borderLeftWidth: 3, borderLeftColor: '#EF4444', backgroundColor: '#1E293B', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 8, marginTop: 6 }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons name="close-circle" size={13} color="#EF4444" />
+        <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '800', marginLeft: 6, flex: 1 }}>
+          {count} {count === 1 ? 'tren cancelado' : 'trenes cancelados'}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={13} color="#94A3B8" />
+      </View>
+      {open && trains.map((t, i) => (
+        <View key={`${t.train_number}-${i}`} testID={`siv-cancelled-train-${stationKey}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+          <View style={{ width: 48 }}>
+            <Text style={{ color: '#E2E8F0', fontSize: 12, fontWeight: '800', textDecorationLine: 'line-through' }}>{t.scheduled_time}</Text>
+            {!!t.day_label && <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '700' }}>{t.day_label}</Text>}
+          </View>
+          <Text style={{ color: '#CBD5E1', fontSize: 11, fontWeight: '700', width: 92 }} numberOfLines={1}>
+            {t.train_type} {t.train_number}
+          </Text>
+          <Text style={{ color: '#94A3B8', fontSize: 11, flex: 1 }} numberOfLines={1}>
+            {t.origin}{t.operator ? ` · ${t.operator}` : ''}
+          </Text>
+        </View>
+      ))}
+    </TouchableOpacity>
+  );
+};
+
+export const StationSivInfo = ({ stationKey, source, dataTime, cancelledCount = 0, alerts = [], cancelledTrains = [] }: Props) => {
   if (source !== 'siv') return null;
   return (
     <View testID={`siv-info-${stationKey}`} style={{ marginTop: 8, marginBottom: 4 }}>
       {cancelledCount > 0 && (
-        <View
-          testID={`siv-cancelled-${stationKey}`}
-          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#EF444422', borderColor: '#EF4444', borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}
-        >
-          <Ionicons name="close-circle" size={13} color="#EF4444" />
-          <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '800', marginLeft: 4 }}>
-            {cancelledCount} {cancelledCount === 1 ? 'cancelado' : 'cancelados'}
-          </Text>
-        </View>
+        <CancelledList stationKey={stationKey} count={cancelledCount} trains={cancelledTrains} />
       )}
       {alerts.slice(0, 3).map((a, i) => (
         <AlertRow key={a.id || i} alert={a} testID={`siv-alert-${stationKey}-${i}`} />
