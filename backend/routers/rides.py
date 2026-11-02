@@ -301,6 +301,12 @@ async def client_me(current: dict = Depends(get_current_client_required)):
     )
 
 
+@router.get("/client/available-drivers")
+async def client_available_drivers(at: Optional[datetime] = None, current: dict = Depends(get_current_client_required)):
+    from routers.license_rest import count_available_drivers
+    return {"count": await count_available_drivers(_as_utc(at) or datetime.now(timezone.utc))}
+
+
 @router.get("/client/driver-availability")
 async def client_driver_availability(at: Optional[datetime] = None, current: dict = Depends(get_current_client_required)):
     from routers.license_rest import driver_availability

@@ -111,6 +111,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [preferMyDriver, setPreferMyDriver] = useState(false);
   const [driverAvail, setDriverAvail] = useState<{ available: boolean | null; message: string } | null>(null);
   const [unavailOpen, setUnavailOpen] = useState(false);
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [rides, setRides] = useState<Ride[]>([]);
@@ -318,6 +319,25 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const scheduledIso = rideType === 'scheduled' && schedDate && schedTime
     ? new Date(`${schedDate}T${schedTime}:00`).toISOString()
     : null;
+
+  useEffect(() => {
+    if (!client) return;
+    if (rideType === 'scheduled' && !scheduledIso) {
+      setAvailableCount(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = scheduledIso ? `?at=${encodeURIComponent(scheduledIso)}` : '';
+        const r = await axios.get(`${API_BASE}/api/rides/client/available-drivers${q}`, { headers: await authHeaders() });
+        if (!cancelled) setAvailableCount(r.data.count);
+      } catch {
+        if (!cancelled) setAvailableCount(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [client, rideType, scheduledIso, authHeaders]);
 
   const fetchDriverAvail = useCallback(async () => {
     try {
@@ -701,6 +721,16 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
               onChangeDate={setSchedDate}
               onChangeTime={setSchedTime}
             />
+          )}
+
+          {availableCount !== null && (
+            <View testID="emisora-available-drivers" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Ionicons name="car-sport" size={16} color={availableCount > 0 ? '#10B981' : '#EF4444'} />
+              <Text style={{ color: availableCount > 0 ? '#6EE7B7' : '#FCA5A5', fontSize: 13, fontWeight: '700' }}>
+                {availableCount === 1 ? '1 taxista disponible' : `${availableCount} taxistas disponibles`}
+                {rideType === 'scheduled' && scheduledIso ? ' a esa hora' : ' ahora'}
+              </Text>
+            </View>
           )}
 
           {frequentAddresses.length > 0 && (

@@ -57,3 +57,15 @@ def test_shift():
     assert in_shift("day", at(2026, 6, 1, 5)) and not in_shift("day", at(2026, 6, 1, 17))
     assert in_shift("night", at(2026, 6, 1, 23)) and in_shift("night", at(2026, 6, 1, 4))
     assert not in_shift("night", at(2026, 6, 1, 12)) and in_shift("all", at(2026, 6, 1, 12))
+
+
+def test_month_calendar():
+    from license_rest import month_calendar
+    days = month_calendar("1234", 2026, 11, HOL)
+    thursdays = [d for d in days if d["kind"] == "weekly"]
+    assert [d["date"] for d in thursdays] == ["2026-11-05", "2026-11-12", "2026-11-19", "2026-11-26"]
+    assert thursdays[0]["start"] == "06:00" and thursdays[0]["ends_next_day"]
+    hol = [d for d in days if d["kind"] == "holiday"]
+    assert [d["date"] for d in hol] == ["2026-11-09"] and hol[0]["end"] == "20:00"
+    assert all(d["kind"] != "weekend" or int(d["date"][-2:]) % 2 == 1 for d in days)
+    assert month_calendar("", 2026, 11, HOL) == []

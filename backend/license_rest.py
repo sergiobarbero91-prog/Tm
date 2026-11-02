@@ -95,3 +95,19 @@ def in_shift(shift: Optional[str], at: datetime) -> bool:
     h = at.astimezone(MADRID).hour
     start, end = rng
     return start <= h < end if start < end else (h >= start or h < end)
+
+
+def month_calendar(license_number: Optional[str], year: int, month: int, holidays: Iterable[date]) -> list:
+    """Rest windows starting on each day of the month."""
+    digit = last_digit(license_number)
+    if digit is None:
+        return []
+    hol = set(holidays)
+    d, out = date(year, month, 1), []
+    while d.month == month:
+        for s, e, k in _day_windows(d, digit, hol):
+            out.append({"date": d.isoformat(), "kind": k, "reason": REASONS[k],
+                        "start": s.strftime("%H:%M"), "end": e.strftime("%H:%M"),
+                        "ends_next_day": e.date() != d, "holiday": d in hol})
+        d += timedelta(days=1)
+    return out

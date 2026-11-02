@@ -9,8 +9,8 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from license_rest import DEFAULT_HOLIDAYS_2026, SHIFT_LABELS, in_shift, license_status
-from shared import db, get_admin_user, get_current_user_required, logger
+from license_rest import DEFAULT_HOLIDAYS_2026, SHIFT_LABELS, in_shift, license_status, month_calendar
+from shared import db, get_admin_user, get_current_user_required, logger, users_collection
 
 router = APIRouter(prefix="/license-rest", tags=["License rest"])
 holidays_collection = db["holidays"]
@@ -83,11 +83,38 @@ async def driver_availability(user: dict, at: datetime) -> dict:
     return status
 
 
+async def count_available_drivers(at: datetime) -> int:
+    hol = await get_holiday_dates()
+    users = await users_collection.find(
+        {"license_number": {"$nin": [None, ""]}, "role": {"$ne": "propietario"}},
+        {"_id": 0, "license_number": 1, "preferred_shift": 1},
+    ).to_list(20000)
+    return sum(
+        1 for u in users
+        if license_status(u["license_number"], at, hol).get("can_work") and in_shift(u.get("preferred_shift"), at)
+    )
+
+
 @router.get("/me")
 async def my_rest_status(user: dict = Depends(get_current_user_required)):
-    status = await driver_availability(user, datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    status = await driver_availability(user, now)
     status["license_number"] = user.get("license_number")
+    nxt = status.get("next_rest_start")
+    if status.get("can_work") and nxt:
+        mins = int((nxt - now).total_seconds() // 60)
+        if mins <= 60:
+            status["rest_soon"] = True
+            status["minutes_to_rest"] = max(mins, 0)
     return status
+
+
+@router.get("/calendar")
+async def my_rest_calendar(year: int, month: int, user: dict = Depends(get_current_user_required)):
+    if not 1 <= month <= 12:
+        raise HTTPException(status_code=400, detail="Mes inválido")
+    return {"known": bool(user.get("license_number")),
+            "days": month_calendar(user.get("license_number"), year, month, await get_holiday_dates())}
 
 
 class HolidayBody(BaseModel):

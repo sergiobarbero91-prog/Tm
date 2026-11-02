@@ -38,7 +38,8 @@ import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker'
 import { EmisoraClient } from './components/EmisoraClient';
 import { EmisoraDriverSection } from './components/EmisoraDriverSection';
 import { EmisoraBanner } from './components/EmisoraBanner';
-import { LicenseRestBanner } from './components/LicenseRestBanner';
+import { LicenseRestBanner, notifyLicenseChanged } from './components/LicenseRestBanner';
+import { LicenseCalendar } from './components/LicenseCalendar';
 import { HolidaysAdmin } from './components/HolidaysAdmin';
 import { AdminClients } from './components/admin/AdminClients';
 import { AdminUserEditModal } from './components/admin/AdminUserEditModal';
@@ -2818,6 +2819,7 @@ function TransportMeter() {
       const updatedUser = response.data;
       setCurrentUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      notifyLicenseChanged();
       
       setShowProfileModal(false);
       Alert.alert('✓', 'Perfil actualizado correctamente');
@@ -20056,6 +20058,8 @@ function TransportMeter() {
                   </View>
                 </View>
               </View>
+
+              {currentUser?.role !== 'propietario' && <LicenseCalendar licenseNumber={currentUser?.license_number} />}
 
               {/* Owner section: Mis Licencias + Mis Conductores */}
               {currentUser?.role === 'propietario' && (

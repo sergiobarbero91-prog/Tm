@@ -6,7 +6,12 @@ import axios from 'axios';
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+const listeners = new Set<() => void>();
+export const notifyLicenseChanged = () => listeners.forEach(fn => fn());
+
 type RestStatus = {
+  rest_soon?: boolean;
+  minutes_to_rest?: number;
   known: boolean;
   can_work: boolean | null;
   label?: string;
@@ -32,7 +37,8 @@ export const LicenseRestBanner: React.FC = () => {
   useEffect(() => {
     load();
     const id = setInterval(load, 60000);
-    return () => clearInterval(id);
+    listeners.add(load);
+    return () => { clearInterval(id); listeners.delete(load); };
   }, [load]);
 
   if (!st) return null;
@@ -63,6 +69,11 @@ export const LicenseRestBanner: React.FC = () => {
         <Text testID="license-rest-label" style={sub}>
           {ok ? st.label : `${st.label} (${st.reason})`}
         </Text>
+        {ok && st.rest_soon && (
+          <Text testID="license-rest-soon" style={[sub, { color: '#FBBF24', fontWeight: '700' }]}>
+            Empiezas a librar en {st.minutes_to_rest} min: planifica tus últimas carreras
+          </Text>
+        )}
         {ok && !st.in_shift && (
           <Text testID="license-rest-shift" style={[sub, { color: '#FBBF24' }]}>
             Fuera de tu turno preferido: {st.shift_label}
