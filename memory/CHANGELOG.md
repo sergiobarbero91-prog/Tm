@@ -49,3 +49,19 @@
 - parse_siv_payload returns cancelled_trains (scheduled_time, day_label 'mañana', origin, train_type, train_number, operator) within -30 min..+12 h. Cancelled trains are no longer carried over as 'Llegado'. /api/trains exposes StationData.cancelled_trains.
 - StationSivInfo: the 'N trenes cancelados' row expands/collapses like the alerts. iteration_31 100%.
 - Known (pre-existing): on 390 px the header with the user menu overflows by ~19 px.
+
+## 📅 Agenda automática de Madrid (Jun 2026)
+- Researched madrono.app: its events come from a manually maintained Google Sheet published at api.madrono.app/eventos. Not used: it is their own work.
+- `backend/agenda_sources.py` sources:
+  - ESPN public schedules: home matches in Madrid for Real Madrid, Atlético, Rayo, Getafe and Leganés.
+  - Movistar Arena: links on /programacion. Basketball is tagged 'deporte'.
+  - Palacio Vistalegre: tribe events REST API.
+  - La Riviera and IFEMA: JSON-LD. Fairs are expanded per day 10-19 h; anything longer than 10 days is excluded.
+  - datos.madrid.es agenda: big municipal venues + FiestasNavidadesReyes, recurrence expanded, courses/workshops excluded.
+- `routers/events.py`:
+  - refresh_agenda + agenda_refresh_loop (every 6 h, started at startup). Upsert by uid into agenda_events with a unique index. Cleanup removes ended events and events dropped by their source.
+  - GET /api/events/agenda?days (auth, 1-21, UTC query fields).
+  - Also fixed: GET /api/events/active used a sync loop over an async cursor.
+- daily_summary: _agenda_facts_today injects today's verified agenda into the Gemini prompt.
+- Frontend: components/AgendaSection.tsx in the Eventos tab (filters Todo/Deportes/Conciertos/Ferias/Cultura, grouped by day, ALTA DEMANDA badge, tapping a row opens its link).
+- Tests: test_agenda_sources.py, test_agenda_api.py. iteration_32 100%.

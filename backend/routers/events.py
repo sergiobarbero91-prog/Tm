@@ -35,10 +35,13 @@ async def refresh_agenda() -> int:
         return 0
     await agenda_collection.create_index("uid", unique=True)
     now = datetime.now(MADRID_TZ)
-    ops = [UpdateOne({"uid": e["uid"]}, {"$set": {**e, "updated_at": now.isoformat()}}, upsert=True) for e in events]
+    run_at = now.isoformat()
+    ops = [UpdateOne({"uid": e["uid"]}, {"$set": {**e, "updated_at": run_at}}, upsert=True) for e in events]
     await agenda_collection.bulk_write(ops, ordered=False)
+    sources = sorted({e["source"] for e in events})
     await agenda_collection.delete_many({"$or": [
-        {"end_at": {"$lt": (now - timedelta(hours=6)).isoformat()}},
+        {"end_utc": {"$lt": (datetime.now(pytz.utc) - timedelta(hours=6)).isoformat()}},
+        {"source": {"$in": sources}, "updated_at": {"$lt": run_at}},  # dropped/cancelled by its source
         {"updated_at": {"$lt": (now - timedelta(days=2)).isoformat()}},
     ]})
     return len(events)
@@ -56,12 +59,12 @@ async def agenda_refresh_loop():
 @router.get("/agenda")
 async def get_agenda(days: int = 7, current_user: dict = Depends(get_current_user_required)):
     """Automatic agenda (football, big venues, City Council) from now until `days` ahead."""
-    now = datetime.now(MADRID_TZ)
+    now = datetime.now(pytz.utc)
     days = max(1, min(days, 21))
     cursor = agenda_collection.find(
-        {"end_at": {"$gte": now.isoformat()}, "start_at": {"$lte": (now + timedelta(days=days)).isoformat()}},
-        {"_id": 0, "updated_at": 0},
-    ).sort("start_at", 1)
+        {"end_utc": {"$gte": now.isoformat()}, "start_utc": {"$lte": (now + timedelta(days=days)).isoformat()}},
+        {"_id": 0, "updated_at": 0, "start_utc": 0, "end_utc": 0},
+    ).sort("start_utc", 1)
     events = await cursor.to_list(1000)
     return {"events": events, "count": len(events),
             "sources": "Fútbol (ESPN) · Movistar Arena · Palacio Vistalegre · La Riviera · IFEMA · Agenda del Ayuntamiento (datos.madrid.es)"}
@@ -138,7 +141,7 @@ async def get_active_events():
         }).sort("event_time", 1).limit(10)
         
         events = []
-        for event in cursor:
+        async for event in cursor:
             events.append({
                 "id": event.get("id"),
                 "title": event.get("description", event.get("title", "")),

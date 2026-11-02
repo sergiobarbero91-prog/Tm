@@ -21,12 +21,12 @@ export interface AgendaEvent {
 
 const FILTERS: [string, string, string[]][] = [
   ['todo', 'Todo', []],
-  ['futbol', 'Fútbol', ['futbol']],
+  ['futbol', 'Deportes', ['futbol', 'deporte']],
   ['concierto', 'Conciertos', ['concierto', 'musica']],
   ['feria', 'Ferias', ['feria']],
   ['cultura', 'Cultura', ['cultura', 'fiesta']],
 ];
-const CAT_ICON: Record<string, any> = { futbol: 'football', concierto: 'musical-notes', musica: 'musical-notes', feria: 'business', cultura: 'color-palette', fiesta: 'sparkles' };
+const CAT_ICON: Record<string, any> = { futbol: 'football', deporte: 'basketball', concierto: 'musical-notes', musica: 'musical-notes', feria: 'business', cultura: 'color-palette', fiesta: 'sparkles' };
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -56,14 +56,16 @@ const EventRow = ({ e, now }: { e: AgendaEvent; now: number }) => {
       </View>
       <Ionicons name={CAT_ICON[e.category] || 'calendar'} size={16} color={e.hot ? '#F59E0B' : '#94A3B8'} style={{ marginRight: 8 }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ color: '#F1F5F9', fontSize: 13, fontWeight: '700' }} numberOfLines={2}>{e.name}</Text>
-        <Text style={{ color: '#94A3B8', fontSize: 11 }} numberOfLines={1}>{e.place}</Text>
-      </View>
-      {e.hot && (
-        <View testID={`agenda-hot-${e.uid}`} style={{ backgroundColor: '#F59E0B22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 }}>
-          <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '800' }}>ALTA DEMANDA</Text>
+        <Text style={{ color: '#F1F5F9', fontSize: 13, fontWeight: '700' }} numberOfLines={3}>{e.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <Text style={{ color: '#94A3B8', fontSize: 11 }} numberOfLines={1}>{e.place}</Text>
+          {e.hot && (
+            <View testID={`agenda-hot-${e.uid}`} style={{ backgroundColor: '#F59E0B22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+              <Text style={{ color: '#F59E0B', fontSize: 9, fontWeight: '800' }}>ALTA DEMANDA</Text>
+            </View>
+          )}
         </View>
-      )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -98,7 +100,7 @@ export const AgendaSection = ({ apiBase }: { apiBase: string }) => {
   const now = Date.now();
 
   return (
-    <View testID="agenda-section" style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: '#1E293B', borderRadius: 14, padding: 14 }}>
+    <View testID="agenda-section" style={{ marginBottom: 16, backgroundColor: '#1E293B', borderRadius: 14, padding: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
         <Ionicons name="calendar" size={18} color="#6366F1" />
         <Text style={{ color: '#F1F5F9', fontSize: 16, fontWeight: '800', marginLeft: 8, flex: 1 }}>Agenda de Madrid</Text>

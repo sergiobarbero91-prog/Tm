@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the Madrid automatic agenda end to end. Backend: 15/15 pytest pass (11 new API tests in test_agenda_api.py plus 4 existing parser unit tests). Covered auth (401 without a token), the response shape and fields, no _id, sort order by start_at, the time window (no ended events, start <= now+days), the days cap (99 is treated as 21, 0 as 1, the default is 7, 'abc' returns 422), the hot flag for futbol/movistar_arena/vistalegre, a unique uid index with no duplicates in Mongo, and regression of community POST/GET/DELETE /api/events. The startup refresh logs '[Agenda] 157 events (fútbol 10, recintos 107, ayuntamiento 40)'. Frontend at 390px: the Agenda card shows above 'Añadir Evento'. At first only 2 day groups show ('MAÑANA · 3', 'MIÉ 4 NOV · 6'). The 'Ver los próximos 4 días' toggle expands to all 6 days with events and back to 'Ver menos'. Every filter works: Fútbol shows only the 4 futbol rows, Conciertos shows movistar/riviera/vistalegre, Ferias shows ifema, Cultura shows ayuntamiento, Todo shows 37. ALTA DEMANDA badges render, and refresh calls the API again. No events today, so the 'HOY' label could not be checked visually. Gemini regeneration was not triggered.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "refresh_agenda (routers/events.py)", "issue": "Events that disappear from a source (cancelled, or now excluded by an updated filter) stay in agenda_events and are still returned for up to 48h. Cleanup only removes docs whose updated_at is older than 2 days. Seen live: 'Presentación del libro ... Almodóvar' (uid ayuntamiento:50451326-2026-11-03, updated_at 13:12:30) is still served after a later refresh at 13:16:25 that no longer includes it (the current parser filters it out via AYTO_SKIP_TITLE). Fix: after each successful refresh, delete docs of the sources that returned data in this run whose updated_at < this run's timestamp."},
+      {"endpoint": "agenda_sources.parse_movistar_arena", "issue": "Movistar Arena basketball games (e.g. 'Real Madrid vs. Panathinaikos - Jornada 10 Euroleague', 'Real Madrid vs UCAM Murcia - Liga Endesa') are tagged category 'concierto', so they show under the Conciertos filter. Consider a 'deporte' category (or futbol-like) when the name matches 'vs'/'Jornada'."},
+      {"endpoint": "GET /api/events/agenda", "issue": "start_at/end_at are compared as ISO strings with a fixed offset. Around DST changes (late March/October) the +01:00 and +02:00 offsets are mixed, so the window can be off by an hour. Store UTC datetimes (or a UTC ISO string) for the query fields."},
+      {"endpoint": "GET /api/events/active (pre-existing, not new)", "issue": "Uses a sync 'for event in cursor' over a Motor async cursor. This raises TypeError, which is caught, so it always returns {events: [], count: 0}."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Eventos tab / AgendaSection (390px)", "issues": [
+        "The card has marginHorizontal:16 inside a parent that is already padded. At 390px the card spans x=51..339 while sibling cards span ~36..355, so it looks visibly narrower and misaligned. Remove or reduce marginHorizontal.",
+        "On narrow widths the ALTA DEMANDA badge plus the 50px time column squeeze the event name. Football names get cut ('Atlético Madrid – Bayern …') and the competition label is never visible. Consider putting the badge under the place line, or allowing more lines.",
+        "Pre-existing: the page has horizontal overflow (scrollWidth 409 > 390) caused by the header admin/user button. It also happens on the home tab."
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_agenda_api.py", "/app/backend/tests/test_agenda_sources.py", "/app/test_reports/pytest/pytest_agenda.xml"],
+  "action_items": [
+    "refresh_agenda: remove stale docs that were not seen in the latest successful fetch for that source, instead of waiting 48h",
+    "Optional: categorise Movistar Arena basketball as sport, not 'concierto'",
+    "AgendaSection: drop marginHorizontal:16 so the card aligns with sibling cards; improve name truncation next to the ALTA DEMANDA badge",
+    "Optional: store UTC values for start_at/end_at to avoid DST string-comparison drift"
+  ],
+  "critical_code_review_comments": [
+    "Stale-data cleanup in refresh_agenda is too lax (2-day updated_at window). Cancelled or filtered-out events keep showing.",
+    "ISO string comparison with local offsets is fragile across DST",
+    "The parse_jsonld_events non-daily path drops naive endDate values (end=None when endDate has no tzinfo), so the default 2h30 is used instead of the real end",
+    "/api/events/active iterates the Motor cursor synchronously (pre-existing bug, always returns empty)"
+  ],
+  "updated_files": ["/app/backend/tests/test_agenda_api.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% functional (minor design issues)"},
+  "seed_data_creation": "None persistent. A TEST_Atocha community event was created and then deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: Soy taxista, then admin/admin. Navigate via the 'Calle' dropdown, then 'Eventos'. Run: cd /app/backend && set -a && . ./.env && set +a && pytest tests/test_agenda_api.py tests/test_agenda_sources.py. The container date was 2026-11-02 and there were no events that day, so the 'HOY' label was not checked visually."
+}

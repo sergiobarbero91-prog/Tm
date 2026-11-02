@@ -48,7 +48,9 @@ def _ev(source: str, uid: str, name: str, place: str, start: datetime, end: Opti
     return {
         "uid": f"{source}:{uid}", "source": source, "name": html.unescape(name).strip(), "place": place,
         "date": start.strftime("%Y-%m-%d"), "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"),
-        "start_at": start.isoformat(), "end_at": end.isoformat(), "category": category, "hot": hot, "url": url,
+        "start_at": start.isoformat(), "end_at": end.isoformat(),
+        "start_utc": start.astimezone(pytz.utc).isoformat(), "end_utc": end.astimezone(pytz.utc).isoformat(),
+        "category": category, "hot": hot, "url": url,
     }
 
 
@@ -101,6 +103,7 @@ async def fetch_football(session, now) -> List[Dict]:
 # ─── Venues ─────────────────────────────────────────────────────────────────
 
 _MA_RE = re.compile(r'href="/programacion/evento/([^"/]+)/(\d{1,2})-(\d{1,2})-(\d{4})/(\d{1,2}):(\d{2})"[^>]*?data-event-detail="([^"]+)"')
+_SPORT_RE = re.compile(r"\bvs\.?\s|\bjornada\b|euroliga|euroleague|liga endesa|copa del rey|final four", re.I)
 
 
 def parse_movistar_arena(page: str, now: datetime) -> List[Dict]:
@@ -111,7 +114,8 @@ def parse_movistar_arena(page: str, now: datetime) -> List[Dict]:
         if key in seen or not _in_horizon(start, now):
             continue
         seen.add(key)
-        out.append(_ev("movistar_arena", f"{slug}-{start:%Y%m%d%H%M}", name, "Movistar Arena", start, None, "concierto", True,
+        category = "deporte" if _SPORT_RE.search(name) else "concierto"
+        out.append(_ev("movistar_arena", f"{slug}-{start:%Y%m%d%H%M}", name, "Movistar Arena", start, None, category, True,
                        f"https://www.movistararena.es/programacion/evento/{slug}/{d}-{m}-{y}/{hh}:{mm}"))
     return out
 
