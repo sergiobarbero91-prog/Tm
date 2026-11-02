@@ -68,3 +68,11 @@
 
 - Agenda: Teatro Kapital added (parse_kapital). It has no event list, so there is one 'noche' entry per opening night, using the hours from its homepage (Wed-Sun 23:00-05:30/06:00, fallback built in), marked hot on Fri/Sat. The frontend has a 'Noche' filter.
 - Caja Mágica and Las Ventas: NOT added. Neither has a public agenda: Caja Mágica has no website of its own, and taquilla.com only lists excursions for Las Ventas. Options: Ticketmaster Discovery API (free key) or adding them by hand.
+
+## ⭐ Pedir a mi taxista de confianza (Jun 2026)
+- POST /api/rides/rides takes prefer_my_driver. If the client has an associated_driver_id, the ride gets dispatch_scope='assigned', preferred=true and exclusive_until=now+30 min (PREFERRED_WINDOW_MIN). It returns 400 if the client has no linked driver.
+- _release_expired_preferred_rides moves expired windows to 'open' with preferred_released=true. It runs on driver assigned/offers lists, client rides/mine and accept. Reject (driver passes) also marks preferred_released. The 12 h scheduled promotion only affects rides with exclusive_until None.
+- Client: checkbox 'Pedir a mi taxista de confianza' (only shown with a linked driver), a 30-minute message, and status lines (waiting N min / reserved / sent to the rest).
+- Driver: EmisoraBanner shows the full-screen TrustedRideAlert (countdown, Aceptar / Pasarlo al resto / Decidir luego) and pings on every poll. RideCard shows a '★ Te pide a ti · N min' label.
+- AddressAutocomplete closes its dropdown when the value is cleared.
+- Tests: test_trusted_driver.py (4) + _extended (6). iteration_34.

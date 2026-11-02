@@ -1,0 +1,37 @@
+{
+  "summary": "Tested 'Pedir a mi taxista de confianza' end to end. Backend: the existing test_trusted_driver.py passes 4/4. The new test_trusted_driver_extended.py, run through the public URL, passes 5/6. Client UI (390px) works: the checkbox is hidden for a client with no linked driver and shown above the fare button for a linked client; the confirmation alert mentions the 30 minutes; the status shows 'Esperando a tu taxista de confianza · le quedan 30 min para aceptar', and after the driver releases the ride it shows 'Tu taxista no pudo aceptarlo: enviado al resto de taxistas'. Driver UI (admin) works: the trusted-ride-alert modal appeared within 15 s with client name, origin and destination; the countdown ticks (29:30 -> 29:28); 'later' closes it and it does not come back on the next poll; 'accept' accepts the ride and opens Reservas; 'release' sends the ride to the open pool (checked in the DB); the label 'emisora-trusted-label-<id>' shows '★ Te pide a ti · 29 min para aceptar'. One bug: a scheduled ride more than 12 h ahead with the option ticked shows the wrong message to the client.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/rides/rides (ride_type=scheduled, more than 12h ahead, prefer_my_driver=true)", "issue": "The ride is already exclusive (dispatch_scope='assigned') so exclusive_until is never set, but preferred=true. In EmisoraClient 'Mis servicios' the condition `dispatch_scope==='assigned' && exclusive_until` is false, so the client wrongly sees 'Tu taxista no pudo aceptarlo: enviado al resto de taxistas' for a ride that is still exclusive to their driver. Fix: set preferred=false when the ride is already assigned by the 12h rule, or give the UI a separate message when exclusive_until is null and dispatch_scope is 'assigned'."},
+      {"endpoint": "POST /api/rides/rides/{id}/accept", "issue": "Does not call _release_expired_preferred_rides first. After the window ends, a ride stays 'assigned' (other drivers get 403) until some list endpoint is called. In practice this is fine because the driver offers list triggers the release."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmisoraClient address autocomplete", "issue": "After 'Solicitar taxi' the form is reset but both suggestion dropdowns (origin and destination) stay open and cover the Destino and Pasajeros fields and the trusted-driver checkbox. This may be pre-existing.", "selector": "[data-testid='emisora-origin-input'] suggestions", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Driver TrustedRideAlert", "issues": ["A 'Decidir luego' dismissal is only kept in memory (useRef), so the modal comes back after a page reload or new login. Acceptable, but consider storing it in AsyncStorage."]},
+      {"screen": "Driver EmisoraBanner", "issues": ["The 'Activas' and 'ASAP' counts are capped at 50 because the endpoint has limit(50), so 50 may not be the real number."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_trusted_driver.py", "/app/backend/tests/test_trusted_driver_extended.py", "/app/backend/tests/ui_setup_trusted.py", "/app/test_reports/pytest/trusted_ext.xml"],
+  "action_items": [
+    "Fix the wrong client message for scheduled rides more than 12h ahead with prefer_my_driver=true (preferred=true but exclusive_until=null).",
+    "Optional: close the autocomplete dropdowns after a ride is created.",
+    "Optional: call _release_expired_preferred_rides inside accept/reject for consistency."
+  ],
+  "critical_code_review_comments": [
+    "rides.py create_ride line 881: `associated_driver_id if dispatch_scope == 'assigned' else associated_driver_id` gives the same value in both branches (dead ternary).",
+    "rides.py is over 1500 lines; consider splitting the client, driver and ratings routers.",
+    "EmisoraBanner trustedAction hides the modal even when the API call fails (for example a 409 when another driver took the ride). It shows a window.alert, which is OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_trusted_driver_extended.py", "/app/backend/tests/ui_setup_trusted.py"],
+  "success_rate": {"backend": "90% (9/10; the 1 failure is the scheduled-ride flag bug)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Clients +34600999401-406 and +34600999501-503 (names TEST_*) are linked to admin. All test rides were cancelled afterwards with `python ui_setup_trusted.py cleanup`; there are 0 pending preferred rides left.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use ui_setup_trusted.py: 'sessions' writes the linked and unlinked client sessions to stdout (save to /tmp/sess.json); 'ride <name>' creates a trusted ASAP ride for admin; 'cleanup' cancels TEST rides. Client UI login: set localStorage appRole=client, emisora_client_token and emisora_client_info (the client JSON). Driver: appRole=driver, then log in with admin/admin through the UI inputs (placeholder 'Nombre de usuario' / 'Contraseña', data-testid login-button)."
+}

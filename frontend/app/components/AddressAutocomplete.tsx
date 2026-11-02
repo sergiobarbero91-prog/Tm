@@ -77,6 +77,7 @@ export const AddressAutocomplete: React.FC<Props> = ({
       return;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value) setOpen(false);  // form reset after submit: don't leave the dropdown covering the form
     debounceRef.current = setTimeout(() => {
       fetchSuggestions(value);
     }, 300);

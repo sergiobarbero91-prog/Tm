@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="5.850" timestamp="2026-11-02T12:55:26.826710+00:00" hostname="agent-env-df920cdb-683e-448e-8b96-d6d16cf4bc96"><testcase classname="tests.test_trusted_driver_extended" name="test_public_create_trusted_ride" time="1.501" /><testcase classname="tests.test_trusted_driver_extended" name="test_prefer_without_linked_driver_is_400" time="0.579" /><testcase classname="tests.test_trusted_driver_extended" name="test_scheduled_far_future_with_prefer" time="0.419"><failure message="AssertionError: preferred=true but no exclusive_until: client UI will show 'Tu taxista no pudo aceptarlo' for a still-exclusive ride&#10;assert not (True and None is None and not False)">dt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkYWJiNTcyYi02YWRlLTQwZmMtYWMyOC01YmMyOWI4ZDY2ODYiLCJleHAiOjE3OTM3MTA1Mjd9.RLZgdILCV7Hmwdunbgpco08qqNk1E7AtSDSw3qm6wzU'
+
+    def test_scheduled_far_future_with_prefer(dt):
+        """Scheduled &gt;12h + prefer: already exclusive; check flags are coherent for the UI."""
+        ct = _client(dt, "+34600999403")
+        when = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        r = _ask(ct, ride_type="scheduled", scheduled_at=when)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        print("scheduled&gt;12h prefer -&gt;", d["dispatch_scope"], d["preferred"], d["exclusive_until"], d["preferred_released"])
+        assert d["dispatch_scope"] == "assigned"
+        # UI shows 'Esperando...' only if exclusive_until is set; otherwise it wrongly shows 'no pudo aceptarlo'
+&gt;       assert not (d["preferred"] and d["exclusive_until"] is None and not d["preferred_released"]), \
+            "preferred=true but no exclusive_until: client UI will show 'Tu taxista no pudo aceptarlo' for a still-exclusive ride"
+E       AssertionError: preferred=true but no exclusive_until: client UI will show 'Tu taxista no pudo aceptarlo' for a still-exclusive ride
+E       assert not (True and None is None and not False)
+
+tests/test_trusted_driver_extended.py:84: AssertionError</failure></testcase><testcase classname="tests.test_trusted_driver_extended" name="test_release_then_reject_again_is_403" time="1.124" /><testcase classname="tests.test_trusted_driver_extended" name="test_accept_then_client_sees_driver" time="0.772" /><testcase classname="tests.test_trusted_driver_extended" name="test_cancel_trusted_ride_removes_from_assigned" time="1.366" /></testsuite></testsuites>

@@ -863,7 +863,9 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
     if body.prefer_my_driver and not associated_driver_id:
         raise HTTPException(status_code=400, detail="No tienes un taxista de confianza asociado")
     exclusive_until = None
-    if preferred and dispatch_scope != "assigned":
+    if preferred and dispatch_scope == "assigned":
+        preferred = False  # already exclusive for that driver (scheduled >12 h ahead)
+    elif preferred:
         dispatch_scope = "assigned"
         exclusive_until = now + timedelta(minutes=PREFERRED_WINDOW_MIN)
 
@@ -1103,6 +1105,7 @@ async def driver_list_active(current: dict = Depends(get_current_user_required))
 
 @router.post("/rides/{ride_id}/accept", response_model=RideResponse)
 async def driver_accept_ride(ride_id: str, current: dict = Depends(get_current_user_required)):
+    await _release_expired_preferred_rides()
     doc = await rides_collection.find_one({"id": ride_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Servicio no encontrado")

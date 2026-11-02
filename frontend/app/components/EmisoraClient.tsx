@@ -867,8 +867,10 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
               <Text style={{ color: '#94A3B8', fontSize: 12 }}>→ {r.destination}</Text>
               {r.preferred && r.status === 'pending' && (
                 <Text testID={`emisora-preferred-status-${r.id}`} style={{ color: r.dispatch_scope === 'assigned' ? '#F59E0B' : '#94A3B8', fontSize: 12, fontWeight: '700', marginTop: 6 }}>
-                  {r.dispatch_scope === 'assigned' && r.exclusive_until
-                    ? `Esperando a tu taxista de confianza · le quedan ${minutesLeft(r.exclusive_until)} min para aceptar`
+                  {r.dispatch_scope === 'assigned'
+                    ? (r.exclusive_until
+                      ? `Esperando a tu taxista de confianza · le quedan ${minutesLeft(r.exclusive_until)} min para aceptar`
+                      : 'Reservado para tu taxista de confianza')
                     : 'Tu taxista no pudo aceptarlo: enviado al resto de taxistas'}
                 </Text>
               )}
