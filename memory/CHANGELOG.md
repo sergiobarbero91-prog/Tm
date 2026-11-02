@@ -84,3 +84,10 @@
 - Perfil: la licencia puede borrarse (cadena vacía).
 - Front: LicenseRestBanner arriba en la pestaña Calle; HolidaysAdmin plegable en el panel admin (reactivar festivos); EmisoraClient muestra la disponibilidad y un aviso con «Enviar igualmente a mi taxista» / «Enviar a todos los taxistas».
 - Tests: test_license_rest.py (6) + test_license_rest_api.py; iteration_35.
+
+## 2026-06 — Libranzas: mejoras
+- GET /api/rides/client/available-drivers?at= → nº de taxistas con licencia que no libran y están en su turno (sin propietarios). EmisoraClient muestra «N taxistas disponibles ahora / a esa hora».
+- GET /api/license-rest/calendar?year&month + LicenseCalendar.tsx en el perfil (semanal rojo, fin de semana azul, festivo morado; detalle al tocar).
+- /me devuelve rest_soon + minutes_to_rest (≤60 min) → aviso discreto en el banner de Calle.
+- notifyLicenseChanged(): el banner se actualiza al guardar el perfil. El perfil ya permite dejar la licencia vacía.
+- Tests: test_license_rest.py (+month_calendar), test_license_rest_iter36.py; iteration_36.

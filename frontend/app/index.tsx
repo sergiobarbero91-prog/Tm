@@ -2792,12 +2792,12 @@ function TransportMeter() {
 
   // Update profile
   const handleUpdateProfile = async () => {
-    if (!profileFullName || !profileLicenseNumber) {
-      Alert.alert('Error', 'Nombre y licencia son obligatorios');
+    if (!profileFullName) {
+      Alert.alert('Error', 'El nombre es obligatorio');
       return;
     }
 
-    if (!/^\d+$/.test(profileLicenseNumber)) {
+    if (profileLicenseNumber && !/^\d+$/.test(profileLicenseNumber)) {
       Alert.alert('Error', 'El número de licencia debe contener solo dígitos');
       return;
     }

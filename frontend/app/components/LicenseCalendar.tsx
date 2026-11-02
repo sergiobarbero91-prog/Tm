@@ -63,11 +63,11 @@ export const LicenseCalendar: React.FC<{ licenseNumber?: string | null }> = ({ l
     <View testID="license-calendar" style={card}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
         <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
-        <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 16, flex: 1, marginLeft: 6 }}>Mis libranzas</Text>
+        <Text style={{ color: '#F1F5F9', fontWeight: '800', fontSize: 15, flex: 1, marginLeft: 6 }} numberOfLines={1}>Mis libranzas</Text>
         <TouchableOpacity testID="license-calendar-prev" onPress={() => shift(-1)} style={{ padding: 4 }}>
           <Ionicons name="chevron-back" size={20} color="#CBD5E1" />
         </TouchableOpacity>
-        <Text testID="license-calendar-month" style={{ color: '#F1F5F9', fontWeight: '700', width: 120, textAlign: 'center' }}>
+        <Text testID="license-calendar-month" style={{ color: '#F1F5F9', fontWeight: '700', minWidth: 96, textAlign: 'center', fontSize: 13 }}>
           {MONTHS[ym.m - 1]} {ym.y}
         </Text>
         <TouchableOpacity testID="license-calendar-next" onPress={() => shift(1)} style={{ padding: 4 }}>
@@ -93,12 +93,12 @@ export const LicenseCalendar: React.FC<{ licenseNumber?: string | null }> = ({ l
                 <View style={{
                   width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: rests.length ? COLORS[rests[0].kind] + '33' : 'transparent',
-                  borderWidth: iso === selected ? 2 : iso === todayIso ? 1 : 0,
-                  borderColor: iso === selected ? '#F59E0B' : '#94A3B8',
+                  borderWidth: iso === selected ? 2 : rests.length > 1 ? 2 : iso === todayIso ? 1 : 0,
+                  borderColor: iso === selected ? '#F59E0B' : rests.length > 1 ? COLORS[rests[1].kind] : '#94A3B8',
                 }}>
                   <Text style={{ color: rests.length ? COLORS[rests[0].kind] : '#CBD5E1', fontWeight: rests.length ? '800' : '500' }}>{d}</Text>
                 </View>
-                {rests.length > 1 && <View style={{ position: 'absolute', bottom: 2, width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS[rests[1].kind] }} />}
+                {rests.length > 1 && <View style={{ position: 'absolute', bottom: 0, width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS[rests[1].kind] }} />}
               </TouchableOpacity>
             );
           })}

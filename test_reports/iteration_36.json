@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the 4 libranzas follow-up features plus regression. Backend: 52/52 pytest passed, made up of 20 new tests in test_license_rest_iter36.py, 21 earlier license-rest tests and 10 trusted-driver tests. One run had a single transient failure (no-auth 401), which then passed in 3 reruns and by curl. (1) GET /rides/client/available-drivers: no auth gives 401, a driver token gives 403 and a bad 'at' gives 422. The count matches the pure rules for now and 4 ISO times. Inserted TEST drivers change the count as expected: a working driver in shift adds 1; weekly rest, out of shift, propietario and an empty licence add 0. (2) GET /license-rest/calendar: no licence gives {known:false, days:[]}. With licence 99998 the result equals month_calendar(); Monday weekly rests are 06:00-06:00 with ends_next_day=true, weekend rests are 07:00-20:00 on odd dates, and 2026-11-09 has both holiday and weekly. Month 0 and 13 give 400; no auth gives 401. (3) /me rest_soon was tested at unit level by calling my_rest_status with a frozen clock. 45 min before gives rest_soon with minutes_to_rest=45. Exactly 60 min gives true/60. 61 min gives no flag. While resting there is no flag. The live /me call is consistent. Frontend (mobile 390x844): the banner showed 'Libranza desconocida' before. Right after saving licence 99998 in Editar Perfil it switched to 'Hoy libras / Libras hasta mañana a las 06:00 (libranza semanal)' within 2.5s, with no 60s wait. LicenseCalendar: with no licence the placeholder shows. With licence 99998, November shows Mondays in red and odd weekend days in blue; 09/11 is red with a purple dot. The detail panel lists both rests for 09/11, 'Puedes trabajar todo el día' for 10/11 and the weekend rest for 07/11. Next/prev move through Dec 2026, Jan 2027 and Oct 2026, and the detail resets on month change. Client: shows '2 taxistas disponibles ahora' for ASAP; it is hidden in Reserva mode until date and time are chosen, then shows '4 ... a esa hora' (tomorrow 08:00) and '3 ... a esa hora' (22:00). All match the backend's expected counts for the same 'at'. Regression: the trusted-driver toggle text ('libra hasta ...' wording fixed), the banner, and the collapsible HolidaysAdmin (14 rows when expanded) all work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/rides/client/available-drivers", "issue": "Counts every registered user with a licence (including admin and test, never-logged-in or inactive accounts), not drivers who are online or active. This follows the agreed rule but may overstate real availability. It also scans the whole users collection on every call; consider a projection, index or short cache."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Profile > LicenseCalendar", "issues": ["At 390px the title 'Mis libranzas' wraps onto 2 lines next to the month navigator (fixed width 120).", "When a weekly rest and a holiday fall on the same day, the cell is red and the holiday shows only as a 5px purple dot, so holiday purple is hard to notice."]},
+      {"screen": "Edit profile", "issues": ["The frontend still requires a licence ('Nombre y licencia son obligatorios'), so the backend change that allows clearing the licence cannot be used from the UI."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_license_rest_iter36.py", "/app/backend/tests/test_license_rest_api.py", "/app/backend/tests/test_license_rest.py", "/app/test_reports/pytest/pytest_iter36.xml"],
+  "action_items": [
+    "Optional: decide whether available-drivers should only count recently active drivers (for example last_seen within N days).",
+    "Optional: stop the calendar header wrapping on mobile; make holiday days more visible when they overlap a weekly rest.",
+    "Optional: allow an empty licence in handleUpdateProfile if clearing is intended."
+  ],
+  "critical_code_review_comments": [
+    "count_available_drivers loads up to 20000 users per request and runs license_status for each. This is fine now but should be cached for 60s per time bucket.",
+    "LicenseCalendar and EmisoraClient build dates from the device timezone (new Date(...)). This is fine for Madrid devices; in the UTC test browser, 'tomorrow 08:00' was sent as 08:00Z (09:00 Madrid).",
+    "LicenseCalendar calls the calendar endpoint even when licenseNumber is empty (load runs before the early return). This is harmless."
+  ],
+  "updated_files": ["/app/backend/tests/test_license_rest_iter36.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "TEST_avail_* users were inserted and removed by the fixture. The client sessions +34600999401/501/502 were reused and TEST rides were cancelled with ui_setup_trusted cleanup. Admin was restored (license_number unset, preferred_shift=day).",
+  "flaky_tests": ["test_license_rest_iter36::TestAvailableDrivers::test_no_auth_401 failed once in the first full run (1 of 4 runs), likely a transient ingress or cold-start response; it passed in every later run and by curl."],
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The container clock is Mon 2026-11-02 (holiday). Licence 99998 rests on Mondays and on odd weekend or holiday dates. The client UI session comes from 'python tests/ui_setup_trusted.py sessions > /tmp/sess.json'; set the localStorage keys appRole=client, emisora_client_token and emisora_client_info. The driver UI uses appRole=driver plus admin/admin; open the profile by clicking the 'admin' text, then 'Editar Perfil', the 'Solo números' input and 'Guardar'. The rest_soon banner text (license-rest-soon) was not visible live because no rest starts within 60 min of the test time; it was verified at unit level only."
+}
