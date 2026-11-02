@@ -171,9 +171,37 @@ def parse_jsonld_events(page: str, place: str, source: str, category: str, hot: 
     return out
 
 
+KAPITAL_DAYS = {"lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2, "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6}
+KAPITAL_DEFAULT = {2: ("23:00", "05:30"), 3: ("23:00", "05:30"), 4: ("23:00", "06:00"), 5: ("23:00", "06:00"), 6: ("23:00", "05:30")}
+_KAPITAL_RE = re.compile(r"(lunes|martes|mi[ée]rcoles|jueves|viernes|s[áa]bado|domingo)\s*:\s*(\d{1,2}:\d{2})h?\s*[–-]\s*(\d{1,2}:\d{2})", re.I)
+
+
+def parse_kapital(page: str, now: datetime) -> List[Dict]:
+    """Teatro Kapital (7-floor club) has no event list: one entry per opening night, from the hours on its web."""
+    hours = {KAPITAL_DAYS[d.lower()]: (a, b) for d, a, b in _KAPITAL_RE.findall(html.unescape(page)) if d.lower() in KAPITAL_DAYS}
+    hours = hours or KAPITAL_DEFAULT
+    out = []
+    for i in range(-1, HORIZON_DAYS + 1):
+        day = (now + timedelta(days=i)).date()
+        if day.weekday() not in hours:
+            continue
+        (sh, sm), (eh, em) = (map(int, t.split(":")) for t in hours[day.weekday()])
+        start = MADRID_TZ.localize(datetime(day.year, day.month, day.day, sh, sm))
+        end = MADRID_TZ.localize(datetime(day.year, day.month, day.day, eh, em))
+        if end <= start:
+            end += timedelta(days=1)
+        if end < now:
+            continue
+        weekend = day.weekday() in (4, 5)
+        out.append(_ev("kapital", f"noche-{day}", "Teatro Kapital · sesión de discoteca", "Teatro Kapital", start, end,
+                       "noche", weekend, "https://teatrokapital.com/"))
+    return out
+
+
 async def fetch_venues(session, now) -> List[Dict]:
     jobs = {
         "movistar_arena": ("https://www.movistararena.es/programacion", lambda p: parse_movistar_arena(p, now), False),
+        "kapital": ("https://teatrokapital.com/", lambda p: parse_kapital(p, now), False),
         "vistalegre": ("https://www.palaciovistalegre.com/wp-json/tribe/events/v1/events?per_page=50", lambda d: parse_vistalegre(d, now), True),
         "riviera": ("https://salariviera.com/conciertossalariviera/", lambda p: parse_jsonld_events(p, "Sala La Riviera", "riviera", "concierto", False, now), False),
         "ifema": ("https://www.ifema.es/calendario", lambda p: parse_jsonld_events(p, "IFEMA", "ifema", "feria", False, now, (10, 19)), False),

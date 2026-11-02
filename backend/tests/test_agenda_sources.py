@@ -57,3 +57,15 @@ def test_ayuntamiento_filters_and_recurrence():
     ]}
     res = parse_ayuntamiento(data, NOW)
     assert [(e["name"], e["date"], e["start"]) for e in res] == [("Moscú no existe", "2026-11-03", "19:30"), ("Moscú no existe", "2026-11-05", "19:30")]
+
+
+def test_kapital_nights_from_opening_hours():
+    from agenda_sources import parse_kapital
+    page = "Miércoles: 23:00h – 5:30h Jueves: 23:00h – 5:30h Viernes: 23:00h – 06:00h Sábado: 23:00h – 06:00h Domingo: 23:00h – 5:30h"
+    res = parse_kapital(page, NOW)  # NOW = Monday 2 Nov 2026
+    first = res[0]
+    assert first["date"] == "2026-11-04" and first["start"] == "23:00" and first["end"] == "05:30" and not first["hot"]
+    fri = next(e for e in res if e["date"] == "2026-11-06")
+    assert fri["hot"] and fri["end"] == "06:00" and fri["category"] == "noche"
+    assert not any(e["date"] in ("2026-11-02", "2026-11-03") for e in res)  # closed Mon/Tue
+    assert parse_kapital("", NOW)  # falls back to known hours

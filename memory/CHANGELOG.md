@@ -65,3 +65,6 @@
 - daily_summary: _agenda_facts_today injects today's verified agenda into the Gemini prompt.
 - Frontend: components/AgendaSection.tsx in the Eventos tab (filters Todo/Deportes/Conciertos/Ferias/Cultura, grouped by day, ALTA DEMANDA badge, tapping a row opens its link).
 - Tests: test_agenda_sources.py, test_agenda_api.py. iteration_32 100%.
+
+- Agenda: Teatro Kapital added (parse_kapital). It has no event list, so there is one 'noche' entry per opening night, using the hours from its homepage (Wed-Sun 23:00-05:30/06:00, fallback built in), marked hot on Fri/Sat. The frontend has a 'Noche' filter.
+- Caja Mágica and Las Ventas: NOT added. Neither has a public agenda: Caja Mágica has no website of its own, and taquilla.com only lists excursions for Las Ventas. Options: Ticketmaster Discovery API (free key) or adding them by hand.

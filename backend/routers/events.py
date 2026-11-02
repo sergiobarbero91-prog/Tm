@@ -67,7 +67,7 @@ async def get_agenda(days: int = 7, current_user: dict = Depends(get_current_use
     ).sort("start_utc", 1)
     events = await cursor.to_list(1000)
     return {"events": events, "count": len(events),
-            "sources": "Fútbol (ESPN) · Movistar Arena · Palacio Vistalegre · La Riviera · IFEMA · Agenda del Ayuntamiento (datos.madrid.es)"}
+            "sources": "Fútbol (ESPN) · Movistar Arena · Palacio Vistalegre · La Riviera · IFEMA · Teatro Kapital · Agenda del Ayuntamiento (datos.madrid.es)"}
 
 # Models
 class CreateEventRequest(BaseModel):

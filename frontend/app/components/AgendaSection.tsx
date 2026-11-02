@@ -25,8 +25,9 @@ const FILTERS: [string, string, string[]][] = [
   ['concierto', 'Conciertos', ['concierto', 'musica']],
   ['feria', 'Ferias', ['feria']],
   ['cultura', 'Cultura', ['cultura', 'fiesta']],
+  ['noche', 'Noche', ['noche']],
 ];
-const CAT_ICON: Record<string, any> = { futbol: 'football', deporte: 'basketball', concierto: 'musical-notes', musica: 'musical-notes', feria: 'business', cultura: 'color-palette', fiesta: 'sparkles' };
+const CAT_ICON: Record<string, any> = { futbol: 'football', deporte: 'basketball', concierto: 'musical-notes', musica: 'musical-notes', feria: 'business', cultura: 'color-palette', fiesta: 'sparkles', noche: 'moon' };
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -135,7 +136,7 @@ export const AgendaSection = ({ apiBase }: { apiBase: string }) => {
         </TouchableOpacity>
       )}
       <Text style={{ color: '#64748B', fontSize: 10, marginTop: 10 }}>
-        Fuentes: fútbol (ESPN), Movistar Arena, Palacio Vistalegre, La Riviera, IFEMA y agenda del Ayuntamiento (datos.madrid.es)
+        Fuentes: fútbol (ESPN), Movistar Arena, Palacio Vistalegre, La Riviera, IFEMA, Teatro Kapital y agenda del Ayuntamiento (datos.madrid.es)
       </Text>
     </View>
   );
