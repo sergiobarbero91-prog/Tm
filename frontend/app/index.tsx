@@ -38,6 +38,8 @@ import { RolePicker, APP_ROLE_KEY, type AppRole } from './components/RolePicker'
 import { EmisoraClient } from './components/EmisoraClient';
 import { EmisoraDriverSection } from './components/EmisoraDriverSection';
 import { EmisoraBanner } from './components/EmisoraBanner';
+import { LicenseRestBanner } from './components/LicenseRestBanner';
+import { HolidaysAdmin } from './components/HolidaysAdmin';
 import { AdminClients } from './components/admin/AdminClients';
 import { AdminUserEditModal } from './components/admin/AdminUserEditModal';
 import { ReportThread } from './components/ReportThread';
@@ -13516,6 +13518,7 @@ function TransportMeter() {
           </>
         ) : activeTab === 'street' ? (
           <>
+            <LicenseRestBanner />
             {/* Ad Banner - Street Header */}
             <AdBanner position="top" />
             {renderStreetContent()}
@@ -17117,6 +17120,8 @@ function TransportMeter() {
                 <Text style={styles.adminTitle}>Panel de Administración</Text>
               </View>
             </View>
+
+            <HolidaysAdmin />
 
             {/* Stats Cards */}
             <View style={styles.adminStatsRow}>

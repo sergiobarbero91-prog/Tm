@@ -108,6 +108,8 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
   const [schedTime, setSchedTime] = useState('');
   const [passengers, setPassengers] = useState('1');
   const [preferMyDriver, setPreferMyDriver] = useState(false);
+  const [driverAvail, setDriverAvail] = useState<{ available: boolean | null; message: string } | null>(null);
+  const [unavailOpen, setUnavailOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const [rides, setRides] = useState<Ride[]>([]);
@@ -312,7 +314,29 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
     setLastName('');
   };
 
-  const handleCreateRide = async () => {
+  const scheduledIso = rideType === 'scheduled' && schedDate && schedTime
+    ? new Date(`${schedDate}T${schedTime}:00`).toISOString()
+    : null;
+
+  useEffect(() => {
+    if (!preferMyDriver || !client?.associated_driver_id) {
+      setDriverAvail(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = scheduledIso ? `?at=${encodeURIComponent(scheduledIso)}` : '';
+        const r = await axios.get(`${API_BASE}/api/rides/client/driver-availability${q}`, { headers: await authHeaders() });
+        if (!cancelled) setDriverAvail(r.data);
+      } catch {
+        if (!cancelled) setDriverAvail(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [preferMyDriver, scheduledIso, client?.associated_driver_id, authHeaders]);
+
+  const handleCreateRide = async (choice?: 'trusted' | 'pool') => {
     if (!origin.trim() || !destination.trim()) {
       notify('Rellena origen y destino');
       return;
@@ -321,6 +345,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       notify('Indica fecha y hora del servicio');
       return;
     }
+    const wantsTrusted = preferMyDriver && !!client?.associated_driver_id;
+    if (wantsTrusted && !choice && driverAvail?.available === false) {
+      setUnavailOpen(true);
+      return;
+    }
+    setUnavailOpen(false);
+    const toPool = choice === 'pool';
     setCreating(true);
     try {
       const body: any = {
@@ -328,7 +359,8 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
         destination: destination.trim(),
         ride_type: rideType,
         passengers: parseInt(passengers, 10) || 1,
-        prefer_my_driver: preferMyDriver && !!client?.associated_driver_id,
+        prefer_my_driver: wantsTrusted && !toPool,
+        send_to_pool: toPool,
       };
       if (originCoords) {
         body.origin_lat = originCoords.lat;
@@ -346,13 +378,13 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
       setSchedDate('');
       setSchedTime('');
       setPassengers('1');
-      const askedTrusted = preferMyDriver && !!client?.associated_driver_id;
+      const askedTrusted = wantsTrusted && !toPool;
       setPreferMyDriver(false);
       await refreshRides();
       await refreshFrequentAddresses();
       notify(askedTrusted
         ? 'Servicio solicitado a tu taxista de confianza. Tiene hasta 30 minutos para aceptarlo; si no, pasará al resto de taxistas.'
-        : 'Servicio solicitado correctamente');
+        : toPool ? 'Servicio enviado a todos los taxistas' : 'Servicio solicitado correctamente');
     } catch (e: any) {
       notify(e?.response?.data?.detail || 'No se pudo crear el servicio');
     } finally {
@@ -770,6 +802,14 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
                 <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
                   Solo lo verá tu taxista durante 30 minutos. Si no lo acepta en ese tiempo, pasará al resto de taxistas.
                 </Text>
+                {preferMyDriver && driverAvail && (
+                  <Text
+                    testID="emisora-driver-availability"
+                    style={{ color: driverAvail.available === false ? '#FCA5A5' : driverAvail.available ? '#6EE7B7' : '#CBD5E1', fontSize: 12, marginTop: 6, fontWeight: '700' }}
+                  >
+                    {driverAvail.message}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           )}
@@ -832,7 +872,7 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           )}
 
           <TouchableOpacity
-            onPress={handleCreateRide}
+            onPress={() => handleCreateRide()}
             disabled={creating}
             style={{ backgroundColor: '#F59E0B', padding: 14, borderRadius: 10, alignItems: 'center' }}
             testID="emisora-create-ride-btn"
@@ -906,6 +946,25 @@ export const EmisoraClient: React.FC<{ onBack: () => void; qrToken?: string | nu
           );
         })}
       </ScrollView>
+
+      <Modal visible={unavailOpen} transparent animationType="fade" onRequestClose={() => setUnavailOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000A', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View testID="emisora-unavailable-modal" style={{ backgroundColor: '#1E293B', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, borderWidth: 1, borderColor: '#EF4444' }}>
+            <Ionicons name="alert-circle" size={36} color="#EF4444" />
+            <Text style={{ color: '#F1F5F9', fontSize: 18, fontWeight: '800', marginTop: 8 }}>Tu taxista puede no estar disponible</Text>
+            <Text style={{ color: '#CBD5E1', marginTop: 6 }}>{driverAvail?.message}</Text>
+            <TouchableOpacity testID="emisora-unavailable-send-trusted" onPress={() => handleCreateRide('trusted')} style={{ backgroundColor: '#F59E0B', borderRadius: 10, padding: 14, marginTop: 16, alignItems: 'center' }}>
+              <Text style={{ color: '#0F172A', fontWeight: '800' }}>Enviar igualmente a mi taxista</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="emisora-unavailable-send-pool" onPress={() => handleCreateRide('pool')} style={{ backgroundColor: '#3B82F6', borderRadius: 10, padding: 14, marginTop: 10, alignItems: 'center' }}>
+              <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>Enviar a todos los taxistas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="emisora-unavailable-cancel" onPress={() => setUnavailOpen(false)} style={{ padding: 12, marginTop: 4, alignItems: 'center' }}>
+              <Text style={{ color: '#94A3B8' }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Ride history modal */}
       <Modal visible={historyOpen} transparent animationType="fade" onRequestClose={() => setHistoryOpen(false)}>

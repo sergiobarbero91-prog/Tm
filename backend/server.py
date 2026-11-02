@@ -91,6 +91,7 @@ from routers import social as social_router
 from routers import release_notes as release_notes_router
 from routers import whatsapp as whatsapp_router
 from routers import rides as rides_router
+from routers import license_rest as license_rest_router
 from routers import tickets as tickets_router
 
 # Import Renfe GTFS module for fallback train data
@@ -4139,6 +4140,7 @@ api_router.include_router(social_router.router)
 api_router.include_router(release_notes_router.router)
 api_router.include_router(whatsapp_router.router)
 api_router.include_router(rides_router.router)
+api_router.include_router(license_rest_router.router)
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -4626,6 +4628,7 @@ async def startup_db_client():
     asyncio.create_task(alsa_schedule_refresh_loop())
     from routers.events import agenda_refresh_loop
     asyncio.create_task(agenda_refresh_loop())
+    asyncio.create_task(license_rest_router.holidays_sync_loop())
     logger.info("Background cache refresh task started")
     
     # Start WhatsApp hourly update task

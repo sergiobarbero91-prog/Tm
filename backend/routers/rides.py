@@ -301,6 +301,35 @@ async def client_me(current: dict = Depends(get_current_client_required)):
     )
 
 
+@router.get("/client/driver-availability")
+async def client_driver_availability(at: Optional[datetime] = None, current: dict = Depends(get_current_client_required)):
+    from routers.license_rest import driver_availability
+    driver_id = current.get("associated_driver_id")
+    driver = await users_collection.find_one({"id": driver_id}) if driver_id else None
+    if not driver:
+        return {"has_driver": False}
+    when = _as_utc(at) or datetime.now(timezone.utc)
+    st = await driver_availability(driver, when)
+    available = None if not st["known"] else bool(st["can_work"] and st["in_shift"])
+    if st["known"] and not st["can_work"]:
+        message = f"Tu taxista tiene {st['reason']} a esa hora ({st['label'].lower()})."
+    elif st["known"] and not st["in_shift"]:
+        message = f"A esa hora tu taxista está fuera de su turno habitual ({st['shift_label']})."
+    elif st["known"]:
+        message = "Tu taxista puede prestar servicio a esa hora."
+    else:
+        message = "Tu taxista no ha indicado su licencia; no sabemos si libra."
+    return {
+        "has_driver": True,
+        "driver_name": (driver.get("full_name") or driver.get("username") or "").split(" ")[0],
+        "known": st["known"],
+        "license_ok": st["can_work"],
+        "in_shift": st["in_shift"],
+        "available": available,
+        "message": message,
+    }
+
+
 # ─────────────── Client auth via driver code (NO SMS) ─────────────────
 class ClientAuthenticateBody(BaseModel):
     phone: str
@@ -763,6 +792,7 @@ class RideCreateBody(BaseModel):
     origin_lat: Optional[float] = None
     origin_lon: Optional[float] = None
     prefer_my_driver: bool = False  # reserve for the inviting driver for PREFERRED_WINDOW_MIN
+    send_to_pool: bool = False  # client chose the general pool (e.g. trusted driver is resting)
 
     @validator("ride_type")
     def _rt(cls, v: str) -> str:  # noqa: N805
@@ -855,11 +885,11 @@ async def create_ride(body: RideCreateBody, current: dict = Depends(get_current_
     dispatch_scope = "open"
     if body.ride_type == "scheduled" and associated_driver_id and sched:
         hours_until = (sched - now).total_seconds() / 3600.0
-        if hours_until > 12:
+        if hours_until > 12 and not body.send_to_pool:
             dispatch_scope = "assigned"
 
     # "Pedir a mi taxista de confianza": exclusive for the inviting driver for 30 min, then general pool
-    preferred = bool(body.prefer_my_driver and associated_driver_id)
+    preferred = bool(body.prefer_my_driver and associated_driver_id and not body.send_to_pool)
     if body.prefer_my_driver and not associated_driver_id:
         raise HTTPException(status_code=400, detail="No tienes un taxista de confianza asociado")
     exclusive_until = None
