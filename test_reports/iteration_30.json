@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of Gestión/Salario 'Modo de cobro' changes (rename Fijo -> 'Porcentaje fijo', new 'Pago fijo' alquiler mode). Logged in as admin (Soy taxista), mobile 390x844. Verified: 4 mode buttons render with correct labels ('Fijo' no longer present); Pago fijo panel shows only in pago_fijo mode (tramos hidden), defaults 125 €/día × 22 días = 2750.00 €, live total updates and accepts comma decimals (100,5 × 20 = 2010.00 €). Manual calc (rec 3000, tarjeta 800, app 200, gas 300): driver pays gas -> Tu beneficio 690.00, Pago fijo al dueño 2010.00, RESULTADO 1010.00 € a favor del dueño; owner pays gas -> beneficio 990.00, resultado 710.00 €. Regression: Porcentaje fijo 40% -> 1200/1800/500 €; Variable mensual (50% bracket) -> 1500/200 €; all mathematically correct. Cuota values retained when switching modes. PDF/HTML export in pago_fijo contains 'Pago fijo (alquiler)', '100.5 € × 20 días', 'Tu beneficio', 'Pago fijo al dueño', 2010.00. Found and fixed one layout bug (días input overflowing off-screen on mobile).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Gestión > Pago fijo inputs row", "issue": "FIXED by testing agent: on 390px width the 'días' TextInput and label overflowed past the right edge (RN-web TextInput intrinsic min width with flex:1). Added minWidth: 0 to inputStyle; verified both inputs now fit (115px each).", "selector": "[data-testid='gestion-cuota-dias']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Gestión > Modo de cobro", "issues": ["'Pago fijo' button wraps onto its own full-width row while the other three share a row - visually inconsistent (acceptable, but a 2x2 grid would look more balanced)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Mode buttons, CALCULAR, gas Sí/No, manual toggle, PDF button and gestion-input-* TextInputs use `data-testid` prop which react-native-web does NOT render; use `testID` instead (only the new View/TextInput with testID rendered). Tests had to fall back to text selectors.",
+    "Optional: PDF modeLabel/bracketStr for non-pago modes read live gestionMode/gestionT1.. instead of the calc snapshot; switching mode after CALCULAR without recalculating gives a mismatched PDF label (pre-existing).",
+    "Optional: gestionMode / cuota values are not persisted (reset to Porcentaje fijo / 125×22 on reload)."
+  ],
+  "critical_code_review_comments": [
+    "Pago fijo math consistent with existing saldo convention: saldo = cuota − tarjeta − app (− gasolina if owner pays); beneficio = rec − cuota − (gas if driver pays).",
+    "index.tsx is ~22.9k lines; Gestión calculator should be extracted into its own component/module."
+  ],
+  "updated_files": ["/app/frontend/app/index.tsx (added minWidth: 0 to pago fijo inputStyle)"],
+  "success_rate": {"backend": "N/A", "frontend": "100% (after minor layout fix)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login flow: click 'Soy taxista' on role screen, then admin/admin, then '#page-selector-*' dropdown -> 'Gestión'. Use text selectors for mode buttons ('Porcentaje fijo','Variable diario','Variable mensual','Pago fijo'), 'Cálculo manual', 'CALCULAR'; manual inputs via label text + xpath following-sibling::input. testIDs that render: gestion-pago-fijo, gestion-cuota-dia, gestion-cuota-dias, gestion-cuota-total, gestion-tu-parte, gestion-parte-jefe. Owner 'Vista Comparativa' not tested."
+}

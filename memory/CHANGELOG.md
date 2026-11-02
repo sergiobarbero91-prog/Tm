@@ -40,3 +40,7 @@
 ## 🪪 Business card with the user's design (Jun 2026)
 - Template `backend/assets/card/template.png` (1536x1024) is the user's design with the word "admin" removed (OpenCV inpaint). Fonts are Poppins ExtraBoldItalic/ExtraBold/Bold (OFL) in backend/assets/fonts.
 - `business_card.py` draws, in fixed regions: the driver's name (shadow, auto-fit), the QR (decodes correctly), the 6-digit code, and the phone (+34 stripped, "611 000 999"; "Pide tu taxi en la app" if there is no phone). The web address and icons are part of the template.
+
+## 💶 Gestión: Porcentaje fijo + Pago fijo (alquiler) (Jun 2026)
+- "Fijo" was renamed "Porcentaje fijo". New mode pago_fijo: € per day × days (editable, default 125×22). The owner always gets the full amount, whatever the days worked.
+- Driver benefit = billing − fixed payment − petrol (only if the driver pays it). Settlement = fixed payment − card − app − petrol (if the owner pays it). The breakdown and the PDF are adapted. Mode buttons are a 2x2 grid. iteration_30 100%.

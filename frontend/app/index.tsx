@@ -15193,7 +15193,7 @@ function TransportMeter() {
                         onPress={() => setGestionMode(m)}
                         style={{
                           flex: 1,
-                          minWidth: 100,
+                          minWidth: '45%',
                           paddingVertical: 10,
                           paddingHorizontal: 8,
                           borderRadius: 10,
@@ -15234,7 +15234,7 @@ function TransportMeter() {
                   {gestionMode === 'pago_fijo' && (() => {
                     const dia = parseFloat((gestionCuotaDia || '0').replace(',', '.')) || 0;
                     const dias = parseFloat((gestionCuotaDias || '0').replace(',', '.')) || 0;
-                    const inputStyle = { flex: 1, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 16, fontWeight: '700' as const, textAlign: 'center' as const };
+                    const inputStyle = { flex: 1, minWidth: 0, backgroundColor: '#1E293B', color: '#FFFFFF', borderRadius: 8, padding: 10, fontSize: 16, fontWeight: '700' as const, textAlign: 'center' as const };
                     return (
                       <View testID="gestion-pago-fijo">
                         <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 }}>
