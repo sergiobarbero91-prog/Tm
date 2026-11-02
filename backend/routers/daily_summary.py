@@ -732,7 +732,24 @@ def _strip_hallucinated_instructions(text: str) -> str:
     return "\n".join(out)
 
 
-def _generate_summary_sync(extra_prompt: Optional[str] = None) -> Dict[str, Any]:
+async def _agenda_facts_today() -> str:
+    """Today's events from the automatic agenda, given to Gemini as verified facts."""
+    try:
+        from shared import db
+        tz = pytz.timezone("Europe/Madrid")
+        today = datetime.now(tz).strftime("%Y-%m-%d")
+        docs = await db["agenda_events"].find({"date": today}, {"_id": 0}).sort("start_at", 1).to_list(80)
+    except Exception as e:
+        logger.warning(f"[daily-summary] agenda facts failed: {e}")
+        return ""
+    if not docs:
+        return ""
+    lines = [f"- {d['start']}–{d['end']} · {d['name']} · {d['place']}" + (" · ALTA DEMANDA" if d.get("hot") else "") for d in docs]
+    return ("EVENTOS VERIFICADOS DE HOY (fuentes oficiales: clubes de fútbol, recintos y Ayuntamiento). "
+            "Inclúyelos con estas horas exactas; no los contradigas:\n" + "\n".join(lines))
+
+
+def _generate_summary_sync(extra_prompt: Optional[str] = None, facts: str = "") -> Dict[str, Any]:
     """Call Gemini synchronously (intended to run inside a thread).
 
     `extra_prompt`: optional additional instructions appended AFTER the main
@@ -756,6 +773,8 @@ def _generate_summary_sync(extra_prompt: Optional[str] = None) -> Dict[str, Any]
     )
 
     base_prompt = _build_prompt()
+    if facts:
+        base_prompt = f"{base_prompt}\n\n{facts}"
     full_prompt = f"{base_prompt}\n\n{extra_prompt}" if extra_prompt else base_prompt
 
     try:
@@ -986,7 +1005,9 @@ async def _generate_summary() -> Dict[str, Any]:
         logger.warning(f"[daily-summary] airport peaks failed: {e}")
         airport_peaks = {"morning": [], "evening": []}
 
-    payload = await asyncio.to_thread(_generate_summary_sync)
+    agenda_facts = await _agenda_facts_today()
+
+    payload = await asyncio.to_thread(_generate_summary_sync, None, agenda_facts)
 
     # Retry-with-softer-prompt: if the first pass left 2+ event sections empty,
     # ask Gemini to try again with relaxed constraints.
@@ -999,7 +1020,8 @@ async def _generate_summary() -> Dict[str, Any]:
         try:
             retry_payload = await asyncio.to_thread(
                 _generate_summary_sync,
-                extra_prompt=_retry_prompt_softer(_today_madrid_str()),
+                _retry_prompt_softer(_today_madrid_str()),
+                agenda_facts,
             )
             # Only accept the retry if it actually filled sections better.
             retry_empty = _has_empty_event_sections(retry_payload.get("summary", ""))

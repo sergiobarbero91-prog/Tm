@@ -49,6 +49,7 @@ import { PoiPanel } from './components/PoiPanel';
 import { TaxitronicScanModal } from './components/TaxitronicScanModal';
 import { StationSivInfo, type StationAlert, type CancelledTrain } from './components/StationSivInfo';
 import { relaySivStations, staleSivStations } from './components/sivRelay';
+import { AgendaSection } from './components/AgendaSection';
 import { useRouter } from 'expo-router';
 
 // Note: expo-image-picker removed due to web compatibility issues
@@ -14037,6 +14038,8 @@ function TransportMeter() {
             {/* Ad Banner - Events Header */}
             <AdBanner position="top" />
             {/* Add Event Button */}
+            <AgendaSection apiBase={API_BASE} />
+
             <TouchableOpacity 
               style={styles.addEventButton}
               onPress={() => setShowAddEventModal(true)}

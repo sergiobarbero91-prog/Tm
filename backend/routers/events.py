@@ -3,11 +3,15 @@ Events router for community events (traffic jams, police controls, etc.)
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
+import asyncio
 import uuid
 import pytz
+from pymongo import UpdateOne
 
+from agenda_sources import fetch_all_agenda
 from shared import (
+    db,
     events_collection,
     get_current_user_required,
     logger,
@@ -20,6 +24,47 @@ from routers.points import add_points
 router = APIRouter(prefix="/events", tags=["Events"])
 
 MADRID_TZ = pytz.timezone('Europe/Madrid')
+agenda_collection = db["agenda_events"]
+AGENDA_REFRESH_S = 6 * 3600
+
+
+async def refresh_agenda() -> int:
+    """Pull every automatic source and replace the stored agenda (keeps the old one if all sources fail)."""
+    events = await fetch_all_agenda()
+    if not events:
+        return 0
+    await agenda_collection.create_index("uid", unique=True)
+    now = datetime.now(MADRID_TZ)
+    ops = [UpdateOne({"uid": e["uid"]}, {"$set": {**e, "updated_at": now.isoformat()}}, upsert=True) for e in events]
+    await agenda_collection.bulk_write(ops, ordered=False)
+    await agenda_collection.delete_many({"$or": [
+        {"end_at": {"$lt": (now - timedelta(hours=6)).isoformat()}},
+        {"updated_at": {"$lt": (now - timedelta(days=2)).isoformat()}},
+    ]})
+    return len(events)
+
+
+async def agenda_refresh_loop():
+    while True:
+        try:
+            await refresh_agenda()
+        except Exception as e:
+            logger.error(f"[Agenda] refresh failed: {e}")
+        await asyncio.sleep(AGENDA_REFRESH_S)
+
+
+@router.get("/agenda")
+async def get_agenda(days: int = 7, current_user: dict = Depends(get_current_user_required)):
+    """Automatic agenda (football, big venues, City Council) from now until `days` ahead."""
+    now = datetime.now(MADRID_TZ)
+    days = max(1, min(days, 21))
+    cursor = agenda_collection.find(
+        {"end_at": {"$gte": now.isoformat()}, "start_at": {"$lte": (now + timedelta(days=days)).isoformat()}},
+        {"_id": 0, "updated_at": 0},
+    ).sort("start_at", 1)
+    events = await cursor.to_list(1000)
+    return {"events": events, "count": len(events),
+            "sources": "Fútbol (ESPN) · Movistar Arena · Palacio Vistalegre · La Riviera · IFEMA · Agenda del Ayuntamiento (datos.madrid.es)"}
 
 # Models
 class CreateEventRequest(BaseModel):
