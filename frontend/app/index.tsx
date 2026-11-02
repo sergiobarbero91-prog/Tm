@@ -4899,8 +4899,11 @@ function TransportMeter() {
   }, [shift]);
 
   // Fetch AI Events Summary
+  const aiSummaryLoadedRef = useRef(false);
   const fetchAiEventsSummary = useCallback(async (forceRefresh: boolean = false) => {
-    setAiSummaryLoading(true);
+    // Background refreshes keep the current text on screen (swapping it for a spinner made the page jump)
+    const showSpinner = forceRefresh || !aiSummaryLoadedRef.current;
+    if (showSpinner) setAiSummaryLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
       const response = await axios.get(`${API_BASE}/api/events/daily-summary`, {
@@ -4909,15 +4912,16 @@ function TransportMeter() {
         timeout: 60000 // 60 second timeout for AI generation
       });
       if (response.data.success) {
-        setAiEventsSummary(response.data.summary);
+        setAiEventsSummary(prev => (prev === response.data.summary ? prev : response.data.summary));
         setAiSummaryManuallyEdited(!!response.data.manually_edited);
         setAiSummaryEditedBy(response.data.edited_by || null);
+        aiSummaryLoadedRef.current = true;
       }
     } catch (error) {
       console.error('Error fetching AI events summary:', error);
-      setAiEventsSummary('Error al cargar el resumen. Intenta de nuevo.');
+      if (showSpinner) setAiEventsSummary('Error al cargar el resumen. Intenta de nuevo.');
     } finally {
-      setAiSummaryLoading(false);
+      if (showSpinner) setAiSummaryLoading(false);
     }
   }, []);
 
